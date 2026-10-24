@@ -63,33 +63,33 @@ export default function Page() {
       />
       <EventManagementPage />
       <AnswerFirst path="/event-management" />
-      <section dir="rtl" className="bg-[#FBF6EE] px-6 py-14 text-[#3F3025]">
+      <section dir="rtl" className="bg-[#F2F4F7] px-6 py-14 text-[#1A222D]">
         <div className="mx-auto max-w-6xl">
-          <h2 className="text-3xl font-black text-[#35281F]">{EVENT_TYPE_SECTION.heading}</h2>
-          <p className="mt-3 max-w-3xl leading-8 text-[#5C4A3A]">
+          <h2 className="text-3xl font-black text-[#0B0E13]">{EVENT_TYPE_SECTION.heading}</h2>
+          <p className="mt-3 max-w-3xl leading-8 text-[#3D4754]">
             ניהול אירוע ב־Invistimo לא מוגבל לחתונה — אותם מסכי משימות, ספקים ותקציב רלוונטיים גם לאירועים משפחתיים ועסקיים.
           </p>
           <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {EVENT_TYPES.map((item) => (
-              <li key={item.label} className="rounded-2xl border border-[#E6D2AA] bg-white px-4 py-4">
-                <h3 className="font-black text-[#35281F]">{item.label}</h3>
-                <p className="mt-2 text-sm leading-6 text-[#5C4A3A]">{item.blurb}</p>
+              <li key={item.label} className="rounded-2xl border border-[#D5DBE3] bg-white px-4 py-4">
+                <h3 className="font-black text-[#0B0E13]">{item.label}</h3>
+                <p className="mt-2 text-sm leading-6 text-[#3D4754]">{item.blurb}</p>
               </li>
             ))}
           </ul>
         </div>
       </section>
-      <section dir="rtl" className="bg-[#FFFDF8] px-6 py-14 text-[#3F3025]">
+      <section dir="rtl" className="bg-[#FFFFFF] px-6 py-14 text-[#1A222D]">
         <div className="mx-auto max-w-3xl">
-          <p className="text-sm font-black tracking-wide text-[#A67C3D]">שאלות נפוצות</p>
-          <h2 className="mt-2 text-3xl font-black text-[#35281F]">ניהול אירוע — שאלות חשובות</h2>
+          <p className="text-sm font-black tracking-wide text-[#0F766E]">שאלות נפוצות</p>
+          <h2 className="mt-2 text-3xl font-black text-[#0B0E13]">ניהול אירוע — שאלות חשובות</h2>
           <div className="mt-8 space-y-4">
             {faqs.map((faq) => (
-              <details key={faq.q} open className="rounded-[24px] border border-[#E6D2AA] bg-white px-5 py-4">
+              <details key={faq.q} open className="rounded-[24px] border border-[#D5DBE3] bg-white px-5 py-4">
                 <summary className="cursor-pointer list-none">
-                  <h3 className="text-lg font-black text-[#35281F]">{faq.q}</h3>
+                  <h3 className="text-lg font-black text-[#0B0E13]">{faq.q}</h3>
                 </summary>
-                <p className="mt-3 leading-8 text-[#5C4A3A]">{faq.a}</p>
+                <p className="mt-3 leading-8 text-[#3D4754]">{faq.a}</p>
               </details>
             ))}
           </div>
@@ -97,14 +97,14 @@ export default function Page() {
             <TrackedCtaLink
               href="/pricing"
               location="footer_cta:/event-management"
-              className="inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3 text-base font-black text-white"
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#0B0E13] via-[#1A222D] to-[#0B0E13] px-8 py-3 text-base font-black text-white"
             >
               לצפייה בחבילות
             </TrackedCtaLink>
             <TrackedCtaLink
               href="/contact"
               location="footer_cta:/event-management"
-              className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white px-8 py-3 text-base font-black text-[#5E4735]"
+              className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#D5DBE3] bg-white px-8 py-3 text-base font-black text-[#1A222D]"
             >
               יצירת קשר
             </TrackedCtaLink>
@@ -112,15 +112,15 @@ export default function Page() {
         </div>
       </section>
       {siblings.length ? (
-        <section dir="rtl" className="bg-[#FBF6EE] px-6 pb-6 text-[#3F3025]">
+        <section dir="rtl" className="bg-[#F2F4F7] px-6 pb-6 text-[#1A222D]">
           <div className="mx-auto max-w-3xl">
-            <h2 className="text-xl font-black text-[#35281F]">באותו נושא</h2>
+            <h2 className="text-xl font-black text-[#0B0E13]">באותו נושא</h2>
             <ul className="mt-4 flex flex-wrap gap-3">
               {siblings.map((link) => (
                 <li key={link.path}>
                   <Link
                     href={link.path}
-                    className="inline-flex min-h-11 items-center rounded-full border border-[#E6D2AA] bg-white px-4 py-2 text-sm font-bold text-[#5E4735]"
+                    className="inline-flex min-h-11 items-center rounded-full border border-[#D5DBE3] bg-white px-4 py-2 text-sm font-bold text-[#1A222D]"
                   >
                     {link.label}
                   </Link>

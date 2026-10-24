@@ -204,7 +204,7 @@ function MediaShell({ children, tall = false }) {
         <div
           className={`
             relative overflow-hidden rounded-[26px]
-            bg-gradient-to-br from-[#fbf7ef] via-white to-[#f4eadb]
+            bg-gradient-to-br from-[#F2F4F7] via-white to-[#f4eadb]
             ${
               tall
                 ? "min-h-[660px] md:min-h-[860px]"
@@ -233,7 +233,7 @@ function SectionBlock({
     <section
       className={`
         relative overflow-hidden px-5 py-24 md:px-8 md:py-32
-        ${bg === "cream" ? "bg-[#fbf7ef]" : "bg-white"}
+        ${bg === "cream" ? "bg-[#F2F4F7]" : "bg-white"}
       `}
     >
       <div className="pointer-events-none absolute -right-28 top-16 h-72 w-72 rounded-full bg-[#ead8b7]/35 blur-3xl" />
@@ -288,10 +288,10 @@ export default function SeatingExplainedPage() {
     "relative z-20 w-full h-[680px] md:h-[900px] object-contain bg-transparent";
 
   return (
-    <div dir="rtl" className="overflow-hidden bg-[#fbf7ef] text-[#3f342b]">
+    <div dir="rtl" className="overflow-hidden bg-[#F2F4F7] text-[#3f342b]">
       {/* ================= HERO ================= */}
       <section className="relative overflow-hidden px-5 pb-10 pt-8 md:px-8 md:pb-12 md:pt-12">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(225,199,154,0.45),transparent_38%),linear-gradient(180deg,#fffaf1_0%,#fbf7ef_55%,#ffffff_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(225,199,154,0.45),transparent_38%),linear-gradient(180deg,#fffaf1_0%,#F2F4F7_55%,#ffffff_100%)]" />
 
         <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
           <motion.div
@@ -360,7 +360,7 @@ export default function SeatingExplainedPage() {
               variant="laptop"
               priority
             />
-            <p className="mt-3 text-center text-sm font-semibold text-[#7A6042]">
+            <p className="mt-3 text-center text-sm font-semibold text-[#6B7583]">
               כל אורח במקום שלו. כל שולחן בשליטה.
             </p>
           </motion.div>
@@ -381,8 +381,8 @@ export default function SeatingExplainedPage() {
 
       <section className="px-5 py-10 md:px-8">
         <div className="mx-auto max-w-4xl">
-          <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">כל אורח במקום שלו. כל שולחן בשליטה.</h2>
-          <p className="mt-3 leading-8 text-[#5C4A3A]">
+          <h2 className="text-3xl font-black text-[#0B0E13] md:text-4xl">כל אורח במקום שלו. כל שולחן בשליטה.</h2>
+          <p className="mt-3 leading-8 text-[#3D4754]">
             תכננו את מפת השולחנות, שבצו את המוזמנים וראו בזמן אמת איפה נשאר מקום —
             מהסקיצה ועד מספר השולחן לאורח.
           </p>
@@ -402,20 +402,20 @@ export default function SeatingExplainedPage() {
         <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2">
           <div className="text-right">
             <GoldBadge>תפוסה ואורחים שלא שובצו</GoldBadge>
-            <h2 className="mt-5 text-3xl font-black text-[#2A211A] md:text-4xl">
+            <h2 className="mt-5 text-3xl font-black text-[#0B0E13] md:text-4xl">
               רואים כמה מקומות נשארו — ומי עדיין בצד
             </h2>
-            <p className="mt-4 leading-8 text-[#5C4A3A]">
+            <p className="mt-4 leading-8 text-[#3D4754]">
               במפת ההושבה ובסיכומי השולחנות רואים תפוסה מול קיבולת (למשל 8/10). אורחים שלא שובצו
               נשארים ברשימה בצד עד שמציבים אותם — כך לא «נעלמים» בין גיליונות.
             </p>
-            <ul className="mt-6 space-y-3 text-[#5C4A3A]">
+            <ul className="mt-6 space-y-3 text-[#3D4754]">
               <li className="flex gap-3">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#C7A56B]" aria-hidden />
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#0F766E]" aria-hidden />
                 <span>שינוי שיבוץ: מעבירים אורח משולחן לשולחן והמפה מתעדכנת.</span>
               </li>
               <li className="flex gap-3">
-                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#C7A56B]" aria-hidden />
+                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#0F766E]" aria-hidden />
                 <span>ביום האירוע אפשר לעדכן שיבוץ אם יש גישה לחשבון — לפי מה שנרכש.</span>
               </li>
             </ul>
@@ -432,7 +432,7 @@ export default function SeatingExplainedPage() {
               alt="מפת הושבה עם שולחנות ותפוסה"
               variant="laptop"
             />
-            <p className="mt-3 text-center text-sm font-semibold text-[#7A6042]">
+            <p className="mt-3 text-center text-sm font-semibold text-[#6B7583]">
               שולחנות, תפוסה ורשימת אורחים — הכל במפה אחת
             </p>
           </div>

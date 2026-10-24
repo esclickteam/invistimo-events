@@ -2,191 +2,139 @@
 @tailwind components;
 @tailwind utilities;
 
-/* -----------------------------------------------------------
-   פלטת צבעים יוקרתית – Modern Cream + Champagne
------------------------------------------------------------ */
+/* Atelier Graphite — cool paper + ink + teal accent (replaces cream/champagne) */
 :root {
-  --cream: #faf8f4;        /* רקע קרם יוקרתי */
-  --cream-soft: #f3eee7;   /* רקע עדין */
-  --sand: #e8dfd4;         /* רקע כרטיס */
-  --champagne: #d1bba3;    /* זהב עדין */
-  --champagne-dark: #b79d85;
-  --brown-soft: #8f7a67;   /* טקסט כהה – לא שחור */
-  --brown-dark: #4a413a;   /* טקסט עוצמתי */
-  --white: #ffffff;
+  --ink: #0b0e13;
+  --ink-soft: #1a222d;
+  --graphite: #2a3340;
+  --body: #3d4754;
+  --muted: #6b7583;
+  --paper: #f2f4f7;
+  --paper-soft: #e8ecf1;
+  --surface: #ffffff;
+  --line: #d5dbe3;
+  --accent: #0f766e;
+  --accent-deep: #0b5a54;
+  --accent-soft: #d5f0ed;
+  --font-display: var(--font-frank), "Frank Ruhl Libre", serif;
+  --font-sans: var(--font-rubik), "Rubik", sans-serif;
+
+  /* Legacy aliases — map old cream tokens to new system so leftover classes don't regress to gold */
+  --cream: var(--paper);
+  --cream-soft: var(--paper-soft);
+  --sand: var(--line);
+  --champagne: var(--accent);
+  --champagne-dark: var(--accent-deep);
+  --brown-soft: var(--muted);
+  --brown-dark: var(--ink);
+  --white: var(--surface);
 }
 
-/* -----------------------------------------------------------
-   בסיס אתר
------------------------------------------------------------ */
- body {
-  background: var(--cream);
-  color: var(--brown-dark);
-  font-family: var(--font-heebo), "Heebo", sans-serif;
+body {
+  background: var(--paper);
+  color: var(--body);
+  font-family: var(--font-sans);
   direction: rtl;
   overflow-x: hidden;
 }
 
-/* -----------------------------------------------------------
-   רקע WOW – שכבות אלגנטיות
------------------------------------------------------------ */
+.font-display {
+  font-family: var(--font-display);
+}
+
 .bg-luxury {
-  background: radial-gradient(
-    circle at top left,
-    #ffffff 0%,
-    var(--cream) 40%,
-    var(--cream-soft) 70%,
-    var(--sand) 100%
-  );
+  background:
+    radial-gradient(ellipse 80% 50% at 100% 0%, rgba(15, 118, 110, 0.08), transparent 55%),
+    linear-gradient(180deg, #ffffff 0%, var(--paper) 100%);
 }
 
-/* גריין – רעש עדין לאפקט יוקרה */
-.bg-grain {
-  background-image: url("https://grainy-gradients.vercel.app/noise.svg");
-  opacity: 0.22;
-  mix-blend-mode: multiply;
+.bg-ink-field {
+  background:
+    radial-gradient(ellipse 70% 60% at 15% 20%, rgba(15, 118, 110, 0.22), transparent 50%),
+    linear-gradient(160deg, #0b0e13 0%, #141a22 55%, #0b0e13 100%);
 }
 
-/* -----------------------------------------------------------
-   HEADER שקוף יוקרתי
------------------------------------------------------------ */
 .header-blur {
-  backdrop-filter: blur(18px);
-  background: rgba(255, 255, 255, 0.55);
-  border-bottom: 1px solid rgba(209, 187, 163, 0.25);
+  backdrop-filter: blur(16px);
+  background: rgba(242, 244, 247, 0.86);
+  border-bottom: 1px solid rgba(213, 219, 227, 0.9);
 }
 
-/* -----------------------------------------------------------
-   כרטיסים יוקרתיים
------------------------------------------------------------ */
+.mkt-reveal {
+  animation: mkt-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.mkt-reveal-delay {
+  animation: mkt-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+}
+
+.mkt-reveal-delay-2 {
+  animation: mkt-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.24s both;
+}
+
+@keyframes mkt-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mkt-reveal,
+  .mkt-reveal-delay,
+  .mkt-reveal-delay-2 {
+    animation: none;
+  }
+}
+
+/* Keep utility class names used elsewhere, restyle away from champagne */
 .card {
-  background: var(--white);
-  border-radius: 32px;
+  background: var(--surface);
+  border-radius: 4px;
   padding: 28px;
-  border: 1px solid rgba(209, 187, 163, 0.25);
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.05);
-  transition: 0.3s ease;
-}
-.card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--line);
+  box-shadow: none;
 }
 
-/* -----------------------------------------------------------
-   כפתורים – סטייל יוקרתי אמיתי
------------------------------------------------------------ */
 .btn-primary {
-  background: var(--champagne);
+  background: var(--ink);
   color: white;
   padding: 12px 28px;
-  font-weight: 600;
-  border-radius: 50px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-  transition: 0.25s ease-in-out;
-  display: inline-block;
+  border-radius: 6px;
+  font-weight: 700;
+  transition: 0.2s ease;
 }
 .btn-primary:hover {
-  background: var(--champagne-dark);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.10);
+  background: var(--ink-soft);
 }
 
-.btn-outline {
-  border: 2px solid var(--champagne);
-  color: var(--champagne-dark);
+.btn-secondary {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
   padding: 12px 28px;
-  font-weight: 600;
-  border-radius: 50px;
-  transition: 0.25s ease-in-out;
-  display: inline-block;
+  border-radius: 6px;
+  font-weight: 700;
 }
-.btn-outline:hover {
-  background: var(--champagne);
-  color: white;
+.btn-secondary:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
-/* -----------------------------------------------------------
-   תגיות אירועים
------------------------------------------------------------ */
-.tag {
-  background: var(--white);
-  border: 1px solid rgba(209, 187, 163, 0.38);
-  padding: 6px 14px;
-  border-radius: 999px;
-  font-size: 12px;
-  color: var(--brown-soft);
-}
-
-/* -----------------------------------------------------------
-   כותרות כל האתר
------------------------------------------------------------ */
-h1, h2, h3 {
-  color: var(--brown-dark);
-}
-
-/* -----------------------------------------------------------
-   מצבי נגישות (לתוסף פנימי / כללי)
------------------------------------------------------------ */
-.high-contrast {
-  background: black !important;
-  color: white !important;
-}
-
-.grayscale {
-  filter: grayscale(100%);
-}
-
-.highlight-links a {
-  background: yellow;
-  color: black !important;
-  padding: 2px 4px;
-  border-radius: 4px;
-}
-
-/* -----------------------------------------------------------
-   כפתור נגישות פנימי (אם יחזור בעתיד)
------------------------------------------------------------ */
-.access-btn {
-  border: 1px solid #c7a17a;
-  border-radius: 12px;
-  padding: 8px;
-  transition: 0.2s;
-}
-.access-btn:hover {
-  background: #c7a17a;
-  color: white;
-}
-
-@keyframes goldGlow {
-  0% {
-    box-shadow:
-      0 0 0 2px rgba(201,180,143,0.55),
-      0 10px 24px rgba(201,180,143,0.35);
-  }
-  50% {
-    box-shadow:
-      0 0 0 3px rgba(201,180,143,0.85),
-      0 14px 34px rgba(201,180,143,0.55);
-  }
-  100% {
-    box-shadow:
-      0 0 0 2px rgba(201,180,143,0.55),
-      0 10px 24px rgba(201,180,143,0.35);
-  }
-}
 canvas {
   touch-action: manipulation;
   pointer-events: auto;
 }
+.seating-canvas-wrapper { touch-action: none; }
+html, body { -webkit-overflow-scrolling: touch; }
 
-.seating-canvas-wrapper {
-  touch-action: none;
-}
-
-html,
-body {
-  -webkit-overflow-scrolling: touch;
-}
-
+.high-contrast { background: black !important; color: white !important; }
+.grayscale { filter: grayscale(100%); }
+.highlight-links a { background: yellow; color: black !important; padding: 2px 4px; border-radius: 4px; }
 
 
 @layer base {
@@ -197,7 +145,7 @@ body {
     --card-foreground: 0 0% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 0 0% 3.9%;
-    --primary: 32 28% 25%;          /* ≈ #3A2B23 */
+    --primary: 175 78% 26%;          /* teal accent */
     --primary-foreground: 0 0% 100%;
     --secondary: 0 0% 96.1%;
     --secondary-foreground: 0 0% 9%;
@@ -253,8 +201,8 @@ body {
   }
 
   body {
-    background: var(--cream);
-    color: var(--brown-dark);
+    background: var(--paper);
+    color: var(--body);
   }
 }
 

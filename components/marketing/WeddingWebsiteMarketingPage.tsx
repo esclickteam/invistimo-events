@@ -247,7 +247,7 @@ export default function WeddingWebsiteMarketingPage() {
       </section>
 
       {/* Full journey — light band for contrast */}
-      <div className="bg-[#FBF6EE]">
+      <div className="bg-[#F2F4F7]">
         <EventJourney activeId="wedding-website" />
       </div>
 

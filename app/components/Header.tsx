@@ -59,7 +59,7 @@ export default function Header() {
             ${
               isActive(item.href)
                 ? "text-[#2F261E]"
-                : "text-[#5A4A3C] hover:text-[#B88A2D]"
+                : "text-[#5A4A3C] hover:text-[#0F766E]"
             }
           `}
         >
@@ -70,7 +70,7 @@ export default function Header() {
               className="
                 absolute -bottom-1 right-1/2 h-[2px] w-8 translate-x-1/2
                 rounded-full
-                bg-gradient-to-l from-[#D8B15E] via-[#B88A2D] to-[#8B6220]
+                bg-gradient-to-l from-[#0F766E] via-[#0F766E] to-[#0B5A54]
               "
             />
           )}
@@ -95,7 +95,7 @@ export default function Header() {
         className="
           sticky top-0 z-50
           w-full
-          bg-[#F8F5EE]
+          bg-[#F2F4F7]
           px-3 py-3
           print:hidden
         "
@@ -106,7 +106,7 @@ export default function Header() {
             items-center
             rounded-[24px]
             border border-[#D9BE80]/70
-            bg-[#FFFDF8]
+            bg-[#FFFFFF]
             px-5 md:px-9
             shadow-[0_8px_24px_rgba(91,65,26,0.08)]
           "
@@ -119,10 +119,10 @@ export default function Header() {
                 rounded-full
                 px-5 py-2.5
                 text-[16px] font-bold
-                text-[#4A3A2A]
+                text-[#1A222D]
                 transition
-                hover:bg-[#F6EBD8]
-                hover:text-[#B88A2D]
+                hover:bg-[#F2F4F7]
+                hover:text-[#0F766E]
               "
             >
               <Home size={18} />
@@ -146,7 +146,7 @@ export default function Header() {
                 alt="Invistimo Logo"
                 className="
                   h-[54px] w-auto select-none
-                  drop-shadow-[0_6px_14px_rgba(158,116,42,0.14)]
+                  drop-shadow-[0_6px_14px_rgba(11,14,19,0.12)]
                 "
                 draggable={false}
               />
@@ -158,7 +158,7 @@ export default function Header() {
               onClick={logout}
               className="
                 rounded-full
-                border border-[#C9A45C]/70
+                border border-[#0F766E]/70
                 bg-white
                 px-5 py-2.5
                 text-[15px] font-bold
@@ -182,7 +182,7 @@ export default function Header() {
         className="
           sticky top-0 z-50
           w-full
-          bg-[#F8F5EE]
+          bg-[#F2F4F7]
           px-3 py-3
           print:hidden
         "
@@ -192,7 +192,7 @@ export default function Header() {
             mx-auto max-w-[1500px]
             rounded-[24px]
             border border-[#D9BE80]/70
-            bg-[#FFFDF8]
+            bg-[#FFFFFF]
             shadow-[0_8px_24px_rgba(91,65,26,0.08)]
           "
           dir="rtl"
@@ -252,7 +252,7 @@ export default function Header() {
                   alt="Invistimo Logo"
                   className="
                     h-[52px] w-auto select-none
-                    drop-shadow-[0_6px_14px_rgba(158,116,42,0.14)]
+                    drop-shadow-[0_6px_14px_rgba(11,14,19,0.12)]
                     md:h-[60px]
                   "
                   draggable={false}
@@ -268,14 +268,14 @@ export default function Header() {
                   group inline-flex items-center gap-2
                   whitespace-nowrap
                   rounded-[13px]
-                  bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
+                  bg-[#0B0E13]
                   px-6 py-3
                   text-[15px] font-extrabold
                   text-white
-                  shadow-[0_12px_28px_rgba(184,134,45,0.22)]
+                  shadow-[0_12px_28px_rgba(11,14,19,0.18)]
                   transition
                   hover:-translate-y-0.5
-                  hover:shadow-[0_16px_34px_rgba(184,134,45,0.30)]
+                  hover:shadow-[0_16px_34px_rgba(11,14,19,0.24)]
                 "
                 title="דמו – צפייה בלבד"
               >
@@ -294,14 +294,14 @@ export default function Header() {
                       className="
                         whitespace-nowrap
                         rounded-[13px]
-                        border border-[#C9A45C]/70
+                        border border-[#0F766E]/70
                         bg-white
                         px-5 py-3
                         text-[15px] font-bold
-                        text-[#4A3A2A]
+                        text-[#1A222D]
                         transition
-                        hover:bg-[#F8EEDB]
-                        hover:text-[#B88A2D]
+                        hover:bg-[#F2F4F7]
+                        hover:text-[#0F766E]
                       "
                     >
                       לוח בקרה
@@ -312,11 +312,11 @@ export default function Header() {
                       className="
                         whitespace-nowrap
                         rounded-[13px]
-                        border border-[#D8C5A7]
+                        border border-[#D5DBE3]
                         bg-white
                         px-5 py-3
                         text-[15px] font-bold
-                        text-[#4A3A2A]
+                        text-[#1A222D]
                         transition
                         hover:bg-red-50
                         hover:text-red-600
@@ -332,18 +332,18 @@ export default function Header() {
                       inline-flex items-center gap-2
                       whitespace-nowrap
                       rounded-[13px]
-                      border border-[#C9A45C]/75
+                      border border-[#0F766E]/75
                       bg-white
                       px-6 py-3
                       text-[15px] font-bold
-                      text-[#4A3A2A]
+                      text-[#1A222D]
                       transition
-                      hover:bg-[#F8EEDB]
-                      hover:text-[#B88A2D]
+                      hover:bg-[#F2F4F7]
+                      hover:text-[#0F766E]
                     "
                   >
                     התחברות
-                    <UserRound size={18} className="text-[#B88A2D]" />
+                    <UserRound size={18} className="text-[#0F766E]" />
                   </Link>
                 ))}
             </div>
@@ -362,7 +362,7 @@ export default function Header() {
             className="
               absolute right-0 top-0 h-full w-[84%] max-w-sm
               border-l border-[#D9BE80]/70
-              bg-[#FFFDF8]
+              bg-[#FFFFFF]
               p-5
               shadow-[0_20px_70px_rgba(0,0,0,0.28)]
             "
@@ -403,7 +403,7 @@ export default function Header() {
               </button>
             </div>
 
-            <nav className="flex flex-col divide-y divide-[#E7D8BD] rounded-[22px] border border-[#E7D8BD] bg-white/70">
+            <nav className="flex flex-col divide-y divide-[#D5DBE3] rounded-[22px] border border-[#D5DBE3] bg-white/70">
               {navItems.map((item) => (
                 <Link
                   key={item.href}
@@ -413,8 +413,8 @@ export default function Header() {
                     px-5 py-4 text-[16px] font-bold transition
                     ${
                       isActive(item.href)
-                        ? "bg-[#F7EBD4] text-[#9A6E24]"
-                        : "text-[#4A3A2A] hover:bg-[#FAF3E7]"
+                        ? "bg-[#F2F4F7] text-[#9A6E24]"
+                        : "text-[#1A222D] hover:bg-[#FAF3E7]"
                     }
                   `}
                 >
@@ -430,7 +430,7 @@ export default function Header() {
                 className="
                   inline-flex w-full items-center justify-center gap-2
                   rounded-[16px]
-                  bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
+                  bg-[#0B0E13]
                   px-6 py-4
                   text-[16px] font-extrabold
                   text-white
@@ -451,11 +451,11 @@ export default function Header() {
                       className="
                         flex w-full items-center justify-center
                         rounded-[16px]
-                        border border-[#C9A45C]/70
+                        border border-[#0F766E]/70
                         bg-white
                         px-6 py-4
                         text-[16px] font-bold
-                        text-[#4A3A2A]
+                        text-[#1A222D]
                       "
                     >
                       לוח בקרה
@@ -469,7 +469,7 @@ export default function Header() {
                       className="
                         flex w-full items-center justify-center
                         rounded-[16px]
-                        border border-[#E2C9C9]
+                        border border-[#D5DBE3]
                         bg-white
                         px-6 py-4
                         text-[16px] font-bold
@@ -486,15 +486,15 @@ export default function Header() {
                     className="
                       inline-flex w-full items-center justify-center gap-2
                       rounded-[16px]
-                      border border-[#C9A45C]/75
+                      border border-[#0F766E]/75
                       bg-white
                       px-6 py-4
                       text-[16px] font-bold
-                      text-[#4A3A2A]
+                      text-[#1A222D]
                     "
                   >
                     התחברות
-                    <UserRound size={18} className="text-[#B88A2D]" />
+                    <UserRound size={18} className="text-[#0F766E]" />
                   </Link>
                 ))}
             </div>
@@ -520,7 +520,7 @@ export default function Header() {
               overflow-hidden
               rounded-[32px]
               border border-[#D9BE80]/70
-              bg-[#FFFDF8]
+              bg-[#FFFFFF]
               p-6
               shadow-[0_30px_90px_rgba(43,33,24,0.24)]
             "
@@ -532,9 +532,9 @@ export default function Header() {
                 absolute left-5 top-5
                 flex h-10 w-10 items-center justify-center
                 rounded-full
-                border border-[#E7D8BD]
+                border border-[#D5DBE3]
                 bg-white
-                text-[#4A3A2A]
+                text-[#1A222D]
                 transition
                 hover:bg-[#FAF3E7]
               "
@@ -548,7 +548,7 @@ export default function Header() {
                 className="
                   mb-3 inline-flex items-center gap-2
                   rounded-full
-                  border border-[#E7D8BD]
+                  border border-[#D5DBE3]
                   bg-white/80
                   px-4 py-2
                   text-xs font-black
@@ -582,7 +582,7 @@ export default function Header() {
                   shadow-[0_12px_32px_rgba(91,65,26,0.08)]
                   transition
                   hover:-translate-y-1
-                  hover:border-[#C9A45C]
+                  hover:border-[#0F766E]
                   hover:shadow-[0_20px_48px_rgba(91,65,26,0.13)]
                 "
               >
@@ -608,7 +608,7 @@ export default function Header() {
                 <div
                   className="
                     mt-5 inline-flex rounded-2xl
-                    bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
+                    bg-[#0B0E13]
                     px-4 py-2
                     text-sm font-black text-white
                     transition
@@ -632,7 +632,7 @@ export default function Header() {
                   shadow-[0_12px_32px_rgba(91,65,26,0.08)]
                   transition
                   hover:-translate-y-1
-                  hover:border-[#C9A45C]
+                  hover:border-[#0F766E]
                   hover:shadow-[0_20px_48px_rgba(91,65,26,0.13)]
                 "
               >

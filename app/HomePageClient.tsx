@@ -3,1310 +3,407 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  Users,
-  Armchair,
-  MessageCircle,
-  Mail,
-  CalendarDays,
-  Send,
-  ArrowLeft,
-  ShieldCheck,
-  Heart,
-  Clock3,
-  Sparkles,
-  CheckCircle2,
-} from "lucide-react";
 import AnswerFirst from "@/components/seo/AnswerFirst";
+import {
+  ctaOnDarkClass,
+  ctaOnDarkSecondaryClass,
+  ctaPrimaryClass,
+  ctaSecondaryClass,
+} from "@/components/marketing/brand";
+import { INVITE_DESIGNS, PRODUCT_SHOTS, PRODUCT_VIDEOS } from "@/lib/seo/productVisuals";
 
-/* =====================================================
-   DEMO BUTTON
-===================================================== */
-function DemoButton({
-  children,
-  variant = "gold",
-  className = "",
-}: {
-  children: React.ReactNode;
-  variant?: "gold" | "dark";
-  className?: string;
-}) {
+function DemoCta({ className = "", children }: { className?: string; children: React.ReactNode }) {
   const router = useRouter();
-
-  const baseClass =
-    variant === "dark"
-      ? `
-        group inline-flex min-w-[240px]
-        items-center justify-center gap-3
-        rounded-full
-        bg-[#3F3A34]
-        px-10 py-4
-        text-[17px] font-extrabold
-        text-white
-        shadow-[0_18px_40px_rgba(63,58,52,0.20)]
-        transition
-        hover:-translate-y-0.5
-        hover:bg-[#2F2B27]
-      `
-      : `
-        group inline-flex min-w-[220px]
-        items-center justify-center gap-3
-        rounded-full
-        bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
-        px-9 py-4
-        text-[16px] font-extrabold
-        text-white
-        shadow-[0_18px_38px_rgba(184,134,45,0.26)]
-        transition
-        hover:-translate-y-0.5
-        hover:shadow-[0_22px_46px_rgba(184,134,45,0.34)]
-      `;
-
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => router.push("/try")}
-        className={`${baseClass} ${className}`}
-      >
-        {children}
-      </button>
-    </>
+    <button type="button" onClick={() => router.push("/try")} className={className}>
+      {children}
+    </button>
   );
 }
 
-/* =====================================================
-   HERO PHONE — CLEAN 3D VIDEO PHONE
-===================================================== */
-function HeroPhone3D() {
-  return (
-    <div
-      className="
-        relative z-10
-        flex w-full items-center justify-center
-        min-h-[420px]
-        md:min-h-[500px]
-        lg:min-h-[540px]
-      "
-      style={{ perspective: "1800px" }}
-    >
-      <div
-        className="
-          pointer-events-none absolute
-          bottom-[22px] left-1/2
-          h-[36px] w-[290px]
-          -translate-x-1/2
-          rounded-full
-          bg-black/14
-          blur-2xl
-          md:w-[360px]
-        "
-      />
+const JOURNEY = [
+  {
+    n: "01",
+    title: "הודעת WhatsApp",
+    text: "האורח מקבל קישור אישי מתבנית ההודעה במערכת.",
+    src: PRODUCT_SHOTS.whatsappRsvp,
+    alt: "הדמיית הודעת WhatsApp עם קישור אישי",
+  },
+  {
+    n: "02",
+    title: "הזמנה מעוצבת",
+    text: "נפתחת הזמנה אמיתית — לא מסך דשבורד.",
+    src: INVITE_DESIGNS.wedding,
+    alt: "הזמנה דיגיטלית מאיה ואיתי",
+  },
+  {
+    n: "03",
+    title: "אישור הגעה",
+    text: "האורח מאשר, והתשובה נשמרת ברשימה.",
+    src: PRODUCT_SHOTS.guestRsvpConfirm,
+    alt: "מסך אישור הגעה אחרי שמירה",
+  },
+  {
+    n: "04",
+    title: "דשבורד מתעדכן",
+    text: "אותו אורח, אותו אירוע — הסטטוס משתנה בזמן אמת.",
+    src: PRODUCT_SHOTS.dashboardLive,
+    alt: "דשבורד אחרי אישור אמיתי בדמו",
+  },
+] as const;
 
-      <motion.div
-        initial={{ opacity: 0, y: 22 }}
-        animate={{
-          opacity: 1,
-          y: [0, -8, 0],
-        }}
-        transition={{
-          opacity: { duration: 0.8 },
-          y: { duration: 6, repeat: Infinity, ease: "easeInOut" },
-        }}
-        className="
-          relative
-          h-[485px] w-[242px]
-          md:h-[570px] md:w-[285px]
-          lg:h-[610px] lg:w-[305px]
-        "
-        style={{
-          transformStyle: "preserve-3d",
-          transform: "rotateY(20deg) rotateX(6deg) rotateZ(-6deg)",
-        }}
-      >
-        <div
-          className="
-            absolute inset-0
-            rounded-[52px]
-            bg-gradient-to-br from-[#050505] via-[#202020] to-[#050505]
-            shadow-[38px_42px_85px_rgba(37,28,17,0.30),-16px_18px_45px_rgba(201,164,92,0.12)]
-          "
-          style={{
-            transform: "translateZ(-18px) translateX(-11px)",
-          }}
-        />
+const MODULES = [
+  {
+    href: "/rsvp",
+    title: "אישורי הגעה",
+    text: "קישור אישי, סבבי וואטסאפ ומעקב סטטוסים.",
+    src: PRODUCT_SHOTS.dashboardLive,
+  },
+  {
+    href: "/invitations/chatuna",
+    title: "הזמנות דיגיטליות",
+    text: "עיצוב ההזמנה קודם — ואז מעבר לאישור.",
+    src: INVITE_DESIGNS.wedding,
+  },
+  {
+    href: "/wedding-website",
+    title: "אתר חתונה אישי",
+    text: "תבניות חיות עם סיפור, גלריה ו־RSVP.",
+    src: PRODUCT_SHOTS.weddingEternal,
+  },
+  {
+    href: "/seating-explained",
+    title: "סידורי הושבה",
+    text: "מפת שולחנות ושיבוץ לפי הרשימה.",
+    src: PRODUCT_SHOTS.seatingLive,
+  },
+] as const;
 
-        <div
-          className="
-            absolute -left-[14px] top-[34px]
-            h-[90%] w-[21px]
-            rounded-l-[40px]
-            bg-gradient-to-b from-[#303030] via-[#080808] to-[#1A1A1A]
-            shadow-[inset_5px_0_12px_rgba(255,255,255,0.08)]
-          "
-          style={{
-            transform: "translateZ(-8px)",
-          }}
-        />
-
-        <div
-          className="
-            absolute inset-0
-            rounded-[52px]
-            bg-gradient-to-br from-[#080808] via-[#282828] to-[#050505]
-            p-[9px]
-            shadow-[inset_0_0_0_1px_rgba(255,255,255,0.18)]
-          "
-          style={{
-            transform: "translateZ(18px)",
-          }}
-        >
-          <span className="absolute -left-[5px] top-[130px] h-16 w-[4px] rounded-l bg-[#111]" />
-          <span className="absolute -left-[5px] top-[210px] h-12 w-[4px] rounded-l bg-[#111]" />
-          <span className="absolute -right-[4px] top-[170px] h-24 w-[4px] rounded-r bg-[#111]" />
-
-          <div
-            className="
-              relative h-full w-full
-              overflow-hidden
-              rounded-[42px]
-              bg-white
-            "
-          >
-            <div
-              className="
-                absolute left-1/2 top-4 z-40
-                h-[26px] w-[100px]
-                -translate-x-1/2
-                rounded-full
-                bg-black
-                shadow-[0_2px_8px_rgba(0,0,0,0.55)]
-              "
-            />
-
-            {/* Prefer invitation art in the hero phone — never a long loading state. */}
-            <img
-              src="/marketing/invites/invite-wedding-maya-itai.webp"
-              alt="הזמנה דיגיטלית — החתונה של מאיה ואיתי"
-              className="h-full w-full object-cover object-top"
-              draggable={false}
-            />
-
-            <div
-              className="
-                pointer-events-none absolute inset-0
-                bg-gradient-to-tr
-                from-white/0
-                via-white/10
-                to-white/0
-              "
-            />
-
-            <div
-              className="
-                pointer-events-none absolute inset-0
-                rounded-[42px]
-                border border-white/15
-              "
-            />
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-/* =====================================================
-   BLOCK 2 PHONE — IMAGE MOCKUP
-===================================================== */
-function BlockTwoPhone() {
-  return (
-    <div
-      className="
-        pointer-events-none
-        relative mx-auto mt-10
-        flex w-full
-        max-w-[360px]
-        items-center justify-center
-        sm:max-w-[420px]
-        lg:mt-12
-        lg:max-w-[520px]
-      "
-      style={{ perspective: "1700px" }}
-    >
-      <div
-        className="
-          absolute bottom-[-20px] left-1/2
-          h-[34px] w-[240px]
-          -translate-x-1/2
-          rounded-full
-          bg-black/16
-          blur-2xl
-          sm:w-[280px]
-          lg:w-[330px]
-        "
-      />
-
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true, amount: 0.35 }}
-        animate={{ y: [0, -8, 0] }}
-        transition={{
-          opacity: { duration: 0.7 },
-          y: { duration: 6, repeat: Infinity, ease: "easeInOut" },
-        }}
-        className="
-          relative
-          h-[380px] w-[205px]
-          rounded-[42px]
-          sm:h-[430px] sm:w-[232px]
-          md:h-[470px] md:w-[252px]
-          lg:h-[500px] lg:w-[270px]
-        "
-        style={{
-          transformStyle: "preserve-3d",
-          transform: "rotateY(-22deg) rotateX(7deg) rotateZ(7deg)",
-        }}
-      >
-        <div
-          className="
-            absolute inset-0
-            rounded-[42px]
-            bg-gradient-to-br from-[#070707] via-[#1D1D1D] to-[#050505]
-            shadow-[28px_30px_65px_rgba(54,38,21,0.22),-10px_12px_34px_rgba(201,164,92,0.12)]
-          "
-          style={{
-            transform: "translateZ(-14px) translateX(7px)",
-          }}
-        />
-
-        <div
-          className="
-            absolute -right-[7px] top-[18px]
-            h-[92%] w-[12px]
-            rounded-r-[32px]
-            bg-gradient-to-b from-[#242424] via-[#080808] to-[#191919]
-            shadow-[inset_-3px_0_7px_rgba(255,255,255,0.08)]
-          "
-          style={{
-            transform: "translateZ(-7px)",
-          }}
-        />
-
-        <div
-          className="
-            absolute inset-0
-            rounded-[42px]
-            bg-gradient-to-br from-[#070707] via-[#2A2A2A] to-[#050505]
-            p-[7px]
-            shadow-[inset_0_0_0_1px_rgba(255,255,255,0.16)]
-          "
-          style={{
-            transform: "translateZ(12px)",
-          }}
-        >
-          <span className="absolute -left-[4px] top-[115px] h-14 w-[3px] rounded-l bg-[#111]" />
-          <span className="absolute -right-[4px] top-[150px] h-20 w-[3px] rounded-r bg-[#111]" />
-
-          <div
-            className="
-              relative h-full w-full
-              overflow-hidden
-              rounded-[35px]
-              bg-[#FDFBF7]
-            "
-          >
-            <div
-              className="
-                absolute left-1/2 top-3 z-30
-                h-[22px] w-[88px]
-                -translate-x-1/2
-                rounded-full
-                bg-black
-                shadow-[0_2px_8px_rgba(0,0,0,0.55)]
-                sm:top-4 sm:h-[24px] sm:w-[94px]
-              "
-            />
-
-            <img
-              src="/homep2.png"
-              alt=""
-              className="
-                block h-full w-full
-                object-cover
-                object-top
-                brightness-105
-                contrast-105
-                saturate-105
-              "
-              draggable={false}
-            />
-
-            <div
-              className="
-                pointer-events-none absolute inset-0
-                bg-gradient-to-tr
-                from-white/0
-                via-white/12
-                to-white/0
-              "
-            />
-
-            <div
-              className="
-                pointer-events-none absolute inset-0
-                rounded-[35px]
-                border border-white/20
-              "
-            />
-          </div>
-        </div>
-      </motion.div>
-    </div>
-  );
-}
-
-/* =====================================================
-   BLOCK 3 — REAL TIME SHOWCASE WITH 3 BIG IMAGES ONLY
-===================================================== */
-function RealTimeShowcase() {
-  const showcaseItems = [
-    {
-      image: "/home2.png",
-      title: "דשבורד אירוע חי",
-    },
-    {
-      image: "/home3.png",
-      title: "ניהול הזמנה ואורחים",
-    },
-    {
-      image: "/home4.png",
-      title: "הודעות ועדכונים לאורחים",
-    },
-  ];
-
-  return (
-    <section
-      dir="rtl"
-      className="
-        relative overflow-hidden
-        bg-[#FAF8F4]
-        px-4 py-24
-        md:px-8 md:py-32
-        lg:px-12
-      "
-    >
-      <div
-        className="
-          pointer-events-none absolute inset-0
-          bg-[radial-gradient(circle_at_50%_42%,rgba(201,164,92,0.16),transparent_34%),radial-gradient(circle_at_8%_85%,rgba(255,255,255,0.75),transparent_34%),radial-gradient(circle_at_90%_78%,rgba(201,164,92,0.08),transparent_31%)]
-        "
-      />
-
-      <div className="relative z-10 mx-auto max-w-[1500px]">
-        <motion.div
-          initial={{ opacity: 0, y: 26 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.35 }}
-          transition={{ duration: 0.75 }}
-          className="mx-auto mb-16 max-w-[900px] text-center"
-        >
-          <div className="mx-auto mb-6 flex max-w-[430px] items-center justify-center gap-4">
-            <span className="h-px flex-1 bg-gradient-to-l from-transparent via-[#C9A45C] to-[#C9A45C]" />
-            <span
-              className="
-                flex h-12 w-12 items-center justify-center
-                rounded-full
-                border border-[#D8BE82]/80
-                bg-white/70
-                text-[#B88A2D]
-                shadow-[0_12px_30px_rgba(95,68,34,0.08)]
-              "
-            >
-              <Sparkles size={20} />
-            </span>
-            <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#C9A45C] to-[#C9A45C]" />
-          </div>
-
-          <p className="mb-4 text-[14px] font-extrabold tracking-[0.22em] text-[#B8862D]">
-            כלים חכמים לאירוע
-          </p>
-
-          <h2
-            className="
-              text-[42px]
-              font-black
-              leading-[1.12]
-              tracking-[-0.04em]
-              text-[#3A3028]
-              md:text-[64px]
-              lg:text-[76px]
-            "
-          >
-            הכל קורה
-            <span
-              className="
-                bg-gradient-to-l
-                from-[#8B642B]
-                via-[#C69A3F]
-                to-[#B88A2D]
-                bg-clip-text text-transparent
-              "
-            >
-              {" "}
-              בזמן אמת
-            </span>
-          </h2>
-
-          <p
-            className="
-              mx-auto mt-5 max-w-[780px]
-              text-[17px]
-              font-semibold
-              leading-[1.9]
-              text-[#5F554C]
-              md:text-[20px]
-            "
-          >
-            שליטה מלאה באישורי הגעה, מוזמנים, הודעות ועדכונים —
-            במערכת אחת, יפה, ברורה ומדויקת.
-          </p>
-        </motion.div>
-
-        <div className="relative mx-auto max-w-[1320px] pb-6">
-          <motion.div
-            initial={{ opacity: 0, y: 34, scale: 0.96 }}
-            whileInView={{ opacity: 1, y: 0, scale: 1 }}
-            viewport={{ once: true, amount: 0.25 }}
-            transition={{ duration: 0.8, ease: "easeOut" }}
-            className="
-              relative z-20 mx-auto
-              max-w-[980px]
-              rounded-[38px]
-              border border-[#E6D7BC]/90
-              bg-white/76
-              p-4
-              shadow-[0_32px_90px_rgba(95,68,34,0.14)]
-              backdrop-blur-xl
-            "
-          >
-            <div
-              className="
-                overflow-hidden
-                rounded-[30px]
-                border border-[#EFE3CF]
-                bg-[#FFFDF8]
-              "
-            >
-              <div
-                className="
-                  flex items-center justify-between
-                  border-b border-[#EFE3CF]
-                  bg-white/75
-                  px-5 py-3
-                "
-              >
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#D9B46B]" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#E7D8BD]" />
-                  <span className="h-2.5 w-2.5 rounded-full bg-[#C9A45C]" />
-                </div>
-
-                <span className="text-[13px] font-black text-[#3A3028]">
-                  Invistimo
-                </span>
-              </div>
-
-              <img
-                src={showcaseItems[0].image}
-                alt={showcaseItems[0].title}
-                className="
-                  h-[390px]
-                  w-full
-                  object-cover
-                  object-top
-                  md:h-[500px]
-                  lg:h-[560px]
-                "
-                draggable={false}
-              />
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 28, scale: 0.96 }}
-            whileInView={{ opacity: 1, y: 0, scale: 1 }}
-            viewport={{ once: true, amount: 0.25 }}
-            transition={{ duration: 0.7, delay: 0.12, ease: "easeOut" }}
-            className="
-              z-30
-              mt-7
-              rounded-[30px]
-              border border-[#E6D7BC]/90
-              bg-white/78
-              p-3
-              shadow-[0_24px_64px_rgba(95,68,34,0.13)]
-              backdrop-blur-xl
-              lg:absolute lg:left-[-2%] lg:top-[28%] lg:mt-0 lg:w-[430px]
-            "
-          >
-            <div
-              className="
-                overflow-hidden
-                rounded-[24px]
-                border border-[#EFE3CF]
-                bg-[#FFFDF8]
-              "
-            >
-              <img
-                src={showcaseItems[1].image}
-                alt={showcaseItems[1].title}
-                className="
-                  h-[280px]
-                  w-full
-                  object-cover
-                  object-top
-                  md:h-[340px]
-                  lg:h-[330px]
-                "
-                draggable={false}
-              />
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 28, scale: 0.96 }}
-            whileInView={{ opacity: 1, y: 0, scale: 1 }}
-            viewport={{ once: true, amount: 0.25 }}
-            transition={{ duration: 0.7, delay: 0.24, ease: "easeOut" }}
-            className="
-              z-30
-              mt-7
-              rounded-[30px]
-              border border-[#E6D7BC]/90
-              bg-white/78
-              p-3
-              shadow-[0_24px_64px_rgba(95,68,34,0.13)]
-              backdrop-blur-xl
-              lg:absolute lg:right-[-2%] lg:bottom-[14%] lg:mt-0 lg:w-[460px]
-            "
-          >
-            <div
-              className="
-                overflow-hidden
-                rounded-[24px]
-                border border-[#EFE3CF]
-                bg-[#FFFDF8]
-              "
-            >
-              <img
-                src={showcaseItems[2].image}
-                alt={showcaseItems[2].title}
-                className="
-                  h-[280px]
-                  w-full
-                  object-cover
-                  object-top
-                  md:h-[340px]
-                  lg:h-[340px]
-                "
-                draggable={false}
-              />
-            </div>
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0, y: 26 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.35 }}
-            transition={{ duration: 0.7, delay: 0.25 }}
-            className="
-              relative z-30
-              mx-auto mt-12
-              flex max-w-[620px]
-              flex-col items-center justify-center gap-4
-              sm:flex-row
-              lg:mt-[54px]
-            "
-          >
-            <DemoButton className="min-w-[240px] px-10 text-[17px]">
-              התנסות בדמו
-              <ArrowLeft
-                size={18}
-                className="transition group-hover:-translate-x-1"
-              />
-            </DemoButton>
-
-            <Link
-              href="/contact"
-              className="
-                inline-flex min-w-[240px]
-                items-center justify-center
-                rounded-full
-                border border-[#8B6A3E]/45
-                bg-white/64
-                px-10 py-4
-                text-[17px] font-extrabold
-                text-[#4A3A2A]
-                shadow-[0_14px_32px_rgba(95,68,34,0.07)]
-                backdrop-blur-xl
-                transition
-                hover:bg-white
-                hover:text-[#B8862D]
-              "
-            >
-              דברו איתנו
-            </Link>
-          </motion.div>
-
-          <div
-            className="
-              relative z-30
-              mx-auto mt-10
-              grid max-w-[820px]
-              grid-cols-1
-              gap-4
-              text-center
-              sm:grid-cols-3
-            "
-          >
-            {[
-              {
-                icon: Heart,
-                title: "שקט נפשי",
-                text: "פחות שיחות ויותר שליטה",
-              },
-              {
-                icon: ShieldCheck,
-                title: "מידע מסודר",
-                text: "כל העדכונים במקום אחד",
-              },
-              {
-                icon: Clock3,
-                title: "חוסך זמן יקר",
-                text: "ניהול חכם לפני האירוע",
-              },
-            ].map((item) => {
-              const Icon = item.icon;
-
-              return (
-                <div
-                  key={item.title}
-                  className="
-                    flex items-center justify-center gap-3
-                    rounded-[20px]
-                    border border-[#E6D7BC]/80
-                    bg-white/58
-                    px-5 py-4
-                    shadow-[0_12px_30px_rgba(95,68,34,0.06)]
-                    backdrop-blur-xl
-                  "
-                >
-                  <Icon size={23} className="text-[#B88A2D]" />
-
-                  <div className="text-right">
-                    <p className="text-[15px] font-black text-[#3D3127]">
-                      {item.title}
-                    </p>
-
-                    <p className="text-[12px] font-semibold text-[#7A6A58]">
-                      {item.text}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/* =====================================================
-   FINAL CTA — ORIGINAL STYLE, LESS GOLD
-===================================================== */
-function FinalCTA() {
-  return (
-    <section
-      dir="rtl"
-      className="
-        relative overflow-hidden
-        bg-[#F7F1E8]
-        px-4 py-24
-        md:px-8 md:py-32
-        lg:px-12
-      "
-    >
-      <div className="pointer-events-none absolute -left-20 top-10 h-72 w-72 rounded-full bg-[#D8BE82]/18 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-[-80px] right-[-40px] h-96 w-96 rounded-full bg-[#C9A45C]/14 blur-3xl" />
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,0.65),transparent_30%)]" />
-
-      <div className="relative z-10 mx-auto max-w-[1100px]">
-        <motion.div
-          initial={{ opacity: 0, y: 26 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, amount: 0.3 }}
-          transition={{ duration: 0.75 }}
-          className="
-            overflow-hidden rounded-[38px]
-            border border-[#E3D1AE]
-            bg-white/58
-            p-6 shadow-[0_28px_90px_rgba(95,68,34,0.12)]
-            backdrop-blur-2xl
-            md:p-10 lg:p-14
-          "
-        >
-          <div className="grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
-            <div className="text-center lg:text-right">
-              <div className="mb-5 inline-flex items-center gap-3 rounded-full border border-[#E3D1AE] bg-[#FFF9EF]/80 px-5 py-2.5 text-[#B8862D]">
-                <Sparkles size={18} />
-                <span className="text-[14px] font-black tracking-[0.12em]">
-                  INVISTIMO DEMO
-                </span>
-              </div>
-
-              <h2
-                className="
-                  text-[38px]
-                  font-black
-                  leading-[1.12]
-                  tracking-[-0.04em]
-                  text-[#3A3028]
-                  md:text-[56px]
-                  lg:text-[64px]
-                "
-              >
-                מוכנים לראות
-                <br />
-                איך זה עובד
-                <span
-                  className="
-                    bg-gradient-to-l
-                    from-[#8B642B]
-                    via-[#C69A3F]
-                    to-[#B88A2D]
-                    bg-clip-text text-transparent
-                  "
-                >
-                  {" "}
-                  באמת?
-                </span>
-              </h2>
-
-              <p className="mx-auto mt-6 max-w-[680px] text-[17px] font-semibold leading-[1.95] text-[#5F554C] md:text-[20px] lg:mx-0">
-                התחילו בדמו, היכנסו למערכת, צפו בנתוני דוגמה אמיתיים והרגישו
-                איך ניהול אירוע יכול להיות הרבה יותר מסודר, יפה ונוח.
-              </p>
-
-              <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center lg:justify-start">
-                <DemoButton variant="dark">
-                  התחילו דמו
-                  <ArrowLeft
-                    size={18}
-                    className="transition group-hover:-translate-x-1"
-                  />
-                </DemoButton>
-
-                <Link
-                  href="/pricing"
-                  className="
-                    inline-flex min-w-[240px]
-                    items-center justify-center
-                    rounded-full
-                    border border-[#8B6A3E]/45
-                    bg-white/70
-                    px-10 py-4
-                    text-[17px] font-extrabold
-                    text-[#4A3A2A]
-                    shadow-[0_14px_34px_rgba(95,68,34,0.08)]
-                    transition
-                    hover:bg-white hover:text-[#B8862D]
-                  "
-                >
-                  לצפייה בחבילות
-                </Link>
-              </div>
-            </div>
-
-            <div
-              className="
-                rounded-[32px]
-                border border-[#E3D1AE]
-                bg-[#FFFDF8]/78
-                p-6
-                shadow-[0_18px_44px_rgba(95,68,34,0.09)]
-                backdrop-blur-xl
-                md:p-8
-              "
-            >
-              <h3 className="text-[24px] font-black text-[#3A3028] md:text-[30px]">
-                למה להתחיל עכשיו?
-              </h3>
-
-              <div className="mt-6 space-y-4">
-                {[
-                  "לראות את המערכת מבפנים לפני החלטה",
-                  "להבין בדיוק איך ניהול האירוע נראה בפועל",
-                  "לקבל תחושה אמיתית של חוויית העבודה במערכת",
-                  "להתחיל בלי תשלום ובלי התחייבות",
-                ].map((item) => (
-                  <div
-                    key={item}
-                    className="
-                      flex items-start gap-3
-                      rounded-[18px]
-                      border border-[#E8DAC0]
-                      bg-white/75
-                      px-4 py-4
-                    "
-                  >
-                    <CheckCircle2
-                      size={22}
-                      className="mt-0.5 shrink-0 text-[#B8862D]"
-                    />
-                    <span className="text-[15px] font-semibold leading-[1.75] text-[#5B4D40]">
-                      {item}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-                {["ללא תשלום", "ללא הרשמה מראש", "נתוני דוגמה בלבד"].map(
-                  (pill) => (
-                    <span
-                      key={pill}
-                      className="
-                        rounded-full
-                        border border-[#E5D5B6]
-                        bg-[#FFF9EF]
-                        px-4 py-2
-                        text-[13px] font-bold text-[#735B3C]
-                      "
-                    >
-                      {pill}
-                    </span>
-                  )
-                )}
-              </div>
-            </div>
-          </div>
-        </motion.div>
-      </div>
-    </section>
-  );
-}
+const TEMPLATES = [
+  { id: "eternal-gold", name: "Eternal Gold", src: PRODUCT_SHOTS.weddingEternal },
+  { id: "midnight-velvet", name: "Midnight Velvet", src: PRODUCT_SHOTS.weddingMidnight },
+  { id: "garden-bloom", name: "Garden Bloom", src: PRODUCT_SHOTS.weddingGarden },
+  { id: "coastal-breeze", name: "Coastal Breeze", src: PRODUCT_SHOTS.weddingCoastal },
+] as const;
 
 export default function HomePageClient() {
   return (
-    <main className="overflow-x-hidden bg-[#F4F0E8] text-[#2C241C]">
-      {/* ================= HERO — brand-first composition ================= */}
-      <section className="relative overflow-hidden">
+    <main dir="rtl" className="overflow-x-hidden bg-[#F2F4F7] text-[#1A222D]">
+      {/* ===== HERO — full-bleed invitation plane, brand-first, no phone ===== */}
+      <section className="relative isolate min-h-[92svh] overflow-hidden bg-[#0B0E13] text-white">
+        <img
+          src={INVITE_DESIGNS.wedding}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 h-full w-full object-cover object-center opacity-45"
+        />
         <div
-          className="absolute inset-0 z-0 bg-[url('/homep1.webp')] bg-cover bg-center"
+          className="absolute inset-0 bg-gradient-to-l from-[#0B0E13] via-[#0B0E13]/88 to-[#0B0E13]/35"
           aria-hidden
         />
         <div
-          className="absolute inset-0 z-0 bg-[linear-gradient(105deg,rgba(18,14,10,0.72)_0%,rgba(42,33,26,0.35)_42%,rgba(244,240,232,0.88)_72%,rgba(244,240,232,0.96)_100%)]"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute inset-0 z-0 opacity-40 mix-blend-soft-light"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 20% 20%, rgba(201,164,92,0.35), transparent 40%), radial-gradient(circle at 80% 80%, rgba(255,255,255,0.25), transparent 35%)",
-          }}
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_20%_80%,rgba(15,118,110,0.28),transparent_45%)]"
           aria-hidden
         />
 
-        <div
-          dir="rtl"
-          className="relative z-10 mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-8 px-5 pb-12 pt-20 md:gap-10 md:px-10 md:pb-14 md:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pt-16"
-        >
-          <motion.div
-            initial={{ opacity: 0, y: 28 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.85, ease: "easeOut" }}
-            className="text-center lg:text-right"
-          >
-            <p className="text-[13px] font-black tracking-[0.28em] text-[#C9A45C] md:text-[14px]">
-              INVISTIMO
-            </p>
-            <h1 className="mt-4 text-[40px] font-black leading-[1.08] tracking-[-0.04em] text-[#F7F1E8] md:text-[58px] lg:text-[68px] lg:text-[#2C241C]">
-              האירוע שלכם.
-              <span className="mt-2 block bg-gradient-to-l from-[#8B642B] via-[#D4B06A] to-[#B88A2D] bg-clip-text text-transparent">
-                הסדר שלכם.
-              </span>
-            </h1>
-            <p className="mx-auto mt-6 max-w-[34rem] text-[17px] font-semibold leading-8 text-[#E8DFD2] md:text-[19px] lg:mx-0 lg:text-[#4A3F34]">
-              אישורי הגעה, הזמנות דיגיטליות, אתר חתונה והושבה — במערכת אחת שמכבדת את האירוע שלכם.
-            </p>
-            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start">
-              <DemoButton>
-                התנסו במערכת
-                <span className="transition group-hover:-translate-x-1">←</span>
-              </DemoButton>
-              <Link
-                href="/pricing"
-                className="inline-flex min-w-[220px] items-center justify-center rounded-full border border-[#2C241C]/25 bg-[#F7F1E8]/90 px-9 py-4 text-[16px] font-extrabold text-[#2C241C] shadow-[0_14px_32px_rgba(28,22,18,0.12)] transition hover:bg-white"
-              >
-                לצפייה בחבילות
-              </Link>
-            </div>
-          </motion.div>
-
-          <div className="relative mx-auto flex w-full max-w-[560px] items-center justify-center lg:max-w-none">
-            <motion.img
-              initial={{ opacity: 0, x: 40, rotate: 8 }}
-              animate={{ opacity: 1, x: 0, rotate: 6 }}
-              transition={{ duration: 0.9, delay: 0.15 }}
-              src="/marketing/invites/invite-wedding-maya-itai.webp"
-              alt="הזמנה לחתונה — מאיה ואיתי"
-              className="absolute -left-2 top-8 z-0 hidden w-[42%] max-w-[220px] rounded-xl shadow-[0_24px_50px_rgba(20,14,10,0.35)] sm:block lg:-left-4"
-              draggable={false}
-            />
-            <motion.img
-              initial={{ opacity: 0, x: -40, rotate: -10 }}
-              animate={{ opacity: 1, x: 0, rotate: -8 }}
-              transition={{ duration: 0.9, delay: 0.25 }}
-              src="/marketing/invites/invite-save-the-date-maya-itai.webp"
-              alt="Save the Date — מאיה ואיתי"
-              className="absolute -right-1 bottom-10 z-0 hidden w-[38%] max-w-[200px] rounded-xl shadow-[0_24px_50px_rgba(20,14,10,0.35)] sm:block lg:-right-2"
-              draggable={false}
-            />
-            <div className="relative z-10 w-full max-w-[320px]">
-              <HeroPhone3D />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Invitation studio strip — after first viewport */}
-      <section dir="rtl" className="relative bg-[#1C1612] px-5 py-20 md:px-10 md:py-28">
-        <div className="mx-auto max-w-6xl">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="max-w-2xl"
-          >
-            <p className="text-sm font-black tracking-[0.2em] text-[#C9A45C]">הזמנות לדוגמה</p>
-            <h2 className="mt-3 text-3xl font-black text-[#F7F1E8] md:text-5xl">
-              עיצוב שמכבד את הרגע
-            </h2>
-            <p className="mt-4 text-lg leading-8 text-[#C9BDAE]">
-              מהחתונה ועד בר המצווה — הזמנות דיגיטליות ו־Save the Date בסגנון סטודיו, מחוברים לאישורי הגעה במערכת.
-            </p>
-          </motion.div>
-          <div className="mt-12 flex gap-5 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {[
-              { src: "/marketing/invites/invite-wedding-maya-itai.webp", label: "חתונה" },
-              { src: "/marketing/invites/invite-save-the-date-maya-itai.webp", label: "Save the Date" },
-              { src: "/marketing/invites/invite-bar-mitzvah.webp", label: "בר מצווה" },
-              { src: "/marketing/invites/invite-bat-mitzvah.webp", label: "בת מצווה" },
-              { src: "/marketing/invites/invite-henna.webp", label: "חינה" },
-              { src: "/marketing/invites/invite-brit.webp", label: "ברית" },
-              { src: "/marketing/invites/invite-birthday.webp", label: "יום הולדת" },
-              { src: "/marketing/invites/invite-corporate.webp", label: "אירוע חברה" },
-            ].map((item, i) => (
-              <motion.figure
-                key={item.src}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.05 }}
-                className="w-[180px] shrink-0 md:w-[210px]"
-              >
-                <img
-                  src={item.src}
-                  alt={item.label}
-                  className="aspect-[3/4] w-full rounded-2xl object-cover shadow-[0_20px_40px_rgba(0,0,0,0.45)]"
-                  draggable={false}
-                />
-                <figcaption className="mt-3 text-center text-sm font-bold text-[#C9BDAE]">
-                  {item.label}
-                </figcaption>
-              </motion.figure>
-            ))}
-          </div>
-          <div className="mt-10 flex flex-wrap gap-4">
-            <Link
-              href="/invitations/chatuna"
-              className="inline-flex rounded-full bg-[#C9A45C] px-8 py-3.5 text-sm font-black text-[#1C1612] transition hover:bg-[#D4B06A]"
-            >
-              להזמנות דיגיטליות
+        <div className="relative z-10 mx-auto flex min-h-[92svh] max-w-6xl flex-col justify-end px-5 pb-16 pt-28 md:px-8 md:pb-20 md:pt-32">
+          <p className="mkt-reveal font-display text-5xl font-medium tracking-[0.08em] text-white md:text-7xl lg:text-8xl">
+            Invistimo
+          </p>
+          <h1 className="mkt-reveal-delay mt-6 max-w-2xl font-display text-3xl font-medium leading-[1.15] text-white md:text-5xl">
+            אישורי הגעה, הזמנות ואתר חתונה — במערכת אחת
+          </h1>
+          <p className="mkt-reveal-delay-2 mt-5 max-w-xl text-base font-medium leading-8 text-white/80 md:text-lg">
+            מהודעת WhatsApp ועד דשבורד חי — אותו אירוע, אותם אורחים, בלי גיליונות נפרדים.
+          </p>
+          <div className="mkt-reveal-delay-2 mt-8 flex flex-wrap gap-3">
+            <DemoCta className={ctaOnDarkClass}>התנסות בדמו</DemoCta>
+            <Link href="/pricing" className={ctaOnDarkSecondaryClass}>
+              חבילות ומחירים
             </Link>
-            <Link
-              href="/wedding-website"
-              className="inline-flex rounded-full border border-white/25 px-8 py-3.5 text-sm font-black text-[#F7F1E8] transition hover:bg-white/10"
-            >
-              לאתרי חתונה
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Journey reel */}
-      <section dir="rtl" className="relative bg-[#F4F0E8] px-5 py-16 md:px-10 md:py-24">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2">
-          <div>
-            <p className="text-sm font-black tracking-[0.18em] text-[#A67C3D]">מסע האירוע</p>
-            <h2 className="mt-3 text-3xl font-black text-[#2C241C] md:text-5xl">
-              מה־Save the Date ועד יום האירוע
-            </h2>
-            <p className="mt-4 max-w-xl text-lg leading-8 text-[#5C4A3A]">
-              הזמנה, אתר חתונה, אישורי הגעה והושבה — רצף אחד שמכבד את האורחים ושומר את השליטה אצלכם.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/rsvp" className="rounded-full bg-[#2C241C] px-7 py-3 text-sm font-black text-[#F7F1E8]">
-                לאישורי הגעה
-              </Link>
-              <Link
-                href="/seating-explained"
-                className="rounded-full border border-[#2C241C]/25 px-7 py-3 text-sm font-black text-[#2C241C]"
-              >
-                להושבה
-              </Link>
-            </div>
-          </div>
-          <div className="overflow-hidden rounded-[28px] border border-[#E0D4C2] bg-[#1C1612] shadow-[0_30px_70px_rgba(44,36,28,0.18)]">
-            <video
-              src="/marketing/videos/reel-home-journey.webm"
-              poster="/marketing/invites/invite-wedding-maya-itai.webp"
-              autoPlay
-              muted
-              loop
-              playsInline
-              className="aspect-video w-full object-cover"
-            />
           </div>
         </div>
       </section>
 
       <AnswerFirst path="/" />
 
-      {/* ================= בלוק 2 – HOW IT WORKS ================= */}
-      <section
-        dir="rtl"
-        className="
-          relative overflow-hidden
-          bg-[#F7F1E8]
-          px-4 py-24
-          md:px-8 md:py-32
-          lg:px-12
-        "
-      >
-        <div
-          className="
-            pointer-events-none absolute inset-0
-            bg-[radial-gradient(circle_at_84%_18%,rgba(201,164,92,0.15),transparent_31%),radial-gradient(circle_at_10%_82%,rgba(255,255,255,0.70),transparent_35%)]
-          "
-        />
+      {/* ===== PRODUCT STRIP — three contact points ===== */}
+      <section className="border-b border-[#D5DBE3] bg-white px-5 py-20 md:px-8 md:py-28">
+        <div className="mx-auto max-w-6xl">
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-[#0F766E]">המוצר</p>
+          <h2 className="mt-3 max-w-2xl font-display text-3xl font-medium leading-tight text-[#0B0E13] md:text-5xl">
+            שלוש נקודות מגע. תהליך אחד.
+          </h2>
+          <p className="mt-4 max-w-2xl text-base leading-8 text-[#3D4754] md:text-lg">
+            הודעה לאורח, הזמנה מעוצבת, ודשבורד שמציג את התשובה — בלי לערבב את שלושתם באותו מסך.
+          </p>
 
-        <div
-          dir="ltr"
-          className="
-            relative z-10 mx-auto grid max-w-[1500px]
-            grid-cols-1 items-center gap-16
-            lg:grid-cols-[1.04fr_0.96fr]
-          "
-        >
-          <div
-            dir="rtl"
-            className="
-              order-2
-              relative
-              space-y-5
-              lg:order-1
-            "
-          >
-            <div
-              className="
-                pointer-events-none absolute right-[83px] top-[90px]
-                hidden h-[520px] w-px
-                bg-gradient-to-b from-[#C9A45C]/0 via-[#C9A45C]/55 to-[#C9A45C]/0
-                lg:block
-              "
-            />
-
+          <div className="mt-14 grid gap-6 lg:grid-cols-3">
             {[
               {
-                num: "01",
-                icon: Mail,
-                title: "מעלים הזמנה דיגיטלית",
-                text: "מעלים את ההזמנה שכבר עיצבתם, או משתמשים בהזמנה דיגיטלית במערכת — כדי שכל אורח יקבל חוויה אישית ומסודרת.",
+                label: "WhatsApp",
+                title: "הקישור האישי יוצא מהודעה",
+                src: PRODUCT_SHOTS.whatsappRsvp,
+                alt: "הודעת WhatsApp",
               },
               {
-                num: "02",
-                icon: CalendarDays,
-                title: "מעדכנים את פרטי האירוע",
-                text: "מכניסים תאריך, שעה, מיקום, פרטי אולם וכל מידע חשוב שהאורחים צריכים לקבל לפני האירוע.",
+                label: "הזמנה",
+                title: "האורח רואה עיצוב, לא טבלה",
+                src: INVITE_DESIGNS.wedding,
+                alt: "הזמנה מעוצבת",
               },
               {
-                num: "03",
-                icon: Users,
-                title: "מוסיפים את רשימת המוזמנים",
-                text: "מעלים או מוסיפים מוזמנים, מסדרים קבוצות, שומרים פרטים ומכינים את הרשימה לשליחה.",
+                label: "דשבורד",
+                title: "הסטטוס מתעדכן אחרי השמירה",
+                src: PRODUCT_SHOTS.dashboardLive,
+                alt: "דשבורד חי",
               },
-              {
-                num: "04",
-                icon: Send,
-                title: "שולחים, עוקבים ומעדכנים",
-                text: "שולחים הזמנה, מקבלים אישורי הגעה בזמן אמת, מסדרים הושבה ושולחים עדכונים לאורחים מתוך המערכת.",
-              },
-            ].map((step, index) => {
-              const Icon = step.icon;
-
-              return (
-                <motion.div
-                  key={step.num}
-                  initial={{ opacity: 0, y: 34 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, amount: 0.25 }}
-                  transition={{
-                    duration: 0.7,
-                    delay: index * 0.18,
-                    ease: "easeOut",
-                  }}
-                  className="
-                    relative grid min-h-[150px]
-                    grid-cols-[88px_1px_92px_1fr]
-                    items-center
-                    overflow-hidden
-                    rounded-[28px]
-                    border border-[#E6D7BC]/80
-                    bg-white/68
-                    px-6 py-6
-                    shadow-[0_18px_45px_rgba(95,68,34,0.08)]
-                    backdrop-blur-xl
-                    md:grid-cols-[110px_1px_120px_1fr]
-                  "
-                >
-                  <div
-                    className="
-                      text-center font-serif
-                      text-[42px] leading-none
-                      text-[#B88A2D]
-                      md:text-[52px]
-                    "
-                  >
-                    {step.num}
-                  </div>
-
-                  <div className="h-[86px] w-px bg-[#E6D7BC]" />
-
-                  <div className="flex justify-center">
-                    <div
-                      className="
-                        flex h-[76px] w-[76px]
-                        items-center justify-center
-                        rounded-full
-                        border border-[#E6D7BC]
-                        bg-[#FAF6EE]
-                        shadow-[0_10px_25px_rgba(95,68,34,0.07)]
-                      "
-                    >
-                      <Icon
-                        size={34}
-                        strokeWidth={1.55}
-                        className="text-[#B88A2D]"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="pr-4 text-right">
-                    <h3 className="text-[21px] font-black text-[#3D3127]">
-                      {step.title}
-                    </h3>
-
-                    <p className="mt-2 max-w-[470px] text-[15px] leading-[1.85] text-[#6B5A49]">
-                      {step.text}
-                    </p>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-
-          <motion.div
-            dir="rtl"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, amount: 0.35 }}
-            transition={{ duration: 0.75 }}
-            className="
-              order-1
-              text-center
-              lg:order-2
-              lg:text-right
-            "
-          >
-            <h2
-              className="
-                text-[38px]
-                font-black
-                leading-[1.14]
-                tracking-[-0.035em]
-                text-[#3A3028]
-                md:text-[58px]
-                lg:text-[68px]
-              "
-            >
-              מהזמנה ועד הושבה —
-              <br />
-              הכל עובד{" "}
-              <span
-                className="
-                  bg-gradient-to-l
-                  from-[#8B642B]
-                  via-[#C69A3F]
-                  to-[#B88A2D]
-                  bg-clip-text text-transparent
-                "
+            ].map((item, i) => (
+              <motion.figure
+                key={item.label}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, amount: 0.3 }}
+                transition={{ delay: i * 0.08, duration: 0.55 }}
+                className="overflow-hidden border border-[#D5DBE3] bg-[#F2F4F7]"
               >
-                מסודר
-              </span>
-            </h2>
-
-            <div className="mx-auto mt-6 flex max-w-[520px] items-center justify-center gap-4 lg:mx-0">
-              <span className="h-px flex-1 bg-gradient-to-l from-transparent via-[#C9A45C] to-[#C9A45C]" />
-              <span className="text-[#C59A45]">✦</span>
-              <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#C9A45C] to-[#C9A45C]" />
-            </div>
-
-            <p
-              className="
-                mx-auto mt-7 max-w-[650px]
-                text-[18px]
-                font-semibold
-                leading-[1.95]
-                text-[#4E4237]
-                md:text-[21px]
-                lg:mx-0
-              "
-            >
-              Invistimo אישורי הגעה מלווה אתכם לפי הסדר האמיתי של ניהול האירוע:
-              קודם מעלים הזמנה, מעדכנים פרטים, מוסיפים מוזמנים —
-              ומשם מנהלים אישורי הגעה, הושבה והודעות במקום אחד.
-            </p>
-
-            <DemoButton className="mt-9 min-w-[250px] px-10 text-[17px]">
-              לראות איך זה עובד
-              <ArrowLeft size={18} />
-            </DemoButton>
-
-            <BlockTwoPhone />
-          </motion.div>
+                <div className="aspect-[4/5] overflow-hidden bg-[#0B0E13]">
+                  <img src={item.src} alt={item.alt} className="h-full w-full object-cover object-top" />
+                </div>
+                <figcaption className="border-t border-[#D5DBE3] bg-white px-5 py-5">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-[#0F766E]">{item.label}</p>
+                  <p className="mt-2 font-display text-xl text-[#0B0E13]">{item.title}</p>
+                </figcaption>
+              </motion.figure>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* ================= בלוק 3 – REAL TIME SHOWCASE ================= */}
-      <RealTimeShowcase />
+      {/* ===== GUEST JOURNEY — numbered editorial, not floating phones ===== */}
+      <section className="bg-[#0B0E13] px-5 py-20 text-white md:px-8 md:py-28">
+        <div className="mx-auto max-w-6xl">
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-[#7DD3C8]">מסע האורח</p>
+          <h2 className="mt-3 max-w-xl font-display text-3xl font-medium md:text-5xl">
+            מאיה ואיתי — דוגמה אחת מקצה לקצה
+          </h2>
+          <p className="mt-4 max-w-2xl text-base leading-8 text-white/70 md:text-lg">
+            אותו אירוע בדיוני, אותם אורחים — מהודעה ועד עדכון בדשבורד. בלי אנימציית מספרים מזויפת.
+          </p>
 
-      {/* ================= FINAL CTA ================= */}
-      <FinalCTA />
+          <ol className="mt-14 space-y-10 md:space-y-0">
+            {JOURNEY.map((step, index) => (
+              <li
+                key={step.n}
+                className={`grid items-center gap-8 border-t border-white/10 py-10 md:grid-cols-2 ${
+                  index % 2 === 1 ? "md:[&>div:first-child]:order-2" : ""
+                }`}
+              >
+                <div>
+                  <p className="font-display text-5xl text-[#0F766E] md:text-6xl">{step.n}</p>
+                  <h3 className="mt-3 font-display text-2xl md:text-3xl">{step.title}</h3>
+                  <p className="mt-3 max-w-md text-base leading-8 text-white/70">{step.text}</p>
+                </div>
+                <div className="overflow-hidden border border-white/15 bg-[#141A22]">
+                  <img
+                    src={step.src}
+                    alt={step.alt}
+                    className="aspect-[16/10] h-full w-full object-cover object-top"
+                  />
+                </div>
+              </li>
+            ))}
+          </ol>
+
+          <div className="mt-6">
+            <DemoCta className={ctaOnDarkClass}>לפתוח את הדמו של מאיה ואיתי</DemoCta>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== DASHBOARD — wide browser plane ===== */}
+      <section className="bg-[#F2F4F7] px-5 py-20 md:px-8 md:py-28">
+        <div className="mx-auto max-w-6xl">
+          <div className="grid items-end gap-8 lg:grid-cols-[0.9fr_1.1fr]">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-[#0F766E]">שליטה</p>
+              <h2 className="mt-3 font-display text-3xl font-medium text-[#0B0E13] md:text-5xl">
+                דשבורד חי — לא מצגת
+              </h2>
+              <p className="mt-4 text-base leading-8 text-[#3D4754] md:text-lg">
+                רואים מי אישר, מי פתוח ומי קיבל תזכורת. הנתונים מגיעים מפעולות אורח אמיתיות בסביבת הדמו.
+              </p>
+              <Link href="/rsvp" className={`${ctaPrimaryClass} mt-8`}>
+                לאישורי הגעה
+              </Link>
+            </div>
+            <div className="overflow-hidden border border-[#D5DBE3] bg-white shadow-[0_40px_80px_rgba(11,14,19,0.08)]">
+              <div className="flex items-center gap-2 border-b border-[#D5DBE3] px-4 py-3">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#D5DBE3]" />
+                <span className="h-2.5 w-2.5 rounded-full bg-[#D5DBE3]" />
+                <span className="h-2.5 w-2.5 rounded-full bg-[#0F766E]/50" />
+                <span className="mr-auto text-xs font-semibold text-[#6B7583]">invistimo.com/try</span>
+              </div>
+              <video
+                className="aspect-[16/10] w-full object-cover object-top"
+                autoPlay
+                muted
+                loop
+                playsInline
+                poster={PRODUCT_SHOTS.dashboardLive}
+              >
+                <source src={PRODUCT_VIDEOS.dashboardLive} type="video/webm" />
+              </video>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== INVITE GALLERY ===== */}
+      <section className="bg-white px-5 py-20 md:px-8 md:py-28">
+        <div className="mx-auto max-w-6xl">
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-[#0F766E]">הזמנות</p>
+              <h2 className="mt-3 font-display text-3xl font-medium text-[#0B0E13] md:text-5xl">
+                עיצובים לפי סוג אירוע
+              </h2>
+            </div>
+            <Link href="/invitations/chatuna" className={ctaSecondaryClass}>
+              לכל ההזמנות
+            </Link>
+          </div>
+          <div className="mt-12 grid grid-cols-2 gap-3 md:grid-cols-4 md:gap-4">
+            {[
+              { src: INVITE_DESIGNS.wedding, name: "חתונה" },
+              { src: INVITE_DESIGNS.saveTheDate, name: "Save the Date" },
+              { src: INVITE_DESIGNS.henna, name: "חינה" },
+              { src: INVITE_DESIGNS.barMitzvah, name: "בר מצווה" },
+            ].map((item) => (
+              <figure key={item.name} className="group overflow-hidden border border-[#D5DBE3]">
+                <img
+                  src={item.src}
+                  alt={item.name}
+                  className="aspect-[3/4] w-full object-cover transition duration-700 group-hover:scale-[1.03]"
+                />
+                <figcaption className="border-t border-[#D5DBE3] bg-[#F2F4F7] px-3 py-3 text-sm font-bold text-[#1A222D]">
+                  {item.name}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== MODULES — asymmetric service grid ===== */}
+      <section className="border-y border-[#D5DBE3] bg-[#F2F4F7] px-5 py-20 md:px-8 md:py-28">
+        <div className="mx-auto max-w-6xl">
+          <h2 className="max-w-xl font-display text-3xl font-medium text-[#0B0E13] md:text-5xl">
+            מודולים לפי הצורך של האירוע
+          </h2>
+          <div className="mt-12 grid gap-4 md:grid-cols-2">
+            {MODULES.map((mod, i) => (
+              <Link
+                key={mod.href}
+                href={mod.href}
+                className={`group relative overflow-hidden border border-[#D5DBE3] bg-white ${
+                  i === 0 ? "md:row-span-2 min-h-[420px]" : "min-h-[220px]"
+                }`}
+              >
+                <img
+                  src={mod.src}
+                  alt=""
+                  className="absolute inset-0 h-full w-full object-cover opacity-30 transition duration-700 group-hover:scale-105 group-hover:opacity-40"
+                />
+                <div className="relative z-10 flex h-full flex-col justify-end p-6 md:p-8">
+                  <h3 className="font-display text-2xl text-[#0B0E13] md:text-3xl">{mod.title}</h3>
+                  <p className="mt-2 max-w-sm text-sm leading-7 text-[#3D4754] md:text-base">{mod.text}</p>
+                  <span className="mt-4 text-sm font-bold text-[#0F766E]">לפרטים ←</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== WEDDING WEBSITES ===== */}
+      <section className="bg-[#0B0E13] px-5 py-20 text-white md:px-8 md:py-28">
+        <div className="mx-auto max-w-6xl">
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <div>
+              <p className="text-sm font-bold uppercase tracking-[0.2em] text-[#7DD3C8]">אתר חתונה</p>
+              <h2 className="mt-3 font-display text-3xl font-medium md:text-5xl">תבניות חיות — לא תמונת תצוגה</h2>
+              <p className="mt-4 max-w-xl text-base leading-8 text-white/70">
+                כל תבנית נפתחת כאתר מלא. זה לא קישור אישי לאורח — זה אתר האירוע.
+              </p>
+            </div>
+            <Link href="/wedding-website" className={ctaOnDarkClass}>
+              לכל התבניות
+            </Link>
+          </div>
+          <div className="mt-12 flex gap-4 overflow-x-auto pb-4">
+            {TEMPLATES.map((t) => (
+              <Link
+                key={t.id}
+                href={`/wedding-website/${t.id}`}
+                className="w-[280px] shrink-0 overflow-hidden border border-white/15 bg-[#141A22] md:w-[320px]"
+              >
+                <img src={t.src} alt={t.name} className="aspect-[16/11] w-full object-cover object-top" />
+                <div className="px-4 py-4">
+                  <p className="font-display text-lg">{t.name}</p>
+                  <p className="mt-1 text-sm text-white/55">פתיחת דוגמה חיה</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ===== SEATING SPLIT ===== */}
+      <section className="grid lg:grid-cols-2">
+        <div className="flex flex-col justify-center bg-white px-5 py-16 md:px-12 md:py-24">
+          <p className="text-sm font-bold uppercase tracking-[0.2em] text-[#0F766E]">הושבה</p>
+          <h2 className="mt-3 font-display text-3xl font-medium text-[#0B0E13] md:text-4xl">
+            מפת שולחנות מתוך הרשימה
+          </h2>
+          <p className="mt-4 max-w-md text-base leading-8 text-[#3D4754]">
+            משבצים אורחים לפי סטטוס אישור, ושולחים מספר שולחן כשהתוספת פעילה בחבילה.
+          </p>
+          <Link href="/seating-explained" className={`${ctaPrimaryClass} mt-8 self-start`}>
+            לסידורי הושבה
+          </Link>
+        </div>
+        <div className="min-h-[320px] overflow-hidden bg-[#141A22] lg:min-h-[480px]">
+          <img
+            src={PRODUCT_SHOTS.seatingLive}
+            alt="מפת הושבה באירוע הדוגמה"
+            className="h-full w-full object-cover object-top"
+          />
+        </div>
+      </section>
+
+      {/* ===== FINAL CTA ===== */}
+      <section className="bg-[#0F766E] px-5 py-20 text-white md:px-8 md:py-24">
+        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-8 md:flex-row md:items-center">
+          <div>
+            <h2 className="font-display text-3xl font-medium md:text-5xl">מוכנים לראות את המערכת?</h2>
+            <p className="mt-3 max-w-xl text-base leading-8 text-white/85">
+              הדמו של מאיה ואיתי פתוח בלי התחייבות. המחיר נקבע לפי רשומות וחבילה במחשבון.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <DemoCta className="inline-flex min-h-12 items-center justify-center rounded-md bg-[#0B0E13] px-8 py-3 text-base font-bold text-white transition hover:bg-black">
+              התנסות בדמו
+            </DemoCta>
+            <Link
+              href="/contact"
+              className="inline-flex min-h-12 items-center justify-center rounded-md border border-white/40 px-8 py-3 text-base font-bold text-white transition hover:bg-white/10"
+            >
+              יצירת קשר
+            </Link>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }

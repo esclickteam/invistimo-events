@@ -1,6 +1,6 @@
 import "./globals.css";
 import type { ReactNode } from "react";
-import { Heebo } from "next/font/google";
+import { Frank_Ruhl_Libre, Rubik } from "next/font/google";
 
 import Providers from "./providers";
 import AccessibilityScript from "./components/AccessibilityScript";
@@ -8,11 +8,18 @@ import PublicPageShell from "./PublicPageShell";
 import GlobalSoftphoneMount from "./components/staff/GlobalSoftphoneMount";
 import PrivateChromeHider from "./components/staff/PrivateChromeHider";
 
-const heebo = Heebo({
+const rubik = Rubik({
   subsets: ["hebrew", "latin"],
   weight: ["300", "400", "500", "600", "700", "800"],
   display: "swap",
-  variable: "--font-heebo",
+  variable: "--font-rubik",
+});
+
+const frank = Frank_Ruhl_Libre({
+  subsets: ["hebrew", "latin"],
+  weight: ["400", "500", "700"],
+  display: "swap",
+  variable: "--font-frank",
 });
 
 /* ======================================================
@@ -108,9 +115,9 @@ export const viewport = {
 ====================================================== */
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="he" dir="rtl" className={heebo.variable} suppressHydrationWarning>
+    <html lang="he" dir="rtl" className={`${rubik.variable} ${frank.variable}`} suppressHydrationWarning>
       <body
-        className={`${heebo.className} min-h-screen bg-[#f7f3ee] text-[#5c4632]`}
+        className={`${rubik.className} min-h-screen bg-[#F2F4F7] text-[#3D4754]`}
         suppressHydrationWarning
       >
         <Providers>

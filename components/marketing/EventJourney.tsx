@@ -94,16 +94,16 @@ export default function EventJourney({
       aria-labelledby="event-journey-heading"
       className={`relative overflow-hidden ${compact ? "py-10" : "py-14 md:py-20"}`}
     >
-      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_45%,#F3E6D4_100%)]" aria-hidden />
+      <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,#FFFFFF_0%,#F2F4F7_45%,#F3E6D4_100%)]" aria-hidden />
       <div className="pointer-events-none absolute -left-24 top-10 h-64 w-64 rounded-full bg-[#D8B77C]/20 blur-3xl" aria-hidden />
 
       <div className="relative mx-auto max-w-6xl px-5 md:px-8">
         <div className={`max-w-3xl ${compact ? "" : "md:max-w-4xl"}`}>
-          <p className="text-sm font-bold tracking-[0.18em] text-[#A67C3D]">מסע האירוע</p>
-          <h2 id="event-journey-heading" className="mt-3 text-3xl font-black leading-tight text-[#2A211A] md:text-4xl">
+          <p className="text-sm font-bold tracking-[0.18em] text-[#0F766E]">מסע האירוע</p>
+          <h2 id="event-journey-heading" className="mt-3 text-3xl font-black leading-tight text-[#0B0E13] md:text-4xl">
             {heading}
           </h2>
-          <p className="mt-4 text-base leading-8 text-[#5C4A3A] md:text-lg">{lede}</p>
+          <p className="mt-4 text-base leading-8 text-[#3D4754] md:text-lg">{lede}</p>
         </div>
 
         <ol className="mt-10 space-y-0 md:mt-12">
@@ -113,19 +113,19 @@ export default function EventJourney({
               <div
                 className={`group relative grid gap-3 border-r-2 pr-5 md:grid-cols-[7rem_1fr_auto] md:gap-6 md:border-r-0 md:pr-0 ${
                   index < stages.length - 1 ? "pb-8 md:pb-10" : "pb-2"
-                } ${active ? "border-[#C7A56B]" : "border-[#E6D2AA]/80"}`}
+                } ${active ? "border-[#0F766E]" : "border-[#D5DBE3]/80"}`}
               >
-                <div className="absolute -right-[9px] top-1 h-4 w-4 rounded-full border-2 border-[#C7A56B] bg-[#FFFDF8] md:hidden" aria-hidden />
-                <div className="text-sm font-black text-[#A67C3D]">{stage.label}</div>
+                <div className="absolute -right-[9px] top-1 h-4 w-4 rounded-full border-2 border-[#0F766E] bg-[#FFFFFF] md:hidden" aria-hidden />
+                <div className="text-sm font-black text-[#0F766E]">{stage.label}</div>
                 <div>
-                  <h3 className={`text-xl font-black ${active ? "text-[#84613A]" : "text-[#2A211A]"}`}>
+                  <h3 className={`text-xl font-black ${active ? "text-[#0B5A54]" : "text-[#0B0E13]"}`}>
                     {stage.title}
                   </h3>
-                  <p className="mt-2 max-w-2xl leading-7 text-[#5C4A3A]">{stage.text}</p>
-                  <p className="mt-2 text-sm font-semibold text-[#7A6042]">זמינות: {stage.availability}</p>
+                  <p className="mt-2 max-w-2xl leading-7 text-[#3D4754]">{stage.text}</p>
+                  <p className="mt-2 text-sm font-semibold text-[#6B7583]">זמינות: {stage.availability}</p>
                 </div>
                 {stage.href ? (
-                  <span className="self-start text-sm font-black text-[#A67C3D] underline-offset-4 group-hover:underline">
+                  <span className="self-start text-sm font-black text-[#0F766E] underline-offset-4 group-hover:underline">
                     למידע ←
                   </span>
                 ) : null}
@@ -136,12 +136,12 @@ export default function EventJourney({
               <li key={stage.id} className="relative">
                 {index < stages.length - 1 ? (
                   <span
-                    className="pointer-events-none absolute right-[6px] top-5 hidden h-[calc(100%-0.5rem)] w-px bg-[#E6D2AA] md:right-auto md:left-[3.2rem] md:block"
+                    className="pointer-events-none absolute right-[6px] top-5 hidden h-[calc(100%-0.5rem)] w-px bg-[#D5DBE3] md:right-auto md:left-[3.2rem] md:block"
                     aria-hidden
                   />
                 ) : null}
                 {stage.href ? (
-                  <Link href={stage.href} className="block rounded-2xl outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C7A56B]">
+                  <Link href={stage.href} className="block rounded-2xl outline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#0F766E]">
                     {body}
                   </Link>
                 ) : (

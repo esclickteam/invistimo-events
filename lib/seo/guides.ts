@@ -398,6 +398,10 @@ export const GUIDES: Guide[] = [
       variant: "wide",
       caption: "Save the Date — תצוגה מקדימה מהמערכת",
     },
+    video: {
+      src: "/marketing/videos/process-save-the-date.webm",
+      caption: "Save the Date מול הזמנה — תהליך במערכת",
+    },
     gallery: [
       {
         type: "image",
@@ -752,6 +756,10 @@ export const GUIDES: Guide[] = [
       variant: "wide",
       caption: "סטטוס ומספר מגיעים על אותה רשומה",
     },
+    video: {
+      src: "/marketing/videos/process-dashboard-live.webm",
+      caption: "רשימת מוזמנים מתעדכנת בדשבורד",
+    },
     gallery: [
       {
         type: "image",
@@ -861,6 +869,10 @@ export const GUIDES: Guide[] = [
       alt: "המחשת הזמנה/אתר",
       variant: "phone",
       caption: "חוויית אורח בנייד — תבנית לדוגמה",
+    },
+    video: {
+      src: "/marketing/videos/process-invitation-open.webm",
+      caption: "פתיחת הזמנה דיגיטלית בקישור אישי",
     },
     gallery: [
       {
@@ -981,6 +993,10 @@ export const GUIDES: Guide[] = [
       alt: "ממשק Save the Date",
       variant: "wide",
       caption: "Save the Date — תצוגה מקדימה בוואטסאפ",
+    },
+    video: {
+      src: "/marketing/videos/process-save-the-date.webm",
+      caption: "מתי שולחים Save the Date",
     },
     gallery: [
       {
@@ -1118,6 +1134,10 @@ export const GUIDES: Guide[] = [
       alt: "תצוגת אורח — תבנית לדוגמה",
       variant: "phone",
       caption: "בודקים תצוגת אורח לפני שליחה",
+    },
+    video: {
+      src: "/marketing/videos/process-invitation-open.webm",
+      caption: "מתי שולחים הזמנה דיגיטלית",
     },
     steps: [
       { title: "נועלים פרטים", text: "תאריך, שעה, מיקום, לבוש אם רלוונטי." },
@@ -1394,7 +1414,7 @@ export const GUIDES: Guide[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/reel-wedding-website.webm",
+      src: "/marketing/videos/process-seating.webm",
       poster: SHOT.seating,
       caption: "שיבוץ במערכת — לפני שליחת מספר",
     },
@@ -1497,6 +1517,10 @@ export const GUIDES: Guide[] = [
       alt: "ממשק תזכורת SMS",
       variant: "wide",
       caption: "תזכורת SMS למי שכבר אישר",
+    },
+    video: {
+      src: "/marketing/videos/process-dashboard-live.webm",
+      caption: "מעקב אחרי תזכורות בדשבורד",
     },
     steps: [
       { title: "סוגרים פתוחים", text: "סבב וואטסאפ שני / שיחות לפי חבילה." },
