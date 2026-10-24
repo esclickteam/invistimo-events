@@ -221,6 +221,7 @@ export default function PublicInvitePage({ params }: any) {
         {invite?.studioDesign?.snapshot ? (
           <div className="w-full max-w-md">
             <InvitationArt
+              play
               snapshot={invite.studioDesign.snapshot}
               guestName={
                 invite.studioDesign.snapshot.personalGreeting

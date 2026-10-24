@@ -27,6 +27,63 @@ export type StudioCategory = (typeof STUDIO_CATEGORIES)[number];
 export type StudioStyle = (typeof STUDIO_STYLES)[number];
 export type StudioMotion = "none" | "soft";
 
+export type PlateAnimation = "none" | "envelope" | "floral" | "gold" | "silk" | "zoom";
+
+export type InvitationDetails = {
+  showBasad: boolean;
+  basad: string;
+  brideName: string;
+  groomName: string;
+  opening: string;
+  weekday: string;
+  hebrewDate: string;
+  gregorianDate: string;
+  reception: string;
+  ceremony: string;
+  venue: string;
+  address: string;
+  brideParents: string;
+  groomParents: string;
+  brideFamily: string;
+  groomFamily: string;
+  brideParentsMemory: boolean;
+  groomParentsMemory: boolean;
+  closing: string;
+  extra: string;
+  guestGreeting: string;
+};
+
+export type PlateInset = { top: number; right: number; bottom: number; left: number };
+
+export type PlateDesign = {
+  id: string;
+  art: string;
+  animation: PlateAnimation;
+  durationMs: number;
+  ink: string;
+  muted: string;
+  accent: string;
+  nameFont: string;
+  textFont: string;
+  inset: PlateInset;
+  medallion?: boolean;
+  details: InvitationDetails;
+  speed?: number;
+};
+
+export type StudioMusic = {
+  mode: "none" | "library" | "upload";
+  cueId?: string;
+  dataUrl?: string;
+  start: number;
+  end: number;
+  fadeIn: number;
+  fadeOut: number;
+  volume: number;
+  sync: "start" | "names" | "details";
+  rightsConfirmed?: boolean;
+};
+
 export type StudioFont =
   | "Frank Ruhl Libre"
   | "David Libre"
@@ -137,8 +194,8 @@ export type StudioFormats = {
   static: true;
   digital: true;
   animated: boolean;
-  /** Video export is not implemented and must not be offered for purchase. */
-  video: false;
+  /** MP4 export exists for animated plates. It is not a separate paid format. */
+  video: boolean;
 };
 
 export type StudioFontFace = {
@@ -195,6 +252,8 @@ export type StudioSnapshot = {
   images: StudioImages;
   personalGreeting: boolean;
   fontFace?: StudioFontFace | null;
+  plate?: PlateDesign;
+  music?: StudioMusic;
 };
 
 export type RenderModel = {

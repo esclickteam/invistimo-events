@@ -5,7 +5,9 @@ import InvitationStudioDesign from "@/models/InvitationStudioDesign";
 import { readStudioAuth } from "@/lib/invitationStudio/access";
 import { contentFromEvent } from "@/lib/invitationStudio/prefill";
 import { freezeSnapshot } from "@/lib/invitationStudio/render";
+import { freezePlate, getPlate } from "@/lib/invitationStudio/plates";
 import { readMergedCatalog } from "@/lib/invitationStudio/store";
+import { sanitizeDetails } from "@/lib/invitationStudio/details";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +19,10 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const templateId = String(body?.templateId || "");
-  const templates = await readMergedCatalog();
-  const template = templates.find((item) => item.id === templateId);
-  if (!template) {
+  const plate = getPlate(templateId);
+  const templates = plate ? [] : await readMergedCatalog();
+  const template = plate ? null : templates.find((item) => item.id === templateId);
+  if (!plate && !template) {
     return NextResponse.json({ success: false, error: "TEMPLATE_NOT_FOUND" }, { status: 404 });
   }
 
@@ -37,16 +40,22 @@ export async function POST(req: Request) {
   const event = invitation?.eventId
     ? await Event.findById(invitation.eventId).lean()
     : null;
-  const snapshot = freezeSnapshot(template, {
-    content: invitation ? contentFromEvent(template, invitation, event) : undefined,
-    personalGreeting: true,
-  });
+  const details = sanitizeDetails(body?.details, plate?.details);
+  const location = invitation?.location as { name?: string; address?: string } | undefined;
+  if (!body?.details?.venue && location?.name) details.venue = String(location.name);
+  if (!body?.details?.address && location?.address) details.address = String(location.address);
+  const snapshot = plate
+    ? freezePlate(plate, details)
+    : freezeSnapshot(template!, {
+        content: invitation ? contentFromEvent(template!, invitation, event) : undefined,
+        personalGreeting: true,
+      });
 
   const design = await InvitationStudioDesign.create({
     ownerId: session.user._id,
     invitationId: invitation?._id || null,
     eventId: invitation?.eventId || null,
-    templateId: template.id,
+    templateId: plate ? plate.id : template!.id,
     status: "draft",
     snapshot,
   });

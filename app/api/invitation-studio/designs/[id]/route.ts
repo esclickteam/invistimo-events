@@ -14,7 +14,9 @@ import {
   renderSnapshot,
 } from "@/lib/invitationStudio/render";
 import { renderModelToSvg } from "@/lib/invitationStudio/svg";
-import type { StudioContent, TextRole } from "@/lib/invitationStudio/types";
+import { applyPlateChrome, getPlate } from "@/lib/invitationStudio/plates";
+import { sanitizeDetails } from "@/lib/invitationStudio/details";
+import type { StudioContent, StudioMusic, TextRole } from "@/lib/invitationStudio/types";
 
 export const dynamic = "force-dynamic";
 
@@ -38,8 +40,33 @@ function cleanText(value: unknown) {
   return String(value ?? "").replace(/\u0000/g, "").slice(0, 280);
 }
 
+function sanitizeMusic(raw: unknown, current?: StudioMusic): StudioMusic | undefined {
+  if (!raw || typeof raw !== "object") return current;
+  const source = raw as Record<string, unknown>;
+  const mode = source.mode === "library" || source.mode === "upload" ? source.mode : "none";
+  const dataUrl = String(source.dataUrl || "");
+  const allowedAudio = /^data:audio\/(mpeg|wav|webm|mp4|x-m4a);base64,[a-z0-9+/=\s]+$/i.test(dataUrl);
+  if (mode === "upload" && (!source.rightsConfirmed || !allowedAudio || dataUrl.length > 2_200_000)) {
+    return current;
+  }
+  const start = Math.max(0, Number(source.start) || 0);
+  const end = Math.max(start, Number(source.end) || 0);
+  return {
+    mode,
+    cueId: mode === "library" ? "evening-motif" : undefined,
+    dataUrl: mode === "upload" && allowedAudio ? dataUrl : undefined,
+    start,
+    end,
+    fadeIn: Math.min(4, Math.max(0, Number(source.fadeIn) || 0)),
+    fadeOut: Math.min(4, Math.max(0, Number(source.fadeOut) || 0)),
+    volume: Math.min(1, Math.max(0, Number(source.volume) || 0.8)),
+    sync: source.sync === "names" || source.sync === "details" ? source.sync : "start",
+    rightsConfirmed: Boolean(source.rightsConfirmed),
+  };
+}
+
 function sanitizeContent(raw: unknown, current: StudioContent): StudioContent {
-  const next = { ...current };
+  const next = { ...(current || {}) } as StudioContent;
   if (!raw || typeof raw !== "object") return next;
   for (const role of ROLES) {
     if (role in (raw as object)) next[role] = cleanText((raw as StudioContent)[role]);
@@ -162,12 +189,30 @@ export async function PATCH(
 
   const body = await req.json().catch(() => ({}));
   const snapshot = design.snapshot || {};
+  if (snapshot.plate && body?.templateId) {
+    const plate = getPlate(String(body.templateId));
+    if (plate) {
+      if (body.details) snapshot.plate.details = sanitizeDetails(body.details, snapshot.plate.details);
+      const swapped = applyPlateChrome(snapshot, plate);
+      design.templateId = plate.id;
+      design.snapshot = swapped;
+      design.markModified("snapshot");
+      await design.save();
+      return NextResponse.json({ success: true, templateId: plate.id });
+    }
+  }
+  if (snapshot.plate && body?.details) {
+    snapshot.plate.details = sanitizeDetails(body.details, snapshot.plate.details);
+    const speed = Number(body.speed);
+    if (Number.isFinite(speed)) snapshot.plate.speed = Math.min(1.6, Math.max(0.6, speed));
+  }
+  if (body?.music) snapshot.music = sanitizeMusic(body.music, snapshot.music);
   const layerIds = new Set<string>((snapshot.layers || []).map((layer: { id: string }) => layer.id));
-  snapshot.content = sanitizeContent(body.content, snapshot.content);
-  snapshot.palette = sanitizePalette(body.palette, snapshot.palette);
-  snapshot.layerOverrides = sanitizeOverrides(body.layerOverrides, layerIds);
-  snapshot.images = sanitizeImages(body.images);
-  snapshot.personalGreeting = Boolean(body.personalGreeting);
+  if (body.content) snapshot.content = sanitizeContent(body.content, snapshot.content);
+  if (body.palette) snapshot.palette = sanitizePalette(body.palette, snapshot.palette);
+  if (body.layerOverrides) snapshot.layerOverrides = sanitizeOverrides(body.layerOverrides, layerIds);
+  if (body.images) snapshot.images = sanitizeImages(body.images);
+  if ("personalGreeting" in body) snapshot.personalGreeting = Boolean(body.personalGreeting);
   design.snapshot = snapshot;
   design.markModified("snapshot");
   await design.save();

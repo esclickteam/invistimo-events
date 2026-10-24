@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import InvitationArt from "@/components/invitation-studio/InvitationArt";
+import PlateEditor from "@/components/invitation-studio/PlateEditor";
 import { STUDIO_FONTS } from "@/lib/invitationStudio/fonts";
 import { hebrewDateFromIso } from "@/lib/invitationStudio/hebrewDate";
 import { renderSnapshot } from "@/lib/invitationStudio/render";
@@ -44,6 +45,7 @@ function stateFromSnapshot(snapshot: StudioSnapshot): EditorState {
 export default function InvitationStudioEditorPage() {
   const params = useParams<{ designId: string }>();
   const designId = params.designId;
+  const [plateSnap, setPlateSnap] = useState<StudioSnapshot | null>(null);
   const [base, setBase] = useState<StudioSnapshot | null>(null);
   const [state, setState] = useState<EditorState | null>(null);
   const [status, setStatus] = useState("draft");
@@ -70,6 +72,10 @@ export default function InvitationStudioEditorPage() {
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "לא נמצאה הזמנה");
+        if (data.design.snapshot?.plate) {
+          setPlateSnap(data.design.snapshot);
+          return;
+        }
         setBase(data.design.snapshot);
         setState(stateFromSnapshot(data.design.snapshot));
         setStatus(data.design.status);
@@ -247,6 +253,10 @@ export default function InvitationStudioEditorPage() {
         },
       },
     });
+  }
+
+  if (plateSnap?.plate) {
+    return <PlateEditor designId={designId} initial={plateSnap} />;
   }
 
   if (!snapshot || !state || !rendered) {

@@ -5,16 +5,26 @@ import { STUDIO_FONT_STYLESHEET } from "@/lib/invitationStudio/fonts";
 import { renderSnapshot } from "@/lib/invitationStudio/render";
 import { renderModelToSvg } from "@/lib/invitationStudio/svg";
 import type { StudioSnapshot } from "@/lib/invitationStudio/types";
+import InvitationPlate from "@/components/invitation-studio/InvitationPlate";
 
 export default function InvitationArt({
   snapshot,
   guestName,
   className = "",
+  play = false,
 }: {
   snapshot: StudioSnapshot;
   guestName?: string;
   className?: string;
+  play?: boolean;
 }) {
+  if (snapshot.plate) {
+    return (
+      <div className={className} data-testid="invitation-art">
+        <InvitationPlate plate={snapshot.plate} play={play} cue={play} guestName={guestName} music={snapshot.music} />
+      </div>
+    );
+  }
   useEffect(() => {
     if (document.getElementById("studio-fonts")) return;
     const link = document.createElement("link");

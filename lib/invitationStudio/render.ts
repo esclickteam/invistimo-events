@@ -84,7 +84,7 @@ export function renderSnapshot(
 ): RenderModel {
   const images = snapshot.images || {};
   snapshot.images = images;
-  const layers = snapshot.layers.map((layer) => {
+  const layers = (snapshot.layers || []).map((layer) => {
     const merged = mergeLayer(layer, snapshot.layerOverrides?.[layer.id]);
     if (merged.type === "image") {
       const href =
