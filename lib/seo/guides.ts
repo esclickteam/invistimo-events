@@ -65,7 +65,7 @@ export const GUIDES: Guide[] = [
       caption: "בדשבורד רואים מי ענה ומי עדיין פתוח — בסיס לסבב השני",
     },
     video: {
-      src: "/marketing/videos/reel-rsvp-guest.webm",
+      src: "/marketing/videos/process-rsvp-guest-journey.webm",
       poster: SHOT.guestRsvp,
       caption: "כך האורח מאשר הגעה בקישור האישי",
     },
@@ -225,7 +225,7 @@ export const GUIDES: Guide[] = [
       caption: "כל אורח במקום שלו. כל שולחן בשליטה.",
     },
     video: {
-      src: "/marketing/videos/reel-seating-cinematic.webm",
+      src: "/marketing/videos/process-seating.webm",
       poster: SHOT.seating,
       caption: "מהמפה ועד מספר שולחן — שיבוץ אורחים במערכת",
     },
@@ -529,7 +529,7 @@ export const GUIDES: Guide[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/demo-try-dashboard.webm",
+      src: "/marketing/videos/process-dashboard-live.webm",
       poster: SHOT.dashboard,
       caption: "איך נראה מעקב התשובות במערכת",
     },
@@ -654,7 +654,7 @@ export const GUIDES: Guide[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/demo-try-dashboard.webm",
+      src: "/marketing/videos/process-rsvp-guest-journey.webm",
       poster: SHOT.dashboard,
       caption: "מעקב אחרי מי ענה אחרי כל סבב",
     },
@@ -1388,13 +1388,13 @@ export const GUIDES: Guide[] = [
       },
       {
         type: "video",
-        src: "/marketing/videos/reel-seating-cinematic.webm",
+        src: "/marketing/videos/process-seating.webm",
         poster: SHOT.seating,
         caption: "מהמפה עד מספר שולחן — שיבוץ במערכת",
       },
     ],
     video: {
-      src: "/marketing/videos/reel-seating-cinematic.webm",
+      src: "/marketing/videos/reel-wedding-website.webm",
       poster: SHOT.seating,
       caption: "שיבוץ במערכת — לפני שליחת מספר",
     },

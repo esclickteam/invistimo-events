@@ -320,9 +320,15 @@ export function createDemoInvitation() {
     },
     rsvpRoundSent: {},
     giftCreditUrl: "",
-    headerImageUrl: "/homep1.png",
-    headerImage: "/homep1.png",
-    previewImage: "/homep1.png",
+    headerImageUrl: "/marketing/invites/invite-wedding-maya-itai.webp",
+    headerImage: "/marketing/invites/invite-wedding-maya-itai.webp",
+    previewImage: "/marketing/invites/invite-wedding-maya-itai.webp",
+    previewImageUrl: "/marketing/invites/invite-wedding-maya-itai.webp",
+    imageUrl: "/marketing/invites/invite-wedding-maya-itai.webp",
+    preRsvpMedia: {
+      saveTheDateImageUrl: "/marketing/invites/invite-save-the-date-maya-itai.webp",
+      invitationOnlyImageUrl: "/marketing/invites/invite-wedding-maya-itai.webp",
+    },
   };
 }
 

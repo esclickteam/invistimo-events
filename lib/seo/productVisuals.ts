@@ -42,17 +42,29 @@ export const PRODUCT_SHOTS = {
   messagesSaveTheDate: `${P}/webp/desktop-messages-save-the-date.webp`,
   messagesSmsMobile: `${P}/webp/mobile-messages-sms.webp`,
   messagesSaveTheDateMobile: `${P}/webp/mobile-messages-save-the-date.webp`,
+  /** Process captures from Maya & Itai /try demo */
+  whatsappRsvp: `${P}/webp/mobile-whatsapp-rsvp.webp`,
+  whatsappStd: `${P}/webp/mobile-whatsapp-std.webp`,
+  callsComparison: `${P}/webp/desktop-calls-comparison.webp`,
+  guestInviteLoaded: `${P}/webp/mobile-guest-invite-loaded.webp`,
+  dashboardLive: `${P}/webp/desktop-try-dashboard-live.webp`,
+  seatingLive: `${P}/webp/desktop-try-seating-live.webp`,
 } as const;
 
 /** Demo recordings from /try and /invite — fictional data only. */
 export const PRODUCT_VIDEOS = {
   dashboard: "/marketing/videos/demo-try-dashboard.webm",
   seating: "/marketing/videos/demo-try-seating.webm",
-  /** Prefer cinematic seating reel with scene captions */
-  seatingUnifiedCaptions: "/marketing/videos/reel-seating-cinematic.webm",
-  seatingCinematic: "/marketing/videos/reel-seating-cinematic.webm",
-  guestRsvp: "/marketing/videos/demo-guest-rsvp.webm",
-  guestRsvpCaptions: "/marketing/videos/reel-rsvp-guest.webm",
+  /** Prefer real seating process from the Maya & Itai demo event */
+  seatingUnifiedCaptions: "/marketing/videos/process-seating.webm",
+  seatingCinematic: "/marketing/videos/process-seating.webm",
+  seatingProcess: "/marketing/videos/process-seating.webm",
+  guestRsvp: "/marketing/videos/process-rsvp-guest-journey.webm",
+  guestRsvpCaptions: "/marketing/videos/process-rsvp-guest-journey.webm",
+  guestJourney: "/marketing/videos/process-rsvp-guest-journey.webm",
+  dashboardLive: "/marketing/videos/process-dashboard-live.webm",
+  invitationOpen: "/marketing/videos/process-invitation-open.webm",
+  saveTheDateProcess: "/marketing/videos/process-save-the-date.webm",
   weddingEternal: "/marketing/videos/demo-wedding-eternal-gold.webm",
   weddingReel: "/marketing/videos/reel-wedding-website.webm",
   homeJourney: "/marketing/videos/reel-home-journey.webm",
@@ -69,22 +81,67 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
     case "/rsvp":
     case "/rsvp/chatuna":
     case "/rsvp/whatsapp":
-    case "/rsvp/calls":
     case "/rsvp/guest-list":
     case "/info/demo":
-    case "/for/bar-mitzvah":
-    case "/for/bat-mitzvah":
-    case "/for/brit":
-    case "/for/birthday":
-    case "/for/private-party":
-    case "/for/corporate":
       return {
-        heading: "ככה נראים האישור והדשבורד במערכת",
-        lede: "כך האורח מאשר הגעה בקישור האישי — ואותה תשובה נכנסת מיד לדשבורד שלכם.",
+        heading: "מהודעה, להזמנה, לדשבורד",
+        lede: "מסע אורח עקבי באירוע הדוגמה של מאיה ואיתי — עם שמירה אמיתית במערכת הדמו, לא אנימציה מנותקת.",
+        layout: "trio",
+        items: [
+          { src: PRODUCT_SHOTS.whatsappRsvp, alt: "הדמיית הודעת WhatsApp לפי תבנית Invistimo", caption: "קבלת ההודעה עם הקישור האישי", device: "phone" },
+          { src: PRODUCT_SHOTS.guestInviteLoaded, alt: "הזמנה דיגיטלית שנפתחת בקישור האישי", caption: "פתיחת ההזמנה", device: "phone" },
+          { src: PRODUCT_SHOTS.dashboardLive, alt: "דשבורד אחרי אישורי הגעה אמיתיים בדמו", caption: "הדשבורד מתעדכן אחרי השמירה", device: "laptop" },
+        ],
+      };
+    case "/for/bar-mitzvah":
+      return {
+        heading: "בר מצווה — רשימה משפחתית ואישורים",
+        lede: "מאחדים משפחה וחברים בקישור אישי לכל אורח, עם מעקב בדשבורד לפני סגירה מול האולם.",
         layout: "hero-side",
         items: [
-          { src: PRODUCT_SHOTS.guestRsvp, alt: "מסך אישור הגעה של אורח — בחירת מגיע או לא מגיע", caption: "מה האורח רואה בקישור האישי", device: "phone" },
-          { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד Invistimo עם סטטיסטיקות אישורי הגעה", caption: "אותה תשובה נכנסת לדשבורד", device: "laptop" },
+          { src: INVITE_DESIGNS.barMitzvah, alt: "הזמנה לבר מצווה", caption: "הזמנה מעוצבת", device: "phone" },
+          { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד אישורי הגעה לבר מצווה", caption: "מעקב אחרי התשובות", device: "laptop" },
+        ],
+      };
+    case "/for/bat-mitzvah":
+      return {
+        heading: "בת מצווה — אישורים במקום אחד",
+        lede: "משפחה, חברות והורים — תשובות במסך אחד עם הזמנה דיגיטלית.",
+        layout: "hero-side",
+        items: [
+          { src: INVITE_DESIGNS.batMitzvah, alt: "הזמנה לבת מצווה", caption: "הזמנה מעוצבת", device: "phone" },
+          { src: PRODUCT_SHOTS.guestRsvpMobile, alt: "אישור הגעה בקישור אישי", caption: "האורחת מאשרת", device: "phone" },
+        ],
+      };
+    case "/for/brit":
+      return {
+        heading: "ברית ובריתה — רשימה קצרה ושני סבבים",
+        lede: "לרוב מספיקים הזמנה ושני סבבי וואטסאפ. בלי חובה באתר אישי.",
+        layout: "phone-pair",
+        items: [
+          { src: INVITE_DESIGNS.brit, alt: "הזמנה לברית", caption: "הזמנה דיגיטלית", device: "phone" },
+          { src: PRODUCT_SHOTS.guestRsvp, alt: "אישור הגעה קצר", caption: "אישור בקישור", device: "phone" },
+        ],
+      };
+    case "/for/birthday":
+    case "/for/private-party":
+      return {
+        heading: "אירוע פרטי — הזמנה ואישורים בלי מסע חתונה מלא",
+        lede: "מתמקדים בהזמנה דיגיטלית ובאישורי הגעה. הושבה וניהול אירוע רק אם באמת צריך.",
+        layout: "phone-pair",
+        items: [
+          { src: INVITE_DESIGNS.birthday, alt: "הזמנה ליום הולדת", caption: "הזמנה מעוצבת", device: "phone" },
+          { src: PRODUCT_SHOTS.guestRsvpMobile, alt: "אישור הגעה", caption: "קישור אישי", device: "phone" },
+        ],
+      };
+    case "/for/corporate":
+      return {
+        heading: "אירוע חברה — רשימה, סטטוסים ותזכורות",
+        lede: "ניהול מוזמנים עסקיים עם מעקב סטטוסים. לא מחליף מערכת כנסים עם סשנים מקבילים.",
+        layout: "duo",
+        items: [
+          { src: INVITE_DESIGNS.corporate, alt: "הזמנה לאירוע חברה", caption: "הזמנה דיגיטלית", device: "phone" },
+          { src: PRODUCT_SHOTS.eventMgmt, alt: "ניהול אירוע חברה", caption: "משימות ותקציב כתוספת", device: "laptop" },
         ],
       };
     case "/rsvp/sms":
@@ -101,32 +158,53 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
       };
     case "/for/henna":
       return {
-        heading: "אישורים והושבה כשיש שולחנות",
-        lede: "לחינה עם שולחנות — רשימת אורחים ומפת הושבה באותה מערכת.",
+        heading: "חינה — מוזמנים משני צדדים והושבה לפי צורך",
+        lede: "רשימה נפרדת מהחתונה, הזמנה מעוצבת, ואישורי הגעה. הושבה רק כשיש שולחנות ונרכשה התוספת.",
         layout: "duo",
         items: [
-          { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד אישורי הגעה", device: "laptop" },
-          { src: PRODUCT_SHOTS.seating, alt: "מפת הושבה עם שולחנות", device: "laptop" },
+          { src: INVITE_DESIGNS.henna, alt: "הזמנה לחינה", caption: "הזמנה דיגיטלית", device: "phone" },
+          { src: PRODUCT_SHOTS.seating, alt: "מפת הושבה לחינה", caption: "שיבוץ כשיש שולחנות", device: "laptop" },
         ],
       };
     case "/rsvp/save-the-date":
       return {
         heading: "Save the Date מעוצב — ושליחה מהמערכת",
-        lede: "עיצוב לדוגמה לצד ממשק השליחה האמיתי עם תצוגה מקדימה בוואטסאפ.",
-        layout: "hero-side",
+        lede: "עיצוב, הכנה במערכת והדמיית ההודעה שהאורח מקבל — בלי לאסוף אישור הגעה מוקדם מדי.",
+        layout: "trio",
         items: [
           { src: INVITE_DESIGNS.saveTheDate, alt: "עיצוב Save the Date לחתונה של מאיה ואיתי", caption: "עיצוב Save the Date", device: "phone" },
-          { src: PRODUCT_SHOTS.messagesSaveTheDate, alt: "ממשק שליחת Save the Date עם תצוגה מקדימה בוואטסאפ", caption: "שליחה מהמערכת", device: "laptop" },
+          { src: PRODUCT_SHOTS.whatsappStd, alt: "הדמיית קבלת הודעת Save the Date", caption: "מה האורח מקבל", device: "phone" },
+          { src: PRODUCT_SHOTS.messagesSaveTheDate, alt: "ממשק שליחת Save the Date במערכת", caption: "הכנה לשליחה בדמו", device: "laptop" },
         ],
       };
     case "/invitations/chatuna":
       return {
-        heading: "הזמנה מעוצבת — ואישור בקישור אישי",
-        lede: "עיצוב הזמנה לדוגמה לצד מסך האישור שהאורח מקבל בקישור.",
+        heading: "גלריית הזמנות מעוצבות",
+        lede: "קודם רואים את ההזמנה עצמה — ורק בהמשך את המעבר לאישור הגעה בקישור האישי. לא דשבורד ולא אתר חתונה.",
         layout: "phone-pair",
         items: [
           { src: INVITE_DESIGNS.wedding, alt: "הזמנה מעוצבת לחתונה של מאיה ואיתי", caption: "הזמנה דיגיטלית", device: "phone" },
-          { src: PRODUCT_SHOTS.guestRsvpMobile, alt: "מסך אישור הגעה של אורח", caption: "אישור בקישור האישי", device: "phone" },
+          { src: INVITE_DESIGNS.barMitzvah, alt: "הזמנה דיגיטלית לבר מצווה", caption: "אותו מנגנון — עיצוב אחר", device: "phone" },
+        ],
+      };
+    case "/rsvp/calls":
+      return {
+        heading: "מוקד אנושי, IVR ושילוב",
+        lede: "אחרי סבבי הוואטסאפ — בוחרים מסלול שיחה לפי מי שנשאר פתוח. התשובה נשמרת ברשימה כמו אחרי קישור אישי.",
+        layout: "duo",
+        items: [
+          {
+            src: PRODUCT_SHOTS.dashboardLive,
+            alt: "דשבורד — מי עדיין פתוח לפני סבב שיחות",
+            caption: "מתחילים ממי שלא ענה",
+            device: "laptop",
+          },
+          {
+            src: PRODUCT_SHOTS.callsComparison,
+            alt: "השוואת מוקד אנושי, שיחות מוקלטות ושילוב",
+            caption: "שלוש אפשרויות בחבילות השיחה",
+            device: "laptop",
+          },
         ],
       };
     case "/seating-explained":
@@ -137,7 +215,7 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
         lede: "תכננו את מפת השולחנות, שבצו את המוזמנים וראו בזמן אמת איפה נשאר מקום.",
         layout: "hero-side",
         items: [
-          { src: PRODUCT_SHOTS.seating, alt: "מסך סידורי הושבה של Invistimo", device: "laptop" },
+          { src: PRODUCT_SHOTS.seatingLive, alt: "מפת הושבה מאירוע הדוגמה מאיה ואיתי", device: "laptop" },
           { src: PRODUCT_SHOTS.seatingMobile, alt: "הושבה בנייד", device: "phone" },
         ],
       };

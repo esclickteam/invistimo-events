@@ -84,10 +84,9 @@ function HeroPhone3D() {
       className="
         relative z-10
         flex w-full items-center justify-center
-        min-h-[460px]
-        md:min-h-[540px]
-        lg:min-h-[600px]
-        lg:-translate-y-8
+        min-h-[420px]
+        md:min-h-[500px]
+        lg:min-h-[540px]
       "
       style={{ perspective: "1800px" }}
     >
@@ -185,19 +184,12 @@ function HeroPhone3D() {
               "
             />
 
-            <video
-              src="/marketing/videos/reel-rsvp-guest.webm"
-              poster="/marketing/product/webp/mobile-guest-rsvp.webp"
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="
-                h-full w-full
-                object-cover object-top
-                brightness-105
-                contrast-105
-              "
+            {/* Prefer invitation art in the hero phone — never a long loading state. */}
+            <img
+              src="/marketing/invites/invite-wedding-maya-itai.webp"
+              alt="הזמנה דיגיטלית — החתונה של מאיה ואיתי"
+              className="h-full w-full object-cover object-top"
+              draggable={false}
             />
 
             <div
@@ -911,7 +903,7 @@ export default function HomePageClient() {
   return (
     <main className="overflow-x-hidden bg-[#F4F0E8] text-[#2C241C]">
       {/* ================= HERO — brand-first composition ================= */}
-      <section className="relative min-h-[100svh] overflow-hidden">
+      <section className="relative overflow-hidden">
         <div
           className="absolute inset-0 z-0 bg-[url('/homep1.webp')] bg-cover bg-center"
           aria-hidden
@@ -931,7 +923,7 @@ export default function HomePageClient() {
 
         <div
           dir="rtl"
-          className="relative z-10 mx-auto grid min-h-[100svh] max-w-[1440px] grid-cols-1 items-center gap-10 px-5 pb-16 pt-28 md:px-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pt-24"
+          className="relative z-10 mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-8 px-5 pb-12 pt-20 md:gap-10 md:px-10 md:pb-14 md:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pt-16"
         >
           <motion.div
             initial={{ opacity: 0, y: 28 }}

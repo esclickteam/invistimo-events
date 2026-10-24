@@ -36,3 +36,8 @@ https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.a
 - אין להשתמש שוב ב־Cloudflare Quick Tunnel לסקירה — הוא נופל אחרי זמן קצר.
 - staging.invistimo.com נשאר סביבת staging נפרדת (ענף `staging`) ואינו מחליף את Preview של PR #382.
 - אחרי כל push לענף, אותו קישור Git-branch מתעדכן לבילד האחרון.
+
+## מדיה מעודכנת (תהליכים אמיתיים)
+
+סרטונים חדשים תחת `/marketing/videos/process-*.webm` מתוך דמו מאיה ואיתי.
+רשימת עמודים: `docs/seo/media-alignment-checklist.md`.

@@ -196,8 +196,8 @@ export default function RSVPPage() {
       {/* ================= HERO ================= */}
       <section
         className="
-          relative isolate px-6 pb-12 pt-16 text-center
-          md:pb-16 md:pt-24
+          relative isolate px-6 pb-10 pt-10 text-center
+          md:pb-14 md:pt-14
         "
       >
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,#E9D4AF_0%,transparent_34%),radial-gradient(circle_at_top_right,#F5E8D3_0%,transparent_34%),linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_55%,#F6EBDD_100%)]" />
@@ -315,13 +315,13 @@ export default function RSVPPage() {
           className="mx-auto mt-12 max-w-4xl"
         >
           <DeviceFrame
-            src={PRODUCT_SHOTS.guestRsvp}
-            alt="מסך אישור הגעה של אורח — בחירת מגיע או לא מגיע"
+            src={PRODUCT_SHOTS.guestInviteLoaded}
+            alt="הזמנה דיגיטלית בקישור האישי — מאיה ואיתי"
             variant="phone"
             priority
           />
           <p className="mt-4 text-sm font-semibold text-[#7A6042]">
-            כך האורח מאשר הגעה בקישור האישי — בחירה ושליחה בכמה לחיצות.
+            קודם נפתחת ההזמנה המעוצבת — ואז ממשיכים לאישור הגעה באותו קישור.
           </p>
         </motion.div>
       </section>
@@ -342,15 +342,33 @@ export default function RSVPPage() {
 
       <section className="px-5 py-12 md:px-8">
         <div className="mx-auto max-w-4xl">
-          <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">מההזמנה לאישור — ואז לדשבורד</h2>
+          <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">מסע האורח המלא — מהודעה עד אישור</h2>
           <p className="mt-3 leading-8 text-[#5C4A3A]">
-            האורח מאשר בקישור האישי, והתשובה מתעדכנת אצלכם מיד — מי בא, מי פתוח, וכמה מגיעים.
+            באירוע הדוגמה של מאיה ואיתי: האורח מקבל הודעת WhatsApp לפי התבנית המאושרת, פותח את
+            הקישור האישי, רואה את ההזמנה המעוצבת, מאשר הגעה — והתשובה נשמרת במערכת.
           </p>
           <div className="mt-8">
             <DemoVideo
-              src="/marketing/videos/reel-rsvp-guest.webm"
-              poster={PRODUCT_SHOTS.guestRsvp}
-              caption="אישור הגעה מהקישור האישי"
+              src={PRODUCT_VIDEOS.guestJourney}
+              poster={PRODUCT_SHOTS.whatsappRsvp}
+              caption="מהודעת WhatsApp דרך ההזמנה ועד אישור הגעה"
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="px-5 py-12 md:px-8">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">מעקב אחרי אישורים — לפי פעולות אמיתיות</h2>
+          <p className="mt-3 leading-8 text-[#5C4A3A]">
+            כמה אורחי דמו מאשרים הגעה, לא מגיעים או משאירים סטטוס פתוח — והדשבורד מתעדכן בהתאם
+            ללוגיקה של המערכת, לא באנימציה מנותקת.
+          </p>
+          <div className="mt-8">
+            <DemoVideo
+              src={PRODUCT_VIDEOS.dashboardLive}
+              poster={PRODUCT_SHOTS.dashboardLive}
+              caption="אישורי אורחים בדמו ועדכון הדשבורד"
             />
           </div>
         </div>

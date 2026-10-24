@@ -1,6 +1,6 @@
 import type { ContentBenefit, ContentFaq, ContentSection, ContentStep } from "@/components/marketing/PublicContentPage";
 import type { GuideGalleryItem, TimelineItem } from "@/components/marketing/RichGuideBlocks";
-import { PRODUCT_SHOTS } from "@/lib/seo/productVisuals";
+import { INVITE_DESIGNS, PRODUCT_SHOTS } from "@/lib/seo/productVisuals";
 
 export type EventLanding = {
   slug: string;
@@ -50,10 +50,10 @@ export const EVENT_LANDINGS: EventLanding[] = [
       "החברים מהכיתה לא עונים בקבוצה, הסבים צריכים קישור ברור, והאולם שואל כמה מנות — בלי שיהיה לכם מספר אחד אמין.",
     serviceType: "אישורי הגעה לבר מצווה",
     journeyActiveId: "rsvp",
-    showcaseSrc: PRODUCT_SHOTS.dashboard,
+    showcaseSrc: INVITE_DESIGNS.barMitzvah,
     showcaseAlt: "דשבורד למעקב אישורי הגעה",
     video: {
-      src: "/marketing/videos/demo-try-dashboard.webm",
+      src: "/marketing/videos/process-rsvp-guest-journey.webm",
       poster: PRODUCT_SHOTS.dashboard,
       caption: "מעקב תשובות בזמן אמת — מי ענה ומי עדיין פתוח",
     },
@@ -169,7 +169,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
     problem:
       "שני הורים אוספים תשובות בשני צ׳אטים שונים — ואף אחד לא יודע אם המספר לאולם הוא 120 או 145.",
     serviceType: "אישורי הגעה לבת מצווה",
-    showcaseSrc: PRODUCT_SHOTS.dashboard,
+    showcaseSrc: INVITE_DESIGNS.batMitzvah,
     showcaseAlt: "מעקב סטטוסי הגעה",
     gallery: [
       {
@@ -188,7 +188,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/demo-try-dashboard.webm",
+      src: "/marketing/videos/process-rsvp-guest-journey.webm",
       poster: PRODUCT_SHOTS.dashboard,
       caption: "דשבורד אישורי הגעה",
     },
@@ -259,7 +259,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
     problem:
       "האירוע בעוד ימים ספורים. אין זמן למסע חתונה מלא — רק לדעת מי מגיע וכמה.",
     serviceType: "אישורי הגעה לברית",
-    showcaseSrc: PRODUCT_SHOTS.dashboardMobile,
+    showcaseSrc: INVITE_DESIGNS.brit,
     showcaseAlt: "מעקב אישורים בנייד",
     gallery: [
       {
@@ -278,7 +278,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/demo-try-dashboard.webm",
+      src: "/marketing/videos/process-rsvp-guest-journey.webm",
       poster: PRODUCT_SHOTS.dashboard,
       caption: "מעקב תשובות בדשבורד",
     },
@@ -346,7 +346,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
     problem:
       "יש חינה וחתונה קרובות — ואם מערבבים אישורים, לא יודעים מי בא לאיזה ערב.",
     serviceType: "אישורי הגעה לחינה",
-    showcaseSrc: PRODUCT_SHOTS.seating,
+    showcaseSrc: INVITE_DESIGNS.henna,
     showcaseAlt: "מפת הושבה — רלוונטי לחינה עם שולחנות",
     gallery: [
       {
@@ -365,7 +365,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/demo-try-seating.webm",
+      src: "/marketing/videos/process-rsvp-guest-journey.webm",
       poster: PRODUCT_SHOTS.seating,
       caption: "מפת הושבה עם שולחנות",
     },
@@ -447,7 +447,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
     problem:
       "בקבוצת הוואטסאפ יש 40 «אני באה» ואין דרך לדעת מי באמת סימן ומי רק לייק.",
     serviceType: "אישורי הגעה ליום הולדת",
-    showcaseSrc: PRODUCT_SHOTS.weddingGardenMobile,
+    showcaseSrc: INVITE_DESIGNS.birthday,
     showcaseAlt: "דוגמה ויזואלית להזמנה ואתר",
     gallery: [
       {
@@ -466,7 +466,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/demo-try-dashboard.webm",
+      src: "/marketing/videos/process-rsvp-guest-journey.webm",
       poster: PRODUCT_SHOTS.dashboard,
       caption: "מעקב אחרי מי ענה",
     },
@@ -535,7 +535,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
     problem:
       "המסיבה לא חתונה — אבל עדיין צריך מספר ברור לפני שמזמינים אוכל ומקום.",
     serviceType: "אישורי הגעה לאירוע פרטי",
-    showcaseSrc: PRODUCT_SHOTS.dashboard,
+    showcaseSrc: INVITE_DESIGNS.birthday,
     showcaseAlt: "דשבורד אישורי הגעה",
     gallery: [
       {
@@ -547,7 +547,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/demo-try-dashboard.webm",
+      src: "/marketing/videos/process-rsvp-guest-journey.webm",
       poster: PRODUCT_SHOTS.dashboard,
       caption: "מעקב אישורים בדשבורד",
     },
@@ -636,7 +636,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/demo-try-dashboard.webm",
+      src: "/marketing/videos/process-rsvp-guest-journey.webm",
       poster: PRODUCT_SHOTS.dashboard,
       caption: "דשבורד משתתפים וסטטוסים",
     },
@@ -657,7 +657,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
         text: "תוספות במחשבון — לא חובה לכל כנס.",
       },
     ],
-    showcaseSrc: PRODUCT_SHOTS.eventMgmt,
+    showcaseSrc: INVITE_DESIGNS.corporate,
     showcaseAlt: "מסך ניהול אירוע",
     servicesThatFit: [
       { href: "/rsvp", label: "אישורי הגעה", note: "סטטוסים בזמן אמת" },

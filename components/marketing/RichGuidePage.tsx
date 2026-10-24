@@ -57,7 +57,7 @@ export default function RichGuidePage({ guide, path }: { guide: Guide; path: str
           className="absolute inset-0 -z-10 bg-[radial-gradient(ellipse_at_top_left,#E9D4AF_0%,transparent_40%),linear-gradient(165deg,#FFFDF8_0%,#FBF6EE_55%,#F0E2CE_100%)]"
           aria-hidden
         />
-        <div className="mx-auto grid max-w-6xl items-end gap-8 px-5 pb-10 pt-12 md:gap-10 md:px-8 md:pb-14 md:pt-16 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="mx-auto grid max-w-6xl items-end gap-8 px-5 pb-10 pt-8 md:gap-10 md:px-8 md:pb-12 md:pt-12 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
             <nav aria-label="מיקום בעמוד" className="mb-5 text-sm font-semibold text-[#7A6042]">
               {breadcrumbs.map((item, index) => (

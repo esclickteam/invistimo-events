@@ -290,7 +290,7 @@ export default function SeatingExplainedPage() {
   return (
     <div dir="rtl" className="overflow-hidden bg-[#fbf7ef] text-[#3f342b]">
       {/* ================= HERO ================= */}
-      <section className="relative overflow-hidden px-5 pb-12 pt-16 md:px-8 md:pb-16 md:pt-20">
+      <section className="relative overflow-hidden px-5 pb-10 pt-8 md:px-8 md:pb-12 md:pt-12">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(225,199,154,0.45),transparent_38%),linear-gradient(180deg,#fffaf1_0%,#fbf7ef_55%,#ffffff_100%)]" />
 
         <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
