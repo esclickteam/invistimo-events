@@ -12,15 +12,14 @@ import {
   GuideToc,
 } from "@/components/marketing/RichGuideBlocks";
 import { ctaPrimaryClass, ctaSecondaryClass } from "@/components/marketing/brand";
+import AnswerFirst from "@/components/seo/AnswerFirst";
 import JsonLd from "@/components/seo/JsonLd";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import type { Guide } from "@/lib/seo/guides";
 import { articleNode, breadcrumbNode, faqNode, graph, organizationNode } from "@/lib/seo/jsonld";
 import { journeyActiveIdForPath } from "@/lib/seo/productVisuals";
-import { answerFor } from "@/lib/seo/answers";
 
 export default function RichGuidePage({ guide, path }: { guide: Guide; path: string }) {
-  const answer = answerFor(path);
   const journeyActive = journeyActiveIdForPath(path);
   const toc = [
     guide.timeline?.length ? { id: "timeline", label: "לוח זמנים" } : null,
@@ -127,14 +126,6 @@ export default function RichGuidePage({ guide, path }: { guide: Guide; path: str
             )}
           </div>
         </div>
-
-        {answer ? (
-          <div className="border-y border-[#E8DFD2]/80 bg-white/50 px-5 py-8 md:px-8">
-            <div className="mx-auto max-w-3xl text-center">
-              <p className="text-lg leading-9 text-[#3F3025] md:text-xl">{answer}</p>
-            </div>
-          </div>
-        ) : null}
       </section>
 
       {guide.problem ? <GuideProblem text={guide.problem} /> : null}
@@ -182,6 +173,8 @@ export default function RichGuidePage({ guide, path }: { guide: Guide; path: str
       {guide.tips?.length ? <GuideTips tips={guide.tips} /> : null}
 
       <EventJourney activeId={journeyActive} compact />
+
+      <AnswerFirst path={path} />
 
       <article id="deep" className="px-5 py-6 md:px-8 md:py-8">
         <div className="mx-auto max-w-3xl lg:max-w-4xl">

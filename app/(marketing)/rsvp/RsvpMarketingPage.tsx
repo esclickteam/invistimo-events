@@ -8,7 +8,8 @@ import EventJourney from "@/components/marketing/EventJourney";
 import ProductShowcase from "@/components/marketing/ProductShowcase";
 import FactTableView from "@/components/seo/FactTableView";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
-import { answerFor, tableFor } from "@/lib/seo/answers";
+import AnswerFirst from "@/components/seo/AnswerFirst";
+import { tableFor } from "@/lib/seo/answers";
 import { EVENT_TYPES, EVENT_TYPE_SECTION } from "@/lib/seo/eventTypes";
 import { PRODUCT_SHOTS, PRODUCT_VIDEOS, showcaseForPath } from "@/lib/seo/productVisuals";
 
@@ -325,16 +326,6 @@ export default function RSVPPage() {
         </motion.div>
       </section>
 
-      {answerFor("/rsvp") ? (
-        <section className="border-y border-[#E8DFD2]/80 bg-white/55 px-5 py-8 md:px-8">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-lg leading-9 text-[#3F3025] md:text-xl">
-              {answerFor("/rsvp")}
-            </p>
-          </div>
-        </section>
-      ) : null}
-
       {(() => {
         const showcase = showcaseForPath("/rsvp");
         return showcase ? (
@@ -348,14 +339,6 @@ export default function RSVPPage() {
       })()}
 
       <EventJourney activeId="rsvp" />
-
-      {tableFor("/rsvp") ? (
-        <section className="px-5 py-10 md:px-8">
-          <div className="mx-auto max-w-4xl text-right">
-            <FactTableView table={tableFor("/rsvp")!} />
-          </div>
-        </section>
-      ) : null}
 
       <section className="px-5 py-12 md:px-8">
         <div className="mx-auto max-w-4xl">
@@ -372,6 +355,16 @@ export default function RSVPPage() {
           </div>
         </div>
       </section>
+
+      <AnswerFirst path="/rsvp" hideTable />
+
+      {tableFor("/rsvp") ? (
+        <section className="px-5 py-10 md:px-8">
+          <div className="mx-auto max-w-4xl text-right">
+            <FactTableView table={tableFor("/rsvp")!} />
+          </div>
+        </section>
+      ) : null}
 
       {/* ================= BLOCK 1 ================= */}
       <section className="relative bg-white px-6 py-16 md:py-24">

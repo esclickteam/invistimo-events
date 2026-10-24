@@ -10,7 +10,7 @@ import {
   aiUtmLabel,
   contentGroup,
 } from "../../lib/seo/analytics";
-import { PAGE_ANSWERS, tableFor } from "../../lib/seo/answers";
+import { PAGE_ANSWERS, PAGE_ANSWER_HEADINGS, answerHeadingFor, tableFor } from "../../lib/seo/answers";
 import { PILLARS } from "../../lib/seo/clusters";
 import { GUIDES, guidePath } from "../../lib/seo/guides";
 import { AI_MONITOR_QUESTIONS, KEYWORD_MAP } from "../../lib/seo/keywordMap";
@@ -305,18 +305,31 @@ test("pillar clusters do not assign one URL to two topics and answer-first cover
   assert.ok(PAGE_ANSWERS["/faq"]);
   assert.ok(tableFor("/pricing"));
   assert.ok(tableFor("/rsvp"));
+  for (const pathKey of Object.keys(PAGE_ANSWERS)) {
+    assert.ok(PAGE_ANSWER_HEADINGS[pathKey], `heading for ${pathKey}`);
+    assert.doesNotMatch(answerHeadingFor(pathKey), /התשובה הקצרה/);
+  }
+  assert.equal(answerHeadingFor("/"), "איך אינויסטימו עובדת?");
+  assert.equal(answerHeadingFor("/rsvp"), "איך מתבצע תהליך אישור ההגעה?");
+  assert.equal(answerHeadingFor("/seating-explained"), "איך מנהלים סידורי הושבה?");
+  assert.equal(answerHeadingFor("/wedding-website"), "מה מקבלים באתר חתונה?");
   const page = read("components/marketing/PublicContentPage.tsx");
   assert.match(page, /<h1/);
   assert.match(page, /<h2/);
   assert.match(page, /<h3/);
   assert.doesNotMatch(page, /התשובה הקצרה/);
-  assert.match(read("components/seo/AnswerFirst.tsx"), /התשובה הקצרה/);
+  assert.doesNotMatch(read("components/seo/AnswerFirst.tsx"), /className=["'][^"']*sr-only/);
+  assert.doesNotMatch(read("components/seo/AnswerFirst.tsx"), /<h2>\s*התשובה הקצרה\s*<\/h2>/);
+  assert.match(read("components/seo/AnswerFirst.tsx"), /answerHeadingFor/);
+  assert.match(read("components/seo/AnswerFirst.tsx"), /id=["']overview["']/);
   assert.doesNotMatch(read("app/(marketing)/rsvp/RsvpMarketingPage.tsx"), /התשובה הקצרה/);
   assert.match(read("app/seating-explained/layout.tsx"), /AnswerFirst/);
   assert.match(read("app/event-management/page.jsx"), /AnswerFirst/);
-  assert.match(read("app/pricing/layout.tsx"), /AnswerFirst/);
-  assert.match(read("app/page.tsx"), /AnswerFirst/);
+  assert.match(read("components/marketing/PricingMarketingExtras.tsx"), /AnswerFirst/);
+  assert.match(read("app/HomePageClient.tsx"), /AnswerFirst/);
   assert.match(read("app/faq/page.jsx"), /AnswerFirst/);
+  assert.match(read("lib/seo/answers.ts"), /PAGE_ANSWER_HEADINGS/);
+  assert.doesNotMatch(read("lib/seo/answers.ts"), /התשובה הקצרה/);
   assert.doesNotMatch(read("lib/seo/jsonld.ts"), /AggregateRating|Review/);
   assert.match(read("public/llms.txt"), /not a ranking factor/);
   assert.equal(contentGroup("/rsvp/chatuna"), "rsvp_invitations");

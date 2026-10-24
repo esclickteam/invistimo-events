@@ -17,6 +17,7 @@ import {
   Sparkles,
   CheckCircle2,
 } from "lucide-react";
+import AnswerFirst from "@/components/seo/AnswerFirst";
 
 /* =====================================================
    DEMO BUTTON
@@ -1091,6 +1092,8 @@ export default function HomePageClient() {
           </div>
         </div>
       </section>
+
+      <AnswerFirst path="/" />
 
       {/* ================= בלוק 2 – HOW IT WORKS ================= */}
       <section

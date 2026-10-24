@@ -4,10 +4,11 @@ import DeviceFrame from "@/components/marketing/DeviceFrame";
 import EventJourney from "@/components/marketing/EventJourney";
 import ProductShowcase from "@/components/marketing/ProductShowcase";
 import { ctaPrimaryClass, ctaSecondaryClass } from "@/components/marketing/brand";
+import AnswerFirst from "@/components/seo/AnswerFirst";
 import FactTableView from "@/components/seo/FactTableView";
 import JsonLd from "@/components/seo/JsonLd";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
-import { answerFor, tableFor, type FactTable } from "@/lib/seo/answers";
+import { tableFor, type FactTable } from "@/lib/seo/answers";
 import { clusterSiblings } from "@/lib/seo/clusters";
 import { EVENT_TYPES, EVENT_TYPE_SECTION } from "@/lib/seo/eventTypes";
 import { breadcrumbNode, faqNode, graph, organizationNode } from "@/lib/seo/jsonld";
@@ -88,7 +89,6 @@ export default function PublicContentPage({
   secondaryCta?: { href: string; label: string };
   serviceFits?: { href: string; label: string; note: string }[];
 }) {
-  const answer = answerFor(path);
   const table = tableFor(path);
   const siblings = clusterSiblings(path);
   const showcase = showcaseForPath(path);
@@ -168,14 +168,6 @@ export default function PublicContentPage({
             )}
           </div>
         </div>
-
-        {answer ? (
-          <div className="border-y border-[#E8DFD2]/80 bg-white/60 px-5 py-8 md:px-8">
-            <div className="mx-auto max-w-3xl text-center">
-              <p className="text-lg leading-9 text-[#3F3025] md:text-xl">{answer}</p>
-            </div>
-          </div>
-        ) : null}
       </section>
 
       {showcase ? (
@@ -188,6 +180,8 @@ export default function PublicContentPage({
       ) : null}
 
       {showJourney ? <EventJourney activeId={journeyActive} compact /> : null}
+
+      <AnswerFirst path={path} hideTable />
 
       {serviceFits.length ? (
         <section className="px-5 py-12 md:px-8 md:py-14">

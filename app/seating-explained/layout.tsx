@@ -80,8 +80,8 @@ export default function SeatingLayout({ children }: { children: React.ReactNode 
           faqNode(faqs),
         ])}
       />
-      <AnswerFirst path="/seating-explained" />
       {children}
+      <AnswerFirst path="/seating-explained" />
       <section dir="rtl" className="bg-[#FFFDF8] px-6 py-14 text-[#3F3025]">
         <div className="mx-auto max-w-3xl">
           <p className="text-sm font-black tracking-wide text-[#A67C3D]">שאלות נפוצות</p>

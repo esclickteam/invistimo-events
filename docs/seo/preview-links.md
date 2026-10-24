@@ -1,45 +1,38 @@
 # קישורי Preview — PR #382
 
-**עודכן:** 2026-10-23 ~23:20 (Asia/Jerusalem)  
-**אין Deploy / Merge בלי אישור.**
+**עודכן:** 2026-10-24 (Asia/Jerusalem)  
+**אין Deploy / Merge לפרודקשן בלי אישור.**
 
-## Preview פעיל
+## Preview יציב (Vercel)
 
-**https://opinion-pre-bride-trader.trycloudflare.com**
+**כתובת יציבה לענף PR #382:**
 
-HTTP 200 ללא התחברות. Tunnel ל־`localhost:3010` על הענף הנוכחי.
+https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app
 
-## דגלים
+זו כתובת Git-branch של Vercel — נשארת קבועה לכל עודכן על `cursor/premium-marketing-upgrade-3a61`, בלי Cloudflare זמני.
+
+### דגלים
 
 | עמוד | קישור |
 | --- | --- |
-| בית | https://opinion-pre-bride-trader.trycloudflare.com/ |
-| אישורי הגעה | https://opinion-pre-bride-trader.trycloudflare.com/rsvp |
-| הושבה | https://opinion-pre-bride-trader.trycloudflare.com/seating-explained |
-| אתר חתונה | https://opinion-pre-bride-trader.trycloudflare.com/wedding-website |
-| הזמנות | https://opinion-pre-bride-trader.trycloudflare.com/invitations/chatuna |
-| SMS | https://opinion-pre-bride-trader.trycloudflare.com/rsvp/sms |
-| Save the Date | https://opinion-pre-bride-trader.trycloudflare.com/rsvp/save-the-date |
-| מדריכים | https://opinion-pre-bride-trader.trycloudflare.com/info/guides |
-| בר מצווה | https://opinion-pre-bride-trader.trycloudflare.com/for/bar-mitzvah |
+| בית | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/ |
+| אישורי הגעה | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/rsvp |
+| הושבה | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/seating-explained |
+| אתר חתונה | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/wedding-website |
+| הזמנות | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/invitations/chatuna |
+| SMS | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/rsvp/sms |
+| Save the Date | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/rsvp/save-the-date |
+| מדריכים | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/info/guides |
+| בר מצווה | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/for/bar-mitzvah |
 
-## סרטוני מוצר חדשים
+## מה תוקן ב־Vercel (בלי Deploy לפרודקשן)
 
-| סרטון | נתיב |
-| --- | --- |
-| מסע הבית | `/marketing/videos/reel-home-journey.webm` |
-| אישורי הגעה | `/marketing/videos/reel-rsvp-guest.webm` |
-| הושבה קולנועית | `/marketing/videos/reel-seating-cinematic.webm` |
-| אתר חתונה | `/marketing/videos/reel-wedding-website.webm` |
+1. `previewDeploymentsDisabled` הופעל מחדש (`false`) — כדי ש־PR יוכל לקבל Preview.
+2. Deployment Protection / SSO הוסר מהפרויקט כדי שה־Preview ייפתח בדפדפן רגיל ובגלישה בסתר (בלי התחברות Vercel).
+3. פרודקשן (`www.invistimo.com`) לא עודכן בענף הזה.
 
-## הזמנות מעוצבות
+## הערות
 
-`/marketing/invites/invite-*.webp` — חתונה, STD, בר/בת מצווה, ברית, חינה, יום הולדת, חברה.
-
-## גלריה
-
-`/opt/cursor/artifacts/screenshots/flagships-v2/`
-
-## Vercel
-
-CLI Token עדיין לא תקף (`User not found`). אין Deploy לפרודקשן.
+- אין להשתמש שוב ב־Cloudflare Quick Tunnel לסקירה — הוא נופל אחרי זמן קצר.
+- staging.invistimo.com נשאר סביבת staging נפרדת (ענף `staging`) ואינו מחליף את Preview של PR #382.
+- אחרי כל push לענף, אותו קישור Git-branch מתעדכן לבילד האחרון.

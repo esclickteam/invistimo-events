@@ -56,7 +56,8 @@ async function measure(page, pathName) {
     const dir = document.documentElement.getAttribute("dir") || document.body.getAttribute("dir") || "";
     const html = document.documentElement.outerHTML;
     const sections = {
-      answer: /התשובה הקצרה/.test(html) || /התשובה הקצרה/.test(text),
+      answer: /id=["']overview["']/.test(html) || /איך אינויסטימו עובדת|איך מתבצע תהליך/.test(text),
+      robotHeading: /התשובה הקצרה/.test(html) || /התשובה הקצרה/.test(text),
       benefits: /למה זה עובד|יתרונות|למה זה עובד בפועל|למה זה עובד באמת/.test(text),
       steps: /איך זה עובד|השלבים|איך זה עובד/.test(text) || document.querySelectorAll("ol li").length >= 3,
       eventTypes: /מתאים לסוגי אירועים|בר\/בת מצווה|אירוע חברה/.test(text),

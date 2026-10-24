@@ -9,6 +9,7 @@ import DemoVideo from "@/components/marketing/DemoVideo";
 import DeviceFrame from "@/components/marketing/DeviceFrame";
 import EventJourney from "@/components/marketing/EventJourney";
 import { ctaPrimaryClass, ctaSecondaryClass } from "@/components/marketing/brand";
+import AnswerFirst from "@/components/seo/AnswerFirst";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import { PRODUCT_SHOTS } from "@/lib/seo/productVisuals";
 
@@ -139,17 +140,6 @@ export default function WeddingWebsiteMarketingPage() {
         </div>
       </section>
 
-      {/* Soft answer strip for AEO — no developer heading */}
-      <section className="border-y border-white/10 bg-[#12100E] px-5 py-8 md:px-8">
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="text-lg leading-9 text-white/80 md:text-xl">
-            אתר חתונה ב־Invistimo הוא אתר מעוצב לאירוע עם תבניות אמיתיות מהמוצר, עורך ויזואלי וקישור אורח.
-            הוא משלים את ההזמנה הדיגיטלית ואת אישורי ההגעה — ואינו מחליף את סבבי הוואטסאפ. הזמינות תלויה בהרשאה
-            בחשבון, לא בכל חבילה אוטומטית.
-          </p>
-        </div>
-      </section>
-
       {/* Device duo */}
       <section className="mx-auto max-w-6xl px-5 py-16 md:px-8 md:py-20">
         <div className="grid items-center gap-10 lg:grid-cols-2">
@@ -177,6 +167,8 @@ export default function WeddingWebsiteMarketingPage() {
           </div>
         </div>
       </section>
+
+      <AnswerFirst path="/wedding-website" tone="dark" />
 
       {/* Featured examples */}
       <section id="examples" className="border-t border-white/10 bg-[#0F0D0B] px-5 py-16 md:px-8 md:py-20">

@@ -171,7 +171,10 @@ async function checkPage(pathname) {
   const jsonld = extractJsonLdBlocks(html);
   const types = new Set();
   for (const block of jsonld) collectTypes(block, types);
-  const hasAnswer = html.includes("התשובה הקצרה");
+  const hasAnswer =
+    html.includes('id="overview"') ||
+    /איך אינויסטימו עובדת|איך מתבצע תהליך|מה חשוב לדעת|איך מנהלים|איך נקבע המחיר/.test(html);
+  const hasRobotHeading = html.includes("התשובה הקצרה");
   const hasAggregate = /AggregateRating|"Review"/.test(html);
   const ogUrl = extractProperty(html, "og:url");
   const dirRtl = /dir=["']rtl["']/i.test(html) || /<html[^>]+dir=["']rtl["']/i.test(html);
@@ -209,7 +212,8 @@ async function checkPage(pathname) {
   if (jsonld.length === 0 && !["/terms", "/privacy", "/accessibility", "/credit-gifts", "/wedding-website"].includes(pathname)) {
     result.warnings.push("no JSON-LD block");
   }
-  if (ANSWER_PATHS.has(pathname) && !hasAnswer) result.failures.push("missing answer-first block");
+  if (ANSWER_PATHS.has(pathname) && !hasAnswer) result.failures.push("missing natural overview block");
+  if (hasRobotHeading) result.failures.push("robot heading התשובה הקצרה still present");
   if (hasAggregate) result.failures.push("AggregateRating/Review found");
   if (!langHe) result.warnings.push("html lang not he");
   if (!dirRtl) result.warnings.push("rtl dir not detected in initial HTML");

@@ -8,9 +8,9 @@ import {
   GuideTimeline,
 } from "@/components/marketing/RichGuideBlocks";
 import { ctaPrimaryClass, ctaSecondaryClass } from "@/components/marketing/brand";
+import AnswerFirst from "@/components/seo/AnswerFirst";
 import JsonLd from "@/components/seo/JsonLd";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
-import { answerFor } from "@/lib/seo/answers";
 import type { EventLanding } from "@/lib/seo/eventLandings";
 import { breadcrumbNode, faqNode, graph, organizationNode, serviceNode } from "@/lib/seo/jsonld";
 import { journeyActiveIdForPath, showcaseForPath } from "@/lib/seo/productVisuals";
@@ -18,7 +18,6 @@ import ProductShowcase from "@/components/marketing/ProductShowcase";
 
 export default function EventLandingView({ landing }: { landing: EventLanding }) {
   const path = landing.path;
-  const answer = answerFor(path);
   const showcase = showcaseForPath(path);
   const journeyActive = landing.journeyActiveId || journeyActiveIdForPath(path);
   const breadcrumbs = [
@@ -87,13 +86,6 @@ export default function EventLandingView({ landing }: { landing: EventLanding })
             priority
           />
         </div>
-        {answer ? (
-          <div className="border-y border-[#E8DFD2]/80 bg-white/55 px-5 py-8 md:px-8">
-            <div className="mx-auto max-w-3xl text-center">
-              <p className="text-lg leading-9 md:text-xl">{answer}</p>
-            </div>
-          </div>
-        ) : null}
       </section>
 
       {landing.problem ? <GuideProblem text={landing.problem} /> : null}
@@ -108,6 +100,8 @@ export default function EventLandingView({ landing }: { landing: EventLanding })
       ) : null}
 
       <EventJourney activeId={journeyActive} compact />
+
+      <AnswerFirst path={path} />
 
       <section className="px-5 py-12 md:px-8">
         <div className="mx-auto max-w-6xl">
