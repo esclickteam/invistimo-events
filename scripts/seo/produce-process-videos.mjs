@@ -229,33 +229,39 @@ async function main() {
     await page.close();
   }
 
-  // --- Video 1: WhatsApp mock → invite → RSVP yes (full guest journey) ---
+  // --- Video 1: WhatsApp → invite → RSVP yes → dashboard update (same guest) ---
   await recordPage(context, {
     name: "process-rsvp-guest-journey",
     width: 390,
     height: 844,
     mobile: true,
     run: async (page) => {
+      await page.request.post(`${BASE}/api/demo/interactive/reset`).catch(() => {});
       await goto(
         page,
         `${BASE}/marketing/mocks/whatsapp-rsvp.html?mode=rsvp&title=${encodeURIComponent(TITLE)}&date=12.11.2026&location=${encodeURIComponent("גן ורדים")}`,
-        1500
+        1600
       );
-      await page.waitForTimeout(2200);
-      // Click CTA area to "open link"
+      await page.waitForTimeout(2400);
       await page.locator("#cta").click().catch(() => {});
-      await goto(page, `${BASE}/invite/demo-share?token=dmo_noa`, 1800);
-      await page.waitForTimeout(1600);
-      await page.evaluate(() => window.scrollBy(0, 220));
+      await goto(page, `${BASE}/invite/demo-share?token=dmo_noa`, 2200);
+      await page.waitForTimeout(1800);
+      await page.evaluate(() => window.scrollBy(0, 200));
+      await page.waitForTimeout(900);
+      await page.evaluate(() => window.scrollBy(0, 360));
       await page.waitForTimeout(800);
-      await page.evaluate(() => window.scrollBy(0, 320));
-      await page.waitForTimeout(600);
       const yes = page.getByRole("button", { name: /מגיע|אגיע/ }).first();
       if (await yes.count()) await yes.click();
-      await page.waitForTimeout(700);
+      await page.waitForTimeout(800);
       const submit = page.getByRole("button", { name: /שלח|אישור|שמירה|שמור|סיום/ }).first();
       if (await submit.count()) await submit.click();
       await page.waitForTimeout(2200);
+      // Same guest, same event — show the status change on the demo dashboard (mobile viewport)
+      await page.setViewportSize({ width: 390, height: 844 });
+      await goto(page, `${BASE}/try/dashboard`, 2200);
+      await page.waitForTimeout(2800);
+      await page.evaluate(() => window.scrollBy(0, 180));
+      await page.waitForTimeout(1600);
     },
   });
 
