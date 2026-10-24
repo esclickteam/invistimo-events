@@ -17,7 +17,7 @@ export default function WeddingStudioInvite({
   if (snapshot?.plate || (snapshot && snapshot.layers?.length)) {
     return (
       <div className={className} data-testid="wedding-studio-invite">
-        <InvitationArt snapshot={snapshot} play cue />
+        <InvitationArt snapshot={snapshot} play />
       </div>
     );
   }
