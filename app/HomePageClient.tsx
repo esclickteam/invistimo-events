@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Users,
@@ -20,6 +20,62 @@ import {
 } from "lucide-react";
 import AnswerFirst from "@/components/seo/AnswerFirst";
 import HomeSeoSections from "@/components/seo/HomeSeoSections";
+
+/** Below-fold marketing clip: poster first; mount webm only when near viewport. */
+function LazyInViewVideo({
+  src,
+  poster,
+  ariaLabel,
+}: {
+  src: string;
+  poster: string;
+  ariaLabel: string;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || active) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setActive(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "200px 0px", threshold: 0.01 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [active]);
+
+  return (
+    <div ref={ref} className="aspect-video w-full bg-[#1C1612]">
+      {active ? (
+        <video
+          src={src}
+          poster={poster}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="none"
+          aria-label={ariaLabel}
+          className="h-full w-full object-contain"
+        />
+      ) : (
+        <img
+          src={poster}
+          alt={ariaLabel}
+          className="h-full w-full object-contain"
+          loading="lazy"
+          decoding="async"
+        />
+      )}
+    </div>
+  );
+}
 
 /* =====================================================
    DEMO BUTTON
@@ -94,29 +150,42 @@ function HeroPhone3D() {
   useEffect(() => {
     if (reduceMotion) return;
     let cancelled = false;
+    const conn = (
+      navigator as Navigator & {
+        connection?: { saveData?: boolean; effectiveType?: string };
+      }
+    ).connection;
+    // Skip ~7MB autoplay on data-saver / 2g — keep poster (LCP-safe).
+    if (conn?.saveData || conn?.effectiveType === "slow-2g" || conn?.effectiveType === "2g") {
+      return;
+    }
     const enable = () => {
       if (!cancelled) setVideoReady(true);
     };
-    const ric = (
-      window as Window & {
-        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
-        cancelIdleCallback?: (id: number) => void;
+    // After window load + idle so hero bg/poster can win LCP before webm competes.
+    const start = () => {
+      const ric = (
+        window as Window & {
+          requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+        }
+      ).requestIdleCallback;
+      if (typeof ric === "function") {
+        ric(enable, { timeout: 3500 });
+      } else {
+        setTimeout(enable, 2500);
       }
-    ).requestIdleCallback;
-    const cic = (
-      window as Window & { cancelIdleCallback?: (id: number) => void }
-    ).cancelIdleCallback;
-    let idleId: number | undefined;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    if (typeof ric === "function") {
-      idleId = ric(enable, { timeout: 1800 });
-    } else {
-      timeoutId = setTimeout(enable, 900);
+    };
+    if (document.readyState === "complete") {
+      const t = setTimeout(start, 400);
+      return () => {
+        cancelled = true;
+        clearTimeout(t);
+      };
     }
+    window.addEventListener("load", start, { once: true });
     return () => {
       cancelled = true;
-      if (idleId != null && typeof cic === "function") cic(idleId);
-      if (timeoutId != null) clearTimeout(timeoutId);
+      window.removeEventListener("load", start);
     };
   }, [reduceMotion]);
 
@@ -1149,16 +1218,10 @@ export default function HomePageClient() {
             </div>
           </div>
           <div className="overflow-hidden rounded-[28px] border border-[#E0D4C2] bg-[#1C1612] shadow-[0_30px_70px_rgba(44,36,28,0.18)]">
-            <video
+            <LazyInViewVideo
               src="/marketing/videos/process-dashboard-live.webm"
               poster="/marketing/product/webp/desktop-try-dashboard-live.webp"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="none"
-              aria-label="דשבורד מתעדכן אחרי אישורי הגעה במערכת"
-              className="aspect-video w-full bg-[#1C1612] object-contain"
+              ariaLabel="דשבורד מתעדכן אחרי אישורי הגעה במערכת"
             />
           </div>
         </div>

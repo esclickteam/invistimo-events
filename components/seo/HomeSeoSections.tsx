@@ -15,7 +15,7 @@ export default function HomeSeoSections() {
         className="border-y border-[#E7D9C4]/80 bg-[#FFFDF8] px-5 py-16 md:px-10 md:py-20"
       >
         <div className="mx-auto max-w-5xl">
-          <p className="text-sm font-black tracking-[0.16em] text-[#A67C3D]">למי זה מתאים</p>
+          <p className="text-sm font-black tracking-[0.16em] text-[#8B642B]">למי זה מתאים</p>
           <h2
             id="home-for-whom"
             className="mt-3 text-3xl font-black text-[#2A211A] md:text-4xl"
@@ -59,7 +59,7 @@ export default function HomeSeoSections() {
         className="bg-[#F4F0E8] px-5 py-16 md:px-10 md:py-20"
       >
         <div className="mx-auto max-w-5xl">
-          <p className="text-sm font-black tracking-[0.16em] text-[#A67C3D]">ערוצי אישור</p>
+          <p className="text-sm font-black tracking-[0.16em] text-[#8B642B]">ערוצי אישור</p>
           <h2
             id="home-channels"
             className="mt-3 text-3xl font-black text-[#2A211A] md:text-4xl"
@@ -119,7 +119,7 @@ export default function HomeSeoSections() {
         className="bg-[#FFFDF8] px-5 py-16 md:px-10 md:py-20"
       >
         <div className="mx-auto max-w-5xl">
-          <p className="text-sm font-black tracking-[0.16em] text-[#A67C3D]">סדר השליחה</p>
+          <p className="text-sm font-black tracking-[0.16em] text-[#8B642B]">סדר השליחה</p>
           <h2
             id="home-timing"
             className="mt-3 text-3xl font-black text-[#2A211A] md:text-4xl"
@@ -161,7 +161,7 @@ export default function HomeSeoSections() {
         className="bg-[#F4F0E8] px-5 py-16 md:px-10 md:py-20"
       >
         <div className="mx-auto max-w-5xl">
-          <p className="text-sm font-black tracking-[0.16em] text-[#A67C3D]">מהאישור ועד השולחן</p>
+          <p className="text-sm font-black tracking-[0.16em] text-[#8B642B]">מהאישור ועד השולחן</p>
           <h2
             id="home-seating-mgmt"
             className="mt-3 text-3xl font-black text-[#2A211A] md:text-4xl"
@@ -203,7 +203,7 @@ export default function HomeSeoSections() {
         className="bg-[#FFFDF8] px-5 py-16 md:px-10 md:py-20"
       >
         <div className="mx-auto max-w-5xl">
-          <p className="text-sm font-black tracking-[0.16em] text-[#A67C3D]">חבילות</p>
+          <p className="text-sm font-black tracking-[0.16em] text-[#8B642B]">חבילות</p>
           <h2
             id="home-pricing"
             className="mt-3 text-3xl font-black text-[#2A211A] md:text-4xl"
@@ -231,7 +231,7 @@ export default function HomeSeoSections() {
         className="border-t border-[#E7D9C4]/80 bg-[#F7F1E8] px-5 py-16 md:px-10 md:py-20"
       >
         <div className="mx-auto max-w-3xl">
-          <p className="text-sm font-black tracking-[0.16em] text-[#A67C3D]">שאלות נפוצות</p>
+          <p className="text-sm font-black tracking-[0.16em] text-[#8B642B]">שאלות נפוצות</p>
           <h2
             id="home-faq"
             className="mt-3 text-3xl font-black text-[#2A211A] md:text-4xl"
