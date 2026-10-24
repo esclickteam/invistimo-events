@@ -9,7 +9,7 @@ type Props = {
 export default function DemoVideo({ src, poster, caption, className = "" }: Props) {
   return (
     <figure className={`w-full ${className}`}>
-      <div className="overflow-hidden rounded-2xl border border-[#D5DBE3]/50 bg-[#1C1612] shadow-[0_24px_50px_rgba(42,33,26,0.2)]">
+      <div className="overflow-hidden rounded-2xl border border-[#E6D2AA]/50 bg-[#1C1612] shadow-[0_24px_50px_rgba(42,33,26,0.2)]">
         <video
           src={src}
           poster={poster}
@@ -17,7 +17,7 @@ export default function DemoVideo({ src, poster, caption, className = "" }: Prop
           playsInline
           preload="metadata"
           muted
-          className="aspect-video w-full object-cover"
+          className="aspect-video w-full bg-black object-contain"
         >
           הדפדפן לא תומך בהצגת הסרטון.{" "}
           <a href={src} className="underline">
@@ -25,7 +25,7 @@ export default function DemoVideo({ src, poster, caption, className = "" }: Prop
           </a>
         </video>
       </div>
-      {caption ? <figcaption className="mt-3 text-sm font-semibold text-[#6B7583]">{caption}</figcaption> : null}
+      {caption ? <figcaption className="mt-3 text-sm font-semibold text-[#7A6042]">{caption}</figcaption> : null}
     </figure>
   );
 }

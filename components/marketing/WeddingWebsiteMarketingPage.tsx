@@ -179,7 +179,20 @@ export default function WeddingWebsiteMarketingPage() {
           </p>
           <div className="mt-12 grid gap-10 lg:grid-cols-3">
             {featured.map((template, index) => (
-              <TemplateLivePreview key={template.id} template={template} index={index} />
+              <TemplateLivePreview
+                key={template.id}
+                template={template}
+                index={index}
+                previewSrc={
+                  template.id === "eternal-gold"
+                    ? PRODUCT_SHOTS.weddingEternal
+                    : template.id === "midnight-velvet"
+                      ? PRODUCT_SHOTS.weddingMidnight
+                      : template.id === "garden-bloom"
+                        ? PRODUCT_SHOTS.weddingGarden
+                        : undefined
+                }
+              />
             ))}
           </div>
           <div className="mt-8 flex flex-wrap gap-4">
@@ -247,7 +260,7 @@ export default function WeddingWebsiteMarketingPage() {
       </section>
 
       {/* Full journey — light band for contrast */}
-      <div className="bg-[#F2F4F7]">
+      <div className="bg-[#FBF6EE]">
         <EventJourney activeId="wedding-website" />
       </div>
 

@@ -756,10 +756,6 @@ export const GUIDES: Guide[] = [
       variant: "wide",
       caption: "סטטוס ומספר מגיעים על אותה רשומה",
     },
-    video: {
-      src: "/marketing/videos/process-dashboard-live.webm",
-      caption: "רשימת מוזמנים מתעדכנת בדשבורד",
-    },
     gallery: [
       {
         type: "image",
@@ -872,7 +868,7 @@ export const GUIDES: Guide[] = [
     },
     video: {
       src: "/marketing/videos/process-invitation-open.webm",
-      caption: "פתיחת הזמנה דיגיטלית בקישור אישי",
+      caption: "פתיחת הזמנה דיגיטלית",
     },
     gallery: [
       {
@@ -1137,7 +1133,7 @@ export const GUIDES: Guide[] = [
     },
     video: {
       src: "/marketing/videos/process-invitation-open.webm",
-      caption: "מתי שולחים הזמנה דיגיטלית",
+      caption: "מתי שולחים הזמנה",
     },
     steps: [
       { title: "נועלים פרטים", text: "תאריך, שעה, מיקום, לבוש אם רלוונטי." },
@@ -1517,10 +1513,6 @@ export const GUIDES: Guide[] = [
       alt: "ממשק תזכורת SMS",
       variant: "wide",
       caption: "תזכורת SMS למי שכבר אישר",
-    },
-    video: {
-      src: "/marketing/videos/process-dashboard-live.webm",
-      caption: "מעקב אחרי תזכורות בדשבורד",
     },
     steps: [
       { title: "סוגרים פתוחים", text: "סבב וואטסאפ שני / שיחות לפי חבילה." },

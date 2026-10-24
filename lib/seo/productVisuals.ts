@@ -242,23 +242,70 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
         ],
       };
     case "/info/guides/guests-who-dont-reply":
-    case "/info/guides/guest-list":
-    case "/info/guides/when-to-send-rsvp":
     case "/info/guides/how-many-rsvp-rounds":
-    case "/info/guides/bar-mitzvah-rsvp-plan":
-    case "/info/guides/when-to-send-invitation":
-    case "/info/guides/when-to-send-save-the-date":
-    case "/info/guides/send-reminder-messages":
-    case "/info/guides/cost-rsvp-wedding":
-    case "/info/guides/reduce-meal-waste":
-    case "/info/guides/save-the-date-vs-invitation":
+    case "/info/guides/when-to-send-rsvp":
       return {
-        heading: "מעקב אחרי מי ענה ומי עדיין פתוח",
-        lede: "בדשבורד רואים סטטוסים ופעילות — בסיס לסבב השני ולשיחות אם נרכשו.",
+        heading: "מסע אורח + מעקב בדשבורד",
+        lede: "מהודעת WhatsApp ועד סטטוס שמור — ואז רואים מי עדיין פתוח לסבב הבא.",
+        layout: "trio",
+        items: [
+          { src: PRODUCT_SHOTS.whatsappRsvp, alt: "הודעת WhatsApp עם קישור אישי", caption: "ההודעה לאורח", device: "phone" },
+          { src: PRODUCT_SHOTS.guestRsvpConfirm, alt: "אישור הגעה שנשמר", caption: "האורח מאשר", device: "phone" },
+          { src: PRODUCT_SHOTS.dashboardLive, alt: "דשבורד אחרי אישורים", caption: "הדשבורד מתעדכן", device: "laptop" },
+        ],
+      };
+    case "/info/guides/guest-list":
+    case "/info/guides/reduce-meal-waste":
+    case "/info/guides/cost-rsvp-wedding":
+      return {
+        heading: "רשימת מוזמנים וסטטוסים",
+        lede: "הרשימה היא מקור האמת למנות, סבבים ותזכורות — לא גיליון נפרד.",
         layout: "duo",
         items: [
-          { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד עם סטטוסי אורחים", device: "laptop" },
+          { src: PRODUCT_SHOTS.dashboardLive, alt: "דשבורד עם סטטוסי אורחים", device: "laptop" },
           { src: PRODUCT_SHOTS.dashboardMobile, alt: "מעקב בנייד", device: "phone" },
+        ],
+      };
+    case "/info/guides/when-to-send-invitation":
+    case "/info/guides/send-digital-invitation":
+      return {
+        heading: "הזמנה מעוצבת בקישור אישי",
+        lede: "קודם רואים את ההזמנה עצמה — ואז עוברים לאישור. לא דשבורד ולא אתר חתונה.",
+        layout: "phone-pair",
+        items: [
+          { src: INVITE_DESIGNS.wedding, alt: "הזמנה דיגיטלית מאיה ואיתי", caption: "ההזמנה המעוצבת", device: "phone" },
+          { src: PRODUCT_SHOTS.guestInviteLoaded, alt: "פתיחת הזמנה בקישור", caption: "מה האורח רואה", device: "phone" },
+        ],
+      };
+    case "/info/guides/when-to-send-save-the-date":
+    case "/info/guides/save-the-date-vs-invitation":
+      return {
+        heading: "Save the Date מול הזמנה",
+        lede: "Save the Date שומר תאריך — בלי לאסוף אישור. ההזמנה והאישור מגיעים אחר כך.",
+        layout: "phone-pair",
+        items: [
+          { src: INVITE_DESIGNS.saveTheDate, alt: "עיצוב Save the Date", caption: "Save the Date", device: "phone" },
+          { src: INVITE_DESIGNS.wedding, alt: "הזמנה דיגיטלית", caption: "ההזמנה בהמשך", device: "phone" },
+        ],
+      };
+    case "/info/guides/send-reminder-messages":
+      return {
+        heading: "תזכורות מהמערכת",
+        lede: "תצוגה מקדימה של תזכורת SMS — למי שכבר אישר, לפני יום האירוע.",
+        layout: "hero-side",
+        items: [
+          { src: PRODUCT_SHOTS.messagesSmsReminder, alt: "ממשק תזכורת SMS", caption: "תזכורת לפני האירוע", device: "laptop" },
+          { src: PRODUCT_SHOTS.messagesSmsMobile, alt: "תצוגת SMS בנייד", device: "phone" },
+        ],
+      };
+    case "/info/guides/bar-mitzvah-rsvp-plan":
+      return {
+        heading: "בר מצווה — הזמנה ורשימה",
+        lede: "הזמנה מעוצבת ומעקב אישורים למשפחה ולחברים.",
+        layout: "hero-side",
+        items: [
+          { src: INVITE_DESIGNS.barMitzvah, alt: "הזמנה לבר מצווה", device: "phone" },
+          { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד אישורים", device: "laptop" },
         ],
       };
     case "/info/guides/build-wedding-website":

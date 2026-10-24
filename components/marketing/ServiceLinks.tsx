@@ -16,15 +16,15 @@ export default function ServiceLinks({ current }: { current?: string }) {
   const links = LINKS.filter((link) => link.href !== current);
 
   return (
-    <section dir="rtl" className="bg-[#F2F4F7] px-5 py-14 text-[#1A222D]">
+    <section dir="rtl" className="bg-[#FBF6EE] px-5 py-14 text-[#3F3025]">
       <div className="mx-auto max-w-5xl">
-        <h2 className="text-2xl font-black text-[#0B0E13]">עוד ב־Invistimo</h2>
+        <h2 className="text-2xl font-black text-[#35281F]">עוד ב־Invistimo</h2>
         <ul className="mt-5 flex flex-wrap gap-3">
           {links.map((link) => (
             <li key={link.href}>
               <Link
                 href={link.href}
-                className="inline-flex rounded-full border border-[#D5DBE3] bg-white px-4 py-2 text-sm font-bold text-[#1A222D]"
+                className="inline-flex rounded-full border border-[#E6D2AA] bg-white px-4 py-2 text-sm font-bold text-[#5E4735]"
               >
                 {link.label}
               </Link>

@@ -70,14 +70,14 @@ function PremiumBadge({ children }: { children: React.ReactNode }) {
     <span
       className="
         inline-flex items-center gap-2 rounded-full
-        border border-[#D5DBE3]
+        border border-[#EADDC8]
         bg-white/70 px-5 py-2
-        text-sm font-bold text-[#6B7583]
+        text-sm font-bold text-[#7A6042]
         shadow-[0_12px_35px_rgba(91,63,32,0.08)]
         backdrop-blur-xl
       "
     >
-      <span className="h-2 w-2 rounded-full bg-[#0F766E]" />
+      <span className="h-2 w-2 rounded-full bg-[#C7A56B]" />
       {children}
     </span>
   );
@@ -91,17 +91,17 @@ function FeatureList({ items }: { items: string[] }) {
           key={item}
           className="
             flex items-start gap-3 rounded-2xl
-            border border-[#D5DBE3]
-            bg-gradient-to-l from-[#F2F4F7] via-[#FFFFFF] to-[#E8ECF1]
+            border border-[#E6D2AA]
+            bg-gradient-to-l from-[#FFF8EA] via-[#FFFDF7] to-[#F7E8CA]
             px-4 py-3
             text-base font-semibold text-[#544437]
-            shadow-[0_12px_30px_rgba(11,14,19,0.08)]
+            shadow-[0_12px_30px_rgba(151,108,49,0.08)]
           "
         >
           <span
             className="
               mt-1 flex h-5 w-5 shrink-0 items-center justify-center
-              rounded-full bg-[#0F766E] text-[11px] font-black text-white
+              rounded-full bg-[#C7A56B] text-[11px] font-black text-white
             "
           >
             ✓
@@ -137,7 +137,7 @@ function VideoFrame({
       <div
         className="
           absolute -inset-6 rounded-[46px]
-          bg-[radial-gradient(circle_at_top,#E8D4AF_0%,transparent_55%),linear-gradient(135deg,#F2F4F7,#FFFFFF)]
+          bg-[radial-gradient(circle_at_top,#E8D4AF_0%,transparent_55%),linear-gradient(135deg,#F8EFE1,#FFFFFF)]
           blur-2xl opacity-90
         "
       />
@@ -145,7 +145,7 @@ function VideoFrame({
       <div
         className={`
           relative border border-white/80
-          bg-gradient-to-br from-[#F2F4F7] via-[#FFFFFF] to-[#D5DBE3]
+          bg-gradient-to-br from-[#F8EFE1] via-[#FFFDF9] to-[#E7D7BF]
           shadow-[0_35px_95px_rgba(58,39,20,0.20)]
           ${isFull ? "rounded-[42px] p-[12px]" : "rounded-[38px] p-[10px]"}
         `}
@@ -189,8 +189,8 @@ export default function RSVPPage() {
       dir="rtl"
       className="
         min-h-screen overflow-hidden
-        bg-[#F2F4F7]
-        text-[#1A222D]
+        bg-[#FBF6EE]
+        text-[#3F3025]
       "
     >
       {/* ================= HERO ================= */}
@@ -200,7 +200,7 @@ export default function RSVPPage() {
           md:pb-14 md:pt-14
         "
       >
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,#A7D8D2_0%,transparent_34%),radial-gradient(circle_at_top_right,#F5E8D3_0%,transparent_34%),linear-gradient(180deg,#FFFFFF_0%,#F2F4F7_55%,#E8ECF1_100%)]" />
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,#E9D4AF_0%,transparent_34%),radial-gradient(circle_at_top_right,#F5E8D3_0%,transparent_34%),linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_55%,#F6EBDD_100%)]" />
 
         <div className="absolute right-10 top-24 -z-10 h-48 w-48 rounded-full bg-[#D8B77C]/25 blur-3xl" />
         <div className="absolute bottom-20 left-10 -z-10 h-64 w-64 rounded-full bg-[#B59668]/20 blur-3xl" />
@@ -224,7 +224,7 @@ export default function RSVPPage() {
             mx-auto max-w-5xl
             text-5xl font-black leading-[1.08]
             tracking-[-0.04em]
-            text-[#0B0E13]
+            text-[#35281F]
             md:text-7xl
           "
         >
@@ -232,7 +232,7 @@ export default function RSVPPage() {
           <span
             className="
               mt-4 block
-              bg-[#0B0E13]
+              bg-gradient-to-l from-[#B48A4A] via-[#D3B47C] to-[#84613A]
               bg-clip-text text-transparent
             "
           >
@@ -247,7 +247,7 @@ export default function RSVPPage() {
           transition={{ delay: 0.18, duration: 0.85 }}
           className="
             mx-auto mt-7 max-w-3xl
-            text-lg leading-8 text-[#3D4754]
+            text-lg leading-8 text-[#6D5B4A]
             md:text-2xl md:leading-10
           "
         >
@@ -271,7 +271,7 @@ export default function RSVPPage() {
             className="
               group inline-flex items-center justify-center
               rounded-full
-              bg-gradient-to-l from-[#0B0E13] via-[#1A222D] to-[#0B0E13]
+              bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B]
               px-10 py-5
               text-lg font-black text-white
               shadow-[0_22px_55px_rgba(58,43,34,0.32)]
@@ -292,10 +292,10 @@ export default function RSVPPage() {
             className="
               inline-flex items-center justify-center
               rounded-full
-              border border-[#D5DBE3]
+              border border-[#DCC7A6]
               bg-white/75
               px-9 py-5
-              text-lg font-black text-[#1A222D]
+              text-lg font-black text-[#5E4735]
               shadow-[0_18px_45px_rgba(91,63,32,0.08)]
               backdrop-blur-xl
               transition
@@ -320,7 +320,7 @@ export default function RSVPPage() {
             variant="phone"
             priority
           />
-          <p className="mt-4 text-sm font-semibold text-[#6B7583]">
+          <p className="mt-4 text-sm font-semibold text-[#7A6042]">
             קודם נפתחת ההזמנה המעוצבת — ואז ממשיכים לאישור הגעה באותו קישור.
           </p>
         </motion.div>
@@ -342,8 +342,8 @@ export default function RSVPPage() {
 
       <section className="px-5 py-12 md:px-8">
         <div className="mx-auto max-w-4xl">
-          <h2 className="text-3xl font-black text-[#0B0E13] md:text-4xl">מסע האורח המלא — מהודעה עד אישור</h2>
-          <p className="mt-3 leading-8 text-[#3D4754]">
+          <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">מסע האורח המלא — מהודעה עד אישור</h2>
+          <p className="mt-3 leading-8 text-[#5C4A3A]">
             באירוע הדוגמה של מאיה ואיתי: האורח מקבל הודעת WhatsApp לפי התבנית המאושרת, פותח את
             הקישור האישי, רואה את ההזמנה המעוצבת, מאשר הגעה — והתשובה נשמרת במערכת.
           </p>
@@ -359,8 +359,8 @@ export default function RSVPPage() {
 
       <section className="px-5 py-12 md:px-8">
         <div className="mx-auto max-w-4xl">
-          <h2 className="text-3xl font-black text-[#0B0E13] md:text-4xl">מעקב אחרי אישורים — לפי פעולות אמיתיות</h2>
-          <p className="mt-3 leading-8 text-[#3D4754]">
+          <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">מעקב אחרי אישורים — לפי פעולות אמיתיות</h2>
+          <p className="mt-3 leading-8 text-[#5C4A3A]">
             כמה אורחי דמו מאשרים הגעה, לא מגיעים או משאירים סטטוס פתוח — והדשבורד מתעדכן בהתאם
             ללוגיקה של המערכת, לא באנימציה מנותקת.
           </p>
@@ -386,7 +386,7 @@ export default function RSVPPage() {
 
       {/* ================= BLOCK 1 ================= */}
       <section className="relative bg-white px-6 py-16 md:py-24">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-l from-transparent via-[#D5DBE3] to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-l from-transparent via-[#E7D3B3] to-transparent" />
 
         <div className="mx-auto grid max-w-7xl items-center gap-16 md:grid-cols-2">
           <motion.div
@@ -402,7 +402,7 @@ export default function RSVPPage() {
               className="
                 mt-6 text-4xl font-black leading-tight
                 tracking-[-0.03em]
-                text-[#0B0E13]
+                text-[#35281F]
                 md:text-5xl
               "
             >
@@ -412,7 +412,7 @@ export default function RSVPPage() {
               </span>
             </h2>
 
-            <p className="mt-6 text-lg leading-8 text-[#3D4754]">
+            <p className="mt-6 text-lg leading-8 text-[#6D5B4A]">
               כל אורח מקבל קישור אישי ומאשר הגעה בצורה פשוטה,
               בלי הרשמה, בלי הורדת אפליקציה ובלי הסברים מיותרים.
               ניתן לצרף גם קישור ל־PayBox או מתנות באשראי,
@@ -423,7 +423,7 @@ export default function RSVPPage() {
               <FeatureList items={features} />
             </div>
 
-            <p className="mt-8 rounded-[26px] border border-[#7DD3C8] bg-gradient-to-l from-[#F2F4F7] via-[#FFFFFF] to-[#D5F0ED] p-5 text-base font-semibold leading-8 text-[#3D4754] shadow-[0_14px_35px_rgba(11,14,19,0.08)]">
+            <p className="mt-8 rounded-[26px] border border-[#E3C990] bg-gradient-to-l from-[#FFF8E8] via-[#FFFDF7] to-[#F4E3C3] p-5 text-base font-semibold leading-8 text-[#6D5B4A] shadow-[0_14px_35px_rgba(151,108,49,0.08)]">
               האורח נכנס לקישור האישי שלו, בוחר אם הוא מגיע או לא מגיע,
               מעדכן כמה מגיעים ומשאיר הערות חשובות כמו כשרות, אלרגיות
               או הסעות — והכל נכנס אוטומטית לדשבורד.
@@ -436,13 +436,13 @@ export default function RSVPPage() {
 
       {/* ================= RSVP ROUNDS ================= */}
       <section className="relative px-6 py-20 md:py-24">
-        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,#FFFFFF_0%,#F2F4F7_100%)]" />
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_100%)]" />
         <div className="mx-auto max-w-6xl text-right">
           <PremiumBadge>סבבי אישורי הגעה</PremiumBadge>
-          <h2 className="mt-6 text-4xl font-black text-[#0B0E13] md:text-5xl">
+          <h2 className="mt-6 text-4xl font-black text-[#35281F] md:text-5xl">
             איך נראים שני הסבבים בפועל
           </h2>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-[#3D4754]">
+          <p className="mt-5 max-w-3xl text-lg leading-8 text-[#6D5B4A]">
             לא «עוד הודעה בקבוצה». סבב ראשון לכל הרשימה, בדיקה בדשבורד, וסבב שני למי שעדיין פתוח —
             ואז תזכורת SMS בנפרד לקראת האירוע.
           </p>
@@ -450,14 +450,14 @@ export default function RSVPPage() {
             {rsvpRounds.map((item, index) => (
               <li
                 key={item.title}
-                className="border-b border-[#D5DBE3] pb-6 md:border-b-0 md:border-l md:border-[#D5DBE3] md:pb-0 md:pl-6"
+                className="border-b border-[#E6D2AA] pb-6 md:border-b-0 md:border-l md:border-[#E6D2AA] md:pb-0 md:pl-6"
               >
-                <span className="text-3xl font-black text-[#0F766E]">{String(index + 1).padStart(2, "0")}</span>
-                <h3 className="mt-3 text-xl font-black text-[#0B0E13]">{item.title}</h3>
-                <p className="mt-3 leading-7 text-[#3D4754]">{item.text}</p>
+                <span className="text-3xl font-black text-[#C7A56B]">{String(index + 1).padStart(2, "0")}</span>
+                <h3 className="mt-3 text-xl font-black text-[#35281F]">{item.title}</h3>
+                <p className="mt-3 leading-7 text-[#5C4A3A]">{item.text}</p>
                 <Link
                   href={item.href}
-                  className="mt-4 inline-block text-sm font-black text-[#0F766E] underline-offset-4 hover:underline"
+                  className="mt-4 inline-block text-sm font-black text-[#8A642E] underline-offset-4 hover:underline"
                 >
                   להרחבה ←
                 </Link>
@@ -468,13 +468,13 @@ export default function RSVPPage() {
             <TrackedCtaLink
               href="/try"
               location="rsvp_rounds_demo"
-              className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#0B0E13] px-8 py-3 text-base font-black text-white"
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#2A211A] px-8 py-3 text-base font-black text-white"
             >
               לפתיחת הדמו האינטראקטיבי
             </TrackedCtaLink>
             <Link
               href="/info/guides/how-many-rsvp-rounds"
-              className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#D5DBE3] bg-white px-8 py-3 text-base font-black text-[#1A222D]"
+              className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white px-8 py-3 text-base font-black text-[#5E4735]"
             >
               מדריך: כמה סבבים
             </Link>
@@ -484,7 +484,7 @@ export default function RSVPPage() {
 
       {/* ================= BLOCK 2 ================= */}
       <section className="relative px-6 py-24 md:py-32">
-        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,#F2F4F7_0%,#F2F4F7_100%)]" />
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,#FBF6EE_0%,#F7EDDF_100%)]" />
 
         <div className="mx-auto max-w-6xl">
           <motion.div
@@ -501,14 +501,14 @@ export default function RSVPPage() {
               className="
                 mt-6 text-4xl font-black leading-tight
                 tracking-[-0.03em]
-                text-[#0B0E13]
+                text-[#35281F]
                 md:text-5xl
               "
             >
               כל אישור מתעדכן בזמן אמת
             </h2>
 
-            <p className="mt-6 text-lg leading-8 text-[#3D4754] md:text-xl">
+            <p className="mt-6 text-lg leading-8 text-[#6D5B4A] md:text-xl">
               ברגע שאורח מאשר, משנה כמות, מסמן שלא מגיע או משאיר הערה —
               הדשבורד מתעדכן מיד ומציג תמונת מצב מדויקת של האירוע.
             </p>
@@ -526,7 +526,7 @@ export default function RSVPPage() {
                   relative overflow-hidden
                   rounded-[30px]
                   border border-[#D7B873]
-                  bg-gradient-to-br from-[#F2F4F7] via-[#FFFFFF] to-[#D5DBE3]
+                  bg-gradient-to-br from-[#FFF7E4] via-[#FFFCF5] to-[#EFD9AD]
                   p-[1px]
                   text-center
                   shadow-[0_24px_65px_rgba(151,108,49,0.18)]
@@ -544,14 +544,14 @@ export default function RSVPPage() {
                   className="
                     relative h-full rounded-[29px]
                     border border-white/70
-                    bg-gradient-to-br from-[#FFFFFF]/90 via-[#F2F4F7]/88 to-[#E8ECF1]/82
+                    bg-gradient-to-br from-[#FFFDF6]/90 via-[#FFF8E8]/88 to-[#F3E0BD]/82
                     p-6
                   "
                 >
                   <div
                     className="
                       mx-auto mb-5 flex h-12 w-12 items-center justify-center
-                      rounded-2xl bg-[#0B0E13]
+                      rounded-2xl bg-[#35281F]
                       text-lg font-black text-[#E8D1A5]
                       shadow-[0_12px_28px_rgba(53,40,31,0.18)]
                     "
@@ -575,7 +575,7 @@ export default function RSVPPage() {
             transition={{ delay: 0.2 }}
             className="
               mx-auto mt-12 max-w-2xl text-center
-              text-lg font-semibold leading-8 text-[#3D4754]
+              text-lg font-semibold leading-8 text-[#6D5B4A]
             "
           >
             במקום לעבור בין וואטסאפים, רשימות וטלפונים —
@@ -586,7 +586,7 @@ export default function RSVPPage() {
 
       {/* ================= BLOCK 3 - FULL WIDTH VIDEO ONLY ================= */}
       <section className="relative bg-white px-4 py-20 md:px-6 md:py-28">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-l from-transparent via-[#D5DBE3] to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-l from-transparent via-[#E7D3B3] to-transparent" />
 
         <div className="mx-auto w-full max-w-7xl">
           <VideoFrame src="/videos/rsvp2.mp4" variant="full" />
@@ -605,10 +605,10 @@ export default function RSVPPage() {
             className="text-center"
           >
             <PremiumBadge>לא רק חתונות</PremiumBadge>
-            <h2 className="mt-8 text-4xl font-black text-[#0B0E13] md:text-5xl">
+            <h2 className="mt-8 text-4xl font-black text-[#35281F] md:text-5xl">
               {EVENT_TYPE_SECTION.heading}
             </h2>
-            <p className="mx-auto mt-5 max-w-3xl text-lg leading-8 text-[#3D4754]">
+            <p className="mx-auto mt-5 max-w-3xl text-lg leading-8 text-[#6D5B4A]">
               {EVENT_TYPE_SECTION.lede}
             </p>
           </motion.div>
@@ -621,22 +621,22 @@ export default function RSVPPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.05, duration: 0.5 }}
                 viewport={{ once: true }}
-                className="rounded-[28px] border border-[#D5DBE3] bg-white/90 p-6 text-right shadow-[0_16px_40px_rgba(11,14,19,0.08)]"
+                className="rounded-[28px] border border-[#E6D2AA] bg-white/90 p-6 text-right shadow-[0_16px_40px_rgba(151,108,49,0.08)]"
               >
-                <h3 className="text-xl font-black text-[#0B0E13]">
+                <h3 className="text-xl font-black text-[#35281F]">
                   {item.href ? (
-                    <Link href={item.href} className="hover:text-[#0F766E]">
+                    <Link href={item.href} className="hover:text-[#A67C3D]">
                       {item.label}
                     </Link>
                   ) : (
                     item.label
                   )}
                 </h3>
-                <p className="mt-3 leading-7 text-[#3D4754]">{item.blurb}</p>
+                <p className="mt-3 leading-7 text-[#5C4A3A]">{item.blurb}</p>
                 {item.href ? (
                   <Link
                     href={item.href}
-                    className="mt-4 inline-block text-sm font-black text-[#0F766E] underline-offset-4 hover:underline"
+                    className="mt-4 inline-block text-sm font-black text-[#8A642E] underline-offset-4 hover:underline"
                   >
                     לעמוד הייעודי ←
                   </Link>
@@ -645,21 +645,21 @@ export default function RSVPPage() {
             ))}
           </ul>
 
-          <p className="mt-8 text-center text-base font-semibold text-[#6B7583]">
+          <p className="mt-8 text-center text-base font-semibold text-[#7A6042]">
             גם עמודי ערוץ:{" "}
-            <Link href="/rsvp/whatsapp" className="font-black text-[#0F766E] underline-offset-4 hover:underline">
+            <Link href="/rsvp/whatsapp" className="font-black text-[#8A642E] underline-offset-4 hover:underline">
               וואטסאפ
             </Link>
             {" · "}
-            <Link href="/rsvp/sms" className="font-black text-[#0F766E] underline-offset-4 hover:underline">
+            <Link href="/rsvp/sms" className="font-black text-[#8A642E] underline-offset-4 hover:underline">
               SMS
             </Link>
             {" · "}
-            <Link href="/rsvp/calls" className="font-black text-[#0F766E] underline-offset-4 hover:underline">
+            <Link href="/rsvp/calls" className="font-black text-[#8A642E] underline-offset-4 hover:underline">
               שיחות
             </Link>
             {" · "}
-            <Link href="/info/demo" className="font-black text-[#0F766E] underline-offset-4 hover:underline">
+            <Link href="/info/demo" className="font-black text-[#8A642E] underline-offset-4 hover:underline">
               דמו
             </Link>
           </p>
@@ -668,13 +668,13 @@ export default function RSVPPage() {
 
       {/* ================= FAQ ================= */}
       <section className="relative isolate px-6 py-20 md:py-28">
-        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,#FFFFFF_0%,#F2F4F7_100%)]" />
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_100%)]" />
         <div className="mx-auto max-w-3xl text-right">
           <PremiumBadge>שאלות נפוצות</PremiumBadge>
-          <h2 className="mt-6 text-3xl font-black text-[#0B0E13] md:text-5xl">
+          <h2 className="mt-6 text-3xl font-black text-[#35281F] md:text-5xl">
             מה חשוב לדעת לפני שמתחילים
           </h2>
-          <p className="mt-4 text-lg leading-8 text-[#3D4754]">
+          <p className="mt-4 text-lg leading-8 text-[#6D5B4A]">
             תשובות קצרות ומדויקות על אישורי הגעה לאירועים — בלי הבטחות שלא מופיעות במערכת.
           </p>
           <div className="mt-10 space-y-4">
@@ -703,12 +703,12 @@ export default function RSVPPage() {
               <details
                 key={faq.q}
                 open
-                className="rounded-[24px] border border-[#D5DBE3] bg-white px-5 py-4 text-right shadow-[0_12px_30px_rgba(151,108,49,0.06)]"
+                className="rounded-[24px] border border-[#E6D2AA] bg-white px-5 py-4 text-right shadow-[0_12px_30px_rgba(151,108,49,0.06)]"
               >
                 <summary className="cursor-pointer list-none">
-                  <h3 className="text-lg font-black text-[#0B0E13]">{faq.q}</h3>
+                  <h3 className="text-lg font-black text-[#35281F]">{faq.q}</h3>
                 </summary>
-                <p className="mt-3 leading-8 text-[#3D4754]">{faq.a}</p>
+                <p className="mt-3 leading-8 text-[#5C4A3A]">{faq.a}</p>
               </details>
             ))}
           </div>
@@ -717,7 +717,7 @@ export default function RSVPPage() {
 
       {/* ================= WHY ================= */}
       <section className="relative isolate px-6 py-24 text-center md:py-32">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,#A7D8D2_0%,transparent_36%),linear-gradient(180deg,#F2F4F7_0%,#F2F4F7_100%)]" />
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,#EAD6B4_0%,transparent_36%),linear-gradient(180deg,#F7EDDF_0%,#FBF6EE_100%)]" />
 
         <motion.div
           initial="hidden"
@@ -733,7 +733,7 @@ export default function RSVPPage() {
             className="
               mt-6 text-4xl font-black leading-tight
               tracking-[-0.03em]
-              text-[#0B0E13]
+              text-[#35281F]
               md:text-6xl
             "
           >
@@ -743,7 +743,7 @@ export default function RSVPPage() {
             </span>
           </h2>
 
-          <p className="mx-auto mt-7 max-w-2xl text-lg leading-8 text-[#3D4754] md:text-xl">
+          <p className="mx-auto mt-7 max-w-2xl text-lg leading-8 text-[#6D5B4A] md:text-xl">
             במקום לרדוף אחרי תשובות, לעדכן ידנית בכמה מקומות
             ולנחש כמה אנשים באמת מגיעים — Invistimo עושה סדר.
           </p>
@@ -759,14 +759,14 @@ export default function RSVPPage() {
               viewport={{ once: true }}
               className="
                 rounded-[28px]
-                border border-[#7DD3C8]
-                bg-gradient-to-br from-[#F2F4F7] via-[#FFFFFF] to-[#D5F0ED]
+                border border-[#E3C990]
+                bg-gradient-to-br from-[#FFF8E8] via-[#FFFDF7] to-[#F4E3C3]
                 px-5 py-7
                 shadow-[0_20px_50px_rgba(151,108,49,0.11)]
                 backdrop-blur-xl
               "
             >
-              <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-[#0F766E]" />
+              <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-[#C7A56B]" />
               <p className="text-base font-black text-[#4D3B2F]">
                 {item}
               </p>
@@ -782,18 +782,18 @@ export default function RSVPPage() {
           transition={{ delay: 0.25, duration: 0.75 }}
           className="
             mx-auto mt-16 max-w-4xl rounded-[38px]
-            border border-[#7DD3C8]
-            bg-gradient-to-br from-[#F2F4F7] via-[#FFFFFF] to-[#D5F0ED]
+            border border-[#E3C990]
+            bg-gradient-to-br from-[#FFF8E8] via-[#FFFDF7] to-[#F4E3C3]
             p-8 shadow-[0_28px_80px_rgba(151,108,49,0.16)]
             backdrop-blur-xl
             md:p-12
           "
         >
-          <h3 className="text-3xl font-black text-[#0B0E13] md:text-4xl">
+          <h3 className="text-3xl font-black text-[#35281F] md:text-4xl">
             מתחילים לנהל אישורי הגעה בצורה חכמה יותר
           </h3>
 
-          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[#3D4754]">
+          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[#6D5B4A]">
             מערכת אחת שמרכזת את האורחים, האישורים, הכמויות, ההערות,
             קישורי המתנות והעדכונים בזמן אמת —
             בצורה יוקרתית, מסודרת ומדויקת.
@@ -805,7 +805,7 @@ export default function RSVPPage() {
               className="
                 group inline-flex items-center justify-center
                 rounded-full
-                bg-gradient-to-l from-[#0B0E13] via-[#1A222D] to-[#0B0E13]
+                bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B]
                 px-12 py-5
                 text-lg font-black text-white
                 shadow-[0_24px_65px_rgba(58,43,34,0.35)]
