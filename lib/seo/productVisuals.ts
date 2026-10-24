@@ -323,12 +323,12 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
       };
     case "/info/guides/manage-corporate-event":
       return {
-        heading: "ניהול אירוע לצד הרשימה",
-        lede: "משימות ודשבורד — ניהול האירוע במקום אחד.",
-        layout: "duo",
+        heading: "הזמנה עסקית ומעקב סטטוסים",
+        lede: "הזמנה לאירוע חברה — לא הזמנת חתונה — לצד דשבורד ומשימות.",
+        layout: "hero-side",
         items: [
-          { src: PRODUCT_SHOTS.eventMgmt, alt: "ניהול אירוע", device: "laptop" },
-          { src: PRODUCT_SHOTS.dashboard, alt: "דשבורד אירוע", device: "laptop" },
+          { src: INVITE_DESIGNS.corporate, alt: "הזמנה לאירוע חברה", caption: "הזמנה דיגיטלית", device: "phone" },
+          { src: PRODUCT_SHOTS.eventMgmt, alt: "ניהול אירוע", caption: "משימות ותקציב", device: "laptop" },
         ],
       };
     default:

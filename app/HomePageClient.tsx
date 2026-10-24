@@ -961,7 +961,7 @@ export default function HomePageClient() {
             <h1 className="mt-4 text-[40px] font-black leading-[1.08] tracking-[-0.04em] text-[#F7F1E8] md:text-[58px] lg:text-[68px] lg:text-[#2C241C]">
               האירוע שלכם.
               <span className="mt-2 block bg-gradient-to-l from-[#8B642B] via-[#D4B06A] to-[#B88A2D] bg-clip-text text-transparent">
-                הסדר שלכם.
+                הסדר שלנו.
               </span>
             </h1>
             <p className="mx-auto mt-6 max-w-[34rem] text-[17px] font-semibold leading-8 text-[#E8DFD2] md:text-[19px] lg:mx-0 lg:text-[#4A3F34]">
