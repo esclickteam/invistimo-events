@@ -176,16 +176,21 @@ export default function Header() {
     );
   }
 
+  // Homepage: no bottom padding under the nav chrome — that cream band
+  // read as an empty strip between Header and Hero. Other pages keep py-3.
+  const headerPad =
+    pathname === "/" ? "px-3 pt-3 pb-0" : "px-3 py-3";
+
   return (
     <>
       <header
-        className="
+        className={`
           sticky top-0 z-50
           w-full
           bg-[#F8F5EE]
-          px-3 py-3
+          ${headerPad}
           print:hidden
-        "
+        `}
       >
         <div
           className="
