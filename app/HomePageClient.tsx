@@ -19,6 +19,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import AnswerFirst from "@/components/seo/AnswerFirst";
+import HomeSeoSections from "@/components/seo/HomeSeoSections";
 
 /* =====================================================
    DEMO BUTTON
@@ -355,7 +356,7 @@ function BlockTwoPhone() {
 
             <img
               src="/homep2.png"
-              alt=""
+              alt="תצוגת מסך בנייד — הזמנה ואישור הגעה"
               className="
                 block h-full w-full
                 object-cover
@@ -364,6 +365,8 @@ function BlockTwoPhone() {
                 contrast-105
                 saturate-105
               "
+              loading="lazy"
+              decoding="async"
               draggable={false}
             />
 
@@ -553,6 +556,8 @@ function RealTimeShowcase() {
                   md:h-[500px]
                   lg:h-[560px]
                 "
+                loading="lazy"
+                decoding="async"
                 draggable={false}
               />
             </div>
@@ -594,6 +599,8 @@ function RealTimeShowcase() {
                   md:h-[340px]
                   lg:h-[330px]
                 "
+                loading="lazy"
+                decoding="async"
                 draggable={false}
               />
             </div>
@@ -635,6 +642,8 @@ function RealTimeShowcase() {
                   md:h-[340px]
                   lg:h-[340px]
                 "
+                loading="lazy"
+                decoding="async"
                 draggable={false}
               />
             </div>
@@ -987,8 +996,10 @@ export default function HomePageClient() {
               animate={{ opacity: 1, x: 0, rotate: 6 }}
               transition={{ duration: 0.9, delay: 0.15 }}
               src="/marketing/invites/invite-wedding-mia-alon.webp"
-              alt="הזמנה לחתונה — מיה ואלון"
+              alt="הזמנה דיגיטלית לחתונה — מיה ואלון"
               className="absolute -left-2 top-8 z-0 hidden w-[42%] max-w-[220px] rounded-xl object-cover shadow-[0_24px_50px_rgba(20,14,10,0.35)] sm:block lg:-left-4"
+              fetchPriority="low"
+              decoding="async"
               draggable={false}
             />
             <motion.img
@@ -996,8 +1007,10 @@ export default function HomePageClient() {
               animate={{ opacity: 1, x: 0, rotate: -8 }}
               transition={{ duration: 0.9, delay: 0.25 }}
               src="/marketing/invites/invite-save-the-date-maya-itai.webp"
-              alt="Save the Date"
+              alt="כרטיס Save the Date לדוגמה"
               className="absolute -right-1 bottom-10 z-0 hidden w-[38%] max-w-[200px] rounded-xl object-cover shadow-[0_24px_50px_rgba(20,14,10,0.35)] sm:block lg:-right-2"
+              fetchPriority="low"
+              decoding="async"
               draggable={false}
             />
             <div className="relative z-10 w-full max-w-[320px]">
@@ -1045,8 +1058,10 @@ export default function HomePageClient() {
               >
                 <img
                   src={item.src}
-                  alt={item.label}
+                  alt={`הזמנה דיגיטלית לדוגמה — ${item.label}`}
                   className="aspect-[3/4] w-full rounded-2xl object-cover shadow-[0_20px_40px_rgba(0,0,0,0.45)]"
+                  loading="lazy"
+                  decoding="async"
                   draggable={false}
                 />
                 <figcaption className="mt-3 text-center text-sm font-bold text-[#C9BDAE]">
@@ -1103,6 +1118,8 @@ export default function HomePageClient() {
               muted
               loop
               playsInline
+              preload="metadata"
+              aria-label="דשבורד מתעדכן אחרי אישורי הגעה במערכת"
               className="aspect-video w-full bg-[#1C1612] object-contain"
             />
           </div>
@@ -1110,6 +1127,8 @@ export default function HomePageClient() {
       </section>
 
       <AnswerFirst path="/" />
+
+      <HomeSeoSections />
 
       {/* ================= בלוק 2 – HOW IT WORKS ================= */}
       <section

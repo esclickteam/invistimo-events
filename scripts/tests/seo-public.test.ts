@@ -309,7 +309,7 @@ test("pillar clusters do not assign one URL to two topics and answer-first cover
     assert.ok(PAGE_ANSWER_HEADINGS[pathKey], `heading for ${pathKey}`);
     assert.doesNotMatch(answerHeadingFor(pathKey), /התשובה הקצרה/);
   }
-  assert.equal(answerHeadingFor("/"), "איך אינויסטימו עובדת?");
+  assert.equal(answerHeadingFor("/"), "מה מקבלים במערכת אחת?");
   assert.equal(answerHeadingFor("/rsvp"), "איך מתבצע תהליך אישור ההגעה?");
   assert.equal(answerHeadingFor("/seating-explained"), "איך מנהלים סידורי הושבה?");
   assert.equal(answerHeadingFor("/wedding-website"), "מה מקבלים באתר חתונה?");

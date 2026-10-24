@@ -18,7 +18,7 @@ export type AnswerVisual = {
  * Headings must read as natural section titles, not robot-style SEO labels.
  */
 export const PAGE_ANSWER_HEADINGS: Record<string, string> = {
-  "/": "איך אינויסטימו עובדת?",
+  "/": "מה מקבלים במערכת אחת?",
   "/rsvp": "איך מתבצע תהליך אישור ההגעה?",
   "/rsvp/chatuna": "איך מאשרים הגעה לחתונה?",
   "/rsvp/whatsapp": "מה כוללים סבבי הוואטסאפ?",
@@ -164,7 +164,7 @@ export const PAGE_ANSWER_VISUALS: Record<string, AnswerVisual> = {
 /** Direct answer shown in a natural mid-page section. Visible text, not hidden. */
 export const PAGE_ANSWERS: Record<string, string> = {
   "/":
-    "Invistimo היא מערכת ישראלית לאישורי הגעה, הזמנות דיגיטליות, סידורי הושבה וניהול אירוע. האורח מקבל קישור אישי בלי להתקין אפליקציה. המחיר נקבע במחשבון לפי מספר רשומות וחבילה.",
+    "Invistimo היא מערכת ישראלית לאישורי הגעה עם קישור אישי לכל אורח, הזמנות דיגיטליות, Save the Date, סידורי הושבה וניהול אירוע. בחבילת ההודעות: שני סבבי וואטסאפ לאישור, תזכורת SMS והודעת תודה. האורח לא מתקין אפליקציה. המחיר במחשבון לפי מספר רשומות וחבילה — בלי מחיר אחיד לכל אירוע.",
   "/rsvp":
     "אישור הגעה ב־Invistimo הוא קישור אישי לכל אורח. האורח מסמן אם הוא מגיע, כמה אנשים מגיעים, ויכול להוסיף הערה. בחבילת ההודעות יוצאים שני סבבי וואטסאפ ותזכורת SMS. מתאים לחתונה, בר/בת מצווה, ברית, חינה, ימי הולדת ואירועי חברה.",
   "/rsvp/chatuna":
@@ -261,6 +261,7 @@ export const PACKAGE_COMPARISON: FactTable = {
 };
 
 const PACKAGE_TABLE_PATHS = new Set([
+  "/",
   "/info/guides/cost-rsvp-wedding",
   "/rsvp/whatsapp",
   "/rsvp",
