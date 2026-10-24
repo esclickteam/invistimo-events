@@ -81,21 +81,16 @@ export default function RSVPPage() {
             transition={{ duration: 0.7 }}
             className="text-center lg:text-right"
           >
-            <p className="font-[family-name:var(--font-rsvp-display)] text-3xl font-bold tracking-tight text-[#A77A38] md:text-4xl">
+            <p className="font-[family-name:var(--font-rsvp-display)] text-5xl font-bold tracking-tight text-[#A77A38] md:text-6xl">
               Invistimo
             </p>
-            <h1 className="mt-4 font-[family-name:var(--font-rsvp-display)] text-4xl font-bold leading-[1.15] text-[#35281F] md:text-6xl">
+            <h1 className="mt-5 font-[family-name:var(--font-rsvp-display)] text-3xl font-bold leading-[1.2] text-[#35281F] md:text-5xl">
               אישורי הגעה לאירוע, בלי לרדוף אחרי האורחים
             </h1>
-            <p className="mt-5 text-xl font-semibold leading-9 text-[#5C4A3A] md:text-2xl">
+            <p className="mt-5 text-lg font-semibold leading-8 text-[#5C4A3A] md:text-xl md:leading-9">
               אתם מתרגשים לקראת האירוע. אנחנו עוזרים לכם לדעת מי מגיע.
             </p>
-            <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-[#6D5B4A] lg:mx-0 md:text-lg md:leading-9">
-              עם Invistimo שולחים לאורחים הודעות WhatsApp עם קישור אישי לאישור הגעה, עוקבים אחרי
-              התשובות בזמן אמת ומרכזים את כל המידע במקום אחד. אפשר לשלב סבבי הודעות, שיחות טלפוניות,
-              תזכורות, סידורי הושבה וניהול מוזמנים — כדי להגיע ליום האירוע הרבה יותר מסודרים.
-            </p>
-            <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
               <PrimaryCta href="/pricing">בואו נתחיל</PrimaryCta>
               <SecondaryCta href="#rsvp-journey">לצפייה בתהליך</SecondaryCta>
             </div>
@@ -105,7 +100,7 @@ export default function RSVPPage() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15, duration: 0.75 }}
-            className="relative mx-auto w-full max-w-[380px]"
+            className="relative mx-auto w-full max-w-[320px] lg:max-w-[360px]"
           >
             <div className="absolute -inset-5 rounded-[42px] bg-[radial-gradient(circle_at_top,#E8D4AF,transparent_60%)] blur-2xl" />
             <div className="relative rounded-[34px] border border-white/80 bg-gradient-to-br from-[#F8EFE1] via-[#FFFDF9] to-[#E7D7BF] p-2.5 shadow-[0_35px_90px_rgba(58,39,20,0.2)]">
@@ -115,12 +110,18 @@ export default function RSVPPage() {
                   poster={JOURNEY_VIDEO.poster}
                   title={JOURNEY_VIDEO.title}
                   eager
-                  className="aspect-[420/760]"
+                  className="aspect-[420/760] max-h-[min(68vh,620px)]"
                 />
               </div>
             </div>
           </motion.div>
         </div>
+
+        <p className="mx-auto mt-12 max-w-3xl text-center text-base leading-8 text-[#6D5B4A] md:mt-16 md:text-lg md:leading-9">
+          עם Invistimo שולחים לאורחים הודעות WhatsApp עם קישור אישי לאישור הגעה, עוקבים אחרי
+          התשובות בזמן אמת ומרכזים את כל המידע במקום אחד. אפשר לשלב סבבי הודעות, שיחות טלפוניות,
+          תזכורות, סידורי הושבה וניהול מוזמנים — כדי להגיע ליום האירוע הרבה יותר מסודרים.
+        </p>
       </section>
 
       <JourneyDemo />
