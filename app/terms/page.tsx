@@ -10,7 +10,7 @@ export const metadata = pageMetadata({
 
 export default function TermsPage() {
   return (
-    {/* Landmark <main> lives in LayoutShell — avoid nested <main>. */}
+    // Landmark <main> lives in LayoutShell — avoid nested <main>.
     <div dir="rtl" className="bg-[#f7f3ee] min-h-screen py-20">
       <div className="max-w-4xl mx-auto px-6">
         {/* ===== Card ===== */}

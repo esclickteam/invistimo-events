@@ -2,7 +2,7 @@
 
 export default function CreditGiftsPage() {
   return (
-    {/* Landmark <main> lives in LayoutShell — avoid nested <main>. */}
+    // Landmark <main> lives in LayoutShell — avoid nested <main>.
     <div
       dir="rtl"
       className="bg-[#faf9f7] text-[#1a1a1a] leading-relaxed"

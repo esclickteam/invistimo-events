@@ -193,7 +193,7 @@ export default function PricingPage() {
   }
 
   return (
-    {/* Landmark <main> lives in LayoutShell — avoid nested <main>. */}
+    // Landmark <main> lives in LayoutShell — avoid nested <main>.
     <div dir="rtl" className="relative min-h-screen overflow-x-clip bg-[#F7EFE6] text-[#3E2D20]">
       <div className="absolute inset-0 -z-30 bg-[radial-gradient(circle_at_top,#fffaf4_0%,#f7efe6_42%,#efe2d2_100%)]" />
       <div className="pointer-events-none absolute -top-24 right-[7%] -z-20 h-72 w-72 rounded-full bg-[#DAB273]/20 blur-3xl" />

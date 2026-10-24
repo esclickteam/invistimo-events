@@ -8,7 +8,7 @@ export const metadata = {
 
 export default function NotFound() {
   return (
-    {/* Landmark <main> lives in LayoutShell when wrapped; keep a single landmark root. */}
+    // Landmark <main> lives in LayoutShell — avoid nested <main>.
     <div dir="rtl" className="mx-auto flex min-h-[60vh] max-w-xl flex-col items-center justify-center px-6 py-24 text-center text-[#3F3025]">
       <h1 className="text-4xl font-black">העמוד לא נמצא</h1>
       <p className="mt-4 leading-8 text-[#5C4A3A]">

@@ -26,7 +26,7 @@ export default function GuidesPage() {
   const uncategorized = GUIDES.filter((guide) => !clusteredPaths.has(guidePath(guide.slug)));
 
   return (
-    {/* Landmark <main> lives in LayoutShell — avoid nested <main>. */}
+    // Landmark <main> lives in LayoutShell — avoid nested <main>.
     <div dir="rtl" className="overflow-hidden bg-[#FBF6EE] text-[#3F3025]">
       <JsonLd
         data={graph([
