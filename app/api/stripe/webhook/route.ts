@@ -7,6 +7,7 @@ import User from "@/models/User";
 import EmployeeSale from "@/models/EmployeeSale";
 import { notifyAdminPurchase } from "@/lib/notifyAdminPurchase";
 import { applyWeddingChallengesPurchase } from "@/lib/weddingChallenges/purchase";
+import { studioPaymentShouldGrant } from "@/lib/invitationStudio/entitlement";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -729,6 +730,23 @@ export async function POST(req: Request) {
         customerEmail: String(user.email || ""),
       });
       return NextResponse.json({ received: true });
+    }
+
+    if (session.metadata?.source === "invitation_studio") {
+      const decision = studioPaymentShouldGrant({
+        payment_status: session.payment_status,
+        livemode: session.livemode,
+        metadata: { source: session.metadata?.source },
+      });
+      if (!decision.grant) {
+        console.log("invitation studio checkout ignored", decision.reason);
+        return NextResponse.json({ received: true, studio: decision.reason });
+      }
+      await User.updateOne(
+        { _id: user._id },
+        { $set: { designedInvitationEnabled: true } }
+      );
+      return NextResponse.json({ received: true, studio: "granted" });
     }
 
     /* =========================================================
