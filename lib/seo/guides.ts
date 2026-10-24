@@ -65,7 +65,7 @@ export const GUIDES: Guide[] = [
       caption: "בדשבורד רואים מי ענה ומי עדיין פתוח — בסיס לסבב השני",
     },
     video: {
-      src: "/marketing/videos/process-rsvp-guest-journey.webm",
+      src: "/marketing/videos/hero-guest-journey.webm",
       poster: SHOT.guestRsvp,
       caption: "כך האורח מאשר הגעה בקישור האישי",
     },
@@ -658,7 +658,7 @@ export const GUIDES: Guide[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/process-rsvp-guest-journey.webm",
+      src: "/marketing/videos/hero-guest-journey.webm",
       poster: SHOT.dashboard,
       caption: "מעקב אחרי מי ענה אחרי כל סבב",
     },
@@ -693,7 +693,7 @@ export const GUIDES: Guide[] = [
     messageExamples: [
       {
         label: "סבב ראשון — קצר",
-        body: "הוזמנתם לחתונה של מאיה ואיתי 🤍\nלצפייה בפרטים ולאישור הגעה — בקישור האישי שלכם.",
+        body: "הוזמנתם לחתונה של מיה ואלון 🤍\nלצפייה בפרטים ולאישור הגעה — בקישור האישי שלכם.",
       },
       {
         label: "סבב שני — רק לפתוחים",

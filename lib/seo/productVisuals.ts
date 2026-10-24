@@ -5,7 +5,9 @@ const I = "/marketing/invites";
 
 /** Designed invitation / Save the Date studio assets (marketing graphics). */
 export const INVITE_DESIGNS = {
-  wedding: `${I}/invite-wedding-maya-itai.webp`,
+  /** User-approved wedding invitation — מיה ואלון (do not replace with generated art). */
+  wedding: `${I}/invite-wedding-mia-alon.webp`,
+  weddingPng: `${I}/invite-wedding-mia-alon.png`,
   saveTheDate: `${I}/invite-save-the-date-maya-itai.webp`,
   barMitzvah: `${I}/invite-bar-mitzvah.webp`,
   batMitzvah: `${I}/invite-bat-mitzvah.webp`,
@@ -59,15 +61,16 @@ export const PRODUCT_VIDEOS = {
   seatingUnifiedCaptions: "/marketing/videos/process-seating.webm",
   seatingCinematic: "/marketing/videos/process-seating.webm",
   seatingProcess: "/marketing/videos/process-seating.webm",
-  guestRsvp: "/marketing/videos/process-rsvp-guest-journey.webm",
-  guestRsvpCaptions: "/marketing/videos/process-rsvp-guest-journey.webm",
-  guestJourney: "/marketing/videos/process-rsvp-guest-journey.webm",
+  guestRsvp: "/marketing/videos/hero-guest-journey.webm",
+  guestRsvpCaptions: "/marketing/videos/hero-guest-journey.webm",
+  guestJourney: "/marketing/videos/hero-guest-journey.webm",
+  heroGuestJourney: "/marketing/videos/hero-guest-journey.webm",
   dashboardLive: "/marketing/videos/process-dashboard-live.webm",
   invitationOpen: "/marketing/videos/process-invitation-open.webm",
   saveTheDateProcess: "/marketing/videos/process-save-the-date.webm",
   weddingEternal: "/marketing/videos/demo-wedding-eternal-gold.webm",
   weddingReel: "/marketing/videos/reel-wedding-website.webm",
-  homeJourney: "/marketing/videos/reel-home-journey.webm",
+  homeJourney: "/marketing/videos/hero-guest-journey.webm",
 } as const;
 
 /** Prefer webp; fall back to png if a variant is missing on disk. */
@@ -85,7 +88,7 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
     case "/info/demo":
       return {
         heading: "מהודעה, להזמנה, לדשבורד",
-        lede: "מסע אורח עקבי באירוע הדוגמה של מאיה ואיתי — עם שמירה אמיתית במערכת הדמו, לא אנימציה מנותקת.",
+        lede: "מסע אורח עקבי — הזמנת מיה ואלון ואישורי דמו במערכת — עם שמירה אמיתית במערכת הדמו, לא אנימציה מנותקת.",
         layout: "trio",
         items: [
           { src: PRODUCT_SHOTS.whatsappRsvp, alt: "הדמיית הודעת WhatsApp לפי תבנית Invistimo", caption: "קבלת ההודעה עם הקישור האישי", device: "phone" },
@@ -183,7 +186,7 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
         lede: "קודם רואים את ההזמנה עצמה — ורק בהמשך את המעבר לאישור הגעה בקישור האישי. לא דשבורד ולא אתר חתונה.",
         layout: "phone-pair",
         items: [
-          { src: INVITE_DESIGNS.wedding, alt: "הזמנה מעוצבת לחתונה של מאיה ואיתי", caption: "הזמנה דיגיטלית", device: "phone" },
+          { src: INVITE_DESIGNS.wedding, alt: "הזמנה מעוצבת לחתונה של מיה ואלון", caption: "הזמנה דיגיטלית", device: "phone" },
           { src: INVITE_DESIGNS.barMitzvah, alt: "הזמנה דיגיטלית לבר מצווה", caption: "אותו מנגנון — עיצוב אחר", device: "phone" },
         ],
       };
@@ -273,7 +276,7 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
         lede: "קודם רואים את ההזמנה עצמה — ואז עוברים לאישור. לא דשבורד ולא אתר חתונה.",
         layout: "phone-pair",
         items: [
-          { src: INVITE_DESIGNS.wedding, alt: "הזמנה דיגיטלית מאיה ואיתי", caption: "ההזמנה המעוצבת", device: "phone" },
+          { src: INVITE_DESIGNS.wedding, alt: "הזמנה דיגיטלית — מיה ואלון", caption: "ההזמנה המעוצבת", device: "phone" },
           { src: PRODUCT_SHOTS.guestInviteLoaded, alt: "פתיחת הזמנה בקישור", caption: "מה האורח רואה", device: "phone" },
         ],
       };

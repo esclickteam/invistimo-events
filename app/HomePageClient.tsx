@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Users,
@@ -79,6 +80,15 @@ function DemoButton({
    HERO PHONE — CLEAN 3D VIDEO PHONE
 ===================================================== */
 function HeroPhone3D() {
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReduceMotion(mq.matches);
+    sync();
+    mq.addEventListener?.("change", sync);
+    return () => mq.removeEventListener?.("change", sync);
+  }, []);
+
   return (
     <div
       className="
@@ -184,13 +194,27 @@ function HeroPhone3D() {
               "
             />
 
-            {/* Prefer invitation art in the hero phone — never a long loading state. */}
-            <img
-              src="/marketing/invites/invite-wedding-maya-itai.webp"
-              alt="הזמנה דיגיטלית — החתונה של מאיה ואיתי"
-              className="h-full w-full object-cover object-top"
-              draggable={false}
-            />
+            {reduceMotion ? (
+              <img
+                src="/marketing/invites/invite-wedding-mia-alon.webp"
+                alt="הזמנה דיגיטלית — החתונה של מיה ואלון"
+                className="h-full w-full bg-[#FBF6EE] object-contain object-top"
+                draggable={false}
+              />
+            ) : (
+              <video
+                className="h-full w-full bg-[#FBF6EE] object-cover object-top"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                poster="/marketing/invites/invite-wedding-mia-alon.webp"
+                aria-label="מסע אורח: הדמיית WhatsApp, הזמנה של מיה ואלון, ואישור הגעה"
+              >
+                <source src="/marketing/videos/hero-guest-journey.webm" type="video/webm" />
+              </video>
+            )}
 
             <div
               className="
@@ -923,7 +947,7 @@ export default function HomePageClient() {
 
         <div
           dir="rtl"
-          className="relative z-10 mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-8 px-5 pb-12 pt-20 md:gap-10 md:px-10 md:pb-14 md:pt-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pt-16"
+          className="relative z-10 mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-8 px-5 pb-12 pt-6 md:gap-10 md:px-10 md:pb-14 md:pt-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pt-6"
         >
           <motion.div
             initial={{ opacity: 0, y: 28 }}
@@ -962,9 +986,9 @@ export default function HomePageClient() {
               initial={{ opacity: 0, x: 40, rotate: 8 }}
               animate={{ opacity: 1, x: 0, rotate: 6 }}
               transition={{ duration: 0.9, delay: 0.15 }}
-              src="/marketing/invites/invite-wedding-maya-itai.webp"
-              alt="הזמנה לחתונה — מאיה ואיתי"
-              className="absolute -left-2 top-8 z-0 hidden w-[42%] max-w-[220px] rounded-xl shadow-[0_24px_50px_rgba(20,14,10,0.35)] sm:block lg:-left-4"
+              src="/marketing/invites/invite-wedding-mia-alon.webp"
+              alt="הזמנה לחתונה — מיה ואלון"
+              className="absolute -left-2 top-8 z-0 hidden w-[42%] max-w-[220px] rounded-xl object-cover shadow-[0_24px_50px_rgba(20,14,10,0.35)] sm:block lg:-left-4"
               draggable={false}
             />
             <motion.img
@@ -972,8 +996,8 @@ export default function HomePageClient() {
               animate={{ opacity: 1, x: 0, rotate: -8 }}
               transition={{ duration: 0.9, delay: 0.25 }}
               src="/marketing/invites/invite-save-the-date-maya-itai.webp"
-              alt="Save the Date — מאיה ואיתי"
-              className="absolute -right-1 bottom-10 z-0 hidden w-[38%] max-w-[200px] rounded-xl shadow-[0_24px_50px_rgba(20,14,10,0.35)] sm:block lg:-right-2"
+              alt="Save the Date"
+              className="absolute -right-1 bottom-10 z-0 hidden w-[38%] max-w-[200px] rounded-xl object-cover shadow-[0_24px_50px_rgba(20,14,10,0.35)] sm:block lg:-right-2"
               draggable={false}
             />
             <div className="relative z-10 w-full max-w-[320px]">
@@ -1002,7 +1026,7 @@ export default function HomePageClient() {
           </motion.div>
           <div className="mt-12 flex gap-5 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {[
-              { src: "/marketing/invites/invite-wedding-maya-itai.webp", label: "חתונה" },
+              { src: "/marketing/invites/invite-wedding-mia-alon.webp", label: "חתונה" },
               { src: "/marketing/invites/invite-save-the-date-maya-itai.webp", label: "Save the Date" },
               { src: "/marketing/invites/invite-bar-mitzvah.webp", label: "בר מצווה" },
               { src: "/marketing/invites/invite-bat-mitzvah.webp", label: "בת מצווה" },
@@ -1073,13 +1097,13 @@ export default function HomePageClient() {
           </div>
           <div className="overflow-hidden rounded-[28px] border border-[#E0D4C2] bg-[#1C1612] shadow-[0_30px_70px_rgba(44,36,28,0.18)]">
             <video
-              src="/marketing/videos/reel-home-journey.webm"
-              poster="/marketing/invites/invite-wedding-maya-itai.webp"
+              src="/marketing/videos/hero-guest-journey.webm"
+              poster="/marketing/invites/invite-wedding-mia-alon.webp"
               autoPlay
               muted
               loop
               playsInline
-              className="aspect-video w-full object-cover"
+              className="aspect-video w-full bg-[#1C1612] object-contain"
             />
           </div>
         </div>

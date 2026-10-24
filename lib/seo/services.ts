@@ -46,7 +46,7 @@ export const SERVICE_PAGES: ServicePage[] = [
       "בחתונה הרשימה גדולה, יש שני צדדים, והאולם לוחץ למספר. Invistimo מרכזת את אישורי ההגעה בקישור אישי לכל אורח, עם סבבי וואטסאפ ותשובות במערכת — לא בצ'אטים מפוזרים.",
     media: {
       type: "video",
-      src: "/marketing/videos/process-rsvp-guest-journey.webm",
+      src: "/marketing/videos/hero-guest-journey.webm",
       variant: "phone",
       caption: "מההזמנה ועד האישור — והעדכון בדשבורד",
     },
@@ -253,8 +253,8 @@ export const SERVICE_PAGES: ServicePage[] = [
     media: {
       type: "video",
       src: "/marketing/videos/process-invitation-open.webm",
-      poster: "/marketing/invites/invite-wedding-maya-itai.webp",
-      alt: "פתיחת הזמנה דיגיטלית — מאיה ואיתי",
+      poster: "/marketing/invites/invite-wedding-mia-alon.webp",
+      alt: "פתיחת הזמנה דיגיטלית — מיה ואלון",
       variant: "phone",
       caption: "פתיחת ההזמנה המעוצבת בקישור האישי",
     },
@@ -290,8 +290,8 @@ export const SERVICE_PAGES: ServicePage[] = [
           "ההזמנה הדיגיטלית היא המסך המעוצב שהאורח רואה בקישור האישי: שמות, תאריך, מיקום ועיצוב האירוע.",
           "היא אינה דשבורד המארגן, אינה אתר חתונה מלא עם גלריה ולו״ז, ואינה עצם שליחת ההודעה בוואטסאפ. השליחה היא הדרך להגיע לקישור; ההזמנה היא מה שנפתח בתוכו.",
         ],
-        imageSrc: "/marketing/invites/invite-wedding-maya-itai.webp",
-        imageAlt: "הזמנה דיגיטלית — מאיה ואיתי",
+        imageSrc: "/marketing/invites/invite-wedding-mia-alon.webp",
+        imageAlt: "הזמנה דיגיטלית — מיה ואלון",
         imageDevice: "phone",
       },
       {

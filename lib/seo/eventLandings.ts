@@ -53,7 +53,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
     showcaseSrc: INVITE_DESIGNS.barMitzvah,
     showcaseAlt: "דשבורד למעקב אישורי הגעה",
     video: {
-      src: "/marketing/videos/process-rsvp-guest-journey.webm",
+      src: "/marketing/videos/process-dashboard-live.webm",
       poster: PRODUCT_SHOTS.dashboard,
       caption: "מעקב תשובות בזמן אמת — מי ענה ומי עדיין פתוח",
     },
@@ -188,7 +188,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/process-rsvp-guest-journey.webm",
+      src: "/marketing/videos/process-dashboard-live.webm",
       poster: PRODUCT_SHOTS.dashboard,
       caption: "דשבורד אישורי הגעה",
     },
@@ -278,7 +278,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/process-rsvp-guest-journey.webm",
+      src: "/marketing/videos/process-dashboard-live.webm",
       poster: PRODUCT_SHOTS.dashboard,
       caption: "מעקב תשובות בדשבורד",
     },
@@ -365,7 +365,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/process-rsvp-guest-journey.webm",
+      src: "/marketing/videos/process-dashboard-live.webm",
       poster: PRODUCT_SHOTS.seating,
       caption: "מפת הושבה עם שולחנות",
     },
@@ -466,7 +466,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/process-rsvp-guest-journey.webm",
+      src: "/marketing/videos/process-dashboard-live.webm",
       poster: PRODUCT_SHOTS.dashboard,
       caption: "מעקב אחרי מי ענה",
     },
@@ -547,7 +547,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/process-rsvp-guest-journey.webm",
+      src: "/marketing/videos/process-dashboard-live.webm",
       poster: PRODUCT_SHOTS.dashboard,
       caption: "מעקב אישורים בדשבורד",
     },
@@ -636,7 +636,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/process-rsvp-guest-journey.webm",
+      src: "/marketing/videos/process-dashboard-live.webm",
       poster: PRODUCT_SHOTS.dashboard,
       caption: "דשבורד משתתפים וסטטוסים",
     },

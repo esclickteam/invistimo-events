@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>אישור הגעה — מיה ואלון (הדגמה)</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #FBF6EE;
+      color: #2A211A;
+      font-family: Heebo, Arial, sans-serif;
+      padding: 20px 18px 40px;
+    }
+    .eyebrow {
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .14em;
+      color: #A67C3D;
+      margin: 8px 0 6px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 26px;
+      line-height: 1.25;
+    }
+    .lede { color: #5C4A3A; line-height: 1.7; margin: 0 0 18px; font-size: 15px; }
+    .card {
+      background: #fff;
+      border: 1px solid #E6D2AA;
+      border-radius: 18px;
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .card strong { display: block; margin-bottom: 4px; }
+    .muted { color: #7A6042; font-size: 14px; line-height: 1.55; }
+    .choices { display: grid; gap: 10px; margin: 18px 0; }
+    button {
+      min-height: 48px;
+      border-radius: 14px;
+      border: 1px solid #E6D2AA;
+      background: #fff;
+      font: 800 15px/1 Heebo, Arial, sans-serif;
+      color: #2A211A;
+      cursor: pointer;
+    }
+    button.selected {
+      background: #2A211A;
+      color: #fff;
+      border-color: #2A211A;
+    }
+    .submit {
+      width: 100%;
+      min-height: 52px;
+      border: 0;
+      border-radius: 999px;
+      background: linear-gradient(90deg,#B8862D,#C9A45C,#8B6220);
+      color: #fff;
+      font: 800 16px/1 Heebo, Arial, sans-serif;
+      cursor: pointer;
+    }
+    .submit:disabled { opacity: .45; cursor: default; }
+    .note {
+      margin-top: 14px;
+      font-size: 12px;
+      color: #7A6042;
+      line-height: 1.5;
+    }
+    #done { display: none; text-align: center; padding-top: 48px; }
+    #done .check {
+      width: 72px; height: 72px; border-radius: 50%;
+      margin: 0 auto 16px;
+      display: grid; place-items: center;
+      background: #EAF6E8; color: #2F7A3E; font-size: 34px;
+    }
+  </style>
+</head>
+<body>
+  <div id="form">
+    <p class="eyebrow">INVISTIMO · הדגמה</p>
+    <h1>אישור הגעה — החתונה של מיה ואלון</h1>
+    <p class="lede">24.06.2027 · אולמי אלכסנדר, עמק חפר. התשובה נשמרת ברשימת המוזמנים של האירוע.</p>
+    <div class="card">
+      <strong>נועה כהן</strong>
+      <div class="muted">אורחת דמו · קישור אישי</div>
+    </div>
+    <div class="choices" id="choices">
+      <button type="button" data-status="yes">מגיעה</button>
+      <button type="button" data-status="maybe">עדיין לא בטוח/ה</button>
+      <button type="button" data-status="no">לא מגיעה</button>
+    </div>
+    <button class="submit" id="submit" type="button" disabled>שליחת אישור הגעה</button>
+    <p class="note">הדגמה שיווקית בלבד — אין שליחה חיצונית ואין חיוב.</p>
+  </div>
+  <div id="done">
+    <div class="check">✓</div>
+    <h1>התשובה נשמרה</h1>
+    <p class="lede">תודה נועה — הסטטוס עודכן ברשימת המוזמנים של מיה ואלון.</p>
+  </div>
+  <script>
+    let status = "";
+    const choices = document.getElementById("choices");
+    const submit = document.getElementById("submit");
+    choices.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-status]");
+      if (!btn) return;
+      status = btn.dataset.status;
+      [...choices.querySelectorAll("button")].forEach((b) => b.classList.toggle("selected", b === btn));
+      submit.disabled = false;
+    });
+    submit.addEventListener("click", () => {
+      if (!status) return;
+      document.getElementById("form").style.display = "none";
+      document.getElementById("done").style.display = "block";
+    });
+  </script>
+</body>
+</html>

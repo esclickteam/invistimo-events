@@ -85,8 +85,8 @@ export const PAGE_ANSWER_VISUALS: Record<string, AnswerVisual> = {
     device: "laptop",
   },
   "/invitations/chatuna": {
-    src: "/marketing/invites/invite-wedding-maya-itai.webp",
-    alt: "הזמנה דיגיטלית מעוצבת — מאיה ואיתי",
+    src: "/marketing/invites/invite-wedding-mia-alon.webp",
+    alt: "הזמנה דיגיטלית מעוצבת — מיה ואלון",
     device: "phone",
   },
   "/wedding-website": {
