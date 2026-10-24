@@ -5,9 +5,18 @@ import InvitationStudioTemplate from "@/models/InvitationStudioTemplate";
 import User from "@/models/User";
 import { isStudioAdmin, readStudioAuth } from "@/lib/invitationStudio/access";
 import { mergeCatalog } from "@/lib/invitationStudio/catalog";
+import { mergePlates } from "@/lib/invitationStudio/plateCatalog";
 import { STUDIO_CATEGORIES, STUDIO_STYLES } from "@/lib/invitationStudio/types";
 import { clone } from "@/lib/invitationStudio/render";
-import { readOverrides, readStudioSettings, writeStudioPrice } from "@/lib/invitationStudio/store";
+import { getPlate } from "@/lib/invitationStudio/plates";
+import {
+  clearMusicLibraryUpload,
+  readOverrides,
+  readStudioSettings,
+  writeMusicLibrary,
+  writePlateOverride,
+  writeStudioPrice,
+} from "@/lib/invitationStudio/store";
 
 export const dynamic = "force-dynamic";
 
@@ -36,8 +45,24 @@ export async function GET(req: Request) {
     ...item,
     usageCount: counts.get(item.id) || 0,
   }));
+  const plates = mergePlates(settings.plates).map((item) => ({
+    ...item,
+    usageCount: counts.get(item.id) || 0,
+  }));
 
-  return NextResponse.json({ success: true, templates, settings });
+  return NextResponse.json({
+    success: true,
+    templates,
+    plates,
+    settings: {
+      ...settings,
+      music: {
+        ...settings.music,
+        dataUrl: undefined,
+        hasUpload: Boolean(settings.music.dataUrl),
+      },
+    },
+  });
 }
 
 export async function PUT(req: Request) {
@@ -55,6 +80,48 @@ export async function POST(req: Request) {
   if (denied) return denied;
   const body = await req.json().catch(() => ({}));
   const action = String(body?.action || "");
+
+  if (action === "save-plate") {
+    const key = String(body?.id || "");
+    if (!getPlate(key)) {
+      return NextResponse.json({ success: false, error: "PLATE_NOT_FOUND" }, { status: 404 });
+    }
+    const settings = await writePlateOverride({
+      key,
+      hidden: Boolean(body?.hidden),
+      free: typeof body?.free === "boolean" ? body.free : null,
+      sort: body?.sort == null ? null : Number(body.sort),
+      name: typeof body?.name === "string" ? body.name : null,
+      description: typeof body?.description === "string" ? body.description : null,
+      defaultMusic: typeof body?.defaultMusic === "boolean" ? body.defaultMusic : null,
+    });
+    return NextResponse.json({ success: true, settings });
+  }
+
+  if (action === "save-music") {
+    try {
+      if (body?.clearUpload) {
+        const settings = await clearMusicLibraryUpload();
+        return NextResponse.json({ success: true, settings });
+      }
+      const settings = await writeMusicLibrary({
+        label: typeof body?.label === "string" ? body.label : undefined,
+        dataUrl: typeof body?.dataUrl === "string" ? body.dataUrl : undefined,
+        fileName: typeof body?.fileName === "string" ? body.fileName : undefined,
+        rightsConfirmed: Boolean(body?.rightsConfirmed),
+      });
+      return NextResponse.json({
+        success: true,
+        settings: {
+          ...settings,
+          music: { ...settings.music, dataUrl: undefined, hasUpload: Boolean(settings.music.dataUrl) },
+        },
+      });
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "MUSIC_FAILED";
+      return NextResponse.json({ success: false, error: code }, { status: 400 });
+    }
+  }
 
   if (action === "entitlement") {
     const email = String(body?.email || "").trim().toLowerCase();

@@ -24,6 +24,9 @@ import {
 } from "../../lib/invitationStudio/entitlement";
 import { hebrewDateFromIso } from "../../lib/invitationStudio/hebrewDate";
 import { mergeCatalog } from "../../lib/invitationStudio/catalog";
+import { envelopeTimeline } from "../../lib/invitationStudio/envelopeTimeline";
+import { mergePlates, publicPlates } from "../../lib/invitationStudio/plateCatalog";
+import { STUDIO_PLATES } from "../../lib/invitationStudio/plates";
 
 test("catalog has at least 30 original layered templates across every category and style", () => {
   assert.ok(STUDIO_TEMPLATES.length >= 30);
@@ -168,4 +171,42 @@ test("hebrew date helper returns a hebrew string", () => {
   assert.equal(hebrewDateFromIso("2024-10-03"), "א׳ תשרי תשפ״ה");
   assert.equal(hebrewDateFromIso("2027-03-01"), "כ״ב אדר א׳ תשפ״ז");
   assert.equal(hebrewDateFromIso(""), "");
+});
+
+test("envelope timeline keeps invitation art visible while the flap opens", () => {
+  const closed = envelopeTimeline(0.5);
+  assert.equal(closed.flap, 1);
+  assert.equal(closed.rise, 0);
+  assert.equal(closed.cardAbovePocket, false);
+
+  const opening = envelopeTimeline(1.8);
+  assert.ok(opening.flap < 1);
+  assert.ok(opening.flap > 0);
+  assert.ok(opening.rise > 0);
+  assert.equal(opening.cardAbovePocket, true);
+
+  const mid = envelopeTimeline(3.2);
+  assert.ok(mid.rise > 0.4);
+  assert.equal(mid.envelopeAlpha, 1);
+
+  const fading = envelopeTimeline(5.0);
+  assert.ok(fading.envelopeAlpha < 1);
+  assert.ok(fading.envelopeAlpha > 0);
+});
+
+test("plate catalog overrides hide boards without rewriting the source plate", () => {
+  const merged = mergePlates([
+    { key: "ivory-garden", hidden: true, name: "שם אדמין" },
+    { key: "modern-ink", free: false, sort: 99 },
+  ]);
+  const ivory = merged.find((item) => item.id === "ivory-garden");
+  const ink = merged.find((item) => item.id === "modern-ink");
+  assert.ok(ivory);
+  assert.ok(ink);
+  assert.equal(ivory.published, false);
+  assert.equal(ivory.name, "שם אדמין");
+  assert.equal(STUDIO_PLATES.find((item) => item.id === "ivory-garden")?.name, "גן השנהב");
+  assert.equal(ink.free, false);
+  assert.equal(ink.sort, 99);
+  assert.equal(publicPlates([{ key: "ivory-garden", hidden: true }]).some((item) => item.id === "ivory-garden"), false);
 });

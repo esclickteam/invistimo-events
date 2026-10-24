@@ -6,6 +6,8 @@ export function syncDelayMs(sync: StudioMusic["sync"], speed = 1) {
   return Math.round(base / safe);
 }
 
+export const STUDIO_LIBRARY_MUSIC_URL = "/api/invitation-studio/music";
+
 export function libraryMusic(sync: StudioMusic["sync"] = "start"): StudioMusic {
   return {
     mode: "library",

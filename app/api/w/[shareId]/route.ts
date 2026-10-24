@@ -114,6 +114,21 @@ export async function GET(
       });
     }
 
+    const publishedStudio = (invitation as { studioDesign?: {
+      designId?: unknown;
+      templateId?: unknown;
+      publishedAt?: unknown;
+      snapshot?: unknown;
+    } }).studioDesign;
+    const studioDesign = publishedStudio?.snapshot
+      ? {
+          designId: publishedStudio.designId ? String(publishedStudio.designId) : undefined,
+          templateId: publishedStudio.templateId ? String(publishedStudio.templateId) : undefined,
+          publishedAt: publishedStudio.publishedAt || null,
+          snapshot: publishedStudio.snapshot,
+        }
+      : null;
+
     return NextResponse.json({
       success: true,
       shareId,
@@ -121,6 +136,7 @@ export async function GET(
       template,
       weddingWebsite: website,
       event: website.event,
+      studioDesign,
       features: {
         weddingWebsite: true,
         guestMessages: features.guestMessages,

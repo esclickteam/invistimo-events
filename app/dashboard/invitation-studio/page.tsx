@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import InvitationPlate from "@/components/invitation-studio/InvitationPlate";
-import { ANIMATION_LABELS, STUDIO_PLATES } from "@/lib/invitationStudio/plates";
+import { ANIMATION_LABELS, type StudioPlate } from "@/lib/invitationStudio/plates";
 import { CATEGORY_LABELS, STYLE_LABELS, type StudioCategory } from "@/lib/invitationStudio/types";
 
 const FILTERS: Array<{ id: StudioCategory | "animated" | "all"; label: string }> = [
@@ -21,12 +21,14 @@ export default function InvitationStudioCatalogPage() {
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState("");
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["id"]>("all");
+  const [plates, setPlates] = useState<StudioPlate[]>([]);
 
   useEffect(() => {
     fetch("/api/invitation-studio", { credentials: "include", cache: "no-store" })
       .then(async (res) => {
         const data = await res.json();
         if (!res.ok) throw new Error(data?.error || "טעינה נכשלה");
+        setPlates(Array.isArray(data.plates) ? data.plates : []);
         setNote(
           data.entitlement?.entitled
             ? "ההזמנה הדיגיטלית כלולה בזכאות הקיימת. אין חיוב נוסף."
@@ -38,12 +40,12 @@ export default function InvitationStudioCatalogPage() {
 
   const visible = useMemo(
     () =>
-      STUDIO_PLATES.filter((plate) => {
+      plates.filter((plate) => {
         if (filter === "all") return true;
         if (filter === "animated") return plate.animation !== "none";
         return plate.category === filter;
       }),
-    [filter]
+    [filter, plates]
   );
 
   async function choose(templateId: string) {

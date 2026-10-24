@@ -18,6 +18,7 @@ import WeddingVenueNav from "../WeddingVenueNav";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
 import WeddingSiteMenu from "../WeddingSiteMenu";
+import WeddingStudioInvite from "../WeddingStudioInvite";
 
 function NoirRule({ className = "" }: { className?: string }) {
   return <hr className={`border-0 border-t border-black ${className}`} />;
@@ -174,7 +175,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
             viewport={{ once: true }}
             className="p-8 md:col-span-8 md:border-l md:border-black"
           >
-            <p className="text-lg leading-[1.9] text-neutral-700">{DEMO.invitationText}</p>
+            <WeddingStudioInvite><p className="text-lg leading-[1.9] text-neutral-700">{DEMO.invitationText}</p></WeddingStudioInvite>
             <NoirRule className="my-8" />
             <p className="font-mono text-xs uppercase tracking-widest">{DEMO.venueName}</p>
           </motion.div>

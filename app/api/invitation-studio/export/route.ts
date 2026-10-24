@@ -5,6 +5,7 @@ import path from "path";
 import { NextResponse } from "next/server";
 import { readStudioAuth } from "@/lib/invitationStudio/access";
 import { syncDelayMs } from "@/lib/invitationStudio/audioPlan";
+import { readStudioSettings } from "@/lib/invitationStudio/store";
 import type { StudioMusic } from "@/lib/invitationStudio/types";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +78,15 @@ export async function POST(req: Request) {
         const ext = kind.includes("mpeg") ? "mp3" : kind.includes("wav") ? "wav" : "m4a";
         audioPath = path.join(dir, `upload.${ext}`);
         await writeFile(audioPath, Buffer.from(match?.[2] || "", "base64"));
+      } else if (music.mode === "library") {
+        const settings = await readStudioSettings();
+        if (settings.music.dataUrl) {
+          const match = settings.music.dataUrl.match(/^data:audio\/([a-z0-9.+-]+);base64,([\s\S]+)$/i);
+          const kind = match?.[1] || "wav";
+          const ext = kind.includes("mpeg") ? "mp3" : kind.includes("wav") ? "wav" : "m4a";
+          audioPath = path.join(dir, `library.${ext}`);
+          await writeFile(audioPath, Buffer.from(match?.[2] || "", "base64"));
+        }
       }
       const length = Math.max(0.2, music.end - music.start);
       const fadeOut = Math.min(music.fadeOut, length / 2);

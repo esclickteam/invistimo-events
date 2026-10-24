@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { startStudioAudio, type StudioPlayback } from "@/lib/invitationStudio/audio";
+import { STUDIO_LIBRARY_MUSIC_URL } from "@/lib/invitationStudio/audioPlan";
 import type { StudioMusic } from "@/lib/invitationStudio/types";
 
 function sourceOf(music: StudioMusic) {
-  if (music.mode === "library") return "/invitation-studio/music/evening-motif.wav";
+  if (music.mode === "library") return STUDIO_LIBRARY_MUSIC_URL;
   if (music.mode === "upload") return music.dataUrl || "";
   return "";
 }

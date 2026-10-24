@@ -20,6 +20,7 @@ import WeddingCoverImage from "../WeddingCoverImage";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
 import WeddingSiteMenu from "../WeddingSiteMenu";
+import WeddingStudioInvite from "../WeddingStudioInvite";
 
 const fadeUp = {
   initial: { opacity: 0, y: 36 },
@@ -137,7 +138,7 @@ function InvitationSection() {
         <h2 className="mt-3 font-['Cormorant_Garamond'] text-4xl font-light md:text-5xl">הזמנה חמה</h2>
         <GoldDivider />
         <div className="border border-[#C9A962]/35 bg-white p-10 shadow-lg">
-          <p className="text-lg leading-loose text-[#8A7560] md:text-xl">{DEMO.invitationText}</p>
+          <WeddingStudioInvite><p className="text-lg leading-loose text-[#8A7560] md:text-xl">{DEMO.invitationText}</p></WeddingStudioInvite>
         </div>
       </div>
     </Section>

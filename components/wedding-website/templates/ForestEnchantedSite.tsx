@@ -19,6 +19,7 @@ import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
 import WeddingSiteMenu from "../WeddingSiteMenu";
 import { WeddingDesktopFx } from "../shared/weddingMotion";
+import WeddingStudioInvite from "../WeddingStudioInvite";
 
 const GREEN = "#7CB87A";
 const DARK = "#0F1810";
@@ -210,9 +211,11 @@ export default function ForestEnchantedSite({ template, embed, live, rsvpControl
         <div className="mx-auto max-w-3xl px-6 text-center">
           <FairyLights />
           <h2 className="font-['Libre_Baskerville'] text-4xl">הזמנה</h2>
-          <p className="mt-10 font-['Libre_Baskerville'] text-xl italic leading-[2] text-[#8AA892]">
-            {DEMO.invitationText}
-          </p>
+          <WeddingStudioInvite>
+            <p className="mt-10 font-['Libre_Baskerville'] text-xl italic leading-[2] text-[#8AA892]">
+              {DEMO.invitationText}
+            </p>
+          </WeddingStudioInvite>
         </div>
       </section>
 

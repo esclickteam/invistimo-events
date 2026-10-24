@@ -136,22 +136,29 @@
   animation: rise 0.9s ease both;
 }
 
-.envelope {
-  position: absolute;
-  inset: 0;
-  z-index: 6;
-  perspective: 1400px;
-  pointer-events: none;
-}
-
+/* Pocket is only the lower lip — invitation art stays visible in the open mouth. */
 .pocket {
   position: absolute;
-  inset: 0;
+  left: 0;
+  right: 0;
+  top: 42%;
+  bottom: 0;
+  z-index: 4;
+  pointer-events: none;
   background:
     linear-gradient(115deg, transparent 46%, rgba(110, 72, 36, 0.22) 50%, transparent 54%),
     linear-gradient(245deg, transparent 46%, rgba(110, 72, 36, 0.16) 50%, transparent 54%),
     linear-gradient(180deg, #f8efe3, #e7d3b6 55%, #d9c2a2);
+  clip-path: polygon(0 14%, 50% 0, 100% 14%, 100% 100%, 0 100%);
   box-shadow: inset 0 0 0 10px rgba(255, 250, 242, 0.35);
+}
+
+.flapLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  perspective: 1400px;
+  pointer-events: none;
 }
 
 .flap {
@@ -180,7 +187,12 @@
 }
 
 .playing.animEnvelope .card {
-  animation: cardRise 2.2s 2.15s cubic-bezier(0.16, 0.84, 0.22, 1) both;
+  z-index: 5;
+  animation: cardRise 2.8s 1.55s cubic-bezier(0.16, 0.84, 0.22, 1) both;
+}
+
+.playing.animEnvelope .pocket {
+  animation: sceneOff 0.7s 4.7s ease forwards;
 }
 
 .playing.animEnvelope .flap {
@@ -191,7 +203,7 @@
   animation: sealOff 0.45s 2.05s ease forwards;
 }
 
-.playing.animEnvelope .envelope {
+.playing.animEnvelope .flapLayer {
   animation: sceneOff 0.7s 4.7s ease forwards;
 }
 
@@ -306,8 +318,8 @@
 }
 
 @keyframes cardRise {
-  0% { opacity: 0; transform: translateY(24%) scale(0.68); }
-  16% { opacity: 1; }
+  /* Card is already inside the envelope; rise reveals art instead of blank paper. */
+  0% { opacity: 1; transform: translateY(24%) scale(0.68); }
   100% { opacity: 1; transform: none; }
 }
 

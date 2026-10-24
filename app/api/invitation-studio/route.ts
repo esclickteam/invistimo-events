@@ -3,7 +3,7 @@ import Invitation from "@/models/Invitation";
 import Event from "@/models/Event";
 import InvitationStudioDesign from "@/models/InvitationStudioDesign";
 import { entitlementFor, readStudioAuth } from "@/lib/invitationStudio/access";
-import { readMergedCatalog, readStudioSettings } from "@/lib/invitationStudio/store";
+import { readMergedCatalog, readMergedPlates, readStudioSettings } from "@/lib/invitationStudio/store";
 import {
   DESIGNED_INVITATION_DESCRIPTION,
   DESIGNED_INVITATION_LABEL,
@@ -18,8 +18,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ success: false, error: "UNAUTHORIZED" }, { status: 401 });
   }
 
-  const [templates, settings, invitation, designs] = await Promise.all([
+  const [templates, plates, settings, invitation, designs] = await Promise.all([
     readMergedCatalog(),
+    readMergedPlates(),
     readStudioSettings(),
     Invitation.findOne({ ownerId: session.user._id, standaloneGame: { $ne: true } })
       .sort({ updatedAt: -1 })
@@ -42,6 +43,27 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     success: true,
+    plates: plates.map((item) => ({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      style: item.style,
+      description: item.description,
+      free: item.free,
+      sort: item.sort,
+      animation: item.animation,
+      art: item.art,
+      durationMs: item.durationMs,
+      ink: item.ink,
+      muted: item.muted,
+      accent: item.accent,
+      nameFont: item.nameFont,
+      textFont: item.textFont,
+      inset: item.inset,
+      medallion: item.medallion,
+      details: item.details,
+      defaultMusic: item.defaultMusic,
+    })),
     templates: templates.map((item) => ({
       id: item.id,
       name: item.name,
@@ -75,7 +97,8 @@ export async function GET(req: Request) {
       },
     })),
     settings: {
-      ...settings,
+      priceIls: settings.priceIls,
+      musicLabel: settings.music.label,
       label: DESIGNED_INVITATION_LABEL,
       description: DESIGNED_INVITATION_DESCRIPTION,
       includedInCurrentPackages: packageIncludesDigitalInvitation("messages"),

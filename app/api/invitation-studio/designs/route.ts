@@ -6,7 +6,7 @@ import { readStudioAuth } from "@/lib/invitationStudio/access";
 import { contentFromEvent } from "@/lib/invitationStudio/prefill";
 import { freezeSnapshot } from "@/lib/invitationStudio/render";
 import { freezePlate, getPlate } from "@/lib/invitationStudio/plates";
-import { readMergedCatalog } from "@/lib/invitationStudio/store";
+import { readMergedCatalog, readMergedPlates } from "@/lib/invitationStudio/store";
 import { sanitizeDetails } from "@/lib/invitationStudio/details";
 
 export const dynamic = "force-dynamic";
@@ -19,7 +19,9 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => ({}));
   const templateId = String(body?.templateId || "");
-  const plate = getPlate(templateId);
+  const visiblePlates = await readMergedPlates();
+  const plateMeta = visiblePlates.find((item) => item.id === templateId) || null;
+  const plate = plateMeta ? getPlate(templateId) : null;
   const templates = plate ? [] : await readMergedCatalog();
   const template = plate ? null : templates.find((item) => item.id === templateId);
   if (!plate && !template) {

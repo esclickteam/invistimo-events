@@ -18,6 +18,7 @@ import WeddingVenueNav from "../WeddingVenueNav";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
 import WeddingSiteMenu from "../WeddingSiteMenu";
+import WeddingStudioInvite from "../WeddingStudioInvite";
 
 const ACCENT = "#7C9CFF";
 const DARK = "#0A0E17";
@@ -242,7 +243,7 @@ export default function ModernGlassSite({ template, embed, live, rsvpController,
         <TiltCard className="mx-auto max-w-3xl">
           <GlassPanel className="p-10 text-center md:p-16">
             <h2 className="text-3xl font-bold">הזמנה</h2>
-            <p className="mt-8 leading-relaxed text-[#8892A8]">{DEMO.invitationText}</p>
+            <WeddingStudioInvite><p className="mt-8 leading-relaxed text-[#8892A8]">{DEMO.invitationText}</p></WeddingStudioInvite>
           </GlassPanel>
         </TiltCard>
       </section>

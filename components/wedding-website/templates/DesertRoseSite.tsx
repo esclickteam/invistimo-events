@@ -18,6 +18,7 @@ import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { useShowWeddingRsvp } from "../shared/useShowWeddingRsvp";
 import WeddingGiftActions from "../WeddingGiftActions";
 import WeddingSiteMenu from "../WeddingSiteMenu";
+import WeddingStudioInvite from "../WeddingStudioInvite";
 
 const TERRACOTTA = "#C4705A";
 const BLUSH = "#FBF5F0";
@@ -154,7 +155,7 @@ function InvitationSection() {
         <h2 className="font-['Cormorant_Garamond'] text-4xl text-[#3D2518]">הזמנה חמה</h2>
         <div className="relative mt-10 p-10" style={{ backgroundColor: "#F5E8DE", clipPath: "polygon(0 5%, 100% 0, 100% 95%, 0 100%)" }}>
           <SandShimmer />
-          <p className="relative text-lg leading-loose text-[#9A7060]">{DEMO.invitationText}</p>
+          <WeddingStudioInvite><p className="relative text-lg leading-loose text-[#9A7060]">{DEMO.invitationText}</p></WeddingStudioInvite>
         </div>
       </div>
     </Section>

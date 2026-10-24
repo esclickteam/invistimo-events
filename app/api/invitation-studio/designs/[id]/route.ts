@@ -16,6 +16,7 @@ import {
 import { renderModelToSvg } from "@/lib/invitationStudio/svg";
 import { applyPlateChrome, getPlate } from "@/lib/invitationStudio/plates";
 import { sanitizeDetails } from "@/lib/invitationStudio/details";
+import { readMergedPlates } from "@/lib/invitationStudio/store";
 import type { StudioContent, StudioMusic, TextRole } from "@/lib/invitationStudio/types";
 
 export const dynamic = "force-dynamic";
@@ -190,7 +191,9 @@ export async function PATCH(
   const body = await req.json().catch(() => ({}));
   const snapshot = design.snapshot || {};
   if (snapshot.plate && body?.templateId) {
-    const plate = getPlate(String(body.templateId));
+    const plates = await readMergedPlates();
+    const allowed = plates.some((item) => item.id === String(body.templateId));
+    const plate = allowed ? getPlate(String(body.templateId)) : null;
     if (plate) {
       if (body.details) snapshot.plate.details = sanitizeDetails(body.details, snapshot.plate.details);
       const swapped = applyPlateChrome(snapshot, plate);

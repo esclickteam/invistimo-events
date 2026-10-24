@@ -175,6 +175,7 @@ export default function InvitationPlate({
       data-playing={active ? "true" : "false"}
       style={{ animationDuration: `${plate.durationMs / speed}ms` }}
     >
+      {active && plate.animation === "envelope" ? <div className={styles.pocket} /> : null}
       <div className={styles.card}>
         <img
           className={`${styles.art} ${plate.animation === "zoom" || plate.animation === "floral" ? styles.art : ""}`}
@@ -266,8 +267,7 @@ export default function InvitationPlate({
         {active && plate.animation === "silk" ? <div className={styles.ribbon} /> : null}
       </div>
       {active && plate.animation === "envelope" ? (
-        <div className={styles.envelope}>
-          <div className={styles.pocket} />
+        <div className={styles.flapLayer}>
           <div className={styles.flap} />
           {seal ? <img className={styles.seal} src={seal} alt="" /> : null}
         </div>

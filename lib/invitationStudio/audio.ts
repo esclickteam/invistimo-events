@@ -1,4 +1,4 @@
-import { syncDelayMs } from "@/lib/invitationStudio/audioPlan";
+import { STUDIO_LIBRARY_MUSIC_URL, syncDelayMs } from "@/lib/invitationStudio/audioPlan";
 import type { StudioMusic } from "@/lib/invitationStudio/types";
 
 export type StudioPlayback = {
@@ -8,7 +8,7 @@ export type StudioPlayback = {
 
 export function startStudioAudio(music: StudioMusic, speed = 1, preview = false): StudioPlayback {
   const src =
-    music.mode === "library" ? "/invitation-studio/music/evening-motif.wav" : music.dataUrl || "";
+    music.mode === "library" ? STUDIO_LIBRARY_MUSIC_URL : music.dataUrl || "";
   const audio = new Audio();
   if (!src) {
     return { stop() {}, setMuted() {} };

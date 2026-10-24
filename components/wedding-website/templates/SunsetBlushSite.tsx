@@ -20,6 +20,7 @@ import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
 import WeddingSiteMenu from "../WeddingSiteMenu";
 import { WeddingDesktopFx } from "../shared/weddingMotion";
+import WeddingStudioInvite from "../WeddingStudioInvite";
 
 const BLUSH = "#E8788A";
 const CORAL = "#FF9A8B";
@@ -189,9 +190,11 @@ export default function SunsetBlushSite({ template, embed, live, rsvpController,
         >
           <span className="text-4xl">💌</span>
           <h2 className="mt-4 font-['Cormorant_Garamond'] text-4xl">הזמנה</h2>
-          <p className="mt-8 font-['Cormorant_Garamond'] text-xl italic leading-[2] text-[#5C3040]">
-            {DEMO.invitationText}
-          </p>
+          <WeddingStudioInvite>
+            <p className="mt-8 font-['Cormorant_Garamond'] text-xl italic leading-[2] text-[#5C3040]">
+              {DEMO.invitationText}
+            </p>
+          </WeddingStudioInvite>
         </motion.div>
       </section>
 

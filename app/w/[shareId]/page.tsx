@@ -26,6 +26,12 @@ type PublicSiteResponse = {
     canMessage: boolean;
   } | null;
   gifts?: WeddingGiftLinks | null;
+  studioDesign?: {
+    designId?: string;
+    templateId?: string;
+    publishedAt?: string | null;
+    snapshot?: unknown;
+  } | null;
 };
 
 export default function PublicWeddingWebsitePage() {
@@ -121,6 +127,7 @@ export default function PublicWeddingWebsitePage() {
           token,
           role: token ? "guest" : "demo",
           gifts: data.gifts || null,
+          studioDesign: data.studioDesign || null,
         }}
       />
     </div>

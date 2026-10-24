@@ -1,3 +1,4 @@
+import { envelopeTimeline } from "@/lib/invitationStudio/envelopeTimeline";
 import type { PlateDesign, StudioMusic } from "@/lib/invitationStudio/types";
 
 type Line = { text: string; color: string; font: string; weight: number; size: number };
@@ -118,47 +119,108 @@ function drawCopy(context: CanvasRenderingContext2D, plate: PlateDesign, width: 
   context.restore();
 }
 
-function roundRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
-  context.beginPath();
-  context.moveTo(x + radius, y);
-  context.arcTo(x + width, y, x + width, y + height, radius);
-  context.arcTo(x + width, y + height, x, y + height, radius);
-  context.arcTo(x, y + height, x, y, radius);
-  context.arcTo(x, y, x + width, y, radius);
-  context.closePath();
+function envelopeBox(width: number, height: number) {
+  const x = width * 0.06;
+  const y = height * 0.035;
+  const boxWidth = width * 0.88;
+  const boxHeight = height * 0.93;
+  return { x, y, boxWidth, boxHeight, mouthY: y + boxHeight * 0.42 };
 }
 
-function drawEnvelope(
+/** Pocket only — open mouth so the invitation art shows through, not blank paper. */
+function drawEnvelopePocket(
+  context: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  alpha: number
+) {
+  const { x, y, boxWidth, boxHeight, mouthY } = envelopeBox(width, height);
+  const bottom = y + boxHeight;
+  context.save();
+  context.globalAlpha = alpha;
+  context.beginPath();
+  context.moveTo(x, mouthY);
+  context.lineTo(x + boxWidth * 0.5, mouthY - boxHeight * 0.08);
+  context.lineTo(x + boxWidth, mouthY);
+  context.lineTo(x + boxWidth, bottom - 18);
+  context.quadraticCurveTo(x + boxWidth, bottom, x + boxWidth - 18, bottom);
+  context.lineTo(x + 18, bottom);
+  context.quadraticCurveTo(x, bottom, x, bottom - 18);
+  context.closePath();
+  const wash = context.createLinearGradient(x, mouthY, x, bottom);
+  wash.addColorStop(0, "#f8efe3");
+  wash.addColorStop(0.55, "#e7d3b6");
+  wash.addColorStop(1, "#d9c2a2");
+  context.fillStyle = wash;
+  context.fill();
+  context.strokeStyle = "rgba(110, 72, 36, 0.18)";
+  context.lineWidth = 2;
+  context.beginPath();
+  context.moveTo(x + 8, mouthY + 4);
+  context.lineTo(x + boxWidth * 0.5, mouthY + boxHeight * 0.22);
+  context.lineTo(x + boxWidth - 8, mouthY + 4);
+  context.stroke();
+  context.restore();
+}
+
+function drawEnvelopeFlap(
   context: CanvasRenderingContext2D,
   width: number,
   height: number,
   flap: number,
   seal: HTMLCanvasElement | null,
+  sealVisible: boolean,
   alpha: number
 ) {
-  const x = width * 0.06;
-  const y = height * 0.035;
-  const boxWidth = width * 0.88;
-  const boxHeight = height * 0.93;
+  const { x, y, boxWidth, boxHeight } = envelopeBox(width, height);
+  const closedHeight = boxHeight * 0.46;
+  const openLift = (1 - Math.max(0, Math.min(1, flap))) * closedHeight * 1.15;
+  const tipY = y + closedHeight - openLift;
+  if (tipY <= y + 4 && flap < 0.08) return;
   context.save();
-  context.globalAlpha = alpha;
-  roundRect(context, x, y, boxWidth, boxHeight, 18);
-  context.fillStyle = "#f4e7d4";
+  context.globalAlpha = alpha * Math.min(1, flap + 0.15);
+  context.beginPath();
+  context.moveTo(x, y);
+  context.lineTo(x + boxWidth, y);
+  context.lineTo(x + boxWidth / 2, Math.max(y + 4, tipY));
+  context.closePath();
+  const flapWash = context.createLinearGradient(x, y, x, tipY);
+  flapWash.addColorStop(0, "#fffaf3");
+  flapWash.addColorStop(0.72, "#f0d8b8");
+  flapWash.addColorStop(1, "#e2c39a");
+  context.fillStyle = flapWash;
   context.fill();
-  const flapHeight = boxHeight * 0.46 * Math.max(0, flap);
-  if (flapHeight > 4) {
-    context.beginPath();
-    context.moveTo(x, y);
-    context.lineTo(x + boxWidth, y);
-    context.lineTo(x + boxWidth / 2, y + flapHeight);
-    context.closePath();
-    context.fillStyle = "#fbf6ee";
-    context.fill();
-  }
-  if (seal && flap > 0.35) {
+  if (seal && sealVisible) {
     const sealWidth = boxWidth * 0.2;
-    context.drawImage(seal, x + boxWidth / 2 - sealWidth / 2, y + boxHeight * 0.16, sealWidth, sealWidth);
+    context.globalAlpha = alpha * Math.min(1, (flap - 0.35) / 0.35);
+    context.drawImage(
+      seal,
+      x + boxWidth / 2 - sealWidth / 2,
+      y + boxHeight * 0.14,
+      sealWidth,
+      sealWidth
+    );
   }
+  context.restore();
+}
+
+function drawEnvelopeCard(
+  context: CanvasRenderingContext2D,
+  plate: PlateDesign,
+  art: HTMLImageElement,
+  width: number,
+  height: number,
+  rise: number
+) {
+  const scale = 0.68 + rise * 0.32;
+  const reveal = rise <= 0 ? 1 : Math.min(1, Math.max(0.35, rise / 0.12));
+  context.save();
+  context.globalAlpha = reveal;
+  context.translate(width / 2, height / 2 + (1 - rise) * height * 0.18);
+  context.scale(scale, scale);
+  context.translate(-width / 2, -height / 2);
+  cover(context, art, width, height, 1);
+  drawCopy(context, plate, width, height, 1);
   context.restore();
 }
 
@@ -172,19 +234,17 @@ function paint(context: CanvasRenderingContext2D, plate: PlateDesign, art: HTMLI
   const progress = Math.max(0, Math.min(1, time / duration));
 
   if (plate.animation === "envelope") {
-    const card = Math.max(0, Math.min(1, (time - 2.15) / 2.2));
-    const flap = time < 1.05 ? 1 : Math.max(0, 1 - (time - 1.05) / 1.35);
-    const envelopeAlpha = time < 4.7 ? 1 : Math.max(0, 1 - (time - 4.7) / 0.7);
-    context.save();
-    const scale = 0.68 + card * 0.32;
-    context.globalAlpha = card === 0 ? 0 : Math.min(1, card / 0.16);
-    context.translate(width / 2, height / 2 + (1 - card) * height * 0.18);
-    context.scale(scale, scale);
-    context.translate(-width / 2, -height / 2);
-    cover(context, art, width, height, 1);
-    drawCopy(context, plate, width, height, 1);
-    context.restore();
-    drawEnvelope(context, width, height, flap, seal, envelopeAlpha);
+    const { flap, rise, envelopeAlpha, sealVisible, cardAbovePocket } = envelopeTimeline(time);
+    context.fillStyle = "#14110e";
+    context.fillRect(0, 0, width, height);
+    if (!cardAbovePocket) {
+      drawEnvelopeCard(context, plate, art, width, height, rise);
+      drawEnvelopePocket(context, width, height, envelopeAlpha);
+    } else {
+      drawEnvelopePocket(context, width, height, envelopeAlpha);
+      drawEnvelopeCard(context, plate, art, width, height, rise);
+    }
+    drawEnvelopeFlap(context, width, height, flap, seal, sealVisible, envelopeAlpha);
   } else if (plate.animation === "floral") {
     const scale = 1.2 - Math.min(1, time / 5.6) * 0.2;
     cover(context, art, width, height, scale);
@@ -261,7 +321,7 @@ export async function recordPlateFilm(plate: PlateDesign, onProgress?: (ratio: n
   const seal = plate.animation === "envelope" ? await keyedSeal() : null;
   const speed = Math.max(0.6, Math.min(1.6, plate.speed || 1));
   const durationMs = plate.durationMs / speed;
-  const fps = 12;
+  const fps = 18;
   const frames = Math.max(1, Math.round((durationMs / 1000) * fps));
   const stream = canvas.captureStream(0);
   const track = stream.getVideoTracks()[0] as CanvasCaptureMediaStreamTrack;

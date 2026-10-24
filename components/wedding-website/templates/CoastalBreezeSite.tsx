@@ -20,6 +20,7 @@ import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
 import WeddingSiteMenu from "../WeddingSiteMenu";
 import { useEaseMobileScroll } from "../shared/weddingMotion";
+import WeddingStudioInvite from "../WeddingStudioInvite";
 
 const BLUE = "#3D8BBA";
 const SAND = "#F5E6C8";
@@ -117,7 +118,7 @@ function InvitationSection() {
         <span className="text-4xl">🐚</span>
         <h2 className="mt-4 font-['Montserrat'] text-4xl font-light text-[#0D2840]">הזמנה חמה</h2>
         <div className="mt-10 rounded-3xl bg-white/90 p-10 shadow-xl backdrop-blur-sm">
-          <p className="text-lg leading-loose text-[#5A7A94]">{DEMO.invitationText}</p>
+          <WeddingStudioInvite><p className="text-lg leading-loose text-[#5A7A94]">{DEMO.invitationText}</p></WeddingStudioInvite>
         </div>
       </div>
     </Section>
