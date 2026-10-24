@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>הדמיית WhatsApp — אישור הגעה</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0b141a;
+      font-family: "Segoe UI", "Heebo", "Arial", sans-serif;
+    }
+    /* Full-bleed for video capture inside marketing phone frames */
+    .phone {
+      width: 100%;
+      height: 100%;
+      border-radius: 0;
+      overflow: hidden;
+      background: #0b141a;
+      box-shadow: none;
+      border: 0;
+      position: relative;
+    }
+    .status {
+      height: 44px;
+      background: #1f2c34;
+      color: #e9edef;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .chat-header {
+      background: #1f2c34;
+      color: #e9edef;
+      padding: 10px 14px 14px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+    }
+    .avatar {
+      width: 42px; height: 42px; border-radius: 50%;
+      background: linear-gradient(145deg,#c9a45c,#8b642b);
+      display:grid; place-items:center; font-weight:800; color:#1c1612;
+    }
+    .chat-header .name { font-weight: 700; font-size: 16px; }
+    .chat-header .sub { font-size: 12px; color: #8696a0; margin-top: 2px; }
+    .thread {
+      height: calc(100% - 120px);
+      background: #0b141a url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h60v60H0z' fill='%230b141a'/%3E%3C/svg%3E");
+      padding: 18px 14px;
+      overflow: hidden;
+    }
+    .bubble {
+      max-width: 86%;
+      background: #005c4b;
+      color: #e9edef;
+      border-radius: 10px 10px 2px 10px;
+      padding: 10px 12px 8px;
+      margin-inline-start: auto;
+      box-shadow: 0 1px 1px rgba(0,0,0,.2);
+      white-space: pre-wrap;
+      line-height: 1.55;
+      font-size: 15px;
+    }
+    .bubble.inbound {
+      margin-inline-start: 0;
+      margin-inline-end: auto;
+      background: #202c33;
+      border-radius: 10px 10px 10px 2px;
+    }
+    .media {
+      width: 100%;
+      border-radius: 8px;
+      display: block;
+      margin-bottom: 10px;
+      aspect-ratio: 3/4;
+      object-fit: contain;
+      background: #FBF6EE;
+    }
+    .cta {
+      margin-top: 10px;
+      border-top: 1px solid rgba(255,255,255,.12);
+      padding-top: 10px;
+      text-align: center;
+      color: #53bdeb;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .time {
+      text-align: left;
+      font-size: 11px;
+      color: #8696a0;
+      margin-top: 6px;
+    }
+    .label {
+      position: absolute;
+      left: 12px; bottom: 12px;
+      background: rgba(0,0,0,.55);
+      color: #fff;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 999px;
+    }
+  </style>
+</head>
+<body>
+  <div class="phone" id="phone">
+    <div class="status"><span>9:41</span><span>5G ▮▮▮</span></div>
+    <div class="chat-header">
+      <div class="avatar">I</div>
+      <div>
+        <div class="name">Invistimo</div>
+        <div class="sub">הודעה עסקית · הדמיה</div>
+      </div>
+    </div>
+    <div class="thread">
+      <div class="bubble inbound" id="bubble">
+        <img class="media" id="media" src="/marketing/invites/invite-wedding-mia-alon.webp" alt="" />
+        <div id="body"></div>
+        <div class="cta" id="cta">לצפייה בהזמנה ואישור הגעה</div>
+        <div class="time">09:41 ✓✓</div>
+      </div>
+    </div>
+    <div class="label">הדמיה · לא נשלח בפועל</div>
+  </div>
+  <script>
+    const params = new URLSearchParams(location.search);
+    const mode = params.get("mode") || "rsvp";
+    const title = params.get("title") || "החתונה של מיה ואלון";
+    const date = params.get("date") || "24.06.2027";
+    const locationName = params.get("location") || "אולמי אלכסנדר";
+    const media = params.get("media") || "/marketing/invites/invite-wedding-mia-alon.webp";
+    document.getElementById("media").src = media;
+    if (mode === "std") {
+      document.getElementById("body").textContent =
+        "Save The Date\n" + title + "\n\nאנחנו מתרגשים לשמור לכם את התאריך!\n" + date + "\n\nההזמנה המלאה ואישורי ההגעה יישלחו בהמשך.";
+      document.getElementById("cta").textContent = "";
+      document.getElementById("cta").style.display = "none";
+      document.getElementById("media").src = params.get("media") || "/marketing/invites/invite-save-the-date-maya-itai.webp";
+    } else {
+      // Approved event_invitation body from lib/whatsapp/approvedTemplates.ts
+      document.getElementById("body").textContent =
+        "משפחה וחברים יקרים,\n" +
+        "שמחים ונרגשים להזמינכם לחגוג איתנו את " + title + " 🤍\n\n" +
+        "📅 בתאריך: " + date + "\n" +
+        "📍 במיקום: " + locationName + "\n\n" +
+        "נשמח לראותכם איתנו, לשמוח, לרקוד וליהנות מערב מיוחד ביחד! 🥂";
+    }
+  </script>
+</body>
+</html>

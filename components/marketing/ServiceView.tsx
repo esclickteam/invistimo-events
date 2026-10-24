@@ -20,6 +20,8 @@ export default function ServiceView({ service }: { service: ServicePage }) {
       showEventTypes={service.showEventTypes}
       ctaTitle={service.ctaTitle}
       ctaLede={service.ctaLede}
+      primaryCta={service.primaryCta}
+      secondaryCta={service.secondaryCta}
       extraJsonLd={[
         serviceNode({
           name: service.h1,

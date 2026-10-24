@@ -10,11 +10,14 @@ export const DEMO_SHARE_ID = "demo-share";
 export const DEMO_EVENT_ID = "demo-event-001";
 export const DEMO_SESSION_TTL_MS = 1000 * 60 * 60 * 4;
 
-const EVENT_TITLE = "החתונה של מאיה ואיתי";
-const EVENT_DATE = "2026-11-12";
-const EVENT_TIME = "19:30";
-const VENUE = "גן ורדים";
-const ADDRESS = "הרצליה";
+/** Marketing-approved demo couple — invitation asset: invite-wedding-mia-alon */
+const EVENT_TITLE = "החתונה של מיה ואלון";
+const EVENT_DATE = "2027-06-24";
+const EVENT_TIME = "19:00";
+const VENUE = "אולמי אלכסנדר";
+const ADDRESS = "עמק חפר";
+const INVITE_IMAGE = "/marketing/invites/invite-wedding-mia-alon.webp";
+const STD_IMAGE = "/marketing/invites/invite-save-the-date-maya-itai.webp";
 
 function at(hour: number, minute: number) {
   const date = new Date();
@@ -292,17 +295,17 @@ export function createDemoInvitation() {
     eventType: "wedding",
     eventDate: EVENT_DATE,
     eventTime: EVENT_TIME,
-    hostsNames: "מאיה לוי ואיתי כהן",
-    brideName: "מאיה",
-    groomName: "איתי",
+    hostsNames: "מיה רוזן ואלון ברק",
+    brideName: "מיה",
+    groomName: "אלון",
     eventId: DEMO_EVENT_ID,
     ownerId: "demo-owner",
-    city: "הרצליה",
+    city: ADDRESS,
     location: {
       name: VENUE,
       address: ADDRESS,
-      lat: 32.1624,
-      lng: 34.8447,
+      lat: 32.35,
+      lng: 34.92,
       placeName: VENUE,
       formattedAddress: `${VENUE}, ${ADDRESS}`,
     },
@@ -320,9 +323,15 @@ export function createDemoInvitation() {
     },
     rsvpRoundSent: {},
     giftCreditUrl: "",
-    headerImageUrl: "/homep1.png",
-    headerImage: "/homep1.png",
-    previewImage: "/homep1.png",
+    headerImageUrl: INVITE_IMAGE,
+    headerImage: INVITE_IMAGE,
+    previewImage: INVITE_IMAGE,
+    previewImageUrl: INVITE_IMAGE,
+    imageUrl: INVITE_IMAGE,
+    preRsvpMedia: {
+      saveTheDateImageUrl: STD_IMAGE,
+      invitationOnlyImageUrl: INVITE_IMAGE,
+    },
   };
 }
 
@@ -339,8 +348,8 @@ export function createDemoSessionData(): Omit<
       time: EVENT_TIME,
       venue: VENUE,
       location: ADDRESS,
-      lat: 32.1624,
-      lng: 34.8447,
+      lat: 32.35,
+      lng: 34.92,
     },
     invitation: createDemoInvitation(),
     guests: createDemoGuests(),
@@ -363,7 +372,7 @@ export function createDemoSessionData(): Omit<
         id: "seed-open",
         at: new Date().toISOString(),
         kind: "session",
-        label: "נפתחה סביבת הדמו של החתונה של מאיה ואיתי",
+        label: "נפתחה סביבת הדמו של החתונה של מיה ואלון",
       },
     ],
   };

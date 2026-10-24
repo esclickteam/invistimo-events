@@ -1,4 +1,3 @@
-import AnswerFirst from "@/components/seo/AnswerFirst";
 import ServiceLinks from "@/components/marketing/ServiceLinks";
 import JsonLd from "@/components/seo/JsonLd";
 import RsvpMarketingPage from "./RsvpMarketingPage";
@@ -57,7 +56,7 @@ export default function RsvpPage() {
           faqNode(faqs),
         ])}
       />
-      <AnswerFirst path="/rsvp" />
+      {/* Answer-first lives inside RsvpMarketingPage after the hero so the first viewport stays visual. */}
       <RsvpMarketingPage />
       <section dir="rtl" className="bg-[#FBF6EE] px-6 pb-10 text-[#3F3025]">
         <div className="mx-auto max-w-3xl space-y-4 leading-8">

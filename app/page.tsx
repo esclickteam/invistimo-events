@@ -2,7 +2,6 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import HomePageClient from "./HomePageClient";
-import AnswerFirst from "@/components/seo/AnswerFirst";
 import JsonLd from "@/components/seo/JsonLd";
 import { getDashboardPathFromAuthCookies } from "@/lib/auth/getDashboardRedirectPath";
 import { graph, organizationNode, softwareNode, websiteNode } from "@/lib/seo/jsonld";
@@ -43,7 +42,6 @@ export default async function HomePage() {
           softwareNode(route.description, "/"),
         ])}
       />
-      <AnswerFirst path="/" />
       <HomePageClient />
     </>
   );

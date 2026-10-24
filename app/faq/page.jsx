@@ -1,6 +1,6 @@
 import FAQAccordion from "../components/FAQAccordion";
-import AnswerFirst from "@/components/seo/AnswerFirst";
 import ServiceLinks from "@/components/marketing/ServiceLinks";
+import AnswerFirst from "@/components/seo/AnswerFirst";
 import JsonLd from "@/components/seo/JsonLd";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import { EVENT_TYPES, EVENT_TYPE_SECTION } from "@/lib/seo/eventTypes";
@@ -36,9 +36,8 @@ export default function FAQPage() {
           faqNode(allFaqItems()),
         ])}
       />
-      <AnswerFirst path="/faq" />
       <main dir="rtl" className="overflow-hidden bg-[#FBF6EE] text-[#3F3025]">
-        <section className="relative isolate px-5 pb-12 pt-14 md:px-8 md:pb-16 md:pt-20">
+        <section className="relative isolate px-5 pb-10 pt-8 md:px-8 md:pb-12 md:pt-12">
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,#E9D4AF_0%,transparent_36%),linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_100%)]" />
           <div className="mx-auto max-w-4xl">
             <p className="text-sm font-semibold text-[#7A6042]">
@@ -72,6 +71,8 @@ export default function FAQPage() {
             </div>
           </div>
         </section>
+
+        <AnswerFirst path="/faq" />
 
         <section className="px-5 pb-8 md:px-8">
           <div className="mx-auto max-w-4xl rounded-[28px] border border-[#E6D2AA] bg-white/90 p-6 md:p-8">

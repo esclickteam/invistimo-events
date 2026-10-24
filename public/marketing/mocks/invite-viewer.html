@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>הזמנה דיגיטלית — מיה ואלון</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: #FBF6EE; }
+    body { overflow: hidden; }
+    .scroll {
+      height: 100%;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .scroll::-webkit-scrollbar { display: none; }
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      /* Never stretch/crop the chosen invitation */
+      object-fit: contain;
+      background: #FBF6EE;
+    }
+    .cta {
+      position: sticky;
+      bottom: 0;
+      padding: 14px 16px 22px;
+      background: linear-gradient(180deg, rgba(251,246,238,0), #FBF6EE 35%);
+    }
+    .cta a {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      border-radius: 999px;
+      background: #2A211A;
+      color: #fff;
+      font: 700 15px/1 Heebo, Arial, sans-serif;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="scroll" id="scroller">
+    <img
+      id="invite"
+      src="/marketing/invites/invite-wedding-mia-alon.png"
+      alt="הזמנה לחתונה של מיה ואלון — 24.06.2027, אולמי אלכסנדר"
+      width="1024"
+      height="1536"
+    />
+    <div class="cta">
+      <a id="rsvp" href="/marketing/mocks/rsvp-confirm.html">לאישור הגעה</a>
+    </div>
+  </div>
+</body>
+</html>

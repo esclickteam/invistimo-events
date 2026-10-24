@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Users,
@@ -17,6 +18,7 @@ import {
   Sparkles,
   CheckCircle2,
 } from "lucide-react";
+import AnswerFirst from "@/components/seo/AnswerFirst";
 
 /* =====================================================
    DEMO BUTTON
@@ -78,15 +80,23 @@ function DemoButton({
    HERO PHONE — CLEAN 3D VIDEO PHONE
 ===================================================== */
 function HeroPhone3D() {
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReduceMotion(mq.matches);
+    sync();
+    mq.addEventListener?.("change", sync);
+    return () => mq.removeEventListener?.("change", sync);
+  }, []);
+
   return (
     <div
       className="
         relative z-10
         flex w-full items-center justify-center
-        min-h-[460px]
-        md:min-h-[540px]
-        lg:min-h-[600px]
-        lg:-translate-y-8
+        min-h-[420px]
+        md:min-h-[500px]
+        lg:min-h-[540px]
       "
       style={{ perspective: "1800px" }}
     >
@@ -184,20 +194,27 @@ function HeroPhone3D() {
               "
             />
 
-            <video
-              src="/videos/home1.mp4"
-              autoPlay
-              loop
-              muted
-              playsInline
-              className="
-                h-full w-full
-                object-cover
-                brightness-110
-                contrast-105
-                saturate-105
-              "
-            />
+            {reduceMotion ? (
+              <img
+                src="/marketing/invites/invite-wedding-mia-alon.webp"
+                alt="הזמנה דיגיטלית — החתונה של מיה ואלון"
+                className="h-full w-full bg-[#FBF6EE] object-contain object-top"
+                draggable={false}
+              />
+            ) : (
+              <video
+                className="h-full w-full bg-[#FBF6EE] object-cover object-top"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                poster="/marketing/invites/invite-wedding-mia-alon.webp"
+                aria-label="מסע אורח: הדמיית WhatsApp, הזמנה של מיה ואלון, ואישור הגעה"
+              >
+                <source src="/marketing/videos/hero-guest-journey.webm" type="video/webm" />
+              </video>
+            )}
 
             <div
               className="
@@ -908,219 +925,191 @@ function FinalCTA() {
 
 export default function HomePageClient() {
   return (
-    <main className="overflow-x-hidden bg-[#F6F2EC] text-[#3F3A34]">
-      {/* ================= HERO ================= */}
-      <section
-        className="
-          relative min-h-screen overflow-hidden
-          px-4 pt-[105px] md:px-8 lg:px-12
-        "
-      >
+    <main className="overflow-x-hidden bg-[#F4F0E8] text-[#2C241C]">
+      {/* ================= HERO — brand-first composition ================= */}
+      <section className="relative overflow-hidden">
         <div
-          className="
-            absolute inset-0 z-0
-            bg-[url('/homep1.webp')]
-            bg-cover bg-center bg-no-repeat
-          "
+          className="absolute inset-0 z-0 bg-[url('/homep1.webp')] bg-cover bg-center"
+          aria-hidden
+        />
+        <div
+          className="absolute inset-0 z-0 bg-[linear-gradient(105deg,rgba(18,14,10,0.72)_0%,rgba(42,33,26,0.35)_42%,rgba(244,240,232,0.88)_72%,rgba(244,240,232,0.96)_100%)]"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute inset-0 z-0 opacity-40 mix-blend-soft-light"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 20% 20%, rgba(201,164,92,0.35), transparent 40%), radial-gradient(circle at 80% 80%, rgba(255,255,255,0.25), transparent 35%)",
+          }}
+          aria-hidden
         />
 
         <div
-          className="
-            absolute inset-0 z-0
-            bg-gradient-to-r
-            from-[#F8F1E6]/5
-            via-[#F8F1E6]/14
-            to-[#F8F1E6]/48
-          "
-        />
-
-        <div
-          dir="ltr"
-          className="
-            relative z-10 mx-auto grid
-            min-h-[calc(100vh-105px)]
-            max-w-[1500px]
-            grid-cols-1 items-center gap-8
-            lg:grid-cols-[0.92fr_1.08fr]
-          "
+          dir="rtl"
+          className="relative z-10 mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-8 px-5 pb-12 pt-6 md:gap-10 md:px-10 md:pb-14 md:pt-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pt-6"
         >
-          <div className="order-2 lg:order-1 lg:col-start-1 lg:-translate-y-4">
-            <HeroPhone3D />
-          </div>
-
           <motion.div
-            dir="rtl"
             initial={{ opacity: 0, y: 28 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.85, ease: "easeOut" }}
-            className="
-              order-1
-              mx-auto max-w-[740px]
-              text-center
-              lg:order-2
-              lg:col-start-2
-              lg:mx-0
-              lg:text-center
-            "
+            className="text-center lg:text-right"
           >
-            <h1
-  className="
-    text-[36px]
-    font-black
-    leading-[1.16]
-    tracking-[-0.03em]
-    text-[#3A3028]
-    md:text-[54px]
-    lg:text-[64px]
-  "
->
-  Invistimo אישורי הגעה
-  <br />
-  <span
-    className="
-      bg-gradient-to-l
-      from-[#8B642B]
-      via-[#C69A3F]
-      to-[#B88A2D]
-      bg-clip-text
-      text-transparent
-    "
-  >
-    לאירועים בלתי נשכחים
-  </span>
-</h1>
-
-            <div className="mx-auto mt-5 flex max-w-[520px] items-center justify-center gap-4">
-              <span className="h-px flex-1 bg-gradient-to-l from-transparent via-[#C9A45C] to-[#C9A45C]" />
-              <span className="text-[#C59A45]">✦</span>
-              <span className="h-px flex-1 bg-gradient-to-r from-transparent via-[#C9A45C] to-[#C9A45C]" />
-            </div>
-
-           <p
-  className="
-    mx-auto mt-6 max-w-[620px]
-    text-[17px]
-    font-semibold
-    leading-[1.85]
-    text-[#4E4237]
-    md:text-[19px]
-  "
->
-  Invistimo אישורי הגעה היא מערכת חכמה לניהול אישורי הגעה לאירועים,
-  הזמנות דיגיטליות, סידורי הושבה, תזכורות וניהול אורחים
-  <br />
-  בקלות, בסטייל וביעילות.
-</p>
-
-            <div
-              className="
-                mx-auto mt-10
-                grid max-w-[640px]
-                grid-cols-2
-                overflow-hidden
-                rounded-[22px]
-                border border-[#E6D7BC]/80
-                bg-white/66
-                shadow-[0_18px_45px_rgba(95,68,34,0.10)]
-                backdrop-blur-xl
-                sm:grid-cols-4
-              "
-            >
-              {[
-                {
-                  icon: Users,
-                  title: "ניהול אורחים",
-                },
-                {
-                  icon: Armchair,
-                  title: "הושבה חכמה",
-                },
-                {
-                  icon: MessageCircle,
-                  title: "אישורי הגעה",
-                  subtitle: "בווטסאפ",
-                },
-                {
-                  icon: Mail,
-                  title: "הזמנות",
-                  subtitle: "דיגיטליות",
-                },
-              ].map((item, index) => {
-                const Icon = item.icon;
-
-                return (
-                  <div
-                    key={item.title}
-                    className={`
-                      flex min-h-[116px] flex-col items-center justify-center
-                      px-4 py-5 text-center
-                      ${
-                        index !== 0
-                          ? "sm:border-r sm:border-[#E6D7BC]/80"
-                          : ""
-                      }
-                      ${
-                        index > 1
-                          ? "border-t border-[#E6D7BC]/80 sm:border-t-0"
-                          : ""
-                      }
-                    `}
-                  >
-                    <Icon
-                      size={34}
-                      strokeWidth={1.55}
-                      className="mb-3 text-[#C59A45]"
-                    />
-
-                    <span className="text-[15px] font-extrabold leading-tight text-[#3D3127]">
-                      {item.title}
-                    </span>
-
-                    {item.subtitle && (
-                      <span className="mt-1 text-[13px] font-semibold text-[#6D5B4A]">
-                        {item.subtitle}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <div
-              className="
-                mt-8 flex flex-col items-center justify-center gap-4
-                sm:flex-row
-              "
-            >
+            <p className="text-[13px] font-black tracking-[0.28em] text-[#C9A45C] md:text-[14px]">
+              INVISTIMO
+            </p>
+            <h1 className="mt-4 text-[40px] font-black leading-[1.08] tracking-[-0.04em] text-[#F7F1E8] md:text-[58px] lg:text-[68px] lg:text-[#2C241C]">
+              האירוע שלכם.
+              <span className="mt-2 block bg-gradient-to-l from-[#8B642B] via-[#D4B06A] to-[#B88A2D] bg-clip-text text-transparent">
+                הסדר שלנו.
+              </span>
+            </h1>
+            <p className="mx-auto mt-6 max-w-[34rem] text-[17px] font-semibold leading-8 text-[#E8DFD2] md:text-[19px] lg:mx-0 lg:text-[#4A3F34]">
+              אישורי הגעה, הזמנות דיגיטליות, אתר חתונה והושבה — במערכת אחת שמכבדת את האירוע שלכם.
+            </p>
+            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start">
               <DemoButton>
-                נסו דמו עכשיו
+                התנסו במערכת
                 <span className="transition group-hover:-translate-x-1">←</span>
               </DemoButton>
-
               <Link
                 href="/pricing"
-                className="
-                  inline-flex min-w-[220px]
-                  items-center justify-center
-                  rounded-full
-                  border border-[#8B6A3E]/45
-                  bg-white/64
-                  px-9 py-4
-                  text-[16px] font-extrabold
-                  text-[#4A3A2A]
-                  shadow-[0_14px_32px_rgba(95,68,34,0.07)]
-                  backdrop-blur-xl
-                  transition
-                  hover:bg-white
-                  hover:text-[#B8862D]
-                "
+                className="inline-flex min-w-[220px] items-center justify-center rounded-full border border-[#2C241C]/25 bg-[#F7F1E8]/90 px-9 py-4 text-[16px] font-extrabold text-[#2C241C] shadow-[0_14px_32px_rgba(28,22,18,0.12)] transition hover:bg-white"
               >
                 לצפייה בחבילות
               </Link>
             </div>
           </motion.div>
+
+          <div className="relative mx-auto flex w-full max-w-[560px] items-center justify-center lg:max-w-none">
+            <motion.img
+              initial={{ opacity: 0, x: 40, rotate: 8 }}
+              animate={{ opacity: 1, x: 0, rotate: 6 }}
+              transition={{ duration: 0.9, delay: 0.15 }}
+              src="/marketing/invites/invite-wedding-mia-alon.webp"
+              alt="הזמנה לחתונה — מיה ואלון"
+              className="absolute -left-2 top-8 z-0 hidden w-[42%] max-w-[220px] rounded-xl object-cover shadow-[0_24px_50px_rgba(20,14,10,0.35)] sm:block lg:-left-4"
+              draggable={false}
+            />
+            <motion.img
+              initial={{ opacity: 0, x: -40, rotate: -10 }}
+              animate={{ opacity: 1, x: 0, rotate: -8 }}
+              transition={{ duration: 0.9, delay: 0.25 }}
+              src="/marketing/invites/invite-save-the-date-maya-itai.webp"
+              alt="Save the Date"
+              className="absolute -right-1 bottom-10 z-0 hidden w-[38%] max-w-[200px] rounded-xl object-cover shadow-[0_24px_50px_rgba(20,14,10,0.35)] sm:block lg:-right-2"
+              draggable={false}
+            />
+            <div className="relative z-10 w-full max-w-[320px]">
+              <HeroPhone3D />
+            </div>
+          </div>
         </div>
       </section>
+
+      {/* Invitation studio strip — after first viewport */}
+      <section dir="rtl" className="relative bg-[#1C1612] px-5 py-20 md:px-10 md:py-28">
+        <div className="mx-auto max-w-6xl">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="max-w-2xl"
+          >
+            <p className="text-sm font-black tracking-[0.2em] text-[#C9A45C]">הזמנות לדוגמה</p>
+            <h2 className="mt-3 text-3xl font-black text-[#F7F1E8] md:text-5xl">
+              עיצוב שמכבד את הרגע
+            </h2>
+            <p className="mt-4 text-lg leading-8 text-[#C9BDAE]">
+              מהחתונה ועד בר המצווה — הזמנות דיגיטליות ו־Save the Date בסגנון סטודיו, מחוברים לאישורי הגעה במערכת.
+            </p>
+          </motion.div>
+          <div className="mt-12 flex gap-5 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {[
+              { src: "/marketing/invites/invite-wedding-mia-alon.webp", label: "חתונה" },
+              { src: "/marketing/invites/invite-save-the-date-maya-itai.webp", label: "Save the Date" },
+              { src: "/marketing/invites/invite-bar-mitzvah.webp", label: "בר מצווה" },
+              { src: "/marketing/invites/invite-bat-mitzvah.webp", label: "בת מצווה" },
+              { src: "/marketing/invites/invite-henna.webp", label: "חינה" },
+              { src: "/marketing/invites/invite-brit.webp", label: "ברית" },
+              { src: "/marketing/invites/invite-birthday.webp", label: "יום הולדת" },
+              { src: "/marketing/invites/invite-corporate.webp", label: "אירוע חברה" },
+            ].map((item, i) => (
+              <motion.figure
+                key={item.src}
+                initial={{ opacity: 0, y: 24 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.05 }}
+                className="w-[180px] shrink-0 md:w-[210px]"
+              >
+                <img
+                  src={item.src}
+                  alt={item.label}
+                  className="aspect-[3/4] w-full rounded-2xl object-cover shadow-[0_20px_40px_rgba(0,0,0,0.45)]"
+                  draggable={false}
+                />
+                <figcaption className="mt-3 text-center text-sm font-bold text-[#C9BDAE]">
+                  {item.label}
+                </figcaption>
+              </motion.figure>
+            ))}
+          </div>
+          <div className="mt-10 flex flex-wrap gap-4">
+            <Link
+              href="/invitations/chatuna"
+              className="inline-flex rounded-full bg-[#C9A45C] px-8 py-3.5 text-sm font-black text-[#1C1612] transition hover:bg-[#D4B06A]"
+            >
+              להזמנות דיגיטליות
+            </Link>
+            <Link
+              href="/wedding-website"
+              className="inline-flex rounded-full border border-white/25 px-8 py-3.5 text-sm font-black text-[#F7F1E8] transition hover:bg-white/10"
+            >
+              לאתרי חתונה
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Journey reel */}
+      <section dir="rtl" className="relative bg-[#F4F0E8] px-5 py-16 md:px-10 md:py-24">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2">
+          <div>
+            <p className="text-sm font-black tracking-[0.18em] text-[#A67C3D]">מסע האירוע</p>
+            <h2 className="mt-3 text-3xl font-black text-[#2C241C] md:text-5xl">
+              מה־Save the Date ועד יום האירוע
+            </h2>
+            <p className="mt-4 max-w-xl text-lg leading-8 text-[#5C4A3A]">
+              הזמנה, אתר חתונה, אישורי הגעה והושבה — רצף אחד שמכבד את האורחים ושומר את השליטה אצלכם.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link href="/rsvp" className="rounded-full bg-[#2C241C] px-7 py-3 text-sm font-black text-[#F7F1E8]">
+                לאישורי הגעה
+              </Link>
+              <Link
+                href="/seating-explained"
+                className="rounded-full border border-[#2C241C]/25 px-7 py-3 text-sm font-black text-[#2C241C]"
+              >
+                להושבה
+              </Link>
+            </div>
+          </div>
+          <div className="overflow-hidden rounded-[28px] border border-[#E0D4C2] bg-[#1C1612] shadow-[0_30px_70px_rgba(44,36,28,0.18)]">
+            <video
+              src="/marketing/videos/hero-guest-journey.webm"
+              poster="/marketing/invites/invite-wedding-mia-alon.webp"
+              autoPlay
+              muted
+              loop
+              playsInline
+              className="aspect-video w-full bg-[#1C1612] object-contain"
+            />
+          </div>
+        </div>
+      </section>
+
+      <AnswerFirst path="/" />
 
       {/* ================= בלוק 2 – HOW IT WORKS ================= */}
       <section

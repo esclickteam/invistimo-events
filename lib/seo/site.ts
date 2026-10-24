@@ -185,10 +185,11 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
   },
   {
     path: "/wedding-website",
-    title: "אתרי חתונה | Invistimo",
-    description: "תצוגה מקדימה של תבניות אתר חתונה ואישורי הגעה ב־Invistimo.",
+    title: "אתר חתונה אישי | בניית אתר חתונה דיגיטלי | Invistimo",
+    description:
+      "אתר חתונה אישי ב־Invistimo: תבניות חיות, עורך ויזואלי, חוויית אורח, וחיבור להזמנה דיגיטלית ולאישורי הגעה. דוגמאות פעילות מהמוצר.",
     changeFrequency: "monthly",
-    priority: 0.5,
+    priority: 0.88,
   },
   {
     path: "/terms",

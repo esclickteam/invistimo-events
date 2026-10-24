@@ -61,8 +61,8 @@ export default function Page() {
           faqNode(faqs),
         ])}
       />
-      <AnswerFirst path="/event-management" />
       <EventManagementPage />
+      <AnswerFirst path="/event-management" />
       <section dir="rtl" className="bg-[#FBF6EE] px-6 py-14 text-[#3F3025]">
         <div className="mx-auto max-w-6xl">
           <h2 className="text-3xl font-black text-[#35281F]">{EVENT_TYPE_SECTION.heading}</h2>

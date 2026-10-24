@@ -1,4 +1,5 @@
 import Link from "next/link";
+import AnswerFirst from "@/components/seo/AnswerFirst";
 import FactTableView from "@/components/seo/FactTableView";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import { tableFor } from "@/lib/seo/answers";
@@ -79,6 +80,8 @@ export default function PricingMarketingExtras() {
 
   return (
     <div dir="rtl" className="bg-[#FBF6EE] text-[#3F3025]">
+      <AnswerFirst path="/pricing" hideTable />
+
       <section className="px-5 py-14 md:px-8 md:py-16">
         <div className="mx-auto max-w-6xl">
           <h2 className="text-center text-3xl font-black text-[#35281F] md:text-4xl">למה המחשבון בנוי כך</h2>
