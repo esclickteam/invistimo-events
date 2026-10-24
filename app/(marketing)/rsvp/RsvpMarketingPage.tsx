@@ -70,7 +70,7 @@ function PremiumBadge({ children }: { children: React.ReactNode }) {
     <span
       className="
         inline-flex items-center gap-2 rounded-full
-        border border-[#EADDC8]
+        border border-[#D5DBE3]
         bg-white/70 px-5 py-2
         text-sm font-bold text-[#6B7583]
         shadow-[0_12px_35px_rgba(91,63,32,0.08)]
@@ -484,7 +484,7 @@ export default function RSVPPage() {
 
       {/* ================= BLOCK 2 ================= */}
       <section className="relative px-6 py-24 md:py-32">
-        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,#F2F4F7_0%,#F7EDDF_100%)]" />
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,#F2F4F7_0%,#F2F4F7_100%)]" />
 
         <div className="mx-auto max-w-6xl">
           <motion.div
@@ -544,7 +544,7 @@ export default function RSVPPage() {
                   className="
                     relative h-full rounded-[29px]
                     border border-white/70
-                    bg-gradient-to-br from-[#FFFDF6]/90 via-[#F2F4F7]/88 to-[#E8ECF1]/82
+                    bg-gradient-to-br from-[#FFFFFF]/90 via-[#F2F4F7]/88 to-[#E8ECF1]/82
                     p-6
                   "
                 >
@@ -717,7 +717,7 @@ export default function RSVPPage() {
 
       {/* ================= WHY ================= */}
       <section className="relative isolate px-6 py-24 text-center md:py-32">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,#EAD6B4_0%,transparent_36%),linear-gradient(180deg,#F7EDDF_0%,#F2F4F7_100%)]" />
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,#A7D8D2_0%,transparent_36%),linear-gradient(180deg,#F2F4F7_0%,#F2F4F7_100%)]" />
 
         <motion.div
           initial="hidden"
