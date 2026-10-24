@@ -71,7 +71,7 @@ export default function DeviceFrame({
           <span className="h-2.5 w-2.5 rounded-full bg-[#FF5F57]" />
           <span className="h-2.5 w-2.5 rounded-full bg-[#FEBC2E]" />
           <span className="h-2.5 w-2.5 rounded-full bg-[#28C840]" />
-          <span className="mx-auto max-w-[45%] truncate rounded-full bg-white/10 px-3 py-0.5 text-center text-[10px] text-white/50">
+          <span className="mx-auto max-w-[45%] truncate rounded-full bg-white/20 px-3 py-0.5 text-center text-[10px] font-medium text-white/85">
             invistimo.com
           </span>
         </div>

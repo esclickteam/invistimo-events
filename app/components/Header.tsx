@@ -144,6 +144,10 @@ export default function Header() {
               <img
                 src="/invistimo-logo.png"
                 alt="Invistimo Logo"
+                width={162}
+                height={54}
+                decoding="async"
+                fetchPriority="low"
                 className="
                   h-[54px] w-auto select-none
                   drop-shadow-[0_6px_14px_rgba(158,116,42,0.14)]
@@ -256,6 +260,10 @@ export default function Header() {
                 <img
                   src="/invistimo-logo.png"
                   alt="Invistimo Logo"
+                  width={180}
+                  height={60}
+                  decoding="async"
+                  fetchPriority="low"
                   className="
                     h-[52px] w-auto select-none
                     drop-shadow-[0_6px_14px_rgba(158,116,42,0.14)]
@@ -389,6 +397,10 @@ export default function Header() {
                 <img
                   src="/invistimo-logo.png"
                   alt="Invistimo Logo"
+                  width={168}
+                  height={56}
+                  decoding="async"
+                  fetchPriority="low"
                   className="h-[56px] w-auto select-none"
                   draggable={false}
                 />

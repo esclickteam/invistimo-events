@@ -36,7 +36,8 @@ export default function FAQPage() {
           faqNode(allFaqItems()),
         ])}
       />
-      <main dir="rtl" className="overflow-hidden bg-[#FBF6EE] text-[#3F3025]">
+      {/* Landmark <main> lives in LayoutShell — avoid nested <main>. */}
+      <div dir="rtl" className="overflow-hidden bg-[#FBF6EE] text-[#3F3025]">
         <section className="relative isolate px-5 pb-10 pt-8 md:px-8 md:pb-12 md:pt-12">
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,#E9D4AF_0%,transparent_36%),linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_100%)]" />
           <div className="mx-auto max-w-4xl">
@@ -131,7 +132,7 @@ export default function FAQPage() {
             </div>
           </div>
         </section>
-      </main>
+      </div>
       <ServiceLinks current="/faq" />
     </>
   );

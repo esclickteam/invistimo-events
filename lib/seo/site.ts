@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
+import { resolveAppEnv } from "@/lib/env/appEnv";
 
 export const SITE_URL = "https://www.invistimo.com";
 export const SITE_NAME = "Invistimo";
 export const CONTENT_UPDATED = new Date("2026-10-23T11:00:00.000Z");
+
+/** Preview/Staging must not claim indexability in HTML (align with Vercel x-robots-tag). */
+export function defaultPublicIndexable() {
+  const env = resolveAppEnv();
+  return env !== "preview" && env !== "staging";
+}
 
 export function absoluteUrl(path: string) {
   // Home canonical/sitemap use the apex without a trailing slash so they match
@@ -24,8 +31,10 @@ export function pageMetadata(input: {
   path: string;
   index?: boolean;
 }): Metadata {
-  const index = input.index !== false;
+  const index =
+    input.index !== undefined ? input.index : defaultPublicIndexable();
   const url = absoluteUrl(input.path);
+  const follow = index;
 
   return {
     title: { absolute: input.title },
@@ -48,8 +57,8 @@ export function pageMetadata(input: {
     },
     robots: {
       index,
-      follow: true,
-      googleBot: { index, follow: true },
+      follow,
+      googleBot: { index, follow },
     },
   };
 }

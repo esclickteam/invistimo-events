@@ -116,6 +116,24 @@ test("public metadata has a unique absolute canonical and stays indexable", () =
   assert.equal(home.robots && typeof home.robots === "object" && "index" in home.robots && home.robots.index, true);
   assert.match(String(OG_IMAGE.url), /^https:\/\/www\.invistimo\.com\/og-invistimo\.jpg$/);
 
+  const prevVercel = process.env.VERCEL_ENV;
+  const prevApp = process.env.APP_ENV;
+  process.env.APP_ENV = "preview";
+  delete process.env.VERCEL_ENV;
+  try {
+    const previewHome = pageMetadata({ title: "בית", description: "בית", path: "/" });
+    assert.equal(
+      previewHome.robots && typeof previewHome.robots === "object" && "index" in previewHome.robots && previewHome.robots.index,
+      false,
+      "Preview must emit noindex in HTML meta (align with Vercel x-robots-tag)"
+    );
+  } finally {
+    if (prevApp === undefined) delete process.env.APP_ENV;
+    else process.env.APP_ENV = prevApp;
+    if (prevVercel === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = prevVercel;
+  }
+
   const titles = CORE_PUBLIC_ROUTES.map((route) => route.title);
   assert.equal(new Set(titles).size, titles.length);
   const paths = CORE_PUBLIC_ROUTES.map((route) => route.path);

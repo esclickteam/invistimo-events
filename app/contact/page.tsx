@@ -60,7 +60,8 @@ export default function ContactPage() {
   }
 
   return (
-    <main
+    {/* Landmark <main> lives in LayoutShell — avoid nested <main>. */}
+    <div
       dir="rtl"
       className="relative min-h-screen overflow-hidden bg-[#F7EFE6] text-[#3E2D20]"
     >
@@ -384,6 +385,6 @@ export default function ContactPage() {
           </form>
         </div>
       </section>
-    </main>
+    </div>
   );
 }

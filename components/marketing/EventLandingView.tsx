@@ -38,7 +38,8 @@ export default function EventLandingView({ landing }: { landing: EventLanding })
   ]);
 
   return (
-    <main dir="rtl" className="overflow-x-hidden bg-[#FBF6EE] text-[#3F3025]">
+    {/* Landmark <main> lives in LayoutShell — avoid nested <main>. */}
+    <div dir="rtl" className="overflow-x-hidden bg-[#FBF6EE] text-[#3F3025]">
       <JsonLd data={data} />
 
       <section className="relative isolate">
@@ -289,6 +290,6 @@ export default function EventLandingView({ landing }: { landing: EventLanding })
           </section>
         </div>
       </article>
-    </main>
+    </div>
   );
 }

@@ -10,7 +10,8 @@ export const metadata = pageMetadata({
 
 export default function TermsPage() {
   return (
-    <main dir="rtl" className="bg-[#f7f3ee] min-h-screen py-20">
+    {/* Landmark <main> lives in LayoutShell — avoid nested <main>. */}
+    <div dir="rtl" className="bg-[#f7f3ee] min-h-screen py-20">
       <div className="max-w-4xl mx-auto px-6">
         {/* ===== Card ===== */}
         <div className="bg-white/90 backdrop-blur rounded-3xl shadow-xl border border-[#eadfce] px-8 md:px-14 py-14 text-[#5c4632]">
@@ -1358,6 +1359,6 @@ export default function TermsPage() {
           </div>
         </div>
       </div>
-    </main>
+    </div>
   );
 }

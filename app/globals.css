@@ -298,3 +298,20 @@ html[data-admin-manage="1"] .admin-session-scroll-shell > main {
 input.schedule-time-24h::-webkit-datetime-edit-ampm-field {
   display: none !important;
 }
+
+/* -----------------------------------------------------------
+   Userway — pin opposite WhatsApp FAB (bottom-right) so the
+   third-party icon does not cover the header on narrow widths
+   or collide with the support button (CLS / tap targets).
+----------------------------------------------------------- */
+#userwayAccessibilityIcon,
+#userwayAccessibilityIconRoot,
+#userwayAccessibilityIconWrapper,
+.userway_buttons_wrapper,
+.uwy .uai,
+.uai {
+  top: auto !important;
+  bottom: max(1rem, env(safe-area-inset-bottom)) !important;
+  right: auto !important;
+  left: max(0.75rem, env(safe-area-inset-left)) !important;
+}
