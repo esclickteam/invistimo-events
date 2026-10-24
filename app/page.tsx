@@ -11,7 +11,6 @@ import {
   graph,
   organizationNode,
   softwareNode,
-  videoNode,
   websiteNode,
 } from "@/lib/seo/jsonld";
 import { absoluteUrl, findCoreRoute, pageMetadata, SITE_URL } from "@/lib/seo/site";
@@ -56,13 +55,8 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* LCP: hero atmosphere + phone poster discovered early (CSS bg alone is weak for LCP). */}
+      {/* Single LCP preload: hero atmosphere image (CSS background). Poster/video load after paint. */}
       <link rel="preload" as="image" href="/homep1.webp" fetchPriority="high" />
-      <link
-        rel="preload"
-        as="image"
-        href="/marketing/videos/hero-guest-journey-poster.jpg"
-      />
       <JsonLd
         data={graph([
           organizationNode(),
@@ -84,15 +78,7 @@ export default async function HomePage() {
           softwareNode(route.description, "/"),
           breadcrumbNode([{ name: "ראשי", path: "/" }]),
           faqNode(HOME_FAQS),
-          videoNode({
-            name: "מסע אורח ב־Invistimo — מוואטסאפ לאישור הגעה",
-            description:
-              "הדגמת חוויית אורח: הודעת WhatsApp לפי תבנית המערכת, פתיחת הזמנה אישית, בחירת מגיע/ה ושליחת אישור הגעה.",
-            contentUrl: "/marketing/videos/hero-guest-journey.webm",
-            posterUrl: "/marketing/videos/hero-guest-journey-poster.jpg",
-            uploadDate: "2026-10-24",
-            path: "/",
-          }),
+          // VideoObject omitted until hero-guest-journey.* is live on www.invistimo.com (currently 404 on prod).
         ])}
       />
       <HomePageClient />

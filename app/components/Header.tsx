@@ -213,6 +213,7 @@ export default function Header() {
           >
             <div className="flex items-center justify-start">
               <nav
+                aria-label="ניווט ראשי"
                 className="
                   hidden items-center gap-6
                   whitespace-nowrap
@@ -408,7 +409,10 @@ export default function Header() {
               </button>
             </div>
 
-            <nav className="flex flex-col divide-y divide-[#E7D8BD] rounded-[22px] border border-[#E7D8BD] bg-white/70">
+            <nav
+              aria-label="ניווט ראשי בנייד"
+              className="flex flex-col divide-y divide-[#E7D8BD] rounded-[22px] border border-[#E7D8BD] bg-white/70"
+            >
               {navItems.map((item) => (
                 <Link
                   key={item.href}

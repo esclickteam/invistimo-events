@@ -82,6 +82,8 @@ function DemoButton({
 ===================================================== */
 function HeroPhone3D() {
   const [reduceMotion, setReduceMotion] = useState(false);
+  /** Defer heavy webm until after first paint / LCP candidate (poster + hero bg). */
+  const [videoReady, setVideoReady] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     const sync = () => setReduceMotion(mq.matches);
@@ -89,6 +91,34 @@ function HeroPhone3D() {
     mq.addEventListener?.("change", sync);
     return () => mq.removeEventListener?.("change", sync);
   }, []);
+  useEffect(() => {
+    if (reduceMotion) return;
+    let cancelled = false;
+    const enable = () => {
+      if (!cancelled) setVideoReady(true);
+    };
+    const ric = (
+      window as Window & {
+        requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+        cancelIdleCallback?: (id: number) => void;
+      }
+    ).requestIdleCallback;
+    const cic = (
+      window as Window & { cancelIdleCallback?: (id: number) => void }
+    ).cancelIdleCallback;
+    let idleId: number | undefined;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    if (typeof ric === "function") {
+      idleId = ric(enable, { timeout: 1800 });
+    } else {
+      timeoutId = setTimeout(enable, 900);
+    }
+    return () => {
+      cancelled = true;
+      if (idleId != null && typeof cic === "function") cic(idleId);
+      if (timeoutId != null) clearTimeout(timeoutId);
+    };
+  }, [reduceMotion]);
 
   return (
     <div
@@ -202,19 +232,26 @@ function HeroPhone3D() {
                 className="h-full w-full bg-[#FBF6EE] object-contain object-top"
                 draggable={false}
               />
-            ) : (
+            ) : videoReady ? (
               <video
                 className="h-full w-full bg-[#FBF6EE] object-cover object-top"
                 autoPlay
                 muted
                 loop
                 playsInline
-                preload="metadata"
+                preload="none"
                 poster="/marketing/videos/hero-guest-journey-poster.jpg"
                 aria-label="מסע אורח: הודעת WhatsApp, הזמנה של מיה ואלון, ואישור הגעה"
               >
                 <source src="/marketing/videos/hero-guest-journey.webm" type="video/webm" />
               </video>
+            ) : (
+              <img
+                src="/marketing/videos/hero-guest-journey-poster.jpg"
+                alt="מסע אורח: הודעת WhatsApp, הזמנה של מיה ואלון, ואישור הגעה"
+                className="h-full w-full bg-[#FBF6EE] object-cover object-top"
+                draggable={false}
+              />
             )}
 
             <div
@@ -933,8 +970,9 @@ function FinalCTA() {
 }
 
 export default function HomePageClient() {
+  // Landmark <main> lives in LayoutShell — avoid nested <main> here.
   return (
-    <main className="overflow-x-hidden bg-[#F4F0E8] text-[#2C241C]">
+    <div className="overflow-x-hidden bg-[#F4F0E8] pb-[max(5.5rem,env(safe-area-inset-bottom))] text-[#2C241C]">
       {/* ================= HERO — brand-first composition ================= */}
       <section className="relative overflow-hidden">
         <div
@@ -1118,7 +1156,7 @@ export default function HomePageClient() {
               muted
               loop
               playsInline
-              preload="metadata"
+              preload="none"
               aria-label="דשבורד מתעדכן אחרי אישורי הגעה במערכת"
               className="aspect-video w-full bg-[#1C1612] object-contain"
             />
@@ -1350,6 +1388,6 @@ export default function HomePageClient() {
 
       {/* ================= FINAL CTA ================= */}
       <FinalCTA />
-    </main>
+    </div>
   );
 }

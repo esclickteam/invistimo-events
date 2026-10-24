@@ -239,11 +239,11 @@ export default function HomeSeoSections() {
             תשובות קצרות לפני שפותחים אירוע
           </h2>
           <p className="mt-4 text-base leading-7 text-[#5C4A3A]">
-            לפי מה שהמערכת באמת עושה. לפירוט נוסף —{" "}
+            חמש תשובות קצרות להתמצאות. הרחבות, סוגי אירועים והושבה — ב{" "}
             <Link href="/faq" className="font-bold text-[#8B642B] underline-offset-2 hover:underline">
               עמוד השאלות הנפוצות
             </Link>
-            .
+            {" "}ובעמודי השירות.
           </p>
           <div className="mt-8 space-y-3">
             {HOME_FAQS.map((faq) => (

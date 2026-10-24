@@ -47,7 +47,8 @@ export default function AccessibilityScript() {
       id="userway-widget"
       src="https://cdn.userway.org/widget.js"
       data-account="HnP2BQ1axC"
-      strategy="afterInteractive"
+      // After LCP: avoid competing with hero image bandwidth on first paint.
+      strategy="lazyOnload"
     />
   );
 }

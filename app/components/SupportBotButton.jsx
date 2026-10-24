@@ -86,7 +86,14 @@ export default function SupportBotButton() {
   return (
     <>
       {!open && (
-        <div className="fixed bottom-6 right-6 z-[9999]">
+        <div
+          className="
+            fixed z-[9999]
+            bottom-[max(1rem,env(safe-area-inset-bottom))]
+            right-[max(1rem,env(safe-area-inset-right))]
+            max-[360px]:scale-[0.88] max-[360px]:origin-bottom-right
+          "
+        >
           <button
             type="button"
             onClick={() => setOpen(true)}
@@ -103,6 +110,8 @@ export default function SupportBotButton() {
               hover:scale-[1.04]
               hover:shadow-[0_24px_55px_rgba(145,96,42,0.30)]
               active:scale-95
+              focus-visible:outline focus-visible:outline-2
+              focus-visible:outline-offset-2 focus-visible:outline-[#8B6220]
             "
           >
             {/* glow */}
