@@ -1,43 +1,35 @@
-import AnswerFirst from "@/components/seo/AnswerFirst";
 import ServiceLinks from "@/components/marketing/ServiceLinks";
 import JsonLd from "@/components/seo/JsonLd";
 import RsvpMarketingPage from "./RsvpMarketingPage";
+import { JOURNEY_VIDEO, RSVP_FAQS } from "./content";
 import { clusterSiblings } from "@/lib/seo/clusters";
-import { breadcrumbNode, faqNode, graph, organizationNode, serviceNode } from "@/lib/seo/jsonld";
-import { findCoreRoute, pageMetadata } from "@/lib/seo/site";
+import {
+  breadcrumbNode,
+  faqNode,
+  graph,
+  organizationNode,
+  serviceNode,
+  videoNode,
+} from "@/lib/seo/jsonld";
+import { pageMetadata } from "@/lib/seo/site";
 import Link from "next/link";
 
-const route = findCoreRoute("/rsvp")!;
+const TITLE = "אישורי הגעה לחתונה ולאירועים ב־WhatsApp | Invistimo";
+const DESCRIPTION =
+  "אישורי הגעה לחתונה ולאירועים עם הודעות WhatsApp, קישור אישי לכל אורח, מעקב תשובות בזמן אמת ואפשרות לשיחות ותזכורות. הכירו את Invistimo.";
 
 export const metadata = pageMetadata({
-  title: route.title,
-  description: route.description,
-  path: route.path,
+  title: TITLE,
+  description: DESCRIPTION,
+  path: "/rsvp",
 });
-
-const faqs = [
-  {
-    q: "האם האורח צריך להירשם?",
-    a: "לא. הוא פותח קישור אישי ומאשר הגעה, מספר מגיעים והערה.",
-  },
-  {
-    q: "מה נשלח בחבילת ההודעות?",
-    a: "הזמנה דיגיטלית, שני סבבי וואטסאפ לאישור הגעה, תזכורת SMS עם מספר שולחן, והודעת תודה ב־SMS.",
-  },
-  {
-    q: "האם זה רק לחתונות?",
-    a: "לא. אותו מודל מתאים לבר/בת מצווה, ברית, חינה, ימי הולדת ואירועי חברה. לחתונה יש גם עמוד ייעודי.",
-  },
-  {
-    q: "מה ההבדל מעמוד אישורי הגעה לחתונה?",
-    a: "העמוד הזה הוא ה־hub לביטוי «אישורי הגעה» ולכל סוגי האירוע. עמוד החתונה מעמיק בכאב של זוגות מול האולם וההושבה.",
-  },
-];
 
 const breadcrumbs = [
   { name: "בית", path: "/" },
   { name: "אישורי הגעה", path: "/rsvp" },
 ];
+
+const faqs = RSVP_FAQS.map((item) => ({ q: item.q, a: item.a }));
 
 export default function RsvpPage() {
   const siblings = clusterSiblings("/rsvp");
@@ -49,21 +41,36 @@ export default function RsvpPage() {
           organizationNode(),
           breadcrumbNode(breadcrumbs),
           serviceNode({
-            name: "אישורי הגעה לאירועים",
-            description: route.description,
+            name: "אישורי הגעה לחתונה ולאירועים",
+            description: DESCRIPTION,
             path: "/rsvp",
             serviceType: "אישורי הגעה",
+          }),
+          videoNode({
+            name: JOURNEY_VIDEO.title,
+            description: JOURNEY_VIDEO.description,
+            contentUrl: JOURNEY_VIDEO.src,
+            posterUrl: JOURNEY_VIDEO.poster,
+            uploadDate: JOURNEY_VIDEO.uploadDate,
+            path: "/rsvp",
           }),
           faqNode(faqs),
         ])}
       />
-      <AnswerFirst path="/rsvp" />
       <RsvpMarketingPage />
       <section dir="rtl" className="bg-[#FBF6EE] px-6 pb-10 text-[#3F3025]">
         <div className="mx-auto max-w-3xl space-y-4 leading-8">
-          <h2 className="text-2xl font-black text-[#35281F]">לפי סוג האירוע והערוץ</h2>
+          <h2 className="text-2xl font-black text-[#35281F]">עמודים קשורים לפי סוג האירוע והערוץ</h2>
           <p>
-            הביטוי הראשי «אישורי הגעה» מכוון לכאן. «אישורי הגעה לחתונה» מכוון לעמוד החתונה. «אישורי הגעה בוואטסאפ» מכוון לעמוד הוואטסאפ. כך העמודים לא מתחרים זה בזה על אותה כוונה.
+            מחפשים התמקדות בחתונה? עברו ל
+            <Link href="/rsvp/chatuna" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              אישורי הגעה לחתונה
+            </Link>
+            . להתמקדות בערוץ הוואטסאפ —
+            <Link href="/rsvp/whatsapp" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              אישורי הגעה ב־WhatsApp
+            </Link>
+            .
           </p>
           {siblings.length ? (
             <ul className="flex flex-wrap gap-3 pt-2">

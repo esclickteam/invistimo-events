@@ -91,3 +91,4 @@ tmp/
 dist/
 build/
 .vercel
+scripts/rsvp-journey-video/.record/

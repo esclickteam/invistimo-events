@@ -245,9 +245,11 @@ test("AI referral helpers recognize hosts and UTMs without inventing traffic", (
 
 test("marketing pages no longer point the RSVP call to action at a missing short link", () => {
   const rsvp = read("app/(marketing)/rsvp/RsvpMarketingPage.tsx");
+  const video = read("app/(marketing)/rsvp/components/MarketingVideo.tsx");
   assert.doesNotMatch(rsvp, /\/create-invite/);
   assert.match(rsvp, /\/pricing/);
-  assert.match(rsvp, /preload="none"/);
+  assert.match(video, /preload=\{eager \? "metadata" : "none"\}/);
+  assert.match(video, /prefers-reduced-motion/);
   assert.match(read("app/layout.tsx"), /next\/font\/google/);
   assert.match(read("app/layout.tsx"), /Heebo/);
   assert.doesNotMatch(read("app/layout.tsx"), /fonts\.googleapis\.com\/css2/);
@@ -299,14 +301,16 @@ test("pillar clusters do not assign one URL to two topics and answer-first cover
   assert.ok(PAGE_ANSWERS["/pricing"]);
   assert.ok(PAGE_ANSWERS["/faq"]);
   assert.ok(tableFor("/pricing"));
-  assert.ok(tableFor("/rsvp"));
+  assert.equal(tableFor("/rsvp"), null);
+  assert.ok(PAGE_ANSWERS["/rsvp"]);
   const page = read("components/marketing/PublicContentPage.tsx");
   assert.match(page, /<h1/);
   assert.match(page, /<h2/);
   assert.match(page, /<h3/);
   assert.match(page, /התשובה הקצרה/);
   assert.match(read("components/seo/AnswerFirst.tsx"), /התשובה הקצרה/);
-  assert.match(read("app/(marketing)/rsvp/page.tsx"), /AnswerFirst/);
+  assert.doesNotMatch(read("app/(marketing)/rsvp/page.tsx"), /AnswerFirst|התשובה הקצרה/);
+  assert.match(read("app/(marketing)/rsvp/page.tsx"), /videoNode|FAQPage|BreadcrumbList|faqNode/);
   assert.match(read("app/seating-explained/layout.tsx"), /AnswerFirst/);
   assert.match(read("app/event-management/page.jsx"), /AnswerFirst/);
   assert.match(read("app/pricing/layout.tsx"), /AnswerFirst/);
