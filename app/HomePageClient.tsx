@@ -1201,7 +1201,7 @@ export default function HomePageClient() {
       <section dir="rtl" className="relative bg-[#F4F0E8] px-5 py-16 md:px-10 md:py-24">
         <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2">
           <div>
-            <p className="text-sm font-black tracking-[0.18em] text-[#A67C3D]">מסע האירוע</p>
+            <p className="text-sm font-black tracking-[0.18em] text-[#8B642B]">מסע האירוע</p>
             <h2 className="mt-3 text-3xl font-black text-[#2C241C] md:text-5xl">
               מה־Save the Date ועד יום האירוע
             </h2>

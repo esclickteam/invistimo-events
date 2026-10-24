@@ -51,7 +51,7 @@ export default function AnswerFirst({
         <div className={visual ? "" : "mx-auto max-w-3xl"}>
           <p
             className={`text-sm font-black tracking-[0.16em] ${
-              isDark ? "text-[#C9A962]" : "text-[#A67C3D]"
+              isDark ? "text-[#C9A962]" : "text-[#8B642B]"
             }`}
           >
             סקירה
