@@ -323,14 +323,21 @@ export default function GuestAlbumPage({
           </section>
         ) : null}
 
-        <section className="masonry animate-soft-scale stagger-3">
-          {media.length === 0 ? (
-            <div className="surface p-10 text-center text-[var(--muted)]">
-              עדיין אין תמונות מאושרות בגלריה.
-              {canUpload ? " העלו את הראשונות!" : ""}
-            </div>
-          ) : (
-            media.map((m) => (
+        {media.length === 0 ? (
+          <section className="mb-16 rounded-[24px] border border-[var(--line)] bg-[var(--card)] px-8 py-16 text-center">
+            <p className="font-display text-3xl text-[var(--ink)]">הגלריה מחכה לרגעים הראשונים</p>
+            <p className="mt-3 text-[var(--muted)]">
+              {canUpload ? "העלו תמונות וסרטונים — והם יופיעו כאן." : "בקרוב יופיעו כאן התמונות של האירוע."}
+            </p>
+            {canUpload ? (
+              <button type="button" className="btn-gold mt-8" onClick={() => setShowUpload(true)}>
+                העלאת תמונות
+              </button>
+            ) : null}
+          </section>
+        ) : (
+          <section className="masonry animate-soft-scale stagger-3">
+            {media.map((m) => (
               <button
                 key={m.id}
                 type="button"
@@ -353,9 +360,9 @@ export default function GuestAlbumPage({
                   </span>
                 ) : null}
               </button>
-            ))
-          )}
-        </section>
+            ))}
+          </section>
+        )}
       </div>
 
       {/* Mobile bottom nav */}
