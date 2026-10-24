@@ -27,10 +27,7 @@ export async function POST(
     if (!event) return jsonError("לא נמצא", 404);
 
     if (!event.faceAiEnabled || !isFaceAiLive()) {
-      return jsonError(
-        "זיהוי פנים אינו פעיל באלבום זה. התכונה תוצג רק לאחר אינטגרציה מאושרת ובדיקה.",
-        503
-      );
+      return jsonError("החיפוש אינו זמין באלבום זה כרגע", 503);
     }
 
     const contentType = req.headers.get("content-type") || "";

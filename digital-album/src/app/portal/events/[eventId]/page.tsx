@@ -93,8 +93,8 @@ export default function EventManagePage({
     if (json.ok) {
       setMessage(
         enabled && !json.data.event.faceAiEnabled
-          ? "זיהוי פנים נשאר כבוי עד שהספק מאושר ומופעל בסביבה"
-          : "נשמר"
+          ? "התכונה אינה זמינה כרגע בחבילה או בחשבון זה"
+          : "ההגדרה נשמרה"
       );
       reload();
     } else setMessage(json.error);
@@ -170,16 +170,20 @@ export default function EventManagePage({
           ))}
         </div>
         <p className="mt-3 text-sm text-[var(--muted)]">
-          מצב נוכחי: {uploadLabels[event.uploadMode]} · סוגי קבצים: {event.mediaAllowed}
+          מצב נוכחי: {uploadLabels[event.uploadMode]} ·{" "}
+          {event.mediaAllowed === "BOTH"
+            ? "תמונות וסרטונים"
+            : event.mediaAllowed === "PHOTOS_ONLY"
+              ? "תמונות בלבד"
+              : "סרטונים בלבד"}
         </p>
       </section>
 
       <section className="mt-10 surface p-5 flex items-center justify-between gap-4">
         <div>
-          <h2 className="font-display text-2xl">חיפושי פנים באמצעות AI</h2>
+          <h2 className="font-display text-2xl">חיפוש פנים באמצעות AI</h2>
           <p className="text-sm text-[var(--muted)] mt-1 max-w-xl">
-            מאפשר לאורחים למצוא את עצמם בתמונות. לא יוצג כאקטיבי באלבום עד שהאינטגרציה
-            עובדת ונבדקה.
+            מאפשר לאורחים למצוא את עצמם בתמונות ובסרטונים של האירוע.
           </p>
         </div>
         <button
@@ -266,14 +270,23 @@ export default function EventManagePage({
       ) : null}
 
       <section className="mt-10 surface p-5">
-        <h2 className="font-display text-2xl mb-2">שיתוף</h2>
-        <p className="text-sm text-[var(--muted)] break-all">
-          קישור האלבום: {typeof window !== "undefined" ? window.location.origin : ""}/a/
-          {event.slug}
+        <h2 className="font-display text-2xl mb-2">שיתוף עם האורחים</h2>
+        <p className="text-sm text-[var(--muted)]">
+          שלחו לאורחים את קישור האלבום, או הורידו QR להדפסה על שולחנות האירוע.
         </p>
-        <p className="text-sm text-[var(--muted)] mt-2">
-          QR להדפסה: /api/public/qr/{event.slug} (יוצר קישור לאלבום)
-        </p>
+        <div className="mt-4 flex flex-wrap gap-3">
+          <a href={`/a/${event.slug}`} target="_blank" className="btn-ghost text-sm" rel="noreferrer">
+            פתיחת הקישור
+          </a>
+          <a
+            href={`/api/public/qr/${event.slug}`}
+            target="_blank"
+            className="btn-gold text-sm"
+            rel="noreferrer"
+          >
+            הורדת QR להדפסה
+          </a>
+        </div>
       </section>
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, use } from "react";
+import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import {
   Heart,
@@ -63,6 +63,8 @@ export default function GuestAlbumPage({
   const [error, setError] = useState("");
   const [greeting, setGreeting] = useState({ authorName: "", body: "" });
   const [greetingMsg, setGreetingMsg] = useState("");
+  const [showFaceSearch, setShowFaceSearch] = useState(false);
+  const [faceNotice, setFaceNotice] = useState("");
 
   async function load() {
     const qs = new URLSearchParams({
@@ -88,8 +90,6 @@ export default function GuestAlbumPage({
     const s = Math.round(ms / 1000);
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
   };
-
-  const mobile = useMemo(() => true, []);
 
   async function submitGreeting(e: React.FormEvent) {
     e.preventDefault();
@@ -127,19 +127,40 @@ export default function GuestAlbumPage({
 
   return (
     <main className="pb-28 md:pb-10">
-      {/* Desktop header */}
-      <header className="sticky top-0 z-30 hidden md:block border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_85%,transparent)] backdrop-blur">
+      {/* Desktop header — matches approved mockup */}
+      <header className="sticky top-0 z-30 hidden md:block border-b border-[var(--line)] bg-[color-mix(in_srgb,var(--bg)_92%,transparent)] backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4">
-          <Logo className="text-xl" />
-          <nav className="flex items-center gap-6 text-sm text-[var(--muted)]">
-            <button type="button" onClick={() => setChapterId(null)}>
+          <Logo className="text-xl tracking-[0.22em]" />
+          <nav className="flex items-center gap-8 text-sm">
+            <button
+              type="button"
+              className={filter === "all" && !chapterId ? "text-[var(--ink)]" : "text-[var(--muted)]"}
+              onClick={() => {
+                setFilter("all");
+                setChapterId(null);
+              }}
+            >
               האלבום שלנו
             </button>
-            <button type="button" onClick={() => setFilter("videos")}>
+            <button
+              type="button"
+              className={filter === "videos" ? "text-[var(--ink)]" : "text-[var(--muted)]"}
+              onClick={() => setFilter("videos")}
+            >
               סרטונים
             </button>
-            <span>אנשים</span>
-            <button type="button">רגעים</button>
+            <button type="button" className="text-[var(--muted)]">
+              אנשים
+            </button>
+            <button
+              type="button"
+              className="text-[var(--muted)]"
+              onClick={() => {
+                document.getElementById("stories")?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
+              רגעים
+            </button>
           </nav>
           <div className="flex items-center gap-2">
             <button
@@ -149,7 +170,8 @@ export default function GuestAlbumPage({
               <Share2 size={16} /> שיתוף
             </button>
             <button
-              className="btn-ghost text-sm"
+              className="btn-ghost text-sm px-3"
+              aria-label="העתקת קישור"
               onClick={() => navigator.clipboard.writeText(window.location.href)}
             >
               <Link2 size={16} />
@@ -181,7 +203,7 @@ export default function GuestAlbumPage({
 
       <div className="mx-auto max-w-6xl px-4 md:px-5">
         {/* Mobile CTAs */}
-        <section className="mobile-cta md:hidden -mt-6 relative z-20 mb-8">
+        <section className="mobile-cta flex md:hidden -mt-6 relative z-20 mb-8">
           {canUpload ? (
             <button type="button" onClick={() => setShowUpload(true)}>
               <Upload className="text-[var(--gold-deep)]" />
@@ -193,21 +215,19 @@ export default function GuestAlbumPage({
           ) : null}
           <button
             type="button"
-            onClick={() =>
-              alert(
-                event.faceAiAvailable
-                  ? "פתיחת זיהוי פנים"
-                  : "זיהוי פנים אינו פעיל עדיין — התכונה תוצג רק לאחר אינטגרציה מאושרת ובדיקה."
-              )
-            }
+            onClick={() => {
+              if (event.faceAiAvailable) {
+                setShowFaceSearch(true);
+              } else {
+                setFaceNotice("החיפוש אינו זמין באלבום זה כרגע.");
+              }
+            }}
           >
             <Sparkles className="text-[var(--gold-deep)]" />
             <span>
               <strong className="block">מצא אותי בתמונות</strong>
               <span className="text-sm text-[var(--muted)]">
-                {event.faceAiAvailable
-                  ? "חיפוש AI באלבום זה בלבד"
-                  : "יופעל לאחר אישור ספק AI"}
+                מצאו את עצמכם בתמונות האירוע
               </span>
             </span>
           </button>
@@ -272,7 +292,7 @@ export default function GuestAlbumPage({
         </section>
 
         {event.stories?.length ? (
-          <section className="mb-10 animate-fade-up stagger-2">
+          <section id="stories" className="mb-10 animate-fade-up stagger-2">
             <h2 className="font-display text-2xl mb-4">רגעי האירוע</h2>
             <div className="story-rail">
               {event.stories.map((s, i) => (
@@ -339,7 +359,7 @@ export default function GuestAlbumPage({
       </div>
 
       {/* Mobile bottom nav */}
-      <nav className="bottom-nav md:hidden">
+      <nav className="bottom-nav grid md:hidden">
         <Link href={`/a/${slug}`}>
           <Home size={18} />
           בית
@@ -428,8 +448,40 @@ export default function GuestAlbumPage({
         </div>
       ) : null}
 
-      {/* silence unused */}
-      {mobile ? null : null}
+      {faceNotice ? (
+        <div className="fixed inset-0 z-50 bg-black/40 p-4 flex items-center justify-center">
+          <div className="surface w-full max-w-sm p-6 text-center">
+            <p className="font-display text-2xl mb-2">מצא אותי בתמונות</p>
+            <p className="text-[var(--muted)]">{faceNotice}</p>
+            <button
+              type="button"
+              className="btn-ghost mt-5 w-full"
+              onClick={() => setFaceNotice("")}
+            >
+              סגירה
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {showFaceSearch ? (
+        <div className="fixed inset-0 z-50 bg-black/40 p-4 flex items-end md:items-center justify-center">
+          <div className="surface w-full max-w-lg p-5">
+            <h3 className="font-display text-3xl mb-2">מצא אותי בתמונות</h3>
+            <p className="text-sm text-[var(--muted)] mb-4">
+              העלו סלפי קצר כדי למצוא תמונות שלכם באלבום האירוע בלבד. התמונה תשמש
+              לחיפוש זה ותימחק בהתאם למדיניות הפרטיות.
+            </p>
+            <button
+              type="button"
+              className="btn-ghost w-full"
+              onClick={() => setShowFaceSearch(false)}
+            >
+              סגירה
+            </button>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

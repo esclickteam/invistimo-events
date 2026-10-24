@@ -40,7 +40,7 @@ export default function RegisterPage() {
         <Logo />
       </Link>
       <h1 className="font-display mt-8 text-4xl">יצירת חשבון</h1>
-      <p className="mt-2 text-[var(--muted)]">התחילו אלבום דיגיטלי לאירוע — בלי Invistimo</p>
+      <p className="mt-2 text-[var(--muted)]">פתחו חשבון והתחלת אלבום דיגיטלי לאירוע</p>
       <form onSubmit={onSubmit} className="mt-8 space-y-4">
         <div>
           <Label>שם מלא</Label>
