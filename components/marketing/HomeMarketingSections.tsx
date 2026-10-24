@@ -9,13 +9,11 @@ import {
   CheckCircle2,
   Gift,
   Heart,
-  MessageCircle,
-  MessagesSquare,
-  Phone,
   Send,
   Sparkles,
   Users,
 } from "lucide-react";
+import { EVENT_INVITATION_BODY } from "@/lib/whatsapp/approvedTemplates";
 import { HOME_FAQS } from "@/lib/seo/homeIntentMap";
 
 function LazyInViewVideo({
@@ -136,48 +134,56 @@ const SERVICES = [
     href: "/invitations/chatuna",
     title: "הזמנות דיגיטליות",
     body: "הזמנה מעוצבת שמספרת את הסיפור שלכם ומגיעה ישירות לאנשים שאתם אוהבים.",
+    cta: "להזמנות הדיגיטליות",
     icon: Gift,
   },
   {
     href: "/rsvp/save-the-date",
     title: "Save the Date",
     body: "מודיעים לכולם שיש תאריך, ונותנים להם סיבה טובה לשמור אותו ביומן.",
+    cta: "לשריין את הרגע",
     icon: CalendarHeart,
   },
   {
     href: "/rsvp",
     title: "אישורי הגעה",
     body: "יודעים מי מגיע, מי עדיין מתלבט וממי עוד מחכים לתשובה.",
+    cta: "כך זה עובד",
     icon: CheckCircle2,
   },
   {
     href: "/seating-explained",
     title: "סידורי הושבה",
     body: "מסדרים את השולחנות, משבצים אורחים ורואים את התמונה המלאה לפני האירוע.",
+    cta: "סידורי הושבה",
     icon: Armchair,
   },
   {
     href: "/wedding-website",
     title: "אתר חתונה",
     body: "מקום אחד לכל הפרטים החשובים, עם עיצוב שמתאים לאירוע שלכם.",
+    cta: "לאתרי החתונה",
     icon: Heart,
   },
   {
     href: "/rsvp/guest-list",
     title: "ניהול מוזמנים",
     body: "רשימה אחת מסודרת, עם פרטי האורחים, סטטוסים ועדכונים.",
+    cta: "ניהול מוזמנים",
     icon: Users,
   },
   {
     href: "/rsvp/reminders",
     title: "תזכורות והודעות",
     body: "מזכירים לאורחים את הפרטים החשובים ושומרים על קשר גם אחרי האירוע.",
+    cta: "תזכורות והודעות",
     icon: Send,
   },
   {
     href: "/event-management",
     title: "ניהול יום האירוע",
     body: "עוקבים אחר הגעת האורחים ומנהלים את המתרחש בזמן אמת, בהתאם לשירותים שנבחרו.",
+    cta: "ניהול יום האירוע",
     icon: Sparkles,
   },
 ] as const;
@@ -233,46 +239,170 @@ const EVENTS = [
   },
 ] as const;
 
+const STD_MESSAGE = `Save The Date
+מיה ואלון
+
+אנחנו מתרגשים להזמין אתכם לשריין את התאריך
+24.06.2027
+
+פרטים נוספים יישלחו בקרוב 🤍`;
+
+const INVITE_MESSAGE = EVENT_INVITATION_BODY.replace("{{1}}", "החתונה של מיה ואלון")
+  .replace("{{2}}", "24.06.2027")
+  .replace("{{3}}", "אולמי אלכסנדר");
+
+const RSVP_MESSAGE =
+  "משפחה וחברים יקרים,\n" +
+  "הנכם מוזמנים לחתונה של מיה ואלון 🤍\n\n" +
+  "📅 תאריך: 24.06.2027\n" +
+  "📍 מיקום: אולמי אלכסנדר\n\n" +
+  "לאישור הגעה לחצו על הכפתור למטה 👇\n\n" +
+  "מחכים לשמוח איתכם 💖";
+
 const JOURNEY = [
   {
     when: "3–6 חודשים לפני",
     title: "Save the Date — שומרים את התאריך",
     body: "האירוע עוד רחוק, אבל ההתרגשות כבר כאן. שולחים הודעה שמאפשרת לאורחים לשריין את היום ביומן, עוד לפני שההזמנה הרשמית מוכנה.",
-    message: [
-      "Save The Date",
-      "מיה ואלון",
-      "",
-      "אנחנו מתרגשים להזמין אתכם לשריין את התאריך",
-      "24.06.2027",
-      "",
-      "פרטים נוספים יישלחו בקרוב 🤍",
-    ],
-    tone: "cream" as const,
+    message: STD_MESSAGE,
+    image: "/marketing/videos/home-save-the-date-poster.jpg",
+    imageAlt: "כרטיס Save the Date — מיה ואלון",
+    cta: null,
+    time: "10:12",
   },
   {
     when: "חודש עד חודש וחצי לפני",
     title: "ההזמנה — משתפים את הרגע המיוחד",
     body: "זה הזמן לשלוח את ההזמנה המעוצבת עם פרטי האירוע. בשלב הזה אין צורך לבקש אישור הגעה — המטרה היא להזמין, לשתף ולתת לאורחים זמן להיערך.",
-    message: [
-      "מיה ואלון מתרגשים להזמין אתכם לחגוג איתם!",
-      "24.06.2027",
-      "אולמי אלכסנדר",
-      "מחכים לשמוח יחד איתכם.",
-    ],
-    tone: "gold" as const,
+    message: INVITE_MESSAGE,
+    image: "/marketing/invites/invite-wedding-mia-alon.webp",
+    imageAlt: "הזמנה דיגיטלית — החתונה של מיה ואלון",
+    cta: null,
+    time: "18:40",
   },
   {
     when: "שבועיים עד שבועיים וחצי לפני",
     title: "אישורי הגעה — מקבלים תשובות בזמן הנכון",
     body: "כשהאירוע מתקרב, קל יותר לאורחים לדעת אם יוכלו להגיע. זה הזמן לשלוח את הקישור האישי, לקבל תשובות ולרכז את הנתונים לקראת ההושבה.",
-    message: [
-      "החתונה של מיה ואלון מתקרבת!",
-      "נשמח לדעת אם תגיעו לחגוג איתנו ❤️",
-    ],
-    tone: "espresso" as const,
-    showRsvp: true,
+    message: RSVP_MESSAGE,
+    image: "/marketing/invites/invite-wedding-mia-alon.webp",
+    imageAlt: "הזמנה עם קישור אישי לאישור הגעה",
+    cta: "לאישור הגעה",
+    time: "11:05",
   },
 ] as const;
+
+/** Official WhatsApp brand mark — green glyph, not a generic chat bubble. */
+function WhatsAppBrandIcon({ size = 28 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden>
+      <circle cx="16" cy="16" r="16" fill="#25D366" />
+      <path
+        d="M16.02 7.2C11.08 7.2 7.08 11.2 7.08 16.14c0 1.58.42 3.12 1.2 4.48L6.9 25.4l4.96-1.3a8.9 8.9 0 0 0 4.16 1.02c4.94 0 8.94-4 8.94-8.94S20.96 7.2 16.02 7.2Z"
+        fill="white"
+      />
+      <path
+        d="M13.14 11.15C12.86 10.53 12.57 10.52 12.31 10.51C12.1 10.5 11.86 10.5 11.62 10.5C11.38 10.5 10.98 10.59 10.64 10.96C10.3 11.34 9.35 12.2 9.35 13.95C9.35 15.7 10.67 17.39 10.85 17.63C11.03 17.87 13.27 21.47 16.78 22.84C19.69 23.98 20.29 23.75 20.93 23.69C21.57 23.63 22.99 22.84 23.28 22.05C23.57 21.26 23.57 20.58 23.48 20.43C23.39 20.28 23.14 20.19 22.77 20.01C22.41 19.83 20.59 18.93 20.26 18.81C19.93 18.69 19.69 18.63 19.45 18.99C19.21 19.35 18.54 20.13 18.33 20.37C18.12 20.61 17.9 20.64 17.54 20.46C17.17 20.28 15.98 19.9 14.56 18.63C13.45 17.64 12.69 16.42 12.48 16.06C12.27 15.7 12.46 15.51 12.64 15.33C12.8 15.17 13 14.91 13.18 14.7C13.36 14.49 13.42 14.34 13.54 14.1C13.66 13.86 13.6 13.65 13.51 13.47C13.42 13.29 12.76 11.52 13.14 11.15Z"
+        fill="#25D366"
+      />
+    </svg>
+  );
+}
+
+function SmsIcon() {
+  return (
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden>
+      <rect x="2.5" y="4.5" width="23" height="15.5" rx="3.5" fill="#2C241C" />
+      <path d="M8.5 22.5 12 18.5H21.5a3.5 3.5 0 0 0 3.5-3.5V10" fill="#2C241C" />
+      <text
+        x="14"
+        y="14.6"
+        textAnchor="middle"
+        fill="#F7F1E8"
+        fontSize="8"
+        fontWeight="800"
+        fontFamily="Heebo, Arial, sans-serif"
+        letterSpacing="0.04em"
+      >
+        SMS
+      </text>
+    </svg>
+  );
+}
+
+function PhoneIconMark() {
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <path
+        d="M8.2 3.8c.4-.4 1-.5 1.5-.3l2.1.8c.6.2 1 .8.9 1.4l-.3 2.2a1.4 1.4 0 0 1-.8 1.1l-1.1.5a11.3 11.3 0 0 0 4.9 4.9l.5-1.1c.2-.5.7-.7 1.1-.8l2.2-.3c.6-.1 1.2.3 1.4.9l.8 2.1c.2.5.1 1.1-.3 1.5l-1.3 1.3c-.4.4-1 .6-1.6.5C10.4 18.6 5.4 13.6 4 6.7c-.1-.6.1-1.2.5-1.6L8.2 3.8Z"
+        fill="#2C241C"
+      />
+    </svg>
+  );
+}
+
+function WhatsAppChatMock({
+  message,
+  image,
+  imageAlt,
+  cta,
+  time,
+}: {
+  message: string;
+  image?: string;
+  imageAlt?: string;
+  cta?: string | null;
+  time: string;
+}) {
+  return (
+    <div
+      dir="rtl"
+      className="overflow-hidden rounded-[22px] border border-[#D8CCB8] bg-[#E5DDD5] shadow-[0_18px_40px_rgba(44,36,28,0.1)]"
+    >
+      <div className="flex items-center gap-3 bg-[#075E54] px-3.5 py-2.5 text-white">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C9A45C] text-xs font-black text-[#1C1612]">
+          IN
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-black">Invistimo</p>
+          <p className="text-[11px] text-white/70">עסק</p>
+        </div>
+      </div>
+      <div
+        className="px-2.5 py-3"
+        style={{
+          backgroundImage:
+            "radial-gradient(rgba(0,0,0,0.04) 1px, transparent 1px)",
+          backgroundSize: "14px 14px",
+          backgroundColor: "#E5DDD5",
+        }}
+      >
+        <div className="mr-auto max-w-[94%] overflow-hidden rounded-xl rounded-tr-sm bg-white shadow-[0_1px_2px_rgba(0,0,0,0.08)]">
+          {image ? (
+            <img
+              src={image}
+              alt={imageAlt || ""}
+              className="aspect-[4/3] w-full object-cover object-top"
+              loading="lazy"
+              decoding="async"
+            />
+          ) : null}
+          <div className="whitespace-pre-line px-3 py-2.5 text-[13px] leading-[1.55] text-[#111B21]">
+            {message}
+          </div>
+          {cta ? (
+            <div className="border-t border-[#E9EDEF] px-3 py-2.5 text-center text-[13.5px] font-semibold text-[#027EB5]">
+              {cta}
+            </div>
+          ) : null}
+          <div className="px-3 pb-1.5 text-left text-[10px] leading-none text-[#667781]">
+            {time}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function HomeMarketingSections() {
   return (
@@ -391,7 +521,7 @@ export default function HomeMarketingSections() {
                   <h3 className="text-lg font-black">{service.title}</h3>
                   <p className="mt-2 flex-1 text-[14px] leading-7 text-[#5C4A3A]">{service.body}</p>
                   <span className="mt-4 text-sm font-black text-[#8B642B] transition group-hover:text-[#2C241C]">
-                    לפרטים ←
+                    {service.cta} ←
                   </span>
                 </Link>
               </motion.div>
@@ -424,7 +554,7 @@ export default function HomeMarketingSections() {
               לשמור אותו מראש ולהתחיל להתרגש יחד איתכם.
             </p>
             <div className="mt-8">
-              <GoldCta href="/rsvp/save-the-date">לגלות את Save the Date</GoldCta>
+              <GoldCta href="/rsvp/save-the-date">לשריין את הרגע</GoldCta>
             </div>
           </div>
           <LazyInViewVideo
@@ -455,72 +585,70 @@ export default function HomeMarketingSections() {
             כאן הם המלצה לחתונה — לא כלל קשיח לכל אירוע.
           </p>
 
-          <ol className="relative mt-14 space-y-8">
+          <ol className="relative mt-14 space-y-16 md:space-y-20">
+            {/* Center timeline — desktop only */}
             <div
-              className="pointer-events-none absolute bottom-8 top-8 right-[1.35rem] w-px bg-gradient-to-b from-[#C9A45C] via-[#E0D4C2] to-[#C9A45C] md:right-1/2 md:translate-x-1/2"
+              className="pointer-events-none absolute bottom-12 top-12 left-1/2 hidden w-px -translate-x-1/2 bg-gradient-to-b from-[#C9A45C] via-[#E0D4C2] to-[#C9A45C] md:block"
               aria-hidden
             />
-            {JOURNEY.map((step, index) => (
-              <motion.li
-                key={step.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                className={`relative grid gap-6 md:grid-cols-2 md:items-center ${
-                  index % 2 === 1 ? "md:[&>*:first-child]:order-2" : ""
-                }`}
-              >
-                <div className="rounded-[28px] border border-[#E7D3B0] bg-[#F7F1E8] p-6 shadow-[0_20px_44px_rgba(44,36,28,0.07)] md:p-8">
-                  <span className="inline-flex rounded-full border border-[#C9A45C]/40 bg-white/70 px-4 py-1.5 text-xs font-black tracking-[0.12em] text-[#8B642B]">
-                    שלב {index + 1} · {step.when}
-                  </span>
-                  <h3 className="mt-4 text-2xl font-black text-[#2C241C]">{step.title}</h3>
-                  <p className="mt-3 text-[15px] leading-7 text-[#5C4A3A]">{step.body}</p>
-                </div>
-                <div className="relative">
-                  <span className="absolute -right-1 top-8 z-10 flex h-8 w-8 items-center justify-center rounded-full border-2 border-[#C9A45C] bg-[#FFFDF8] text-xs font-black text-[#8B642B] md:left-1/2 md:right-auto md:-translate-x-1/2 md:top-1/2 md:-translate-y-1/2">
-                    {index + 1}
-                  </span>
+
+            {JOURNEY.map((step, index) => {
+              const textFirst = index % 2 === 0;
+              return (
+                <motion.li
+                  key={step.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  className="relative grid items-start gap-5 md:grid-cols-[1fr_56px_1fr] md:items-center md:gap-5"
+                >
+                  {/* Mobile: number above the step, not over message text */}
+                  <div className="flex items-center gap-3 md:hidden">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-[#C9A45C] bg-[#FFFDF8] text-sm font-black text-[#8B642B]">
+                      {index + 1}
+                    </span>
+                    <span className="h-px flex-1 bg-gradient-to-l from-transparent to-[#C9A45C]/70" aria-hidden />
+                  </div>
+
                   <div
-                    className={`rounded-[28px] p-5 shadow-[0_24px_50px_rgba(44,36,28,0.14)] ${
-                      step.tone === "espresso"
-                        ? "bg-[#1C1612] text-[#F7F1E8]"
-                        : step.tone === "gold"
-                          ? "bg-[#2C241C] text-[#F7F1E8]"
-                          : "bg-[#ECE5DD] text-[#111B21]"
-                    }`}
+                    className={
+                      textFirst ? "md:col-start-1 md:row-start-1" : "md:col-start-3 md:row-start-1"
+                    }
                   >
-                    <div
-                      className={`rounded-2xl p-4 text-[14px] leading-7 ${
-                        step.tone === "cream" ? "bg-[#DCF8C6]" : "bg-white/10"
-                      }`}
-                    >
-                      {step.message.map((line, li) =>
-                        line ? (
-                          <p key={li} className={li === 0 ? "font-black" : ""}>
-                            {line}
-                          </p>
-                        ) : (
-                          <br key={li} />
-                        ),
-                      )}
-                      {"showRsvp" in step && step.showRsvp ? (
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          {["מגיע/ה", "לא מגיע/ה", "עדיין לא בטוח/ה"].map((label) => (
-                            <span
-                              key={label}
-                              className="rounded-full border border-white/25 px-3 py-1.5 text-xs font-bold"
-                            >
-                              {label}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null}
+                    <div className="rounded-[28px] border border-[#E7D3B0] bg-[#F7F1E8] p-5 shadow-[0_20px_44px_rgba(44,36,28,0.07)] md:p-8">
+                      <span className="inline-flex rounded-full border border-[#C9A45C]/40 bg-white/70 px-4 py-1.5 text-xs font-black tracking-[0.12em] text-[#8B642B]">
+                        שלב {index + 1} · {step.when}
+                      </span>
+                      <h3 className="mt-4 text-xl font-black text-[#2C241C] md:text-2xl">
+                        {step.title}
+                      </h3>
+                      <p className="mt-3 text-[15px] leading-7 text-[#5C4A3A]">{step.body}</p>
                     </div>
                   </div>
-                </div>
-              </motion.li>
-            ))}
+
+                  {/* Desktop number on center axis only */}
+                  <div className="relative z-10 hidden md:col-start-2 md:row-start-1 md:flex md:justify-center">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#C9A45C] bg-[#FFFDF8] text-sm font-black text-[#8B642B] shadow-[0_0_0_6px_#FFFDF8]">
+                      {index + 1}
+                    </span>
+                  </div>
+
+                  <div
+                    className={
+                      textFirst ? "md:col-start-3 md:row-start-1" : "md:col-start-1 md:row-start-1"
+                    }
+                  >
+                    <WhatsAppChatMock
+                      message={step.message}
+                      image={step.image}
+                      imageAlt={step.imageAlt}
+                      cta={step.cta}
+                      time={step.time}
+                    />
+                  </div>
+                </motion.li>
+              );
+            })}
           </ol>
         </div>
       </section>
@@ -545,41 +673,45 @@ export default function HomeMarketingSections() {
           </p>
 
           <div className="mt-12 grid gap-5 md:grid-cols-3">
-            {[
-              {
-                href: "/rsvp/whatsapp",
-                title: "WhatsApp",
-                body: "הודעה אישית עם קישור לאישור הגעה, בדרך שנוחה ומוכרת לאורחים.",
-                icon: MessageCircle,
-              },
-              {
-                href: "/rsvp/sms",
-                title: "SMS",
-                body: "תזכורות והודעות חשובות שמגיעות ישירות לטלפון.",
-                icon: MessagesSquare,
-              },
-              {
-                href: "/rsvp/calls",
-                title: "שיחות",
-                body: "שיחות מוקלטות, אנושיות או משולבות, בהתאם לחבילה שנבחרה, כדי להגיע גם לאורחים שעדיין לא השיבו.",
-                icon: Phone,
-              },
-            ].map((channel) => (
-              <Link
-                key={channel.href}
-                href={channel.href}
-                className="rounded-[28px] border border-[#E7D3B0] bg-[#FFFDF8] p-6 shadow-[0_18px_40px_rgba(44,36,28,0.06)] transition hover:-translate-y-1 hover:border-[#C9A45C]"
-              >
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#25D366]/15 text-[#128C7E]">
-                  <channel.icon size={22} />
-                </span>
-                <h3 className="mt-5 text-xl font-black text-[#2C241C]">{channel.title}</h3>
-                <p className="mt-2 text-[15px] leading-7 text-[#5C4A3A]">{channel.body}</p>
-              </Link>
-            ))}
+            <Link
+              href="/rsvp/whatsapp"
+              className="rounded-[28px] border border-[#E7D3B0] bg-[#FFFDF8] p-6 shadow-[0_18px_40px_rgba(44,36,28,0.06)] transition hover:-translate-y-1 hover:border-[#C9A45C]"
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FFF9EF] ring-1 ring-[#E7D3B0]">
+                <WhatsAppBrandIcon size={28} />
+              </span>
+              <h3 className="mt-5 text-xl font-black text-[#2C241C]">WhatsApp</h3>
+              <p className="mt-2 text-[15px] leading-7 text-[#5C4A3A]">
+                הודעה אישית עם קישור לאישור הגעה, בדרך שנוחה ומוכרת לאורחים.
+              </p>
+            </Link>
+            <Link
+              href="/rsvp/sms"
+              className="rounded-[28px] border border-[#E7D3B0] bg-[#FFFDF8] p-6 shadow-[0_18px_40px_rgba(44,36,28,0.06)] transition hover:-translate-y-1 hover:border-[#C9A45C]"
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FFF9EF] ring-1 ring-[#E7D3B0]">
+                <SmsIcon />
+              </span>
+              <h3 className="mt-5 text-xl font-black text-[#2C241C]">SMS</h3>
+              <p className="mt-2 text-[15px] leading-7 text-[#5C4A3A]">
+                תזכורות והודעות חשובות שמגיעות ישירות לטלפון.
+              </p>
+            </Link>
+            <Link
+              href="/rsvp/calls"
+              className="rounded-[28px] border border-[#E7D3B0] bg-[#FFFDF8] p-6 shadow-[0_18px_40px_rgba(44,36,28,0.06)] transition hover:-translate-y-1 hover:border-[#C9A45C]"
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FFF9EF] ring-1 ring-[#E7D3B0]">
+                <PhoneIconMark />
+              </span>
+              <h3 className="mt-5 text-xl font-black text-[#2C241C]">שיחות</h3>
+              <p className="mt-2 text-[15px] leading-7 text-[#5C4A3A]">
+                שיחות מוקלטות, אנושיות או משולבות, בהתאם לחבילה שנבחרה, כדי להגיע גם לאורחים שעדיין לא השיבו.
+              </p>
+            </Link>
           </div>
           <div className="mt-10">
-            <GoldCta href="/rsvp">לגלות את אישורי ההגעה</GoldCta>
+            <GoldCta href="/rsvp">כך זה עובד</GoldCta>
           </div>
         </div>
       </section>
@@ -605,7 +737,7 @@ export default function HomeMarketingSections() {
             </p>
             <div className="mt-8">
               <GoldCta href="/seating-explained" dark>
-                לגלות את סידורי ההושבה
+                סידורי הושבה
               </GoldCta>
             </div>
           </div>
@@ -697,7 +829,7 @@ export default function HomeMarketingSections() {
           </p>
           <div className="mt-10 flex justify-center">
             <GoldCta href="/pricing" dark>
-              לצפייה בחבילות ובמחירים
+              לצפייה בחבילות
             </GoldCta>
           </div>
         </div>
