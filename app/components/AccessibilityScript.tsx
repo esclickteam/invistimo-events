@@ -12,6 +12,17 @@ export default function AccessibilityScript() {
     pathname.startsWith("/producer") ||
     pathname.startsWith("/events");
 
+  // Official UserWay bottom-left (position 7) before the widget boots.
+  useEffect(() => {
+    if (isInternal) return;
+    const w = window as Window & { _userway_config?: Record<string, unknown> };
+    w._userway_config = {
+      ...(w._userway_config || {}),
+      account: "HnP2BQ1axC",
+      position: 7,
+    };
+  }, [isInternal]);
+
   // 🔥 ניקוי אם נכנסנו לאזור פנימי
   useEffect(() => {
     if (!isInternal) return;
@@ -47,6 +58,7 @@ export default function AccessibilityScript() {
       id="userway-widget"
       src="https://cdn.userway.org/widget.js"
       data-account="HnP2BQ1axC"
+      data-position="7"
       // After LCP: avoid competing with hero image bandwidth on first paint.
       strategy="lazyOnload"
     />

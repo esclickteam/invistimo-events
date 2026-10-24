@@ -84,7 +84,7 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
     path: "/",
     title: "Invistimo | אישורי הגעה, הזמנות דיגיטליות, הושבה וניהול אירוע",
     description:
-      "Invistimo היא מערכת ישראלית לאישורי הגעה עם קישור אישי, הזמנות דיגיטליות, Save the Date, סידורי הושבה וניהול אירוע. סבבי וואטסאפ, תזכורת SMS ומעקב בדשבורד — המחיר במחשבון לפי רשומות.",
+      "Invistimo — מערכת ישראלית להזמנות דיגיטליות, אישורי הגעה לאירועים ולחתונה, Save the Date, סידורי הושבה וניהול מוזמנים. WhatsApp, SMS וחוויית אורח פשוטה בלי אפליקציה.",
     changeFrequency: "weekly",
     priority: 1,
   },

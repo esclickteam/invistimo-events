@@ -327,7 +327,10 @@ test("pillar clusters do not assign one URL to two topics and answer-first cover
     assert.ok(PAGE_ANSWER_HEADINGS[pathKey], `heading for ${pathKey}`);
     assert.doesNotMatch(answerHeadingFor(pathKey), /התשובה הקצרה/);
   }
-  assert.equal(answerHeadingFor("/"), "מה מקבלים במערכת אחת?");
+  assert.equal(
+    answerHeadingFor("/"),
+    "אתם מתכננים את הרגעים היפים. אנחנו דואגים לכל מה שמסביב."
+  );
   assert.equal(answerHeadingFor("/rsvp"), "איך מתבצע תהליך אישור ההגעה?");
   assert.equal(answerHeadingFor("/seating-explained"), "איך מנהלים סידורי הושבה?");
   assert.equal(answerHeadingFor("/wedding-website"), "מה מקבלים באתר חתונה?");
@@ -344,7 +347,8 @@ test("pillar clusters do not assign one URL to two topics and answer-first cover
   assert.match(read("app/seating-explained/layout.tsx"), /AnswerFirst/);
   assert.match(read("app/event-management/page.jsx"), /AnswerFirst/);
   assert.match(read("components/marketing/PricingMarketingExtras.tsx"), /AnswerFirst/);
-  assert.match(read("app/HomePageClient.tsx"), /AnswerFirst/);
+  assert.match(read("app/HomePageClient.tsx"), /HomeMarketingSections/);
+  assert.doesNotMatch(read("app/HomePageClient.tsx"), /AnswerFirst/);
   assert.match(read("app/faq/page.jsx"), /AnswerFirst/);
   assert.match(read("lib/seo/answers.ts"), /PAGE_ANSWER_HEADINGS/);
   assert.doesNotMatch(read("lib/seo/answers.ts"), /התשובה הקצרה/);
