@@ -1,31 +1,43 @@
-# קישורי Preview — לפני פרסום (PR #380)
+# קישורי Preview — PR #382
 
-**עודכן:** 2026-10-23 17:05 (Asia/Jerusalem)  
-**חשוב:** Tunnel זמני ל־`localhost:3010` של הסוכן — **לא** פרודקשן. עלול להשתנות אם ה־tunnel מתחדש.  
-**אין Deploy.**
+**עודכן:** 2026-10-24 (Asia/Jerusalem)  
+**אין Deploy / Merge לפרודקשן בלי אישור.**
 
-## בסיס Preview נוכחי
+## Preview יציב (Vercel)
 
-`https://distinguished-character-trademarks-neighbors.trycloudflare.com`
+**כתובת יציבה לענף PR #382:**
 
-## עמודים מרכזיים
+https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app
+
+זו כתובת Git-branch של Vercel — נשארת קבועה לכל עודכן על `cursor/premium-marketing-upgrade-3a61`, בלי Cloudflare זמני.
+
+### דגלים
 
 | עמוד | קישור |
 | --- | --- |
-| בית | https://distinguished-character-trademarks-neighbors.trycloudflare.com/ |
-| אישורי הגעה | https://distinguished-character-trademarks-neighbors.trycloudflare.com/rsvp |
-| אישורי הגעה לחתונה | https://distinguished-character-trademarks-neighbors.trycloudflare.com/rsvp/chatuna |
-| אישורי הגעה בוואטסאפ | https://distinguished-character-trademarks-neighbors.trycloudflare.com/rsvp/whatsapp |
-| Save the Date | https://distinguished-character-trademarks-neighbors.trycloudflare.com/rsvp/save-the-date |
-| הזמנות דיגיטליות | https://distinguished-character-trademarks-neighbors.trycloudflare.com/invitations/chatuna |
-| סידורי הושבה | https://distinguished-character-trademarks-neighbors.trycloudflare.com/seating-explained |
-| ניהול אירועים | https://distinguished-character-trademarks-neighbors.trycloudflare.com/event-management |
-| חבילות ומחירים | https://distinguished-character-trademarks-neighbors.trycloudflare.com/pricing |
-| שאלות ותשובות | https://distinguished-character-trademarks-neighbors.trycloudflare.com/faq |
-| מדריכים | https://distinguished-character-trademarks-neighbors.trycloudflare.com/info/guides |
-| יצירת קשר | https://distinguished-character-trademarks-neighbors.trycloudflare.com/contact |
-| הרשמה (UI בלבד) | https://distinguished-character-trademarks-neighbors.trycloudflare.com/register |
-| דמו דשבורד | https://distinguished-character-trademarks-neighbors.trycloudflare.com/try/dashboard |
-| דמו הושבה | https://distinguished-character-trademarks-neighbors.trycloudflare.com/try/dashboard/seating |
+| בית | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/ |
+| אישורי הגעה | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/rsvp |
+| הושבה | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/seating-explained |
+| אתר חתונה | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/wedding-website |
+| הזמנות | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/invitations/chatuna |
+| SMS | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/rsvp/sms |
+| Save the Date | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/rsvp/save-the-date |
+| מדריכים | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/info/guides |
+| בר מצווה | https://invistimo-events-git-cursor-premium-ma-aa38ce-esclicks-projects.vercel.app/for/bar-mitzvah |
 
-PR: https://github.com/esclickteam/invistimo-events/pull/380
+## מה תוקן ב־Vercel (בלי Deploy לפרודקשן)
+
+1. `previewDeploymentsDisabled` הופעל מחדש (`false`) — כדי ש־PR יוכל לקבל Preview.
+2. Deployment Protection / SSO הוסר מהפרויקט כדי שה־Preview ייפתח בדפדפן רגיל ובגלישה בסתר (בלי התחברות Vercel).
+3. פרודקשן (`www.invistimo.com`) לא עודכן בענף הזה.
+
+## הערות
+
+- אין להשתמש שוב ב־Cloudflare Quick Tunnel לסקירה — הוא נופל אחרי זמן קצר.
+- staging.invistimo.com נשאר סביבת staging נפרדת (ענף `staging`) ואינו מחליף את Preview של PR #382.
+- אחרי כל push לענף, אותו קישור Git-branch מתעדכן לבילד האחרון.
+
+## מדיה מעודכנת (תהליכים אמיתיים)
+
+סרטונים חדשים תחת `/marketing/videos/process-*.webm` מתוך דמו מאיה ואיתי.
+רשימת עמודים: `docs/seo/media-alignment-checklist.md`.

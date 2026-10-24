@@ -91,3 +91,4 @@ tmp/
 dist/
 build/
 .vercel
+scripts/marketing/std-video/.frames/

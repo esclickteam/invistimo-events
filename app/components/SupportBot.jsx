@@ -131,8 +131,11 @@ export default function SupportBot({ onClose }) {
     <div
       dir="rtl"
       className="
-        fixed bottom-24 right-6 z-[9999]
-        w-[calc(100vw-32px)] max-w-[390px]
+        fixed z-[9999]
+        bottom-[max(5.5rem,calc(env(safe-area-inset-bottom)+4.5rem))]
+        right-[max(1rem,env(safe-area-inset-right))]
+        w-[min(390px,calc(100vw-1.5rem))]
+        max-w-[390px]
       "
     >
       <div

@@ -6,8 +6,6 @@ import { usePathname } from "next/navigation";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
 import LayoutShell from "./components/LayoutShell";
-import SupportBotButton from "./components/SupportBotButton";
-import SupportBotGate from "./components/SupportBotGate";
 import VenueAppHeader from "@/components/venues/VenueAppHeader";
 
 export default function ClientShell({ children }: { children: ReactNode }) {
@@ -37,58 +35,7 @@ export default function ClientShell({ children }: { children: ReactNode }) {
   const isSetPasswordPage =
     pathname === "/set-password" || pathname.startsWith("/set-password/");
 
-  /* =====================================================
-     ❌ דפים פנימיים / אחרי התחברות – בלי SupportBot
-     שימי לב:
-     לא משתמשים ב-pathname.startsWith("/seating")
-     כי זה חוסם בטעות גם את /seating-explained
-  ===================================================== */
-  const isInternalPage =
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/try/dashboard") ||
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/producer") ||
-    pathname.startsWith("/venues") ||
-    pathname.startsWith("/events") ||
-    pathname.startsWith("/client") ||
-    pathname.startsWith("/guests") ||
-    pathname.startsWith("/sales-documents") ||
-    pathname.startsWith("/client-contracts/sign") ||
-    pathname === "/seating" ||
-    pathname.startsWith("/seating/");
-
-  /* =====================================================
-     ❌ דפי התחברות / הרשמה – בלי SupportBot
-  ===================================================== */
-  const isAuthPage =
-    pathname.startsWith("/login") ||
-    pathname.startsWith("/register") ||
-    pathname.startsWith("/forgot-password") ||
-    pathname.startsWith("/reset-password") ||
-    pathname === "/set-password" ||
-    pathname.startsWith("/set-password/");
-
-  /* =====================================================
-     ❌ דפי הזמנות / RSVP / תודה – בלי SupportBot
-  ===================================================== */
-  const isInvitationPublicPage =
-    pathname === "/thank-you" ||
-    pathname.startsWith("/invite/") ||
-    pathname.startsWith("/rsvp/") ||
-    pathname.startsWith("/invitation/") ||
-    pathname === "/w" ||
-    pathname.startsWith("/w/") ||
-    pathname === "/wedding-website" ||
-    pathname.startsWith("/wedding-website/");
-
-  /* =====================================================
-     ✅ כל דף חיצוני לפני התחברות
-     כל מה שלא פנימי / לא התחברות / לא הזמנה
-  ===================================================== */
-  const showSupportBot =
-    !isInternalPage &&
-    !isAuthPage &&
-    !isInvitationPublicPage;
+  /* SupportBot mounts once from PublicPageShell (avoids duplicate FABs / CLS). */
 
   /* =====================================================
      🔴 Admin – בלי Header / Footer בכלל
@@ -130,16 +77,8 @@ export default function ClientShell({ children }: { children: ReactNode }) {
      🟢 אתר רגיל
   ===================================================== */
   return (
-    <>
-      <LayoutShell header={<Header />} footer={<Footer />}>
-        {children}
-      </LayoutShell>
-
-      {showSupportBot && (
-        <SupportBotGate>
-          <SupportBotButton />
-        </SupportBotGate>
-      )}
-    </>
+    <LayoutShell header={<Header />} footer={<Footer />}>
+      {children}
+    </LayoutShell>
   );
 }

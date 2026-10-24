@@ -22,11 +22,19 @@ export const PILLARS: ContentPillar[] = [
     clusters: [
       { path: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { path: "/rsvp/whatsapp", label: "אישורי הגעה בוואטסאפ" },
+      { path: "/rsvp/sms", label: "SMS ותזכורות" },
+      { path: "/rsvp/calls", label: "שיחות טלפון" },
+      { path: "/rsvp/guest-list", label: "רשימת מוזמנים" },
       { path: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },
+      { path: "/info/guides/how-many-rsvp-rounds", label: "כמה סבבים" },
       { path: "/info/guides/cost-rsvp-wedding", label: "איך מחושב המחיר" },
       { path: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
-      { path: "/info/guides/guest-list", label: "רשימת מוזמנים" },
+      { path: "/info/guides/guest-list", label: "מדריך רשימה" },
       { path: "/info/guides/reduce-meal-waste", label: "מספר מנות לאולם" },
+      { path: "/info/guides/bar-mitzvah-rsvp-plan", label: "תכנון לבר מצווה" },
+      { path: "/info/guides/send-reminder-messages", label: "איך שולחים תזכורת" },
+      { path: "/rsvp/reminders", label: "עמוד תזכורות" },
+      { path: "/rsvp/thank-you-messages", label: "הודעות תודה" },
     ],
   },
   {
@@ -37,7 +45,10 @@ export const PILLARS: ContentPillar[] = [
     clusters: [
       { path: "/rsvp/save-the-date", label: "Save the Date" },
       { path: "/info/guides/send-digital-invitation", label: "איך שולחים הזמנה" },
+      { path: "/info/guides/when-to-send-invitation", label: "מתי שולחים הזמנה" },
+      { path: "/info/guides/when-to-send-save-the-date", label: "מתי Save the Date" },
       { path: "/info/guides/save-the-date-vs-invitation", label: "Save the Date מול הזמנה" },
+      { path: "/info/guides/build-wedding-website", label: "בניית אתר חתונה" },
     ],
   },
   {
@@ -55,7 +66,11 @@ export const PILLARS: ContentPillar[] = [
     name: "ניהול אירועים",
     path: "/event-management",
     summary: "משימות, ספקים, תקציב, תשלומים ולוח זמנים, לצד האישורים וההושבה.",
-    clusters: [{ path: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" }],
+    clusters: [
+      { path: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" },
+      { path: "/info/guides/manage-corporate-event", label: "אירוע עסקי" },
+      { path: "/info/demo", label: "דמו אינטראקטיבי" },
+    ],
   },
 ];
 

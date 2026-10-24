@@ -20,8 +20,14 @@ const secondaryClass =
   "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white px-8 py-3 text-base font-black text-[#5E4735]";
 
 export default function GuidesPage() {
+  const clusteredPaths = new Set(
+    PILLARS.flatMap((pillar) => pillar.clusters.map((item) => item.path))
+  );
+  const uncategorized = GUIDES.filter((guide) => !clusteredPaths.has(guidePath(guide.slug)));
+
   return (
-    <main dir="rtl" className="overflow-hidden bg-[#FBF6EE] text-[#3F3025]">
+    // Landmark <main> lives in LayoutShell — avoid nested <main>.
+    <div dir="rtl" className="overflow-hidden bg-[#FBF6EE] text-[#3F3025]">
       <JsonLd
         data={graph([
           organizationNode(),
@@ -111,6 +117,27 @@ export default function GuidesPage() {
           );
         })}
 
+        {uncategorized.length ? (
+          <section className="rounded-[32px] border border-[#E6D2AA] bg-white/85 p-6 md:p-8">
+            <h2 className="text-2xl font-black text-[#35281F] md:text-3xl">מדריכים נוספים</h2>
+            <ul className="mt-6 grid gap-4">
+              {uncategorized.map((guide) => (
+                <li
+                  key={guide.slug}
+                  className="rounded-[24px] border border-[#E6D2AA] bg-gradient-to-l from-[#FFF8EA] via-[#FFFDF7] to-[#F7E8CA] p-5"
+                >
+                  <h3 className="text-xl font-black text-[#35281F]">
+                    <Link href={guidePath(guide.slug)} className="hover:text-[#8A642E]">
+                      {guide.h1}
+                    </Link>
+                  </h3>
+                  <p className="mt-2 leading-7 text-[#5C4A3A]">{guide.description}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         <section className="overflow-hidden rounded-[32px] border border-[#E3C990] bg-gradient-to-l from-[#FFF8EA] via-white to-[#F7E8CA] p-7 md:p-10">
           <h2 className="text-3xl font-black text-[#35281F]">מוכנים להתקדם מהמדריך לשירות?</h2>
           <p className="mt-3 max-w-2xl leading-8 text-[#5C4A3A]">
@@ -126,6 +153,6 @@ export default function GuidesPage() {
           </div>
         </section>
       </div>
-    </main>
+    </div>
   );
 }

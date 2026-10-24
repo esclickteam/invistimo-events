@@ -10,7 +10,7 @@ import {
   aiUtmLabel,
   contentGroup,
 } from "../../lib/seo/analytics";
-import { PAGE_ANSWERS, tableFor } from "../../lib/seo/answers";
+import { PAGE_ANSWERS, PAGE_ANSWER_HEADINGS, answerHeadingFor, tableFor } from "../../lib/seo/answers";
 import { PILLARS } from "../../lib/seo/clusters";
 import { GUIDES, guidePath } from "../../lib/seo/guides";
 import { AI_MONITOR_QUESTIONS, KEYWORD_MAP } from "../../lib/seo/keywordMap";
@@ -23,6 +23,7 @@ import {
   softwareNode,
   websiteNode,
 } from "../../lib/seo/jsonld";
+import { EVENT_LANDINGS } from "../../lib/seo/eventLandings";
 import { CORE_PUBLIC_ROUTES, OG_IMAGE, pageMetadata } from "../../lib/seo/site";
 import { SERVICE_PAGES } from "../../lib/seo/services";
 import robots from "../../app/robots";
@@ -114,6 +115,24 @@ test("public metadata has a unique absolute canonical and stays indexable", () =
   );
   assert.equal(home.robots && typeof home.robots === "object" && "index" in home.robots && home.robots.index, true);
   assert.match(String(OG_IMAGE.url), /^https:\/\/www\.invistimo\.com\/og-invistimo\.jpg$/);
+
+  const prevVercel = process.env.VERCEL_ENV;
+  const prevApp = process.env.APP_ENV;
+  process.env.APP_ENV = "preview";
+  delete process.env.VERCEL_ENV;
+  try {
+    const previewHome = pageMetadata({ title: "בית", description: "בית", path: "/" });
+    assert.equal(
+      previewHome.robots && typeof previewHome.robots === "object" && "index" in previewHome.robots && previewHome.robots.index,
+      false,
+      "Preview must emit noindex in HTML meta (align with Vercel x-robots-tag)"
+    );
+  } finally {
+    if (prevApp === undefined) delete process.env.APP_ENV;
+    else process.env.APP_ENV = prevApp;
+    if (prevVercel === undefined) delete process.env.VERCEL_ENV;
+    else process.env.VERCEL_ENV = prevVercel;
+  }
 
   const titles = CORE_PUBLIC_ROUTES.map((route) => route.title);
   assert.equal(new Set(titles).size, titles.length);
@@ -261,8 +280,9 @@ test("marketing pages no longer point the RSVP call to action at a missing short
   assert.ok(fs.existsSync(path.join(root, "public/answers.json")));
   assert.ok(fs.existsSync(path.join(root, "public/homep1.webp")));
   assert.ok(fs.existsSync(path.join(root, "public/og-invistimo.jpg")));
-  assert.equal(GUIDES.length, 10);
-  assert.equal(SERVICE_PAGES.length, 5);
+  assert.equal(GUIDES.length, 17);
+  assert.equal(SERVICE_PAGES.length, 11);
+  assert.equal(EVENT_LANDINGS.length, 7);
   assert.match(read("app/components/Footer.tsx"), /href="\/pricing"/);
   assert.match(read("app/components/Footer.tsx"), /href="\/rsvp"/);
 });
@@ -273,6 +293,9 @@ test("each search query has one primary page and no invented volume", () => {
   const known = new Set([
     ...CORE_PUBLIC_ROUTES.map((route) => route.path),
     ...GUIDES.map((guide) => guidePath(guide.slug)),
+    ...SERVICE_PAGES.map((service) => service.path),
+    ...EVENT_LANDINGS.map((landing) => landing.path),
+    "/try",
   ]);
   for (const row of KEYWORD_MAP) {
     assert.equal(row.volume, null);
@@ -300,18 +323,35 @@ test("pillar clusters do not assign one URL to two topics and answer-first cover
   assert.ok(PAGE_ANSWERS["/faq"]);
   assert.ok(tableFor("/pricing"));
   assert.ok(tableFor("/rsvp"));
+  for (const pathKey of Object.keys(PAGE_ANSWERS)) {
+    assert.ok(PAGE_ANSWER_HEADINGS[pathKey], `heading for ${pathKey}`);
+    assert.doesNotMatch(answerHeadingFor(pathKey), /התשובה הקצרה/);
+  }
+  assert.equal(
+    answerHeadingFor("/"),
+    "אתם מתכננים את הרגעים היפים. אנחנו דואגים לכל מה שמסביב."
+  );
+  assert.equal(answerHeadingFor("/rsvp"), "איך מתבצע תהליך אישור ההגעה?");
+  assert.equal(answerHeadingFor("/seating-explained"), "איך מנהלים סידורי הושבה?");
+  assert.equal(answerHeadingFor("/wedding-website"), "מה מקבלים באתר חתונה?");
   const page = read("components/marketing/PublicContentPage.tsx");
   assert.match(page, /<h1/);
   assert.match(page, /<h2/);
   assert.match(page, /<h3/);
-  assert.match(page, /התשובה הקצרה/);
-  assert.match(read("components/seo/AnswerFirst.tsx"), /התשובה הקצרה/);
-  assert.match(read("app/(marketing)/rsvp/page.tsx"), /AnswerFirst/);
+  assert.doesNotMatch(page, /התשובה הקצרה/);
+  assert.doesNotMatch(read("components/seo/AnswerFirst.tsx"), /className=["'][^"']*sr-only/);
+  assert.doesNotMatch(read("components/seo/AnswerFirst.tsx"), /<h2>\s*התשובה הקצרה\s*<\/h2>/);
+  assert.match(read("components/seo/AnswerFirst.tsx"), /answerHeadingFor/);
+  assert.match(read("components/seo/AnswerFirst.tsx"), /id=["']overview["']/);
+  assert.doesNotMatch(read("app/(marketing)/rsvp/RsvpMarketingPage.tsx"), /התשובה הקצרה/);
   assert.match(read("app/seating-explained/layout.tsx"), /AnswerFirst/);
   assert.match(read("app/event-management/page.jsx"), /AnswerFirst/);
-  assert.match(read("app/pricing/layout.tsx"), /AnswerFirst/);
-  assert.match(read("app/page.tsx"), /AnswerFirst/);
+  assert.match(read("components/marketing/PricingMarketingExtras.tsx"), /AnswerFirst/);
+  assert.match(read("app/HomePageClient.tsx"), /HomeMarketingSections/);
+  assert.doesNotMatch(read("app/HomePageClient.tsx"), /AnswerFirst/);
   assert.match(read("app/faq/page.jsx"), /AnswerFirst/);
+  assert.match(read("lib/seo/answers.ts"), /PAGE_ANSWER_HEADINGS/);
+  assert.doesNotMatch(read("lib/seo/answers.ts"), /התשובה הקצרה/);
   assert.doesNotMatch(read("lib/seo/jsonld.ts"), /AggregateRating|Review/);
   assert.match(read("public/llms.txt"), /not a ranking factor/);
   assert.equal(contentGroup("/rsvp/chatuna"), "rsvp_invitations");
