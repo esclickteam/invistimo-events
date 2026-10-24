@@ -29,11 +29,19 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   overflow: hidden;
   text-align: center;
   direction: rtl;
   z-index: 2;
+}
+
+.hero,
+.meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
 }
 
 .basad,
@@ -59,21 +67,56 @@
 .closing,
 .extra,
 .guest {
-  font-size: 2.7cqw;
-  max-width: 28ch;
+  font-size: 2.15cqw;
+  max-width: 32ch;
+  font-weight: 400;
 }
 
 .names {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin: 1.2cqw 0 0.6cqw;
-  line-height: 0.95;
+  margin: 1.4cqw 0 0.2cqw;
+  line-height: 0.86;
 }
 
 .and {
-  font-size: 3.1cqw;
-  margin: 0.35cqw 0;
+  font-size: 3.5cqw;
+  margin: 0.55cqw 0 0.15cqw;
+  opacity: 0.9;
+  font-weight: 400;
+}
+
+.rule {
+  width: 12%;
+  height: 1px;
+  margin: 1.8cqw 0 0;
+}
+
+.dateline,
+.timeline {
+  margin: 0;
+  max-width: 34ch;
+  line-height: 1.45;
+}
+
+.dateline {
+  font-size: 2.85cqw;
+}
+
+.timeline {
+  margin-top: 0.7cqw;
+  font-size: 2.35cqw;
+}
+
+.timeline b {
+  font-size: 2.75cqw;
+  font-weight: 500;
+}
+
+.dot {
+  margin: 0 0.7cqw;
+  opacity: 0.55;
 }
 
 .dates {
@@ -97,13 +140,14 @@
 .times b {
   display: block;
   margin-top: 0.25cqw;
-  font-size: 3.1cqw;
-  font-weight: 600;
+  font-size: 2.7cqw;
+  font-weight: 500;
 }
 
 .venue {
-  margin-top: 1.5cqw;
-  font-size: 3.5cqw;
+  margin-top: 1.15cqw;
+  font-size: 3.45cqw;
+  font-weight: 500;
 }
 
 .address,
@@ -114,7 +158,10 @@
 }
 
 .parents {
-  margin-top: 1.2cqw;
+  margin-top: 0.9cqw;
+  font-size: 2.25cqw;
+  line-height: 1.5;
+  max-width: 34ch;
 }
 
 .closing {
@@ -123,17 +170,22 @@
 
 .medallion {
   position: absolute;
-  top: 18%;
+  top: 19.4%;
   left: 50%;
   z-index: 3;
   transform: translate(-50%, -50%);
   color: #e7c56a;
-  font-size: 2.7cqw;
-  letter-spacing: 0.18em;
+  font-size: 7cqw;
+  letter-spacing: 0.22em;
+  font-weight: 400;
 }
 
-.playing .line {
-  animation: rise 0.9s ease both;
+.playing .hero {
+  animation: rise 1.15s ease both;
+}
+
+.playing .meta {
+  animation: rise 1.1s 1.85s ease both;
 }
 
 /* Pocket is only the lower lip — invitation art stays visible in the open mouth. */
@@ -211,15 +263,44 @@
   animation: bloom 5.6s cubic-bezier(0.16, 0.8, 0.2, 1) both;
 }
 
-.playing.animFloral .copy,
-.playing.animSilk .copy,
-.playing.animZoom .copy {
-  animation: rise 1.25s ease both;
+.playing.animFloral .hero { animation-delay: 0.75s; }
+.playing.animFloral .meta { animation-delay: 1.85s; }
+.playing.animSilk .hero { animation-delay: 1.35s; }
+.playing.animSilk .meta { animation-delay: 2.15s; }
+.playing.animZoom .hero { animation-delay: 0.55s; }
+.playing.animZoom .meta { animation-delay: 1.7s; }
+.playing.animReveal .hero { animation-delay: 0.4s; }
+.playing.animReveal .meta { animation-delay: 2s; }
+.playing.animGold .hero { animation-delay: 0.9s; }
+.playing.animGold .meta { animation-delay: 2.15s; }
+.playing.animGlow .hero { animation-delay: 0.7s; }
+.playing.animGlow .meta { animation-delay: 2.05s; }
+
+.playing.animReveal .rule,
+.playing.animGold .rule,
+.playing.animGlow .rule {
+  transform-origin: center;
+  animation: drawRule 1.05s ease both;
 }
 
-.playing.animFloral .copy { animation-delay: 0.85s; }
-.playing.animSilk .copy { animation-delay: 1.45s; }
-.playing.animZoom .copy { animation-delay: 0.7s; }
+.playing.animReveal .rule { animation-delay: 1.45s; }
+.playing.animGold .rule { animation-delay: 1.7s; }
+.playing.animGlow .rule { animation-delay: 1.55s; }
+
+.playing.animReveal .name {
+  animation: unveil 1.35s ease both;
+}
+
+.playing.animReveal .name:nth-child(1) { animation-delay: 0.7s; }
+.playing.animReveal .name:nth-child(2) { animation-delay: 1.15s; }
+
+.playing.animGlow .names {
+  animation: writeIn 1.7s 0.85s ease both;
+}
+
+.playing.animReveal .art {
+  animation: bloom 6.2s ease both;
+}
 
 .petal {
   position: absolute;
@@ -251,7 +332,7 @@
 }
 
 .playing.animGold .names {
-  animation: writeIn 2.1s 0.4s ease both;
+  animation: writeIn 1.8s 1.05s ease both;
 }
 
 .playing.animGold .medallion {
@@ -297,6 +378,31 @@
   animation: zoomOut 7.2s cubic-bezier(0.16, 0.7, 0.2, 1) both;
 }
 
+.glow {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  z-index: 1;
+  width: 76%;
+  height: 32%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(ellipse, rgba(232, 197, 106, 0.42), rgba(232, 197, 106, 0) 68%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.playing.animGlow .glow {
+  animation: glowIn 2.2s 0.25s ease both;
+}
+
+.playing.animGlow .art {
+  animation: goldWake 2.6s ease both;
+}
+
+.playing.animGlow .dust {
+  animation: spark 3.3s ease both;
+}
+
 .replay {
   position: absolute;
   bottom: 3.5%;
@@ -335,6 +441,11 @@
   to { opacity: 0; visibility: hidden; }
 }
 
+@keyframes drawRule {
+  from { transform: scaleX(0); opacity: 0; }
+  to { transform: scaleX(1); opacity: 1; }
+}
+
 @keyframes bloom {
   0% { transform: scale(1.2); filter: saturate(0.75) brightness(1.08); }
   100% { transform: scale(1); filter: none; }
@@ -367,8 +478,18 @@
 }
 
 @keyframes writeIn {
-  from { letter-spacing: 0.45em; opacity: 0; filter: blur(3px); }
-  to { letter-spacing: 0.02em; opacity: 1; filter: none; }
+  from { letter-spacing: 0.42em; opacity: 0; filter: blur(4px); }
+  to { letter-spacing: 0.01em; opacity: 1; filter: none; }
+}
+
+@keyframes unveil {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes glowIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
 @keyframes unwrap {

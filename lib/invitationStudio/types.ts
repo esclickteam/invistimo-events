@@ -27,7 +27,7 @@ export type StudioCategory = (typeof STUDIO_CATEGORIES)[number];
 export type StudioStyle = (typeof STUDIO_STYLES)[number];
 export type StudioMotion = "none" | "soft";
 
-export type PlateAnimation = "none" | "envelope" | "floral" | "gold" | "silk" | "zoom";
+export type PlateAnimation = "none" | "envelope" | "floral" | "gold" | "silk" | "zoom" | "reveal" | "glow";
 
 export type InvitationDetails = {
   showBasad: boolean;
@@ -65,6 +65,7 @@ export type PlateDesign = {
   accent: string;
   nameFont: string;
   textFont: string;
+  nameSize?: number;
   inset: PlateInset;
   medallion?: boolean;
   details: InvitationDetails;

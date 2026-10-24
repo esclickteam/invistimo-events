@@ -19,7 +19,7 @@ export const STUDIO_FONTS: Array<{
 ];
 
 export const STUDIO_FONT_STYLESHEET =
-  "https://fonts.googleapis.com/css2?family=Alef:wght@400;700&family=Assistant:wght@300;400;600;700&family=David+Libre:wght@400;500;700&family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@300;400;500;700;800&family=Miriam+Libre:wght@400;700&family=Rubik:wght@400;500;700&family=Secular+One&display=swap";
+  "https://fonts.googleapis.com/css2?family=Alef:wght@400;700&family=Assistant:wght@300;400;600;700&family=Bellefair&family=David+Libre:wght@400;500;700&family=Frank+Ruhl+Libre:wght@300;400;500;700&family=Heebo:wght@300;400;500;700;800&family=Miriam+Libre:wght@400;700&family=Rubik:wght@400;500;700&family=Secular+One&display=swap";
 
 export function isApprovedStudioFont(family: string): family is StudioFont {
   return STUDIO_FONTS.some((font) => font.family === family);

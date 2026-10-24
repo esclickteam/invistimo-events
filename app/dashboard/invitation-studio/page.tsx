@@ -11,9 +11,6 @@ const FILTERS: Array<{ id: StudioCategory | "animated" | "all"; label: string }>
   { id: "all", label: "הכל" },
   { id: "animated", label: "הזמנות מונפשות" },
   { id: "wedding", label: "חתונות" },
-  { id: "henna", label: "חינות" },
-  { id: "bnai", label: "בר ובת מצווה" },
-  { id: "brit", label: "בריתות" },
 ];
 
 export default function InvitationStudioCatalogPage() {
@@ -40,7 +37,7 @@ export default function InvitationStudioCatalogPage() {
 
   const visible = useMemo(
     () =>
-      plates.filter((plate) => {
+      plates.filter((plate) => plate.listed !== false).filter((plate) => {
         if (filter === "all") return true;
         if (filter === "animated") return plate.animation !== "none";
         return plate.category === filter;

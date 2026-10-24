@@ -29,5 +29,5 @@ export function mergePlates(overrides: PlateOverride[] = []): Array<StudioPlate 
 }
 
 export function publicPlates(overrides: PlateOverride[] = []) {
-  return mergePlates(overrides).filter((item) => item.published);
+  return mergePlates(overrides).filter((item) => item.published && item.listed !== false);
 }

@@ -205,7 +205,7 @@ test("plate catalog overrides hide boards without rewriting the source plate", (
   assert.ok(ink);
   assert.equal(ivory.published, false);
   assert.equal(ivory.name, "שם אדמין");
-  assert.equal(STUDIO_PLATES.find((item) => item.id === "ivory-garden")?.name, "גן השנהב");
+  assert.equal(STUDIO_PLATES.find((item) => item.id === "ivory-garden")?.name, "עלעל השנהב");
   assert.equal(ink.free, false);
   assert.equal(ink.sort, 99);
   assert.equal(publicPlates([{ key: "ivory-garden", hidden: true }]).some((item) => item.id === "ivory-garden"), false);

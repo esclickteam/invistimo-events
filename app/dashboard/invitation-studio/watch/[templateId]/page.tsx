@@ -34,7 +34,7 @@ export default function WatchPlatePage() {
           },
   };
   const music = plate.defaultMusic
-    ? libraryMusic(plate.animation === "envelope" || plate.animation === "gold" ? "names" : "start")
+    ? libraryMusic(plate.animation === "floral" || plate.animation === "zoom" ? "start" : "names")
     : null;
   return (
     <main dir="rtl" className="min-h-screen bg-[#f3eee7] px-4 py-8 text-[#2c241c]">

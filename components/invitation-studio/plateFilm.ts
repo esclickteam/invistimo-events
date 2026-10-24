@@ -1,7 +1,8 @@
+import { fitCqw } from "@/lib/invitationStudio/details";
 import { envelopeTimeline } from "@/lib/invitationStudio/envelopeTimeline";
 import type { PlateDesign, StudioMusic } from "@/lib/invitationStudio/types";
 
-type Line = { text: string; color: string; font: string; weight: number; size: number };
+type Line = { text: string; color: string; font: string; weight: number; size: number; gap?: number };
 
 function loadImage(src: string) {
   return new Promise<HTMLImageElement>((resolve, reject) => {
@@ -57,66 +58,110 @@ function cover(
   context.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
 }
 
-function linesFor(plate: PlateDesign, width: number): Line[] {
+function drawPoster(
+  context: CanvasRenderingContext2D,
+  plate: PlateDesign,
+  width: number,
+  height: number,
+  heroAlpha: number,
+  metaAlpha: number
+) {
   const details = plate.details;
   const names = [details.brideName, details.groomName].map((item) => item.trim()).filter(Boolean);
   const unit = width / 100;
-  const lines: Line[] = [];
-  const push = (text: string, color: string, font: string, weight: number, size: number) => {
-    if (text.trim()) lines.push({ text, color, font, weight, size: size * unit });
-  };
-  if (details.showBasad) push(details.basad, plate.accent, plate.textFont, 500, 2.15);
-  push(details.opening, plate.muted, plate.textFont, 500, 2.5);
-  names.forEach((name, index) => {
-    if (index > 0) push("ו", plate.ink, plate.nameFont, 500, 3);
-    push(name, plate.ink, plate.nameFont, 650, names.length > 1 ? 5.4 : 6.2);
-  });
-  push(details.weekday, plate.ink, plate.textFont, 500, 2.4);
-  push(details.hebrewDate, plate.ink, plate.nameFont, 650, 3.2);
-  push(details.gregorianDate, plate.muted, plate.textFont, 500, 2.3);
-  if (details.reception || details.ceremony) {
-    push(
-      [details.reception ? `קבלת פנים ${details.reception}` : "", details.ceremony ? `חופה ${details.ceremony}` : ""]
-        .filter(Boolean)
-        .join("   ·   "),
-      plate.ink,
-      plate.textFont,
-      600,
-      2.5
-    );
-  }
-  push(details.venue, plate.ink, plate.nameFont, 650, 3.3);
-  push(details.address, plate.muted, plate.textFont, 500, 2.3);
-  if (details.brideParents) push(`הורי הכלה · ${details.brideParents}${details.brideParentsMemory ? " ז״ל" : ""}`, plate.muted, plate.textFont, 500, 2.15);
-  if (details.groomParents) push(`הורי החתן · ${details.groomParents}${details.groomParentsMemory ? " ז״ל" : ""}`, plate.muted, plate.textFont, 500, 2.15);
-  if (details.brideFamily) push(`משפחת ${details.brideFamily}`, plate.muted, plate.textFont, 500, 2.15);
-  if (details.groomFamily) push(`משפחת ${details.groomFamily}`, plate.muted, plate.textFont, 500, 2.15);
-  push(details.closing, plate.ink, plate.textFont, 500, 2.5);
-  push(details.extra, plate.muted, plate.textFont, 500, 2.2);
-  return lines;
-}
-
-function drawCopy(context: CanvasRenderingContext2D, plate: PlateDesign, width: number, height: number, alpha: number) {
-  const lines = linesFor(plate, width);
   const inset = plate.inset;
   const top = (inset.top / 100) * height;
   const bottom = height - (inset.bottom / 100) * height;
   const center = width / 2;
   const maxWidth = width * (1 - (inset.left + inset.right) / 100);
-  const total = lines.reduce((sum, line) => sum + line.size * 1.45, 0);
-  let y = top + Math.max(0, (bottom - top - total) / 2);
-  context.save();
-  context.globalAlpha = alpha;
-  context.textAlign = "center";
-  context.direction = "rtl";
-  lines.forEach((line) => {
-    context.fillStyle = line.color;
-    context.font = `${line.weight} ${line.size}px "${line.font}", "Times New Roman", serif`;
-    y += line.size;
-    context.fillText(line.text, center, y, maxWidth);
-    y += line.size * 0.45;
+  const hero: Line[] = [];
+  const meta: Line[] = [];
+  const add = (bucket: Line[], text: string, color: string, font: string, weight: number, size: number, gap = 0.45) => {
+    if (!text.trim()) return;
+    bucket.push({ text, color, font, weight, size: size * unit, gap });
+  };
+  if (details.showBasad) add(hero, details.basad, plate.accent, plate.textFont, 500, 2, 0.7);
+  add(hero, details.opening, plate.muted, plate.textFont, 400, 2.05, 0.85);
+  names.forEach((name, index) => {
+    if (index > 0) add(hero, "ו", plate.accent, plate.nameFont, 400, Math.max(3.2, (plate.nameSize || 12) * 0.26), 0.3);
+    add(hero, name, plate.ink, plate.nameFont, 400, fitCqw(name, plate.nameSize || 12, 6), 0.12);
   });
-  context.restore();
+  add(
+    meta,
+    [details.weekday, details.hebrewDate, details.gregorianDate].filter(Boolean).join("  ·  "),
+    plate.ink,
+    plate.textFont,
+    500,
+    2.3,
+    0.65
+  );
+  add(
+    meta,
+    [details.reception ? `קבלת פנים ${details.reception}` : "", details.ceremony ? `חופה וקידושין ${details.ceremony}` : ""]
+      .filter(Boolean)
+      .join("   ·   "),
+    plate.ink,
+    plate.textFont,
+    500,
+    2.15,
+    0.65
+  );
+  add(meta, details.venue, plate.ink, plate.nameFont, 500, 3.05, 0.35);
+  add(meta, details.address, plate.muted, plate.textFont, 400, 2.1, 0.55);
+  add(
+    meta,
+    [
+      details.brideParents ? `הורי הכלה ${details.brideParents}${details.brideParentsMemory ? " ז״ל" : ""}` : "",
+      details.groomParents ? `הורי החתן ${details.groomParents}${details.groomParentsMemory ? " ז״ל" : ""}` : "",
+    ]
+      .filter(Boolean)
+      .join("  ·  "),
+    plate.muted,
+    plate.textFont,
+    400,
+    1.85,
+    0.3
+  );
+  add(
+    meta,
+    [details.brideFamily ? `משפחת ${details.brideFamily}` : "", details.groomFamily ? `משפחת ${details.groomFamily}` : ""]
+      .filter(Boolean)
+      .join("  ·  "),
+    plate.muted,
+    plate.textFont,
+    400,
+    1.85,
+    0.5
+  );
+  add(meta, details.closing, plate.ink, plate.textFont, 400, 2.15, 0.35);
+  add(meta, details.extra, plate.muted, plate.textFont, 400, 2, 0.3);
+
+  const paintLines = (lines: Line[], y: number, alpha: number) => {
+    context.save();
+    context.globalAlpha = alpha;
+    context.textAlign = "center";
+    context.direction = "rtl";
+    lines.forEach((line) => {
+      context.fillStyle = line.color;
+      context.font = `${line.weight} ${line.size}px "${line.font}", "Times New Roman", serif`;
+      y += line.size;
+      context.fillText(line.text, center, y, maxWidth);
+      y += line.size * (line.gap || 0.45);
+    });
+    context.restore();
+    return y;
+  };
+  const heroBottom = paintLines(hero, top, heroAlpha);
+  if (heroAlpha > 0.04 && names.length) {
+    context.save();
+    context.globalAlpha = heroAlpha;
+    context.fillStyle = plate.accent;
+    const ruleWidth = width * 0.12;
+    context.fillRect(center - ruleWidth / 2, heroBottom + unit * 0.8, ruleWidth, Math.max(1, unit * 0.12));
+    context.restore();
+  }
+  const metaHeight = meta.reduce((sum, line) => sum + line.size * (1 + (line.gap || 0.45)), 0);
+  paintLines(meta, Math.max(heroBottom + unit * 4, bottom - metaHeight), metaAlpha);
 }
 
 function envelopeBox(width: number, height: number) {
@@ -220,7 +265,7 @@ function drawEnvelopeCard(
   context.scale(scale, scale);
   context.translate(-width / 2, -height / 2);
   cover(context, art, width, height, 1);
-  drawCopy(context, plate, width, height, 1);
+  drawPoster(context, plate, width, height, 1, 1);
   context.restore();
 }
 
@@ -248,8 +293,9 @@ function paint(context: CanvasRenderingContext2D, plate: PlateDesign, art: HTMLI
   } else if (plate.animation === "floral") {
     const scale = 1.2 - Math.min(1, time / 5.6) * 0.2;
     cover(context, art, width, height, scale);
-    const text = Math.max(0, Math.min(1, (time - 0.85) / 1.25));
-    drawCopy(context, plate, width, height, text);
+    const hero = Math.max(0, Math.min(1, (time - 0.75) / 1.15));
+    const meta = Math.max(0, Math.min(1, (time - 1.85) / 1.1));
+    drawPoster(context, plate, width, height, hero, meta);
     for (let index = 0; index < 8; index += 1) {
       const life = ((time * 0.35 + index * 0.17) % 1);
       context.globalAlpha = life < 0.2 ? life / 0.2 : 1 - life;
@@ -264,15 +310,23 @@ function paint(context: CanvasRenderingContext2D, plate: PlateDesign, art: HTMLI
     context.filter = `brightness(${0.38 + wake * 0.62}) saturate(${0.45 + wake * 0.55})`;
     cover(context, art, width, height, 1);
     context.filter = "none";
-    context.globalAlpha = Math.max(0, Math.min(1, (time - 0.35) / 1.15));
-    context.fillStyle = "#e7c56a";
-    context.font = `600 ${width * 0.027}px "${plate.nameFont}", serif`;
-    context.textAlign = "center";
-    const initials = [plate.details.brideName, plate.details.groomName].filter(Boolean).map((name) => name.slice(0, 1)).join(" · ");
-    context.fillText(initials, width / 2, height * 0.185);
-    context.globalAlpha = 1;
-    const text = Math.max(0, Math.min(1, (time - 0.4) / 1.6));
-    drawCopy(context, plate, width, height, text);
+    if (plate.medallion) {
+      context.globalAlpha = Math.max(0, Math.min(1, (time - 0.35) / 1.15));
+      context.fillStyle = "#e7c56a";
+      context.font = `400 ${width * 0.062}px "${plate.nameFont}", serif`;
+      context.textAlign = "center";
+      const initials = [plate.details.brideName, plate.details.groomName].filter(Boolean).map((name) => name.slice(0, 1)).join("  ·  ");
+      context.fillText(initials, width / 2, height * 0.2);
+      context.globalAlpha = 1;
+    }
+    drawPoster(
+      context,
+      plate,
+      width,
+      height,
+      Math.max(0, Math.min(1, (time - 0.9) / 1.15)),
+      Math.max(0, Math.min(1, (time - 2.15) / 1.1))
+    );
     for (let index = 0; index < 16; index += 1) {
       const life = (time * 0.45 + index * 0.09) % 1;
       context.globalAlpha = Math.sin(life * Math.PI);
@@ -284,8 +338,14 @@ function paint(context: CanvasRenderingContext2D, plate: PlateDesign, art: HTMLI
     context.globalAlpha = 1;
   } else if (plate.animation === "silk") {
     cover(context, art, width, height, 1);
-    const text = Math.max(0, Math.min(1, (time - 1.45) / 1.25));
-    drawCopy(context, plate, width, height, text);
+    drawPoster(
+      context,
+      plate,
+      width,
+      height,
+      Math.max(0, Math.min(1, (time - 1.35) / 1.15)),
+      Math.max(0, Math.min(1, (time - 2.15) / 1.1))
+    );
     const travel = Math.max(0, Math.min(1, (time - 0.3) / 2.5));
     context.save();
     context.globalAlpha = 1 - travel;
@@ -296,11 +356,56 @@ function paint(context: CanvasRenderingContext2D, plate: PlateDesign, art: HTMLI
   } else if (plate.animation === "zoom") {
     const scale = 1.32 - Math.min(1, time / 7.2) * 0.32;
     cover(context, art, width, height, scale);
-    const text = Math.max(0, Math.min(1, (time - 0.7) / 1.25));
-    drawCopy(context, plate, width, height, text);
+    drawPoster(
+      context,
+      plate,
+      width,
+      height,
+      Math.max(0, Math.min(1, (time - 0.55) / 1.15)),
+      Math.max(0, Math.min(1, (time - 1.7) / 1.1))
+    );
+  } else if (plate.animation === "reveal") {
+    const bloom = Math.min(1, time / 6.2);
+    cover(context, art, width, height, 1.2 - bloom * 0.2);
+    drawPoster(
+      context,
+      plate,
+      width,
+      height,
+      Math.max(0, Math.min(1, (time - 0.4) / 1.15)),
+      Math.max(0, Math.min(1, (time - 2) / 1.1))
+    );
+  } else if (plate.animation === "glow") {
+    const wake = Math.max(0, Math.min(1, time / 2.6));
+    context.filter = `brightness(${0.38 + wake * 0.62}) saturate(${0.5 + wake * 0.5})`;
+    cover(context, art, width, height, 1);
+    context.filter = "none";
+    const glow = Math.max(0, Math.min(1, (time - 0.25) / 2.2));
+    const gradient = context.createRadialGradient(width / 2, height * 0.44, width * 0.02, width / 2, height * 0.44, width * 0.46);
+    gradient.addColorStop(0, `rgba(232,197,106,${0.4 * glow})`);
+    gradient.addColorStop(1, "rgba(232,197,106,0)");
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, width, height);
+    for (let index = 0; index < 18; index += 1) {
+      const life = (time * 0.32 + index * 0.08) % 1;
+      context.globalAlpha = Math.sin(life * Math.PI) * 0.9;
+      context.fillStyle = "#f0d48a";
+      context.beginPath();
+      context.arc(width * (0.1 + ((index * 37) % 80) / 100), height * (0.62 + life * 0.3), 2.4, 0, Math.PI * 2);
+      context.fill();
+    }
+    context.globalAlpha = 1;
+    drawPoster(
+      context,
+      plate,
+      width,
+      height,
+      Math.max(0, Math.min(1, (time - 0.7) / 1.15)),
+      Math.max(0, Math.min(1, (time - 2.05) / 1.1))
+    );
   } else {
     cover(context, art, width, height, 1);
-    drawCopy(context, plate, width, height, 1);
+    drawPoster(context, plate, width, height, 1, 1);
   }
   context.restore();
   void progress;

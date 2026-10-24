@@ -150,7 +150,7 @@ export default function PlateEditor({
               onChange={(event) => switchPlate(event.target.value)}
               className="mt-1 w-full rounded-2xl border border-[#eadfce] px-3 py-2"
             >
-              {STUDIO_PLATES.map((item) => (
+              {STUDIO_PLATES.filter((item) => item.listed !== false).map((item) => (
                 <option key={item.id} value={item.id}>{item.name}</option>
               ))}
             </select>

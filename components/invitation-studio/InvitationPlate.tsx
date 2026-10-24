@@ -114,12 +114,12 @@ export default function InvitationPlate({
       : "";
   const dust = useMemo(
     () =>
-      Array.from({ length: 18 }, (_, index) => ({
-        left: 12 + ((index * 37) % 76),
-        top: 18 + ((index * 23) % 62),
-        delay: (index % 8) * 0.18,
+      Array.from({ length: plate.animation === "glow" ? 22 : 14 }, (_, index) => ({
+        left: 8 + ((index * 37) % 84),
+        top: plate.animation === "glow" ? 60 + ((index * 19) % 32) : 22 + ((index * 23) % 50),
+        delay: (index % 9) * 0.16,
       })),
-    []
+    [plate.animation]
   );
   useEffect(() => () => playback.current?.stop(), []);
 
@@ -163,8 +163,20 @@ export default function InvitationPlate({
     gold: styles.animGold,
     silk: styles.animSilk,
     zoom: styles.animZoom,
+    reveal: styles.animReveal,
+    glow: styles.animGlow,
   };
   const inset = plate.inset;
+  const nameBase = plate.nameSize || (names.length > 1 ? 11 : 12.5);
+  const parents = [
+    details.brideParents ? `הורי הכלה ${parentLine(details.brideParents, details.brideParentsMemory)}` : "",
+    details.groomParents ? `הורי החתן ${parentLine(details.groomParents, details.groomParentsMemory)}` : "",
+  ].filter(Boolean);
+  const families = [
+    details.brideFamily ? `משפחת ${details.brideFamily}` : "",
+    details.groomFamily ? `משפחת ${details.groomFamily}` : "",
+  ].filter(Boolean);
+  const dateLine = [details.weekday, details.hebrewDate, details.gregorianDate].filter(Boolean).join("  ·  ");
   return (
     <div>
     <div
@@ -196,54 +208,62 @@ export default function InvitationPlate({
             left: `${inset.left}%`,
           }}
         >
-          {details.showBasad ? (
-            <Line text={details.basad} color={plate.accent} font={plate.textFont} size={2.15} delay={200} />
-          ) : null}
-          <Line text={details.opening} color={plate.muted} font={plate.textFont} size={2.7} delay={450} />
-          <div className={styles.names} style={{ color: plate.ink, fontFamily: plate.nameFont }}>
-            {names.map((name, index) => (
-              <div key={`${name}-${index}`}>
-                {index > 0 ? <div className={styles.and}>ו</div> : null}
-                <div style={{ fontSize: `${fitCqw(name, names.length > 1 ? 5.6 : 6.4, 8)}cqw`, fontWeight: 650 }}>
-                  {name}
+          <div className={styles.hero}>
+            {details.showBasad ? (
+              <Line text={details.basad} color={plate.accent} font={plate.textFont} size={2} weight={500} />
+            ) : null}
+            <Line text={details.opening} color={plate.muted} font={plate.textFont} size={2.3} weight={400} />
+            <div className={styles.names} style={{ color: plate.ink, fontFamily: plate.nameFont }}>
+              {names.map((name, index) => (
+                <div key={`${name}-${index}`} className={styles.name}>
+                  {index > 0 ? (
+                    <div className={styles.and} style={{ color: plate.accent }}>
+                      ו
+                    </div>
+                  ) : null}
+                  <div style={{ fontSize: `${fitCqw(name, nameBase, 6)}cqw`, fontWeight: 400 }}>{name}</div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
+            <div className={styles.rule} style={{ background: plate.accent }} />
           </div>
-          <div className={styles.dates}>
-            <Line text={details.weekday} color={plate.ink} font={plate.textFont} size={2.5} delay={900} />
-            <Line text={details.hebrewDate} color={plate.ink} font={plate.nameFont} size={3.3} weight={650} delay={1050} />
-            <Line text={details.gregorianDate} color={plate.muted} font={plate.textFont} size={2.4} delay={1150} />
-          </div>
-          <div className={styles.times} style={{ color: plate.ink, fontFamily: plate.textFont }}>
-            {details.reception ? (
-              <div>
-                <small style={{ color: plate.muted }}>קבלת פנים</small>
-                <b>{details.reception}</b>
+          <div className={styles.meta} style={{ color: plate.ink, fontFamily: plate.textFont }}>
+            {dateLine ? <p className={styles.dateline}>{dateLine}</p> : null}
+            {details.reception || details.ceremony ? (
+              <p className={styles.timeline}>
+                {details.reception ? (
+                  <span>
+                    קבלת פנים <b>{details.reception}</b>
+                  </span>
+                ) : null}
+                {details.reception && details.ceremony ? <span className={styles.dot}>·</span> : null}
+                {details.ceremony ? (
+                  <span>
+                    חופה וקידושין <b>{details.ceremony}</b>
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
+            {details.venue ? (
+              <p className={styles.venue} style={{ fontFamily: plate.nameFont }}>
+                {details.venue}
+              </p>
+            ) : null}
+            {details.address ? (
+              <p className={styles.address} style={{ color: plate.muted }}>
+                {details.address}
+              </p>
+            ) : null}
+            {parents.length || families.length ? (
+              <div className={styles.parents} style={{ color: plate.muted }}>
+                {parents.length ? <p>{parents.join("  ·  ")}</p> : null}
+                {families.length ? <p>{families.join("  ·  ")}</p> : null}
               </div>
             ) : null}
-            {details.ceremony ? (
-              <div>
-                <small style={{ color: plate.muted }}>חופה וקידושין</small>
-                <b>{details.ceremony}</b>
-              </div>
-            ) : null}
+            <Line text={details.closing} color={plate.ink} font={plate.textFont} size={2.15} weight={400} />
+            <Line text={details.extra} color={plate.muted} font={plate.textFont} size={2} weight={400} />
+            <Line text={greeting} color={plate.accent} font={plate.textFont} size={2.15} weight={500} />
           </div>
-          <p className={styles.venue} style={{ color: plate.ink, fontFamily: plate.nameFont }}>
-            {details.venue}
-          </p>
-          <p className={styles.address} style={{ color: plate.muted, fontFamily: plate.textFont }}>
-            {details.address}
-          </p>
-          <div className={styles.parents} style={{ color: plate.muted, fontFamily: plate.textFont }}>
-            {details.brideParents ? <p>הורי הכלה · {parentLine(details.brideParents, details.brideParentsMemory)}</p> : null}
-            {details.groomParents ? <p>הורי החתן · {parentLine(details.groomParents, details.groomParentsMemory)}</p> : null}
-            {details.brideFamily ? <p>משפחת {details.brideFamily}</p> : null}
-            {details.groomFamily ? <p>משפחת {details.groomFamily}</p> : null}
-          </div>
-          <Line text={details.closing} color={plate.ink} font={plate.textFont} size={2.7} delay={1500} />
-          <Line text={details.extra} color={plate.muted} font={plate.textFont} size={2.3} delay={1650} />
-          <Line text={greeting} color={plate.accent} font={plate.textFont} size={2.5} delay={1800} />
         </div>
         {plate.animation === "floral"
           ? [12, 70, 18, 78].map((left, index) => (
@@ -254,7 +274,7 @@ export default function InvitationPlate({
               />
             ))
           : null}
-        {plate.animation === "gold"
+        {plate.animation === "gold" || plate.animation === "glow"
           ? dust.map((item) => (
               <span
                 key={`${item.left}-${item.top}`}
@@ -264,6 +284,7 @@ export default function InvitationPlate({
             ))
           : null}
         {active && plate.animation === "gold" ? <div className={styles.sheen} /> : null}
+        {plate.animation === "glow" ? <div className={styles.glow} /> : null}
         {active && plate.animation === "silk" ? <div className={styles.ribbon} /> : null}
       </div>
       {active && plate.animation === "envelope" ? (
