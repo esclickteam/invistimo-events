@@ -159,10 +159,13 @@ function HeroPhone3D() {
     if (conn?.saveData || conn?.effectiveType === "slow-2g" || conn?.effectiveType === "2g") {
       return;
     }
+    // Mobile: poster only (no competing 7MB webm). Desktop: play after load/idle.
+    const desktopMq = window.matchMedia("(min-width: 768px)");
+    if (!desktopMq.matches) return;
+
     const enable = () => {
       if (!cancelled) setVideoReady(true);
     };
-    // After window load + idle so hero bg/poster can win LCP before webm competes.
     const start = () => {
       const ric = (
         window as Window & {
