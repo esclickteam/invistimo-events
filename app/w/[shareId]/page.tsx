@@ -7,6 +7,7 @@ import WeddingGuestMessageForm from "@/components/wedding-website/WeddingGuestMe
 import { useGuestRsvpController } from "@/lib/rsvp/useGuestRsvpController";
 import type { WeddingDemoContent, WeddingTemplate } from "@/types/weddingWebsite";
 import type { WeddingGiftLinks } from "@/lib/weddingWebsite/gifts";
+import type { StudioSnapshot } from "@/lib/invitationStudio/types";
 
 type PublicSiteResponse = {
   success?: boolean;
@@ -30,7 +31,7 @@ type PublicSiteResponse = {
     designId?: string;
     templateId?: string;
     publishedAt?: string | null;
-    snapshot?: unknown;
+    snapshot?: StudioSnapshot | null;
   } | null;
 };
 

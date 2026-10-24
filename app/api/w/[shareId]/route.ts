@@ -22,6 +22,8 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { getActiveMenuOptions } from "@/lib/rsvp/guestRsvpLogic";
+import type { StudioSnapshot } from "@/lib/invitationStudio/types";
+import { publicSnapshot } from "@/lib/invitationStudio/render";
 
 export async function GET(
   req: NextRequest,
@@ -118,14 +120,16 @@ export async function GET(
       designId?: unknown;
       templateId?: unknown;
       publishedAt?: unknown;
-      snapshot?: unknown;
+      snapshot?: StudioSnapshot | null;
     } }).studioDesign;
     const studioDesign = publishedStudio?.snapshot
       ? {
           designId: publishedStudio.designId ? String(publishedStudio.designId) : undefined,
           templateId: publishedStudio.templateId ? String(publishedStudio.templateId) : undefined,
-          publishedAt: publishedStudio.publishedAt || null,
-          snapshot: publishedStudio.snapshot,
+          publishedAt: publishedStudio.publishedAt
+            ? String(publishedStudio.publishedAt)
+            : null,
+          snapshot: publicSnapshot(publishedStudio.snapshot),
         }
       : null;
 
