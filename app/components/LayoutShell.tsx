@@ -79,14 +79,10 @@ export default function LayoutShell({
         <div className="shrink-0">{header}</div>
       )}
 
-      {/* CONTENT */}
-      <main
-        className={`flex-1 ${
-          !shouldHideHeader && header ? "pt-[64px]" : ""
-        }`}
-      >
-        {children}
-      </main>
+      {/* CONTENT — header is already in document flow (shrink-0), so no
+          sticky/fixed offset padding. Extra pt-[64px] created a visible gap
+          between Header and Hero on marketing pages. */}
+      <main className="flex-1">{children}</main>
 
       {/* FOOTER */}
       {!shouldHideFooter && footer && (
