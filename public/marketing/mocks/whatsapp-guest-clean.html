@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>WhatsApp</title>
+  <!-- Guest-facing recreation of approved event_invitation template.
+       For marketing capture only — not presented as a live Meta send. -->
+  <style>
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; width: 100%; height: 100%; overflow: hidden;
+      background: #0b141a;
+      font-family: "Segoe UI", "Helvetica Neue", "Heebo", Arial, sans-serif;
+    }
+    .phone { width: 100%; height: 100%; position: relative; background: #0b141a; }
+    .status {
+      height: 48px; padding: 14px 18px 0;
+      display: flex; justify-content: space-between; align-items: center;
+      color: #e9edef; font-size: 14px; font-weight: 600;
+      background: #1f2c34;
+    }
+    .chat-header {
+      background: #1f2c34; color: #e9edef;
+      padding: 8px 12px 12px;
+      display: flex; gap: 12px; align-items: center;
+    }
+    .back { font-size: 22px; color: #53bdeb; line-height: 1; padding: 0 4px; }
+    .avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: linear-gradient(145deg, #c9a45c, #8b642b);
+      display: grid; place-items: center;
+      font-weight: 800; color: #1c1612; font-size: 16px;
+    }
+    .name { font-weight: 700; font-size: 16px; }
+    .sub { font-size: 12px; color: #8696a0; margin-top: 1px; }
+    .thread {
+      height: calc(100% - 108px);
+      background:
+        radial-gradient(ellipse at 20% 10%, rgba(255,255,255,.03), transparent 40%),
+        #0b141a;
+      padding: 14px 12px 20px;
+      overflow: hidden;
+    }
+    .bubble {
+      max-width: 88%;
+      background: #202c33;
+      color: #e9edef;
+      border-radius: 8px 8px 8px 2px;
+      padding: 8px 8px 6px;
+      box-shadow: 0 1px 0.5px rgba(0,0,0,.35);
+    }
+    .media {
+      width: 100%;
+      border-radius: 6px;
+      display: block;
+      margin-bottom: 8px;
+      aspect-ratio: 3 / 4;
+      object-fit: contain;
+      background: #FBF6EE;
+    }
+    .body {
+      white-space: pre-wrap;
+      line-height: 1.55;
+      font-size: 14.5px;
+      padding: 2px 4px 0;
+    }
+    .cta {
+      margin-top: 10px;
+      border-top: 1px solid rgba(255,255,255,.1);
+      padding: 11px 4px 6px;
+      text-align: center;
+      color: #53bdeb;
+      font-weight: 700;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    .meta {
+      display: flex;
+      justify-content: flex-end;
+      gap: 4px;
+      font-size: 11px;
+      color: #8696a0;
+      padding: 2px 4px 0;
+    }
+    .checks { color: #53bdeb; letter-spacing: -1px; }
+  </style>
+</head>
+<body>
+  <div class="phone" id="phone">
+    <div class="status"><span>9:41</span><span>5G ▮▮▮▮</span></div>
+    <div class="chat-header">
+      <div class="back">‹</div>
+      <div class="avatar">I</div>
+      <div>
+        <div class="name">Invistimo</div>
+        <div class="sub">הודעה עסקית</div>
+      </div>
+    </div>
+    <div class="thread">
+      <div class="bubble" id="bubble">
+        <img class="media" id="media" src="/marketing/invites/invite-wedding-mia-alon.webp" alt="" />
+        <div class="body" id="body"></div>
+        <div class="cta" id="cta">לצפייה בהזמנה ואישור הגעה</div>
+        <div class="meta"><span>09:41</span><span class="checks">✓✓</span></div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const p = new URLSearchParams(location.search);
+    const title = p.get("title") || "החתונה של מיה ואלון";
+    const date = p.get("date") || "24.06.2027";
+    const loc = p.get("location") || "אולמי אלכסנדר";
+    document.getElementById("media").src =
+      p.get("media") || "/marketing/invites/invite-wedding-mia-alon.webp";
+    // Exact approved event_invitation body (lib/whatsapp/approvedTemplates.ts)
+    document.getElementById("body").textContent =
+      "משפחה וחברים יקרים,\n" +
+      "שמחים ונרגשים להזמינכם לחגוג איתנו את " + title + " 🤍\n\n" +
+      "📅 בתאריך: " + date + "\n" +
+      "📍 במיקום: " + loc + "\n\n" +
+      "נשמח לראותכם איתנו, לשמוח, לרקוד וליהנות מערב מיוחד ביחד! 🥂";
+  </script>
+</body>
+</html>

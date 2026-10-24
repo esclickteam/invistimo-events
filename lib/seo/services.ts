@@ -46,9 +46,9 @@ export const SERVICE_PAGES: ServicePage[] = [
       "בחתונה הרשימה גדולה, יש שני צדדים, והאולם לוחץ למספר. Invistimo מרכזת את אישורי ההגעה בקישור אישי לכל אורח, עם סבבי וואטסאפ ותשובות במערכת — לא בצ'אטים מפוזרים.",
     media: {
       type: "video",
-      src: "/marketing/videos/hero-guest-journey.webm",
-      variant: "phone",
-      caption: "מההזמנה ועד האישור — והעדכון בדשבורד",
+      src: "/marketing/videos/process-rsvp-statuses.webm",
+      variant: "wide",
+      caption: "אורחים מאשרים, מסרבים או מתלבטים — והסטטוסים נשמרים בדשבורד",
     },
     showEventTypes: false,
     benefits: [
@@ -161,9 +161,9 @@ export const SERVICE_PAGES: ServicePage[] = [
       "רוב האורחים בישראל חיים בוואטסאפ. בחבילת ההודעות של Invistimo יוצאים שני סבבי וואטסאפ לאישור הגעה, עם קישור אישי — והתשובה נשמרת במערכת, לא רק בצ'אט.",
     media: {
       type: "video",
-      src: "/videos/rsvp2.mp4",
-      variant: "wide",
-      caption: "המחשה: שליחה ומעקב אחרי אישורי הגעה",
+      src: "/marketing/videos/process-whatsapp-channel.webm",
+      variant: "phone",
+      caption: "הודעת WhatsApp לפי התבנית המאושרת → קישור אישי להזמנה",
     },
     showEventTypes: true,
     benefits: [
@@ -518,11 +518,11 @@ export const SERVICE_PAGES: ServicePage[] = [
     lede:
       "ב־Invistimo סבבי אישור ההגעה בחבילת ההודעות יוצאים בוואטסאפ. ה־SMS נכנס בתזכורת לפני האירוע (כולל מספר שולחן כשיש הושבה) ובהודעת תודה אחריו — לא כערוץ ראשי לאיסוף «מגיע / לא מגיע».",
     media: {
-      type: "image",
-      src: "/marketing/product/webp/desktop-messages-sms.webp",
-      alt: "ממשק שליחת SMS לסבב אישור עם תצוגה מקדימה בטלפון",
+      type: "video",
+      src: "/marketing/videos/process-sms.webm",
+      poster: "/marketing/product/webp/desktop-messages-sms.webp",
       variant: "wide",
-      caption: "תצוגה מקדימה של הודעת SMS לאורחים",
+      caption: "ממשק שליחת הודעות SMS מתוך הדשבורד",
     },
     benefits: [
       {
@@ -603,11 +603,11 @@ export const SERVICE_PAGES: ServicePage[] = [
     lede:
       "שני סבבי וואטסאפ מכסים את רוב הרשימה. למי שנשאר פתוח — אפשר חבילת שיחות: מוקלטת, אנושית, או משולבת. השיחות מתווספות לבסיס ההודעות, לא מחליפות אותו.",
     media: {
-      type: "image",
-      src: "/marketing/product/webp/desktop-calls-comparison.webp",
-      alt: "השוואה בין מוקד אנושי, שיחות מוקלטות ושילוב",
+      type: "video",
+      src: "/marketing/videos/process-ivr-calls.webm",
+      poster: "/marketing/product/webp/desktop-calls-comparison.webp",
       variant: "wide",
-      caption: "שלוש אפשרויות שיחה — לפי מה שנשאר פתוח ברשימה",
+      caption: "שיחות מהרשימה ומסלולי מוקד / IVR למי שלא ענה",
     },
     benefits: [
       {
@@ -691,6 +691,13 @@ export const SERVICE_PAGES: ServicePage[] = [
     serviceType: "הודעות תזכורת",
     lede:
       "אחרי שיש תשובות ברשימה, התזכורת מזכירה לאורחים את המועד. בחבילת ההודעות זו תזכורת SMS; כשיש הושבה אפשר לכלול גם את מספר השולחן. היא לא אוספת מגיע/לא מגיע מחדש.",
+    media: {
+      type: "video",
+      src: "/marketing/videos/process-reminders.webm",
+      poster: "/marketing/product/webp/desktop-messages-sms-reminder.webp",
+      variant: "wide",
+      caption: "הגדרת תזכורת לפני האירוע מתוך לוח הזמנים והודעות",
+    },
     benefits: [
       {
         title: "תזכורת ב־SMS",
@@ -758,6 +765,13 @@ export const SERVICE_PAGES: ServicePage[] = [
     serviceType: "הודעות תודה",
     lede:
       "בחבילת ההודעות כלולה הודעת תודה ב־SMS אחרי האירוע. היא סוגרת את המסע מול האורחים — אחרי Save the Date, הזמנה, אישורים ותזכורת — בלי לפתוח גיליון חדש של מספרי טלפון.",
+    media: {
+      type: "video",
+      src: "/marketing/videos/process-thank-you.webm",
+      poster: "/marketing/product/webp/desktop-messages-sms.webp",
+      variant: "wide",
+      caption: "יצירת הודעת תודה ושליחתה אחרי האירוע",
+    },
     benefits: [
       {
         title: "כלולה בחבילת ההודעות",
@@ -819,11 +833,11 @@ export const SERVICE_PAGES: ServicePage[] = [
     lede:
       "במקום אקסל אחד, קבוצת וואטסאפ שנייה והערות בפתקים — רשימה אחת במערכת: מי ברשימה, מי ענה, כמה מגיעים, ומה עדיין פתוח.",
     media: {
-      type: "image",
-      src: "/marketing/product/webp/desktop-try-dashboard.webp",
-      alt: "דשבורד עם רשימת מוזמנים וסטטוסים",
+      type: "video",
+      src: "/marketing/videos/process-guest-list.webm",
+      poster: "/marketing/product/webp/desktop-try-dashboard.webp",
       variant: "wide",
-      caption: "רשימת מוזמנים וסטטוסי הגעה במקום אחד",
+      caption: "ניהול מוזמנים, חיפוש וסטטוסים ברשימה",
     },
     benefits: [
       {
@@ -901,11 +915,11 @@ export const SERVICE_PAGES: ServicePage[] = [
     lede:
       "הדמו נפתח במסכי המערכת האמיתיים. אפשר לראות דשבורד, סטטוסים, הושבה ומסכי ניהול — ולחוש איך העבודה נראית לפני שפותחים אירוע.",
     media: {
-      type: "image",
-      src: "/marketing/product/webp/desktop-try-dashboard.webp",
-      alt: "דשבורד אירוע בדמו",
+      type: "video",
+      src: "/marketing/videos/process-dashboard-live.webm",
+      poster: "/marketing/product/webp/desktop-try-dashboard.webp",
       variant: "wide",
-      caption: "כניסה לדמו ב־/try — מסכי המערכת בלי חשבון",
+      caption: "דשבורד חי בדמו — עדכון סטטוסים אחרי פעולות אורחים",
     },
     benefits: [
       {

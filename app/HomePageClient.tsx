@@ -209,8 +209,8 @@ function HeroPhone3D() {
                 loop
                 playsInline
                 preload="metadata"
-                poster="/marketing/invites/invite-wedding-mia-alon.webp"
-                aria-label="מסע אורח: הדמיית WhatsApp, הזמנה של מיה ואלון, ואישור הגעה"
+                poster="/marketing/videos/hero-guest-journey-poster.jpg"
+                aria-label="מסע אורח: הודעת WhatsApp, הזמנה של מיה ואלון, ואישור הגעה"
               >
                 <source src="/marketing/videos/hero-guest-journey.webm" type="video/webm" />
               </video>
@@ -1097,8 +1097,8 @@ export default function HomePageClient() {
           </div>
           <div className="overflow-hidden rounded-[28px] border border-[#E0D4C2] bg-[#1C1612] shadow-[0_30px_70px_rgba(44,36,28,0.18)]">
             <video
-              src="/marketing/videos/hero-guest-journey.webm"
-              poster="/marketing/invites/invite-wedding-mia-alon.webp"
+              src="/marketing/videos/process-dashboard-live.webm"
+              poster="/marketing/product/webp/desktop-try-dashboard-live.webp"
               autoPlay
               muted
               loop

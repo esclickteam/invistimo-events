@@ -53,9 +53,9 @@ export const EVENT_LANDINGS: EventLanding[] = [
     showcaseSrc: INVITE_DESIGNS.barMitzvah,
     showcaseAlt: "דשבורד למעקב אישורי הגעה",
     video: {
-      src: "/marketing/videos/process-dashboard-live.webm",
+      src: "/marketing/videos/process-rsvp-statuses.webm",
       poster: PRODUCT_SHOTS.dashboard,
-      caption: "מעקב תשובות בזמן אמת — מי ענה ומי עדיין פתוח",
+      caption: "סטטוסי אישור משתנים — מעקב לפני סגירה מול האולם",
     },
     gallery: [
       {
@@ -177,7 +177,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
         src: PRODUCT_SHOTS.dashboard,
         device: "laptop",
         alt: "דשבורד",
-        caption: "רשימה אחת לשני הורים",
+        caption: "סטטוסים במקום אחד",
       },
       {
         type: "image",
@@ -190,7 +190,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
     video: {
       src: "/marketing/videos/process-dashboard-live.webm",
       poster: PRODUCT_SHOTS.dashboard,
-      caption: "דשבורד אישורי הגעה",
+      caption: "עדכון הדשבורד אחרי תשובות אורחים",
     },
     servicesThatFit: [
       { href: "/rsvp", label: "אישורי הגעה", note: "סטטוס לכל רשומה" },
@@ -267,7 +267,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
         src: PRODUCT_SHOTS.dashboardMobile,
         device: "phone",
         alt: "מובייל",
-        caption: "מעקב מהיר בנייד",
+        caption: "ניהול רשימה קצרה וסטטוסים לברית",
       },
       {
         type: "image",
@@ -278,9 +278,9 @@ export const EVENT_LANDINGS: EventLanding[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/process-dashboard-live.webm",
+      src: "/marketing/videos/process-guest-list.webm",
       poster: PRODUCT_SHOTS.dashboard,
-      caption: "מעקב תשובות בדשבורד",
+      caption: "ניהול רשימה קצרה וסטטוסים לברית",
     },
     servicesThatFit: [
       { href: "/rsvp", label: "אישורי הגעה", note: "ליבת התהליך" },
@@ -354,7 +354,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
         src: PRODUCT_SHOTS.dashboard,
         device: "laptop",
         alt: "אישורים",
-        caption: "אישורי חינה — רשימה נפרדת מהחתונה",
+        caption: "הודעת WhatsApp ופתיחת הזמנה אישית",
       },
       {
         type: "image",
@@ -365,9 +365,9 @@ export const EVENT_LANDINGS: EventLanding[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/process-dashboard-live.webm",
+      src: "/marketing/videos/process-whatsapp-channel.webm",
       poster: PRODUCT_SHOTS.seating,
-      caption: "מפת הושבה עם שולחנות",
+      caption: "הודעת WhatsApp ופתיחת הזמנה אישית",
     },
     timeline: [
       {
@@ -455,7 +455,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
         src: PRODUCT_SHOTS.weddingGardenMobile,
         device: "phone",
         alt: "הזמנה",
-        caption: "הזמנה דיגיטלית — תצוגת אורח",
+        caption: "פתיחת הזמנה דיגיטלית בקישור האישי",
       },
       {
         type: "image",
@@ -466,9 +466,9 @@ export const EVENT_LANDINGS: EventLanding[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/process-dashboard-live.webm",
+      src: "/marketing/videos/process-invitation-open.webm",
       poster: PRODUCT_SHOTS.dashboard,
-      caption: "מעקב אחרי מי ענה",
+      caption: "פתיחת הזמנה דיגיטלית בקישור האישי",
     },
     servicesThatFit: [
       { href: "/invitations/chatuna", label: "הזמנה דיגיטלית", note: "עיצוב + קישור" },
@@ -543,13 +543,13 @@ export const EVENT_LANDINGS: EventLanding[] = [
         src: PRODUCT_SHOTS.dashboard,
         device: "laptop",
         alt: "דשבורד",
-        caption: "רשימה ותשובות בלי מסע מלא",
+        caption: "סטטוסים ומספר מגיעים",
       },
     ],
     video: {
-      src: "/marketing/videos/process-dashboard-live.webm",
+      src: "/marketing/videos/process-sms.webm",
       poster: PRODUCT_SHOTS.dashboard,
-      caption: "מעקב אישורים בדשבורד",
+      caption: "שליחת הודעות והשלמות לפני האירוע",
     },
     servicesThatFit: [
       { href: "/rsvp", label: "אישורי הגעה", note: "הבסיס" },
@@ -625,7 +625,7 @@ export const EVENT_LANDINGS: EventLanding[] = [
         src: PRODUCT_SHOTS.dashboard,
         device: "laptop",
         alt: "סטטוסים",
-        caption: "סטטוסי הגעה בזמן אמת",
+        caption: "ניהול רשימת מוזמנים לאירוע חברה",
       },
       {
         type: "image",
@@ -636,9 +636,9 @@ export const EVENT_LANDINGS: EventLanding[] = [
       },
     ],
     video: {
-      src: "/marketing/videos/process-dashboard-live.webm",
+      src: "/marketing/videos/process-guest-list.webm",
       poster: PRODUCT_SHOTS.dashboard,
-      caption: "דשבורד משתתפים וסטטוסים",
+      caption: "ניהול רשימת מוזמנים לאירוע חברה",
     },
     timeline: [
       {

@@ -67,9 +67,9 @@ export const GUIDES: Guide[] = [
       caption: "בדשבורד רואים מי ענה ומי עדיין פתוח — בסיס לסבב השני",
     },
     video: {
-      src: VID.heroGuestJourney,
+      src: VID.invitationOpen,
       poster: INVITE.wedding,
-      caption: "מסע אורח: הודעה → הזמנת מיה ואלון → אישור → שמירה",
+      caption: "פתיחת הזמנת מיה ואלון מהקישור האישי — לפני סבבי האישור",
     },
     gallery: [
       {
@@ -572,9 +572,9 @@ export const GUIDES: Guide[] = [
       },
     ],
     video: {
-      src: VID.dashboardLive,
+      src: VID.rsvpStatuses,
       poster: SHOT.dashboardLive,
-      caption: "אורחי דמו מאשרים — והדשבורד מתעדכן בזמן אמת",
+      caption: "אורחים מאשרים, מסרבים או מתלבטים — והסטטוסים נשמרים",
     },
     steps: [
       { title: "נותנים זמן לסבב ראשון", text: "לא שולחים סבב שני אחרי שעתיים — יום–יומיים לפחות." },
@@ -699,7 +699,7 @@ export const GUIDES: Guide[] = [
     video: {
       src: VID.dashboardLive,
       poster: SHOT.dashboardLive,
-      caption: "אחרי כל סבב — רואים מי ענה ומי נשאר פתוח",
+      caption: "אחרי פעולות אורחים — הדשבורד מתעדכן עם מי ענה ומי פתוח",
     },
     steps: [
       { title: "סבב ראשון", text: "לכל הרשימה עם קישור אישי." },
@@ -804,6 +804,11 @@ export const GUIDES: Guide[] = [
       alt: "רשימה בדשבורד",
       variant: "wide",
       caption: "סטטוס ומספר מגיעים על אותה רשומה",
+    },
+    video: {
+      src: VID.guestList,
+      poster: SHOT.dashboard,
+      caption: "ניהול רשימת מוזמנים — חיפוש, סטטוסים ופעולות",
     },
     gallery: [
       {
@@ -1613,6 +1618,11 @@ export const GUIDES: Guide[] = [
       variant: "wide",
       caption: "תזכורת SMS למי שכבר אישר",
     },
+    video: {
+      src: VID.reminders,
+      poster: SHOT.messagesSmsReminder,
+      caption: "הגדרת תזכורת לפני האירוע מתוך המערכת",
+    },
     steps: [
       { title: "סוגרים פתוחים", text: "סבב וואטסאפ שני / שיחות לפי חבילה." },
       { title: "משלימים הושבה", text: "אם נרכשה — כדי שמספר שולחן יוכל להופיע." },
@@ -1743,6 +1753,11 @@ export const GUIDES: Guide[] = [
       alt: "מסך ניהול אירוע",
       variant: "wide",
       caption: "ניהול האירוע במקום אחד — לפני היום הגדול",
+    },
+    video: {
+      src: VID.checkIn,
+      poster: SHOT.eventMgmt,
+      caption: "כניסה לאירוע ומעקב הגעה — לפי יכולות המערכת",
     },
     timeline: [
       {

@@ -344,14 +344,14 @@ export default function RSVPPage() {
         <div className="mx-auto max-w-4xl">
           <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">מסע האורח המלא — מהודעה עד אישור</h2>
           <p className="mt-3 leading-8 text-[#5C4A3A]">
-            באירוע הדוגמה של מאיה ואיתי: האורח מקבל הודעת WhatsApp לפי התבנית המאושרת, פותח את
-            הקישור האישי, רואה את ההזמנה המעוצבת, מאשר הגעה — והתשובה נשמרת במערכת.
+            באירוע הדוגמה של מיה ואלון: האורח מקבל הודעת WhatsApp לפי התבנית המאושרת, פותח את
+            הקישור האישי ורואה את ההזמנה המעוצבת — לפני שממשיכים למעקב הסטטוסים בדשבורד.
           </p>
           <div className="mt-8">
             <DemoVideo
-              src={PRODUCT_VIDEOS.guestJourney}
+              src={PRODUCT_VIDEOS.whatsappChannel}
               poster={PRODUCT_SHOTS.whatsappRsvp}
-              caption="מהודעת WhatsApp דרך ההזמנה ועד אישור הגעה"
+              caption="הודעת WhatsApp → פתיחת ההזמנה בקישור האישי"
             />
           </div>
         </div>
@@ -361,14 +361,14 @@ export default function RSVPPage() {
         <div className="mx-auto max-w-4xl">
           <h2 className="text-3xl font-black text-[#2A211A] md:text-4xl">מעקב אחרי אישורים — לפי פעולות אמיתיות</h2>
           <p className="mt-3 leading-8 text-[#5C4A3A]">
-            כמה אורחי דמו מאשרים הגעה, לא מגיעים או משאירים סטטוס פתוח — והדשבורד מתעדכן בהתאם
+            כמה אורחים מאשרים הגעה, לא מגיעים או משאירים סטטוס פתוח — והדשבורד מתעדכן בהתאם
             ללוגיקה של המערכת, לא באנימציה מנותקת.
           </p>
           <div className="mt-8">
             <DemoVideo
-              src={PRODUCT_VIDEOS.dashboardLive}
+              src={PRODUCT_VIDEOS.rsvpStatuses}
               poster={PRODUCT_SHOTS.dashboardLive}
-              caption="אישורי אורחים בדמו ועדכון הדשבורד"
+              caption="סטטוסים משתנים אחרי אישורי אורחים אמיתיים במערכת"
             />
           </div>
         </div>
@@ -430,7 +430,7 @@ export default function RSVPPage() {
             </p>
           </motion.div>
 
-          <VideoFrame src={PRODUCT_VIDEOS.guestRsvpCaptions} variant="phone" />
+          <VideoFrame src={PRODUCT_VIDEOS.invitationOpen} variant="phone" />
         </div>
       </section>
 

@@ -53,24 +53,39 @@ export const PRODUCT_SHOTS = {
   seatingLive: `${P}/webp/desktop-try-seating-live.webp`,
 } as const;
 
-/** Demo recordings from /try and /invite — fictional data only. */
+/**
+ * Dedicated process recordings from /try + /invite (fictional guests only).
+ * Do not reuse heroGuestJourney outside the homepage phone — each product
+ * surface has its own clip.
+ */
 export const PRODUCT_VIDEOS = {
   dashboard: "/marketing/videos/demo-try-dashboard.webm",
   seating: "/marketing/videos/demo-try-seating.webm",
-  /** Prefer real seating process from the Maya & Itai demo event */
   seatingUnifiedCaptions: "/marketing/videos/process-seating.webm",
   seatingCinematic: "/marketing/videos/process-seating.webm",
   seatingProcess: "/marketing/videos/process-seating.webm",
-  guestRsvp: "/marketing/videos/hero-guest-journey.webm",
-  guestRsvpCaptions: "/marketing/videos/hero-guest-journey.webm",
-  guestJourney: "/marketing/videos/hero-guest-journey.webm",
+  /** Homepage Hero only — full guest journey */
   heroGuestJourney: "/marketing/videos/hero-guest-journey.webm",
+  homeJourney: "/marketing/videos/hero-guest-journey.webm",
+  /** WhatsApp → invite open (no full RSVP submit) */
+  whatsappChannel: "/marketing/videos/process-whatsapp-channel.webm",
+  guestRsvp: "/marketing/videos/process-whatsapp-channel.webm",
+  guestRsvpCaptions: "/marketing/videos/process-whatsapp-channel.webm",
+  guestJourney: "/marketing/videos/process-whatsapp-channel.webm",
+  /** Multi-guest statuses updating the dashboard */
+  rsvpStatuses: "/marketing/videos/process-rsvp-statuses.webm",
   dashboardLive: "/marketing/videos/process-dashboard-live.webm",
   invitationOpen: "/marketing/videos/process-invitation-open.webm",
   saveTheDateProcess: "/marketing/videos/process-save-the-date.webm",
+  sms: "/marketing/videos/process-sms.webm",
+  reminders: "/marketing/videos/process-reminders.webm",
+  thankYou: "/marketing/videos/process-thank-you.webm",
+  calls: "/marketing/videos/process-ivr-calls.webm",
+  ivr: "/marketing/videos/process-ivr-calls.webm",
+  guestList: "/marketing/videos/process-guest-list.webm",
+  checkIn: "/marketing/videos/process-check-in.webm",
   weddingEternal: "/marketing/videos/demo-wedding-eternal-gold.webm",
   weddingReel: "/marketing/videos/reel-wedding-website.webm",
-  homeJourney: "/marketing/videos/hero-guest-journey.webm",
 } as const;
 
 /** Prefer webp; fall back to png if a variant is missing on disk. */
@@ -88,12 +103,12 @@ export function showcaseForPath(path: string): { heading: string; lede: string; 
     case "/info/demo":
       return {
         heading: "מהודעה, להזמנה, לדשבורד",
-        lede: "מסע אורח עקבי — הזמנת מיה ואלון ואישורי דמו במערכת — עם שמירה אמיתית במערכת הדמו, לא אנימציה מנותקת.",
+        lede: "מסע אורח עקבי — הזמנת מיה ואלון ואישורי הגעה במערכת — עם שמירה אמיתית בתהליך, לא אנימציה מנותקת.",
         layout: "trio",
         items: [
-          { src: PRODUCT_SHOTS.whatsappRsvp, alt: "הדמיית הודעת WhatsApp לפי תבנית Invistimo", caption: "קבלת ההודעה עם הקישור האישי", device: "phone" },
+          { src: PRODUCT_SHOTS.whatsappRsvp, alt: "הודעת WhatsApp לפי תבנית Invistimo", caption: "קבלת ההודעה עם הקישור האישי", device: "phone" },
           { src: PRODUCT_SHOTS.guestInviteLoaded, alt: "הזמנה דיגיטלית שנפתחת בקישור האישי", caption: "פתיחת ההזמנה", device: "phone" },
-          { src: PRODUCT_SHOTS.dashboardLive, alt: "דשבורד אחרי אישורי הגעה אמיתיים בדמו", caption: "הדשבורד מתעדכן אחרי השמירה", device: "laptop" },
+          { src: PRODUCT_SHOTS.dashboardLive, alt: "דשבורד אחרי אישורי הגעה", caption: "הדשבורד מתעדכן אחרי השמירה", device: "laptop" },
         ],
       };
     case "/for/bar-mitzvah":
