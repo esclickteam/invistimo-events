@@ -686,6 +686,7 @@ export default function VenueGuaranteeGuide() {
               { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
               { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
               { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
+              { href: "/rsvp/calls", label: "שיחות אישורי הגעה" },
               { href: "/info/guides/cost-rsvp-wedding", label: "עלויות אישורי הגעה" },
               { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
               { href: "/info/guides", label: "כל המדריכים" },

@@ -71,7 +71,7 @@ const CHANNELS = [
   {
     title: "שיחות — כשצריך להשלים תשובות",
     text: "מסלולי שיחות מוקלטות, אנושיות או משולבות — חבילות נפרדות, לא כלולות אוטומטית בהודעות בלבד.",
-    href: "/pricing",
+    href: "/rsvp/calls",
   },
 ] as const;
 
@@ -670,6 +670,7 @@ export default function WhatsappRsvpMarketingPage() {
             {[
               { href: "/rsvp", label: "אישורי הגעה" },
               { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+              { href: "/rsvp/calls", label: "שיחות טלפון" },
               { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "מה קורה כששליחת WhatsApp נכשלת?" },
               { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },
               { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות לאולם" },

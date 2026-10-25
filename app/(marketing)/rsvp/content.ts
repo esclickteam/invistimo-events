@@ -123,7 +123,7 @@ export const CHANNELS = {
     {
       title: "שיחות טלפוניות — גם למי שלא השיב",
       body: "אפשר לשלב שיחות מוקלטות, שיחות אנושיות או שילוב ביניהן, בהתאם לחבילה שנבחרה.",
-      href: "/pricing",
+      href: "/rsvp/calls",
       icon: "call" as const,
     },
   ],

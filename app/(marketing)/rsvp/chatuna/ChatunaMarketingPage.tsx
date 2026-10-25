@@ -495,6 +495,10 @@ export default function ChatunaMarketingPage() {
             מדריך לאורחים שלא עונים
           </Link>
           {" · "}
+          <Link href={LINKS.calls} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+            אישורי הגעה בשיחות טלפון
+          </Link>
+          {" · "}
           <Link href={LINKS.whatsappVsSms} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
             למה כדאי לשלב WhatsApp עם גיבוי SMS?
           </Link>
@@ -837,6 +841,9 @@ export default function ChatunaMarketingPage() {
           </Link>
           <Link href={LINKS.whatsapp} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
             אישורי הגעה ב־WhatsApp
+          </Link>
+          <Link href={LINKS.calls} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+            אישורי הגעה בשיחות טלפון
           </Link>
           <Link href={LINKS.invitations} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
             הזמנות דיגיטליות

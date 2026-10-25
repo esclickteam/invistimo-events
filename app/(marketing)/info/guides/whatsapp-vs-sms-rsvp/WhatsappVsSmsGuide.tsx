@@ -669,6 +669,7 @@ export default function WhatsappVsSmsGuide() {
               { href: "/rsvp", label: "אישורי הגעה" },
               { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
               { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
+              { href: "/rsvp/calls", label: "שיחות טלפון" },
               { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
               { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },
               { href: "/info/guides/cost-rsvp-wedding", label: "עלויות אישורי הגעה" },
