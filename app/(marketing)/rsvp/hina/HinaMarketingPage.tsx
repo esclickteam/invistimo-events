@@ -36,37 +36,34 @@ const fade = {
   show: { opacity: 1, y: 0 },
 };
 
-/** Subtle Moroccan diamond wash — always behind content (z-0), never above text. */
+/**
+ * Subtle Moroccan diamond wash — fixed tile size so strokes stay thin,
+ * always behind content (z-0), never above text/images.
+ */
 function MoroccanPattern({
   className = "",
   opacity = 0.08,
-  patternId = "hina-geo",
+  color = "#A67C3D",
 }: {
   className?: string;
   /** Visual strength; keep ~0.06–0.12 so pattern stays atmospheric. */
   opacity?: number;
-  patternId?: string;
+  color?: string;
 }) {
+  const encoded = encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 44 44"><path d="M22 3 L41 22 L22 41 L3 22 Z M22 11 L33 22 L22 33 L11 22 Z" fill="none" stroke="${color}" stroke-width="0.9"/></svg>`
+  );
   return (
     <div
       className={`pointer-events-none absolute inset-0 z-0 overflow-hidden ${className}`}
       aria-hidden
-      style={{ opacity }}
-    >
-      <svg className="h-full w-full" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
-        <defs>
-          <pattern id={patternId} width="40" height="40" patternUnits="userSpaceOnUse">
-            <path
-              d="M20 2 L38 20 L20 38 L2 20 Z M20 10 L30 20 L20 30 L10 20 Z"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="0.7"
-            />
-          </pattern>
-        </defs>
-        <rect width="120" height="120" fill={`url(#${patternId})`} />
-      </svg>
-    </div>
+      style={{
+        opacity,
+        backgroundImage: `url("data:image/svg+xml,${encoded}")`,
+        backgroundSize: "44px 44px",
+        backgroundRepeat: "repeat",
+      }}
+    />
   );
 }
 
@@ -246,18 +243,17 @@ function SeatingDemoCard() {
 function PlanningTipCard({ tip }: { tip: (typeof PLANNING_TIPS)[number] }) {
   const lightTop = tip.id === "evening" || tip.id === "seating";
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-[24px] border border-[#D4B483]/60 bg-white/90 shadow-[0_14px_36px_rgba(74,21,32,0.06)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(74,21,32,0.12)]">
+    <article className="group flex h-full flex-col overflow-hidden rounded-[24px] border border-[#D4B483]/60 bg-white shadow-[0_14px_36px_rgba(74,21,32,0.06)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(74,21,32,0.12)]">
       <div
         className={`relative flex h-28 shrink-0 items-center justify-center ${lightTop ? "text-[#6B1F2A]" : "text-[#FBF5EB]"}`}
         style={{
           background: `linear-gradient(145deg, ${tip.palette[0]} 0%, ${tip.palette[1]} 55%, ${tip.palette[2]} 100%)`,
         }}
       >
-        <div className="absolute inset-3 rounded-[18px] border border-white/25" />
+        <div className="absolute inset-3 z-[1] rounded-[18px] border border-white/25" />
         <MoroccanPattern
-          patternId={`tip-geo-${tip.id}`}
-          opacity={0.07}
-          className={lightTop ? "text-[#4A1520]" : "text-white"}
+          opacity={0.1}
+          color={lightTop ? "#4A1520" : "#FFFFFF"}
         />
         <div className="relative z-10">
           <TipIcon tipId={tip.id} />
@@ -380,7 +376,7 @@ export default function HinaMarketingPage() {
           />
           <div className="absolute inset-0 bg-[linear-gradient(105deg,rgba(251,245,235,0.96)_0%,rgba(251,245,235,0.92)_42%,rgba(74,21,32,0.55)_100%)]" />
         </div>
-        <MoroccanPattern patternId="hina-hero-geo" opacity={0.07} className="text-[#A67C3D]" />
+        <MoroccanPattern opacity={0.08} color="#8B6F3A" />
 
         <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-12 md:grid-cols-[1.05fr_0.95fr] md:px-8 md:pb-24 md:pt-16">
           <motion.div
@@ -388,7 +384,7 @@ export default function HinaMarketingPage() {
             animate="show"
             variants={fade}
             transition={{ duration: 0.7 }}
-            className="rounded-[28px] bg-[#FBF5EB]/55 p-1 md:bg-transparent md:p-0"
+            className="rounded-[28px] bg-gradient-to-l from-[#FBF5EB]/80 to-[#FBF5EB]/55 p-4 md:from-[#FBF5EB]/70 md:to-transparent md:p-5"
           >
             <p className={`text-4xl font-bold tracking-tight text-[#6B1F2A] md:text-5xl ${display.className}`}>
               Invistimo
@@ -622,9 +618,9 @@ export default function HinaMarketingPage() {
 
       {/* Planning tips — same card chrome, new content */}
       <SectionShell id="planning-tips" tone="burgundy" className="relative isolate overflow-hidden">
-        <MoroccanPattern patternId="hina-tips-geo" opacity={0.08} className="text-[#D4B483]" />
+        <MoroccanPattern opacity={0.09} color="#D4B483" />
         <div className="relative z-10">
-          <div className="mx-auto max-w-3xl rounded-[28px] bg-[#4A1520]/55 px-4 py-2 text-center backdrop-blur-[1px] md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-0">
+          <div className="mx-auto max-w-3xl rounded-[28px] bg-[#4A1520]/72 px-5 py-6 text-center md:px-8">
             <p className="text-sm font-bold tracking-[0.16em] text-[#D4B483]">מתכננים את החינה</p>
             <h2 className={`mt-3 text-3xl text-[#FBF5EB] md:text-4xl ${display.className}`}>
               ארבעה דברים שעושים חינה בלתי נשכחת
