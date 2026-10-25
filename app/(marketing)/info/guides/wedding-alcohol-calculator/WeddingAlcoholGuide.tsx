@@ -9,7 +9,6 @@ import AlcoholCalculator from "./AlcoholCalculator";
 import { ALCOHOL_GUIDE_FAQS } from "./guideFaqs";
 
 const PATH = "/info/guides/wedding-alcohol-calculator";
-const UPDATED = "25 באוקטובר 2026";
 
 const ctaPrimary =
   "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3.5 text-base font-black text-white shadow-[0_18px_40px_rgba(58,39,20,0.22)] transition hover:-translate-y-0.5";
@@ -96,7 +95,6 @@ export default function WeddingAlcoholGuide() {
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-14 pt-6 md:gap-12 md:px-8 md:pb-16 md:pt-8 lg:grid-cols-[1.05fr_0.95fr]">
           <div>
             <p className="text-sm font-black tracking-[0.12em] text-[#7A5530]">מדריך · Invistimo</p>
-            <p className="mt-2 text-xs font-semibold text-[#8A6B45]">עודכן: {UPDATED}</p>
             <h1 className="mt-3 max-w-2xl text-[1.85rem] font-black leading-[1.18] tracking-[-0.03em] text-[#2C241C] md:text-[2.65rem]">
               כמה אלכוהול צריך לקנות לחתונה?
             </h1>
@@ -123,7 +121,7 @@ export default function WeddingAlcoholGuide() {
                 className={ctaPrimary}
                 location={`hero_calc:${PATH}`}
               >
-                למחשבון האלכוהול
+                בואו נחשב כמה אלכוהול צריך
               </TrackedCtaLink>
               <TrackedCtaLink
                 href="#venue-checklist"

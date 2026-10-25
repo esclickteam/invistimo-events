@@ -140,6 +140,7 @@ export const SERVICE_PAGES: ServicePage[] = [
       { href: "/seating-explained", label: "סידורי הושבה" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },
       { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "למה כדאי לשלב WhatsApp עם גיבוי SMS?" },
+      { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
       { href: "/pricing", label: "חבילות ומחירים" },
     ],
     breadcrumbs: [home, { name: "אישורי הגעה", path: "/rsvp" }, { name: "לחתונה", path: "/rsvp/chatuna" }],

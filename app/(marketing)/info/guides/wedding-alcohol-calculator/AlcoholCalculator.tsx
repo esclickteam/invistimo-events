@@ -5,7 +5,6 @@ import { useEffect, useId, useMemo, useState } from "react";
 import {
   BOTTLE_CATALOG,
   CATEGORY_META,
-  PACKAGE_SIZE_OPTIONS,
   bottlesByCategory,
   type BottleCategoryId,
   type BottleCatalogItem,
@@ -28,6 +27,7 @@ import {
   type VenueAlcohol,
   type VenuePackageCosts,
 } from "./calcLogic";
+import DrinkResults from "./DrinkResults";
 
 const STEPS = [
   { id: "event", label: "פרטי האירוע" },
@@ -121,6 +121,7 @@ export default function AlcoholCalculator() {
   const [customName, setCustomName] = useState("");
   const [customMl, setCustomMl] = useState("700");
   const [customNa, setCustomNa] = useState(false);
+  const [catalogExpanded, setCatalogExpanded] = useState(false);
 
   // Step 3 — bar
   const [bar, setBar] = useState<BarPreferences>(defaultBar);
@@ -240,6 +241,7 @@ export default function AlcoholCalculator() {
         unitPrice: null,
         venueIncludedUnits: 0,
         manualUnits: null,
+        manualPurchaseUnits: null,
         isNonAlcoholic: item.category === "non_alcoholic",
       };
       return [...prev, next];
@@ -257,6 +259,7 @@ export default function AlcoholCalculator() {
       unitPrice: null,
       venueIncludedUnits: 0,
       manualUnits: null,
+      manualPurchaseUnits: null,
       isNonAlcoholic: customNa || activeCategory === "non_alcoholic",
     };
     setDrinks((prev) => [...prev, next]);
@@ -286,6 +289,7 @@ export default function AlcoholCalculator() {
             unitPrice: null,
             venueIncludedUnits: 0,
             manualUnits: null,
+            manualPurchaseUnits: null,
             isNonAlcoholic: true,
           })
         ),
@@ -316,9 +320,21 @@ export default function AlcoholCalculator() {
           b.styleHe.includes(search.trim()) ||
           CATEGORY_META[b.category].labelHe.includes(search.trim())
       );
+    } else {
+      list = [...list].sort((a, b) => Number(!!b.popular) - Number(!!a.popular));
     }
     return list;
   }, [activeCategory, search]);
+
+  const visibleCatalog = useMemo(() => {
+    if (search.trim() || catalogExpanded) return filteredCatalog;
+    const popular = filteredCatalog.filter((b) => b.popular);
+    if (popular.length >= 4) return popular.slice(0, 8);
+    return filteredCatalog.slice(0, 6);
+  }, [filteredCatalog, catalogExpanded, search]);
+
+  const catalogHasMore =
+    !search.trim() && !catalogExpanded && filteredCatalog.length > visibleCatalog.length;
 
   function printSummary() {
     window.print();
@@ -530,6 +546,7 @@ export default function AlcoholCalculator() {
                 onClick={() => {
                   setActiveCategory(id);
                   setSearch("");
+                  setCatalogExpanded(false);
                   if (id === "non_alcoholic") addNaPresets();
                 }}
                 className={`${chipClass} ${activeCategory === id ? chipOn : chipOff}`}
@@ -614,51 +631,64 @@ export default function AlcoholCalculator() {
             </p>
           ) : null}
 
-          {filteredCatalog.length > 0 ? (
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-              {filteredCatalog.map((item) => {
-                const selected = drinks.some((d) => d.catalogId === item.id);
-                return (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      onClick={() => toggleCatalogBottle(item)}
-                      aria-pressed={selected}
-                      className={`group flex h-full w-full flex-col overflow-hidden rounded-[22px] border bg-white text-right transition ${
-                        selected
-                          ? "border-[#C9A45C] shadow-[0_0_0_2px_rgba(201,164,92,0.45),0_12px_28px_rgba(95,68,34,0.1)]"
-                          : "border-[#E6D2AA] hover:border-[#D4B87A]"
-                      }`}
-                    >
-                      <div className="relative flex aspect-[3/4] items-center justify-center bg-gradient-to-b from-[#FFFDF8] to-[#F7EFE0] p-3">
-                        <Image
-                          src={item.imageSrc}
-                          alt={item.imageAlt}
-                          width={280}
-                          height={360}
-                          className="max-h-full w-auto object-contain transition duration-500 group-hover:scale-[1.03]"
-                          sizes="(max-width:640px) 45vw, 160px"
-                        />
-                        {selected ? (
-                          <span className="absolute left-2 top-2 rounded-full bg-[#C9A45C] px-2 py-0.5 text-[10px] font-black text-white">
-                            נבחר
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="border-t border-[#F0E2C8] px-3 py-3">
-                        <p className="text-sm font-black leading-5 text-[#2C241C]">{item.brandHe}</p>
-                        <p className="mt-0.5 text-xs font-semibold text-[#8A6B45]">{item.styleHe}</p>
-                        <p className="mt-1 text-xs font-bold tabular-nums text-[#7A5530]">
-                          {item.defaultMl >= 1000
-                            ? `${item.defaultMl / 1000} ל׳`
-                            : `${item.defaultMl} מ״ל`}
-                        </p>
-                      </div>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+          {visibleCatalog.length > 0 ? (
+            <>
+              <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+                {visibleCatalog.map((item) => {
+                  const selected = drinks.some((d) => d.catalogId === item.id);
+                  return (
+                    <li key={item.id}>
+                      <button
+                        type="button"
+                        onClick={() => toggleCatalogBottle(item)}
+                        aria-pressed={selected}
+                        className={`group flex h-full w-full flex-col overflow-hidden rounded-[22px] border bg-white text-right transition ${
+                          selected
+                            ? "border-[#C9A45C] shadow-[0_0_0_2px_rgba(201,164,92,0.45),0_12px_28px_rgba(95,68,34,0.1)]"
+                            : "border-[#E6D2AA] hover:border-[#D4B87A]"
+                        }`}
+                      >
+                        <div className="relative flex aspect-[3/4] items-center justify-center bg-gradient-to-b from-[#FFFDF8] to-[#F7EFE0] p-3">
+                          <Image
+                            src={item.imageSrc}
+                            alt={item.imageAlt}
+                            width={280}
+                            height={360}
+                            className="max-h-full w-auto object-contain transition duration-500 group-hover:scale-[1.03]"
+                            sizes="(max-width:640px) 45vw, 160px"
+                          />
+                          {selected ? (
+                            <span className="absolute left-2 top-2 rounded-full bg-[#C9A45C] px-2 py-0.5 text-[10px] font-black text-white">
+                              נבחר
+                            </span>
+                          ) : null}
+                        </div>
+                        <div className="border-t border-[#F0E2C8] px-3 py-3">
+                          <p className="text-sm font-black leading-5 text-[#2C241C]">{item.brandHe}</p>
+                          <p className="mt-0.5 text-xs font-semibold text-[#8A6B45]">{item.styleHe}</p>
+                          <p className="mt-1 text-xs font-bold tabular-nums text-[#7A5530]">
+                            {item.defaultMl >= 1000
+                              ? `${item.defaultMl / 1000} ל׳`
+                              : `${item.defaultMl} מ״ל`}
+                          </p>
+                        </div>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              {catalogHasMore ? (
+                <div className="flex justify-center">
+                  <button
+                    type="button"
+                    onClick={() => setCatalogExpanded(true)}
+                    className="rounded-full border border-[#C9A45C] bg-white px-6 py-2.5 text-sm font-black text-[#5E4735]"
+                  >
+                    הצג עוד בקבוקים ({filteredCatalog.length - visibleCatalog.length})
+                  </button>
+                </div>
+              ) : null}
+            </>
           ) : activeCategory !== "cocktails" && activeCategory !== "non_alcoholic" && !search ? (
             <p className="text-sm text-[#7A6042]">אין פריטים בקטגוריה זו כרגע.</p>
           ) : null}
@@ -775,130 +805,12 @@ export default function AlcoholCalculator() {
             </ul>
           ) : null}
 
-          {qty.rows.length === 0 ? (
-            <p className="text-sm text-[#7A6042]">בחרו משקאות בשלב הקודם כדי לראות כמויות.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[720px] border-collapse text-sm">
-                <thead>
-                  <tr className="border-b border-[#E6D2AA] text-right text-xs font-black text-[#8A6B45]">
-                    <th className="py-2 pe-2 font-black">משקה</th>
-                    <th className="py-2 px-2 font-black">נפח</th>
-                    <th className="py-2 px-2 font-black">תכנון (טווח)</th>
-                    <th className="py-2 px-2 font-black">כלול באולם</th>
-                    <th className="py-2 px-2 font-black">לרכישה</th>
-                    <th className="py-2 px-2 font-black">מחיר ליחידה</th>
-                    <th className="py-2 ps-2 font-black">עלות</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {qty.rows.map((row) => {
-                    const drink = drinks.find((d) => d.id === row.drinkId);
-                    return (
-                      <tr key={row.drinkId} className="border-b border-[#F0E2C8] align-top">
-                        <td className="py-3 pe-2">
-                          <p className="font-bold text-[#2C241C]">{row.label}</p>
-                          {row.notes.length ? (
-                            <p className="mt-1 text-[11px] text-[#8A6B45]">{row.notes.join(" · ")}</p>
-                          ) : null}
-                          <button
-                            type="button"
-                            className="mt-1 text-[11px] font-bold text-[#8A642E] underline print:hidden"
-                            onClick={() => removeDrink(row.drinkId)}
-                          >
-                            הסרה
-                          </button>
-                        </td>
-                        <td className="py-3 px-2">
-                          <select
-                            className="min-h-10 w-24 rounded-xl border border-[#E6D2AA] bg-white px-2 text-xs font-bold"
-                            value={drink?.packageMl ?? row.packageMl}
-                            onChange={(e) =>
-                              updateDrink(row.drinkId, { packageMl: parseNum(e.target.value) })
-                            }
-                          >
-                            {PACKAGE_SIZE_OPTIONS.map((ml) => (
-                              <option key={ml} value={ml}>
-                                {ml}
-                              </option>
-                            ))}
-                          </select>
-                        </td>
-                        <td className="py-3 px-2 tabular-nums font-semibold text-[#35281F]">
-                          {row.plannedUnitsLow === row.plannedUnitsHigh
-                            ? row.plannedUnitsMid
-                            : `${row.plannedUnitsLow}–${row.plannedUnitsHigh}`}
-                          <div className="mt-1 print:hidden">
-                            <input
-                              inputMode="numeric"
-                              placeholder="עריכה ידנית"
-                              className="min-h-9 w-24 rounded-xl border border-[#E6D2AA] px-2 text-xs"
-                              value={drink?.manualUnits ?? ""}
-                              onChange={(e) => {
-                                const raw = e.target.value;
-                                updateDrink(row.drinkId, {
-                                  manualUnits: raw.trim() === "" ? null : parseNum(raw),
-                                });
-                              }}
-                              aria-label={`כמות ידנית ל${row.label}`}
-                            />
-                          </div>
-                        </td>
-                        <td className="py-3 px-2">
-                          <input
-                            inputMode="numeric"
-                            className="min-h-10 w-20 rounded-xl border border-[#E6D2AA] px-2 text-xs font-bold tabular-nums"
-                            value={drink?.venueIncludedUnits ?? 0}
-                            onChange={(e) =>
-                              updateDrink(row.drinkId, {
-                                venueIncludedUnits: parseNum(e.target.value),
-                              })
-                            }
-                          />
-                        </td>
-                        <td className="py-3 px-2 font-black tabular-nums text-[#2C241C]">
-                          {row.toPurchaseLow === row.toPurchaseHigh
-                            ? row.toPurchaseMid
-                            : `${row.toPurchaseLow}–${row.toPurchaseHigh}`}
-                        </td>
-                        <td className="py-3 px-2">
-                          <input
-                            inputMode="decimal"
-                            placeholder="₪"
-                            className="min-h-10 w-24 rounded-xl border border-[#E6D2AA] px-2 text-xs font-bold tabular-nums"
-                            value={drink?.unitPrice ?? ""}
-                            onChange={(e) => {
-                              const raw = e.target.value;
-                              updateDrink(row.drinkId, {
-                                unitPrice: raw.trim() === "" ? null : parseNum(raw),
-                              });
-                            }}
-                          />
-                        </td>
-                        <td className="py-3 ps-2 font-bold tabular-nums text-[#2C241C]">
-                          {row.costMid != null ? formatIls(row.costMid) : "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          <div className="rounded-2xl border border-[#E6D2AA] bg-white/90 p-4">
-            <p className="text-sm font-black text-[#2C241C]">
-              עלות בקבוקים משוערת (לפי מחירים שהוזנו):{" "}
-              {qty.purchaseCostMid != null ? (
-                <span className="tabular-nums">
-                  {formatIls(qty.purchaseCostLow || 0)} – {formatIls(qty.purchaseCostHigh || 0)}
-                  <span className="mx-1 text-[#8A6B45]">(אמצע {formatIls(qty.purchaseCostMid)})</span>
-                </span>
-              ) : (
-                <span className="font-semibold text-[#8A6B45]">חסרים מחירים</span>
-              )}
-            </p>
-          </div>
+          <DrinkResults
+            rows={qty.rows}
+            drinks={drinks}
+            onUpdate={updateDrink}
+            onRemove={removeDrink}
+          />
 
           <details className="rounded-2xl border border-[#EAD9B8] bg-[#FFF8EA]/50 p-4">
             <summary className="cursor-pointer text-sm font-black text-[#5E4735]">

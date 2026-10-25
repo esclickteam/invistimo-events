@@ -97,7 +97,9 @@ export default function GuidesPage() {
                         href={guidePath(guide.slug)}
                         className="mt-4 inline-flex text-sm font-black text-[#8A642E] underline-offset-4 hover:underline"
                       >
-                        לקריאת המדריך ←
+                        {guide.slug === "wedding-alcohol-calculator"
+                          ? "למחשבון האלכוהול ←"
+                          : "לקריאת המדריך ←"}
                       </Link>
                     </li>
                   ))}

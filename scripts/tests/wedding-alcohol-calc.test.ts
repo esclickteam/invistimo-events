@@ -18,6 +18,7 @@ function drink(partial: Partial<SelectedDrink> & Pick<SelectedDrink, "id" | "cat
     unitPrice: null,
     venueIncludedUnits: 0,
     manualUnits: null,
+    manualPurchaseUnits: null,
     isNonAlcoholic: partial.category === "non_alcoholic",
     ...partial,
   };
@@ -148,6 +149,27 @@ test("manual override freezes quantity", () => {
   assert.equal(r.rows[0].plannedUnitsLow, 12);
   assert.equal(r.rows[0].plannedUnitsHigh, 12);
   assert.equal(r.rows[0].isManual, true);
+});
+
+test("manual purchase units override toPurchase independently of planned range", () => {
+  const r = computeQuantities(
+    baseInputs({
+      expectedDrinkers: 80,
+      drinks: [
+        drink({
+          id: "v1",
+          category: "vodka",
+          label: "וודקה",
+          venueIncludedUnits: 2,
+          manualPurchaseUnits: 7,
+          unitPrice: 90,
+        }),
+      ],
+    })
+  );
+  assert.equal(r.rows[0].toPurchaseMid, 7);
+  assert.equal(r.rows[0].costMid, 630);
+  assert.ok(r.rows[0].plannedUnitsMid >= 0);
 });
 
 test("non-alcoholic water planning uses guest count; venue soft drinks zeros purchase", () => {
