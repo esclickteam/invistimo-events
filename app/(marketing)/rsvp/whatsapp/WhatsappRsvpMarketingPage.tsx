@@ -246,12 +246,12 @@ function QuietVideo({
   if (reduceMotion && poster) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={poster} alt="" className={className} loading="lazy" decoding="async" />
+      <img src={poster} alt="" className={`h-full w-full object-cover object-top ${className || ""}`} loading="lazy" decoding="async" />
     );
   }
 
   return (
-    <span className={`relative block overflow-hidden ${className || ""}`}>
+    <span className={`relative block h-full w-full overflow-hidden ${className || ""}`}>
       {poster ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -271,7 +271,7 @@ function QuietVideo({
         loop
         playsInline
         preload="metadata"
-        className="relative z-[1] h-full w-full object-cover object-top"
+        className="absolute inset-0 z-[1] h-full w-full object-cover object-top"
         aria-label="הדגמת אישור הגעה ב־WhatsApp מתוך Invistimo"
       />
     </span>
@@ -286,26 +286,33 @@ function Eyebrow({ children, onDark }: { children: React.ReactNode; onDark?: boo
   );
 }
 
+const JOURNEY_VIDEO = {
+  src: "/videos/rsvp-steps-wa.mp4",
+  poster: "/images/rsvp/rsvp-steps-wa-poster.jpg",
+} as const;
+
 function SyncedJourney() {
   const [t, setT] = useState(0);
   const active = JOURNEY_CAPTIONS.find((c) => t >= c.start && t < c.end) || JOURNEY_CAPTIONS[0];
 
   return (
-    <div className="grid items-start gap-10 lg:grid-cols-[1.05fr_0.95fr]">
-      {/* First in RTL = visual right: product video */}
-      <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#0B0908] shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
-        <div className="aspect-[9/16] max-h-[min(72vh,640px)] w-full sm:aspect-video sm:max-h-none">
-          <QuietVideo
-            src="/videos/rsvp1.mp4"
-            poster="/marketing/videos/hero-guest-journey-poster.jpg"
-            className="h-full w-full"
-            onTime={setT}
-          />
+    <div className="grid items-start gap-10 lg:grid-cols-[0.9fr_1.1fr]">
+      {/* First in RTL = visual right: native portrait product video (never landscape crop) */}
+      <div className="mx-auto w-full max-w-[min(100%,340px)]">
+        <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#0B0908] shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+          <div className="aspect-[9/16] w-full">
+            <QuietVideo
+              src={JOURNEY_VIDEO.src}
+              poster={JOURNEY_VIDEO.poster}
+              className="h-full w-full"
+              onTime={setT}
+            />
+          </div>
+          <p className="sr-only">
+            סרטון אמיתי מתוך Invistimo: הודעת WhatsApp, פתיחת קישור אישי, הזמנה דיגיטלית, אישור הגעה
+            ומסך תודה. האישור מתבצע בעמוד שנפתח מהקישור.
+          </p>
         </div>
-        <p className="sr-only">
-          סרטון אמיתי מתוך Invistimo: הודעת WhatsApp, פתיחת קישור אישי, הזמנה דיגיטלית, אישור הגעה
-          ומסך תודה. האישור מתבצע בעמוד שנפתח מהקישור.
-        </p>
       </div>
       <ol className="grid gap-3">
         {JOURNEY_CAPTIONS.map((c, i) => {
@@ -372,7 +379,8 @@ export default function WhatsappRsvpMarketingPage() {
           <div>
             <PhoneFrame>
               <QuietVideo
-                src="/videos/rsvp1.mp4"
+                src={JOURNEY_VIDEO.src}
+                poster={JOURNEY_VIDEO.poster}
                 className="h-full w-full object-cover object-top"
               />
             </PhoneFrame>
@@ -461,7 +469,11 @@ export default function WhatsappRsvpMarketingPage() {
             <div>
               <p className="mb-3 text-sm font-black text-[#8A642E]">ב. הזמנה וטופס אישור</p>
               <PhoneFrame>
-                <QuietVideo src="/videos/rsvp1.mp4" className="h-full w-full object-cover object-top" />
+                <QuietVideo
+                  src={JOURNEY_VIDEO.src}
+                  poster={JOURNEY_VIDEO.poster}
+                  className="h-full w-full object-cover object-top"
+                />
               </PhoneFrame>
             </div>
           </div>
