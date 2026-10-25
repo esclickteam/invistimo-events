@@ -66,14 +66,17 @@ function SecondaryCta({ href, children }: { href: string; children: React.ReactN
 
 export default function RSVPPage() {
   return (
-    <div dir="rtl" className={`${display.variable} min-h-screen overflow-x-hidden bg-[#FBF6EE] text-[#3F3025]`}>
+    <div
+      dir="rtl"
+      className={`${display.variable} -mt-[64px] min-h-screen overflow-x-hidden bg-[#FBF6EE] text-[#3F3025]`}
+    >
       {/* ================= HERO ================= */}
       <section className="relative isolate px-5 pb-16 pt-[105px] md:px-8 md:pb-24">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,#E9D4AF_0%,transparent_36%),radial-gradient(circle_at_top_right,#F5E8D3_0%,transparent_34%),linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_55%,#F3E8D7_100%)]" />
         <div className="absolute right-8 top-20 -z-10 h-52 w-52 rounded-full bg-[#D8B77C]/25 blur-3xl" />
         <div className="absolute bottom-10 left-6 -z-10 h-64 w-64 rounded-full bg-[#B59668]/18 blur-3xl" />
 
-        <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
+        <div className="mx-auto grid max-w-7xl items-start gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
           <motion.div
             initial="hidden"
             animate="visible"
@@ -100,7 +103,7 @@ export default function RSVPPage() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15, duration: 0.75 }}
-            className="relative mx-auto w-full max-w-[280px] sm:max-w-[300px] lg:max-w-[340px]"
+            className="relative mx-auto w-full max-w-[min(280px,calc((100svh-12rem)*420/760))] sm:max-w-[min(300px,calc((100svh-12rem)*420/760))] lg:max-w-[min(320px,calc((100svh-11rem)*420/760))]"
           >
             <div className="absolute -inset-5 rounded-[42px] bg-[radial-gradient(circle_at_top,#E8D4AF,transparent_60%)] blur-2xl" />
             <div className="relative rounded-[34px] border border-white/80 bg-gradient-to-br from-[#F8EFE1] via-[#FFFDF9] to-[#E7D7BF] p-2.5 shadow-[0_35px_90px_rgba(58,39,20,0.2)]">
