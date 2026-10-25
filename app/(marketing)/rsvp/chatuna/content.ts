@@ -265,6 +265,7 @@ export const LINKS = {
   whenToSend: "/info/guides/when-to-send-rsvp",
   noReply: "/info/guides/guests-who-dont-reply",
   mealWaste: "/info/guides/reduce-meal-waste",
+  costGuide: "/info/guides/cost-rsvp-wedding",
   contact: "/contact",
 } as const;
 
