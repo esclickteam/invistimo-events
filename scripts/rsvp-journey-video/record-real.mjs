@@ -128,7 +128,7 @@ await page.evaluate(() => {
 });
 await holdUntil(10000);
 
-// 03 Real invitation 10–18.5s
+// 03 Personal-link invitation 10–18.5s — same approved invite artwork
 mark("03 invite");
 await page.goto(`${BASE}/invite/demo-share?token=dmo_noa`, {
   waitUntil: "domcontentloaded",
@@ -136,20 +136,36 @@ await page.goto(`${BASE}/invite/demo-share?token=dmo_noa`, {
 });
 await wait(500);
 await hideNoise(page);
-await page.evaluate(async () => {
+await page.evaluate(async (inviteUrl) => {
+  const applyInvite = () => {
+    document.querySelectorAll('img[alt="תמונת ההזמנה"], img[src*="homep1"]').forEach((img) => {
+      img.src = inviteUrl;
+      img.srcset = "";
+      img.style.objectFit = "contain";
+      img.style.background = "#faf7f1";
+    });
+    document.querySelectorAll("h1").forEach((h) => {
+      if ((h.textContent || "").includes("מאיה")) h.textContent = "החתונה של מיה ואלון";
+    });
+  };
+  applyInvite();
+  // Hold the full invitation in view first, then ease down toward RSVP
+  window.scrollTo(0, 0);
+  await new Promise((r) => setTimeout(r, 2800));
+  applyInvite();
   const start = performance.now();
   const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-  const target = Math.min(480, max);
+  const target = Math.min(520, max);
   await new Promise((resolve) => {
     const tick = (now) => {
-      const t = Math.min(1, (now - start) / 2600);
+      const t = Math.min(1, (now - start) / 3200);
       window.scrollTo(0, target * (0.5 - 0.5 * Math.cos(Math.PI * t)));
       if (t < 1) requestAnimationFrame(tick);
       else resolve();
     };
     requestAnimationFrame(tick);
   });
-});
+}, `${BASE}/images/rsvp/invite-frame.jpg`);
 await holdUntil(18500);
 
 // 04 Choose 18.5–25.5s
