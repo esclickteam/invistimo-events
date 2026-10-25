@@ -344,30 +344,31 @@ export default function HomePageClient() {
             </div>
           </motion.div>
 
-          <div className="relative mx-auto flex w-full max-w-[560px] items-center justify-center lg:max-w-none">
+          <div className="relative mx-auto flex w-full max-w-[560px] items-center justify-center py-2 lg:max-w-none lg:py-0">
+            {/* Side invites fan behind the phone on every breakpoint — including phones. */}
             <motion.img
-              initial={{ opacity: 0, x: 40, rotate: 8 }}
-              animate={{ opacity: 1, x: 0, rotate: 6 }}
+              initial={{ opacity: 0, x: 36, rotate: 10 }}
+              animate={{ opacity: 1, x: 0, rotate: 8 }}
               transition={{ duration: 0.9, delay: 0.15 }}
               src="/marketing/invites/invite-wedding-mia-alon.webp"
               alt="הזמנה דיגיטלית לחתונה — מיה ואלון"
-              className="absolute -left-2 top-8 z-0 hidden w-[42%] max-w-[220px] rounded-xl object-cover shadow-[0_24px_50px_rgba(20,14,10,0.35)] sm:block lg:-left-4"
+              className="pointer-events-none absolute left-0 top-3 z-0 w-[46%] max-w-[160px] -translate-x-[18%] rounded-xl object-cover shadow-[0_18px_40px_rgba(20,14,10,0.32)] max-[360px]:w-[50%] max-[360px]:-translate-x-[22%] sm:left-auto sm:-left-2 sm:top-8 sm:w-[42%] sm:max-w-[220px] sm:translate-x-0 sm:shadow-[0_24px_50px_rgba(20,14,10,0.35)] lg:-left-4"
               fetchPriority="low"
               decoding="async"
               draggable={false}
             />
             <motion.img
-              initial={{ opacity: 0, x: -40, rotate: -10 }}
-              animate={{ opacity: 1, x: 0, rotate: -8 }}
+              initial={{ opacity: 0, x: -36, rotate: -12 }}
+              animate={{ opacity: 1, x: 0, rotate: -10 }}
               transition={{ duration: 0.9, delay: 0.25 }}
               src="/marketing/invites/invite-save-the-date-maya-itai.webp"
               alt="כרטיס Save the Date לדוגמה"
-              className="absolute -right-1 bottom-10 z-0 hidden w-[38%] max-w-[200px] rounded-xl object-cover shadow-[0_24px_50px_rgba(20,14,10,0.35)] sm:block lg:-right-2"
+              className="pointer-events-none absolute right-0 bottom-5 z-0 w-[42%] max-w-[148px] translate-x-[16%] rounded-xl object-cover shadow-[0_18px_40px_rgba(20,14,10,0.32)] max-[360px]:w-[46%] max-[360px]:translate-x-[20%] sm:right-auto sm:-right-1 sm:bottom-10 sm:w-[38%] sm:max-w-[200px] sm:translate-x-0 sm:shadow-[0_24px_50px_rgba(20,14,10,0.35)] lg:-right-2"
               fetchPriority="low"
               decoding="async"
               draggable={false}
             />
-            <div className="relative z-10 w-full max-w-[320px]">
+            <div className="relative z-10 w-full max-w-[248px] sm:max-w-[320px]">
               <HeroPhone3D />
             </div>
           </div>
