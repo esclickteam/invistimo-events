@@ -13,6 +13,7 @@ export function generateStaticParams() {
     "guests-who-dont-reply",
     "wedding-venue-guest-guarantee",
     "cost-rsvp-wedding",
+    "whatsapp-vs-sms-rsvp",
   ]);
   return GUIDES.filter((guide) => !dedicated.has(guide.slug)).map((guide) => ({
     slug: guide.slug,

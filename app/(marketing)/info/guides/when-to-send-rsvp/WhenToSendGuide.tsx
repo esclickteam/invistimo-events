@@ -531,6 +531,7 @@ export default function WhenToSendGuide() {
             {[
               { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
               { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות לאולם" },
+              { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "באיזה ערוץ כדאי לשלוח אישורי הגעה?" },
               { href: "/rsvp/save-the-date", label: "Save the Date" },
               { href: "/pricing", label: "חבילות ומחירים" },
               { href: "/info/guides", label: "כל המדריכים" },
