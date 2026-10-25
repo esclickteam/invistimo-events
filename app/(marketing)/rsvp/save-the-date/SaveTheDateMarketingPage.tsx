@@ -117,15 +117,6 @@ const STD_VS_INVITE = [
   ["מבשר על האירוע", "מזמין באופן רשמי"],
 ] as const;
 
-const INSPIRATION = [
-  { name: "Classic Ivory", note: "לבן חם וזהב מעודן", tone: "from-[#FFFDF8] to-[#F3E6D0]" },
-  { name: "Editorial B&W", note: "צילום זוגי וטיפוגרפיה נקייה", tone: "from-[#F5F2EC] to-[#D9D2C6]" },
-  { name: "Satin & Pearl", note: "סאטן, פנינים ושמפניה", tone: "from-[#FFF8EF] to-[#E8D4B0]" },
-  { name: "Botanical", note: "פרחים עדינים ועלים", tone: "from-[#F7FBF4] to-[#DCE8D4]" },
-  { name: "Modern Minimal", note: "עיצוב נקי ומודרני", tone: "from-[#FFFFFF] to-[#EEE7DC]" },
-  { name: "Romantic Photo", note: "תמונה זוגית במרכז", tone: "from-[#FBF6EE] to-[#E5D2B4]" },
-] as const;
-
 const MISTAKES = [
   ["לשלוח לפני שהתאריך סגור", "אם יש סיכוי ממשי לשינוי — עדיף להמתין."],
   ["להסתפק בסטורי", "לא כל המוזמנים יראו אותו. הודעה אישית משלימה את התמונה."],
@@ -546,43 +537,6 @@ export default function SaveTheDateMarketingPage() {
                 מתוכנן חודשים מראש, Save the Date יכול להיות דרך נעימה להתחיל את התקשורת עם האורחים.
               </p>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* INSPIRATION GALLERY */}
-      <section aria-labelledby="gallery" className="bg-[#FFFDF8] px-5 py-16 md:px-8 md:py-20">
-        <div className="mx-auto max-w-6xl">
-          <Eyebrow>רעיונות לעיצוב</Eyebrow>
-          <h2 id="gallery" className="mt-3 max-w-3xl text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
-            ההודעה הראשונה על החתונה שלכם יכולה להיות בלתי נשכחת
-          </h2>
-          <p className="mt-4 max-w-3xl text-sm leading-7 text-[#7A6042]">
-            ב־Invistimo מעבירים תמונת Save the Date שמועלית למערכת — אין בוחר תבניות חי עם כפתורי «בחרו עיצוב».
-            הדוגמאות למטה הן השראה ויזואלית; העיצוב האמיתי שמוצג בהודעה הוא הקובץ שהעליתם.
-          </p>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <figure className="overflow-hidden rounded-[24px] border border-[#E6D2AA] bg-white sm:col-span-2 lg:col-span-1 lg:row-span-2">
-              <Image
-                src={STD_IMAGE}
-                alt="דוגמת Save the Date אמיתית מהמותג — מיה ואלון"
-                width={864}
-                height={1152}
-                className="h-full w-full object-cover"
-                sizes="(max-width:1024px) 100vw, 33vw"
-              />
-              <figcaption className="px-4 py-3 text-sm font-bold text-[#5E4735]">דוגמה אמיתית · מיה ואלון</figcaption>
-            </figure>
-            {INSPIRATION.map((item) => (
-              <div
-                key={item.name}
-                className={`flex min-h-[160px] flex-col justify-end rounded-[24px] border border-[#E6D2AA] bg-gradient-to-br ${item.tone} p-5`}
-              >
-                <p className="text-xs font-bold tracking-[0.14em] text-[#A77A38]">השראה</p>
-                <h3 className="mt-1 text-xl font-black text-[#2C241C]">{item.name}</h3>
-                <p className="mt-1 text-sm text-[#5C4A3A]">{item.note}</p>
-              </div>
-            ))}
           </div>
         </div>
       </section>
