@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { Frank_Ruhl_Libre } from "next/font/google";
 import { motion, useReducedMotion } from "framer-motion";
 import ChatunaVideo from "./components/ChatunaVideo";
@@ -104,8 +104,39 @@ function PhoneFrame({
     <div className="relative mx-auto w-[min(100%,280px)]">
       <div className="overflow-hidden rounded-[2rem] border-[10px] border-[#1C1612] bg-[#1C1612] shadow-[0_28px_60px_rgba(40,28,16,0.28)]">
         <div className="relative aspect-[9/19] w-full overflow-hidden bg-[#F7EDDF]">
-          <Image src={src} alt={alt} fill className="object-cover object-top" sizes="280px" priority={priority} />
+          <Image src={src} alt={alt} fill className="object-contain object-top" sizes="280px" priority={priority} />
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Portrait product clips (phone recordings) must stay in a phone shell — never landscape crop. */
+function PhoneVideoFrame({
+  src,
+  poster,
+  title,
+  eager = false,
+  videoRef,
+}: {
+  src: string;
+  poster?: string;
+  title: string;
+  eager?: boolean;
+  videoRef?: RefObject<HTMLVideoElement | null>;
+}) {
+  return (
+    <div className="mx-auto w-[min(100%,320px)]">
+      <div className="overflow-hidden rounded-[2.1rem] border-[10px] border-[#1C1612] bg-[#1C1612] shadow-[0_28px_60px_rgba(40,28,16,0.28)]">
+        <ChatunaVideo
+          src={src}
+          poster={poster}
+          title={title}
+          eager={eager}
+          fit="contain"
+          videoRef={videoRef}
+          className="aspect-[9/16] w-full bg-[#F7EDDF]"
+        />
       </div>
     </div>
   );
@@ -129,17 +160,14 @@ function JourneySynced() {
   }, []);
 
   return (
-    <div className="grid items-start gap-10 lg:grid-cols-[1.05fr_0.95fr]">
-      <div className="overflow-hidden rounded-[28px] border border-[#E4D3B6] bg-[#17120E] shadow-[0_24px_50px_rgba(40,28,16,0.18)]">
-        <ChatunaVideo
-          src={JOURNEY_VIDEO.src}
-          poster={JOURNEY_VIDEO.poster}
-          title={JOURNEY_VIDEO.title}
-          eager
-          videoRef={videoRef}
-          className="aspect-[9/16] max-h-[640px] w-full md:aspect-video md:max-h-none"
-        />
-      </div>
+    <div className="grid items-start gap-10 lg:grid-cols-[0.9fr_1.1fr]">
+      <PhoneVideoFrame
+        src={JOURNEY_VIDEO.src}
+        poster={JOURNEY_VIDEO.poster}
+        title={JOURNEY_VIDEO.title}
+        eager
+        videoRef={videoRef}
+      />
       <ol className="space-y-3">
         {JOURNEY_STEPS.map((step, i) => {
           const on = i === active;
@@ -425,15 +453,14 @@ export default function ChatunaMarketingPage() {
             </figcaption>
           </figure>
         </div>
-        <div className="mt-12 overflow-hidden rounded-[28px] border border-[#E4D3B6] bg-[#17120E]">
-          <ChatunaVideo
+        <div className="mt-12">
+          <PhoneVideoFrame
             src={JOURNEY_VIDEO.src}
             poster={JOURNEY_VIDEO.poster}
             title="בחירת הגעה, כולל אפשרות לא מגיעים ומסך תודה"
-            className="aspect-video w-full"
           />
         </div>
-        <p className="mt-3 text-sm text-[#7A6550]">
+        <p className="mt-3 text-center text-sm text-[#7A6550]">
           באותו סרטון אפשר לראות גם את בחירת ההגעה ואת מסך התודה האמיתי אחרי השליחה.
         </p>
       </SectionShell>
@@ -503,18 +530,19 @@ export default function ChatunaMarketingPage() {
               </li>
             ))}
           </ol>
-          <div className="overflow-hidden rounded-[28px] border border-[#E4D3B6] bg-[#17120E]">
+          <div className="overflow-hidden rounded-[28px] border border-[#E4D3B6] bg-[#F7EDDF]">
             <ChatunaVideo
               src={TIMING_VIDEO.src}
               poster={TIMING_VIDEO.poster}
               title={TIMING_VIDEO.title}
+              fit="contain"
               className="aspect-video w-full"
             />
           </div>
         </div>
         <div className="mt-8">
           <CtaLink href={LINKS.whenToSend} variant="primary">
-            לגלות מתי כדאי לשלוח אצלכם
+            קראו מתי כדאי לשלוח
           </CtaLink>
         </div>
       </SectionShell>
@@ -528,10 +556,12 @@ export default function ChatunaMarketingPage() {
           {SEASON_CARDS.map((c) => (
             <article
               key={c.title}
-              className="flex flex-col justify-between rounded-[24px] border border-[#E4D3B6] bg-[linear-gradient(180deg,#FFFDF8_0%,#F3E6D0_100%)] px-5 py-7"
+              className="flex flex-col overflow-hidden rounded-[24px] border border-[#E4D3B6] bg-[linear-gradient(180deg,#FFFDF8_0%,#F3E6D0_100%)]"
             >
-              <div>
-                <div className="mb-5 h-28 rounded-2xl bg-[radial-gradient(circle_at_30%_20%,#F0D9A8,transparent_55%),linear-gradient(135deg,#EAD9BE,#F7EDDF)]" />
+              <div className="relative aspect-[16/10] w-full overflow-hidden">
+                <Image src={c.image} alt={c.imageAlt} fill className="object-cover" sizes="(max-width:1024px) 100vw, 33vw" />
+              </div>
+              <div className="px-5 py-6">
                 <h3 className="font-[family-name:var(--font-chatuna-display)] text-2xl text-[#2A211A]">
                   {c.title}
                 </h3>
@@ -553,11 +583,12 @@ export default function ChatunaMarketingPage() {
           במערכת אפשר לארגן מוזמנים בקבוצות עם שמות שתבחרו, לשמור מספרי טלפון, מספר מוזמנים בכל רשומה,
           סטטוס אישור והערות רלוונטיות.
         </p>
-        <div className="mt-10 overflow-hidden rounded-[28px] border border-[#E4D3B6] bg-[#17120E]">
+        <div className="mt-10 overflow-hidden rounded-[28px] border border-[#E4D3B6] bg-[#F7EDDF]">
           <ChatunaVideo
             src={GUESTS_VIDEO.src}
             poster={GUESTS_VIDEO.poster}
             title={GUESTS_VIDEO.title}
+            fit="contain"
             className="aspect-video w-full"
           />
         </div>
@@ -574,27 +605,28 @@ export default function ChatunaMarketingPage() {
           נרכשת, אפשר לנהל את השיבוץ לשולחנות ולהמשיך בהיערכות לקראת יום האירוע.
         </p>
         <div className="mt-10 grid gap-8 lg:grid-cols-2">
-          <div className="overflow-hidden rounded-[28px] border border-[#E4D3B6] bg-[#17120E]">
+          <div className="overflow-hidden rounded-[28px] border border-[#E4D3B6] bg-[#F7EDDF]">
             <ChatunaVideo
               src={SEATING_VIDEO.src}
               poster={SEATING_VIDEO.poster}
               title={SEATING_VIDEO.title}
+              fit="contain"
               className="aspect-video w-full"
             />
           </div>
-          <div className="overflow-hidden rounded-[28px] border border-[#E4D3B6]">
+          <div className="overflow-hidden rounded-[28px] border border-[#E4D3B6] bg-[#F7EDDF]">
             <Image
               src={MEDIA.seating}
               alt="מפת הושבה אמיתית במערכת Invistimo"
               width={1200}
               height={800}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
             />
           </div>
         </div>
         <div className="mt-8">
           <CtaLink href={LINKS.seating} variant="primary">
-            לגלות איך עובדים סידורי ההושבה
+            סידורי הושבה
           </CtaLink>
         </div>
       </SectionShell>

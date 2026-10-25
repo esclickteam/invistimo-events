@@ -8,6 +8,8 @@ type Props = {
   title: string;
   className?: string;
   eager?: boolean;
+  /** cover crops; contain keeps full frame visible (for phone/portrait clips). */
+  fit?: "cover" | "contain";
   videoRef?: RefObject<HTMLVideoElement | null>;
   onTimeUpdate?: (currentTime: number) => void;
 };
@@ -30,6 +32,7 @@ export default function ChatunaVideo({
   title,
   className = "",
   eager = false,
+  fit = "cover",
   videoRef,
   onTimeUpdate,
 }: Props) {
@@ -52,7 +55,7 @@ export default function ChatunaVideo({
   }, [reducedMotion, pausedByUser, videoRef, src]);
 
   return (
-    <div className={`relative overflow-hidden bg-[#17120E] ${className}`}>
+    <div className={`relative overflow-hidden bg-[#F7EDDF] ${className}`}>
       <video
         ref={(node) => {
           localRef.current = node;
@@ -70,7 +73,7 @@ export default function ChatunaVideo({
         autoPlay={!reducedMotion}
         controls
         preload={eager ? "metadata" : "none"}
-        className="h-full w-full object-cover object-top"
+        className={`h-full w-full ${fit === "contain" ? "object-contain" : "object-cover object-top"}`}
         onTimeUpdate={(e) => onTimeUpdate?.(e.currentTarget.currentTime)}
         onPlay={() => setPausedByUser(false)}
         onPause={() => {
