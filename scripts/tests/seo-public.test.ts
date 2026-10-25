@@ -269,6 +269,17 @@ test("marketing pages no longer point the RSVP call to action at a missing short
   assert.match(read("app/components/Footer.tsx"), /href="\/rsvp"/);
 });
 
+test("marketing RSVP service pages keep the public pre-login header and footer", () => {
+  const layoutShell = read("app/components/LayoutShell.tsx");
+  // Guest invite flows stay chrome-free; marketing /rsvp* must not be blanket-hidden.
+  assert.match(layoutShell, /pathname\.startsWith\("\/invite\/"\)/);
+  assert.doesNotMatch(
+    layoutShell,
+    /pathname\.startsWith\("\/rsvp\/"\)\s*&&\s*pathname\s*!==\s*"\/rsvp\/whatsapp"/
+  );
+  assert.doesNotMatch(layoutShell, /pathname\.startsWith\("\/rsvp\/"\)/);
+});
+
 test("each search query has one primary page and no invented volume", () => {
   const queries = KEYWORD_MAP.map((row) => row.query);
   assert.equal(new Set(queries).size, queries.length);
