@@ -8,6 +8,7 @@ const LINKS = [
   { href: "/seating-explained", label: "סידורי הושבה" },
   { href: "/event-management", label: "ניהול אירוע" },
   { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
+  { href: "/services/alcohol-management", label: "ניהול אלכוהול באירועים" },
   { href: "/pricing", label: "חבילות ומחירים" },
   { href: "/info/guides", label: "מדריכים" },
   { href: "/info/about", label: "אודות" },

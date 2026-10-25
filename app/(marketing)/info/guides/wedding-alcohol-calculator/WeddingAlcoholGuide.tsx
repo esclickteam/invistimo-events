@@ -397,6 +397,25 @@ export default function WeddingAlcoholGuide() {
       </section>
 
       {/* FAQ */}
+      <section className="bg-[#FBF6EE] px-5 py-14 md:px-8">
+        <div className="mx-auto max-w-3xl rounded-[28px] border border-[#E6D2AA] bg-gradient-to-l from-[#FFF8EA] via-white to-[#F7E8CA] p-6 md:p-8">
+          <h2 className="text-2xl font-black text-[#2C241C] md:text-3xl">
+            כבר יודעים כמה אלכוהול לקנות? עכשיו צריך גם לנהל אותו נכון.
+          </h2>
+          <p className="mt-4 text-base leading-8 text-[#5C4A3A]">
+            המחשבון עוזר לתכנן את הכמויות לפני האירוע. שירות ניהול האלכוהול של Invistimo מסייע
+            לעקוב אחר הבקבוקים בפועל ביום האירוע, באמצעות אנשי צוות ומערכת ממוחשבת.
+          </p>
+          <TrackedCtaLink
+            href="/services/alcohol-management"
+            className={`${ctaPrimary} mt-6`}
+            location={`to_alcohol_mgmt:${PATH}`}
+          >
+            לשירות ניהול אלכוהול באירועים
+          </TrackedCtaLink>
+        </div>
+      </section>
+
       <section aria-labelledby="faq" className="bg-[#FFFDF8] px-5 py-16 md:px-8 md:py-20">
         <div className="mx-auto max-w-3xl">
           <Eyebrow>שאלות נפוצות</Eyebrow>
