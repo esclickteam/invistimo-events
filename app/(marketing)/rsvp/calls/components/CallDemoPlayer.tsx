@@ -146,7 +146,7 @@ export default function CallDemoPlayer() {
             >
               {playing ? "השהה הדגמה" : "נגן הדגמה"}
             </button>
-            <span className="text-sm font-semibold text-[#7A6042]">
+            <span className="text-sm font-semibold text-[#7A6042]" dir="ltr">
               {unavailable
                 ? "קובץ ההדגמה אינו זמין כרגע"
                 : ready

@@ -41,11 +41,12 @@ export const DEMO_SCRIPT_LINES = [
 ] as const;
 
 /**
- * Dana demo audio — prefers committed public/audio MP3, else R2-cached file
- * served by /api/marketing/rsvp-calls-demo (same locked Dana voice + IVR compose).
- * Never SpeechSynthesis; never per-click TTS once cached.
+ * Dana demo audio — committed static MP3 (same locked Dana + IVR compose).
+ * Republish via `npm run generate:rsvp-calls-demo` or warm
+ * `/api/marketing/rsvp-calls-demo` (R2 cache) then replace the public file.
+ * Never SpeechSynthesis; never per-click TTS.
  */
-export const DEMO_AUDIO_SRC = "/api/marketing/rsvp-calls-demo";
+export const DEMO_AUDIO_SRC = "/audio/rsvp-calls-dana-demo.mp3";
 export const DEMO_AUDIO_VOICE = "Dana";
 export const DEMO_AUDIO_VOICE_NOTE =
   "קריינות דנה — אותו קול נשי נעול בשיחות IVR של Invistimo (ElevenLabs).";
