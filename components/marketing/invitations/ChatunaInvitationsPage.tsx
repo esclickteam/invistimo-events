@@ -1002,6 +1002,7 @@ export default function ChatunaInvitationsPage() {
               ["/info/guides/when-to-send-rsvp", "מתי שולחים"],
               ["/info/guides/send-digital-invitation", "איך שולחים הזמנה"],
               ["/info/guides/save-the-date-vs-invitation", "STD מול הזמנה"],
+              ["/info/guides/cost-rsvp-wedding", "מחיר לפי רשומות"],
               ["/wedding-website", "אתרי חתונה"],
               ["/pricing", "מחירים"],
             ].map(([href, label]) => (

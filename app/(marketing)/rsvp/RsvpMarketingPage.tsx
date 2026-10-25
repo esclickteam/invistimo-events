@@ -438,6 +438,7 @@ export default function RSVPPage() {
           <nav aria-label="מדריכים קשורים" className="mt-10 flex flex-wrap justify-center gap-3">
             {[
               { href: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים להתחייב לאולם" },
+              { href: "/info/guides/cost-rsvp-wedding", label: "מחיר לפי רשומות" },
               { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },
               { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
               { href: "/info/guides", label: "כל המדריכים" },
