@@ -10,10 +10,11 @@ type HeaderGateProps = {
 export default function HeaderGate({ children }: HeaderGateProps) {
   const pathname = usePathname();
 
-  // עמודי אורח / מערכת ללא Header. עמודי שיווק תחת `/rsvp/*` כן מציגים Header.
+  // עמודים ללא Header — כמו main, פרט ל־`/rsvp/whatsapp` בעמוד השיווק הזה.
   const hideHeader =
     pathname === "/thank-you" ||
     pathname.startsWith("/invite/") ||
+    (pathname.startsWith("/rsvp/") && pathname !== "/rsvp/whatsapp") ||
     pathname.startsWith("/invitation/") ||
     pathname === "/w" ||
     pathname.startsWith("/w/") ||

@@ -232,50 +232,49 @@ function QuietVideo({
 }) {
   const reduceMotion = useReducedMotion();
   const ref = useRef<HTMLVideoElement>(null);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    if (reduceMotion) return;
-    let cancelled = false;
-    const enable = () => {
-      if (!cancelled) setReady(true);
-    };
-    const t = window.setTimeout(enable, 500);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(t);
-    };
-  }, [reduceMotion]);
 
   useEffect(() => {
     const el = ref.current;
-    if (!el || !ready || reduceMotion) return;
+    if (!el || reduceMotion) return;
     el.play().catch(() => undefined);
     if (!onTime) return;
     const handler = () => onTime(el.currentTime);
     el.addEventListener("timeupdate", handler);
     return () => el.removeEventListener("timeupdate", handler);
-  }, [ready, reduceMotion, onTime]);
+  }, [reduceMotion, onTime, src]);
 
   if (reduceMotion && poster) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={poster} alt="" className={className} loading="lazy" />
+      <img src={poster} alt="" className={className} loading="lazy" decoding="async" />
     );
   }
 
   return (
-    <video
-      ref={ref}
-      src={ready ? src : undefined}
-      poster={poster}
-      muted
-      loop
-      playsInline
-      preload="none"
-      className={className}
-      aria-label="הדגמת אישור הגעה ב־WhatsApp מתוך Invistimo"
-    />
+    <span className={`relative block overflow-hidden ${className || ""}`}>
+      {poster ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={poster}
+          alt=""
+          aria-hidden
+          className="absolute inset-0 h-full w-full object-cover object-top"
+          loading="eager"
+          decoding="async"
+        />
+      ) : null}
+      <video
+        ref={ref}
+        src={src}
+        poster={poster}
+        muted
+        loop
+        playsInline
+        preload="metadata"
+        className="relative z-[1] h-full w-full object-cover object-top"
+        aria-label="הדגמת אישור הגעה ב־WhatsApp מתוך Invistimo"
+      />
+    </span>
   );
 }
 
@@ -293,18 +292,19 @@ function SyncedJourney() {
 
   return (
     <div className="grid items-start gap-10 lg:grid-cols-[1.05fr_0.95fr]">
-      <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-black shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
-        <div className="aspect-video">
+      {/* First in RTL = visual right: product video */}
+      <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#0B0908] shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
+        <div className="aspect-[9/16] max-h-[min(72vh,640px)] w-full sm:aspect-video sm:max-h-none">
           <QuietVideo
-            src="/marketing/videos/hero-guest-journey.webm"
+            src="/videos/rsvp1.mp4"
             poster="/marketing/videos/hero-guest-journey-poster.jpg"
-            className="h-full w-full object-cover object-top"
+            className="h-full w-full"
             onTime={setT}
           />
         </div>
         <p className="sr-only">
-          סרטון: הודעת WhatsApp, פתיחת קישור אישי, הזמנה דיגיטלית, אישור הגעה ומסך תודה. האישור מתבצע
-          בעמוד שנפתח מהקישור.
+          סרטון אמיתי מתוך Invistimo: הודעת WhatsApp, פתיחת קישור אישי, הזמנה דיגיטלית, אישור הגעה
+          ומסך תודה. האישור מתבצע בעמוד שנפתח מהקישור.
         </p>
       </div>
       <ol className="grid gap-3">
@@ -319,7 +319,9 @@ function SyncedJourney() {
                   : "border-white/10 bg-white/[0.04] text-[#D0C2AF]"
               }`}
             >
-              <span className="text-xs font-black text-[#E8C988]">0{i + 1}</span>
+              <span className="text-xs font-black text-[#E8C988]">
+                {String(i + 1).padStart(2, "0")}
+              </span>
               <p className={`mt-1 text-base font-bold ${isActive ? "text-[#FFF8EF]" : ""}`}>{c.text}</p>
             </li>
           );
