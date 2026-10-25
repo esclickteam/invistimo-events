@@ -56,7 +56,10 @@ export const PILLARS: ContentPillar[] = [
     name: "ניהול אירועים",
     path: "/event-management",
     summary: "משימות, ספקים, תקציב, תשלומים ולוח זמנים, לצד האישורים וההושבה.",
-    clusters: [{ path: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" }],
+    clusters: [
+      { path: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" },
+      { path: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
+    ],
   },
 ];
 

@@ -14,6 +14,7 @@ export function generateStaticParams() {
     "wedding-venue-guest-guarantee",
     "cost-rsvp-wedding",
     "whatsapp-vs-sms-rsvp",
+    "wedding-alcohol-calculator",
   ]);
   return GUIDES.filter((guide) => !dedicated.has(guide.slug)).map((guide) => ({
     slug: guide.slug,
