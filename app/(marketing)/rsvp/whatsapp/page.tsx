@@ -6,6 +6,7 @@ import {
   organizationNode,
   serviceNode,
   softwareNode,
+  videoNode,
 } from "@/lib/seo/jsonld";
 import { absoluteUrl, pageMetadata, SITE_URL } from "@/lib/seo/site";
 import WhatsappRsvpMarketingPage from "./WhatsappRsvpMarketingPage";
@@ -58,6 +59,15 @@ export default function WhatsappRsvpPage() {
             "Invistimo — אישורי הגעה ב־WhatsApp עם קישור אישי, שני סבבים בחבילת ההודעות ומעקב תשובות במערכת.",
             PATH
           ),
+          videoNode({
+            name: "מסע האורח — מאישור WhatsApp עד לרשימת המוזמנים",
+            description:
+              "הדגמה מתוך Invistimo: הודעת WhatsApp, קישור אישי להזמנה, אישור הגעה ומעקב תשובות בדשבורד.",
+            contentUrl: "/marketing/videos/hero-guest-journey.webm",
+            posterUrl: "/marketing/videos/hero-guest-journey-poster.jpg",
+            uploadDate: "2026-10-01",
+            path: PATH,
+          }),
           faqNode(WHATSAPP_RSVP_FAQS),
         ])}
       />
