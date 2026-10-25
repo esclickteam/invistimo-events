@@ -29,6 +29,8 @@ export type BottleCatalogItem = {
   imageAlt: string;
   /** Optional subtype tag for filters */
   subtype?: string;
+  /** Shown first in category gallery before "הצג עוד" */
+  popular?: boolean;
 };
 
 export const CATEGORY_META: Record<
@@ -101,6 +103,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/absolut-vodka.png`,
     imageAlt: "בקבוק אבסולוט וודקה",
     subtype: "regular",
+    popular: true,
   },
   {
     id: "grey-goose",
@@ -112,6 +115,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/grey-goose.jpg`,
     imageAlt: "בקבוק גריי גוס וודקה",
     subtype: "premium",
+    popular: true,
   },
   {
     id: "smirnoff",
@@ -123,6 +127,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/smirnoff-vodka.jpg`,
     imageAlt: "בקבוק סמירנוף וודקה",
     subtype: "regular",
+    popular: true,
   },
   {
     id: "finlandia",
@@ -134,6 +139,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/finlandia-suomi.jpg`,
     imageAlt: "בקבוק פינלנדיה וודקה",
     subtype: "regular",
+    popular: true,
   },
   {
     id: "belvedere",
@@ -158,6 +164,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/johnnie-walker-black.jpg`,
     imageAlt: "בקבוק ג'וני ווקר בלאק לייבל",
     subtype: "blended",
+    popular: true,
   },
   {
     id: "chivas-12",
@@ -169,6 +176,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/chivas-scotch.jpg`,
     imageAlt: "בקבוק צ'יוואס ריגל",
     subtype: "blended",
+    popular: true,
   },
   {
     id: "jameson",
@@ -180,6 +188,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/jameson.jpg`,
     imageAlt: "בקבוק ג'יימסון",
     subtype: "blended",
+    popular: true,
   },
   {
     id: "jack-daniels",
@@ -191,6 +200,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/jack-daniels.jpg`,
     imageAlt: "בקבוק ג'ק דניאלס",
     subtype: "bourbon",
+    popular: true,
   },
   {
     id: "macallan",
@@ -215,6 +225,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/arak.jpg`,
     imageAlt: "בקבוק ערק",
     subtype: "arak",
+    popular: true,
   },
   {
     id: "arak-rayan",
@@ -237,6 +248,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/ouzo.jpg`,
     imageAlt: "בקבוק אוזו",
     subtype: "ouzo",
+    popular: true,
   },
 
   // Gin
@@ -250,6 +262,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/bombay-sapphire.jpg`,
     imageAlt: "בקבוק בומביי ספייר",
     subtype: "regular",
+    popular: true,
   },
   {
     id: "tanqueray",
@@ -261,6 +274,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/tanqueray.png`,
     imageAlt: "בקבוק טנקיריי ג'ין",
     subtype: "regular",
+    popular: true,
   },
   {
     id: "hendricks",
@@ -272,6 +286,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/hendricks.png`,
     imageAlt: "בקבוק הנדריקס ג'ין",
     subtype: "premium",
+    popular: true,
   },
   {
     id: "gordons",
@@ -296,6 +311,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/bacardi.jpg`,
     imageAlt: "בקבוק בקרדי רום",
     subtype: "white",
+    popular: true,
   },
   {
     id: "havana-club",
@@ -307,6 +323,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/havana-especial.jpg`,
     imageAlt: "בקבוק הוואנה קלאב",
     subtype: "dark",
+    popular: true,
   },
   {
     id: "captain-morgan",
@@ -331,6 +348,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/jose-cuervo.jpg`,
     imageAlt: "בקבוק חוסה קוארבו",
     subtype: "blanco",
+    popular: true,
   },
   {
     id: "patron",
@@ -342,6 +360,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/patron.jpg`,
     imageAlt: "בקבוק פאטרון טקילה",
     subtype: "blanco",
+    popular: true,
   },
   {
     id: "olmeca",
@@ -366,6 +385,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/red-wine.jpg`,
     imageAlt: "בקבוק יין אדום לדוגמה",
     subtype: "red",
+    popular: true,
   },
   {
     id: "white-wine",
@@ -377,6 +397,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/white-wine-generic.jpg`,
     imageAlt: "בקבוק יין לבן לדוגמה",
     subtype: "white",
+    popular: true,
   },
   {
     id: "rose-wine",
@@ -399,6 +420,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/prosecco.jpg`,
     imageAlt: "בקבוק פרוסקו",
     subtype: "sparkling",
+    popular: true,
   },
   {
     id: "champagne-style",
@@ -423,6 +445,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/heineken.jpg`,
     imageAlt: "בקבוק הייניקן",
     subtype: "bottle",
+    popular: true,
   },
   {
     id: "corona",
@@ -434,6 +457,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/corona.jpg`,
     imageAlt: "בקבוק קורונה",
     subtype: "bottle",
+    popular: true,
   },
   {
     id: "carlsberg",
@@ -456,6 +480,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/tuborg.jpg`,
     imageAlt: "בקבוק טובורג",
     subtype: "bottle",
+    popular: true,
   },
   {
     id: "goldstar",
@@ -467,6 +492,7 @@ export const BOTTLE_CATALOG: BottleCatalogItem[] = [
     imageSrc: `${B}/goldstar-maccabee.jpg`,
     imageAlt: "בירה גולדסטאר ומכבי",
     subtype: "bottle",
+    popular: true,
   },
   {
     id: "guinness",

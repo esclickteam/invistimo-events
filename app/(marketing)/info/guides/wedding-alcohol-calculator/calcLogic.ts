@@ -42,8 +42,10 @@ export type SelectedDrink = {
   unitPrice: number | null;
   /** Units already included by the venue */
   venueIncludedUnits: number;
-  /** Manual override of planned purchase units (null = use engine) */
+  /** Manual override of planned total units before venue deduction (null = use engine) */
   manualUnits: number | null;
+  /** Manual override of units to purchase (null = planned − venueIncluded) */
+  manualPurchaseUnits: number | null;
   /** Soft drinks / water / NA */
   isNonAlcoholic: boolean;
 };
@@ -423,9 +425,17 @@ export function computeQuantities(raw: EventInputs): QuantityResult {
     if (plannedHigh < plannedLow) plannedHigh = plannedLow;
     const plannedMid = Math.round((plannedLow + plannedHigh) / 2);
     const venueInc = clampInt(drink.venueIncludedUnits);
-    const toPurchaseLow = Math.max(0, plannedLow - venueInc);
-    const toPurchaseHigh = Math.max(0, plannedHigh - venueInc);
-    const toPurchaseMid = Math.max(0, plannedMid - venueInc);
+    let toPurchaseLow = Math.max(0, plannedLow - venueInc);
+    let toPurchaseHigh = Math.max(0, plannedHigh - venueInc);
+    let toPurchaseMid = Math.max(0, plannedMid - venueInc);
+
+    if (drink.manualPurchaseUnits != null && Number.isFinite(drink.manualPurchaseUnits)) {
+      const p = clampInt(drink.manualPurchaseUnits);
+      toPurchaseLow = p;
+      toPurchaseHigh = p;
+      toPurchaseMid = p;
+      notes.push("כמות רכישה ידנית");
+    }
 
     const price =
       drink.unitPrice != null && Number.isFinite(drink.unitPrice) && drink.unitPrice > 0
@@ -448,7 +458,7 @@ export function computeQuantities(raw: EventInputs): QuantityResult {
       costLow: price != null ? toPurchaseLow * price : null,
       costHigh: price != null ? toPurchaseHigh * price : null,
       costMid: price != null ? toPurchaseMid * price : null,
-      isManual: drink.manualUnits != null,
+      isManual: drink.manualUnits != null || drink.manualPurchaseUnits != null,
       isNonAlcoholic: drink.isNonAlcoholic,
       notes,
     });

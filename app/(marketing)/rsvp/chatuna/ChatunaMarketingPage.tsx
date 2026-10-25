@@ -687,6 +687,13 @@ export default function ChatunaMarketingPage() {
           >
             כמה אורחים כדאי להתחייב לאולם?
           </Link>
+          {" · "}
+          <Link
+            href={LINKS.alcoholCalculator}
+            className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+          >
+            כמה אלכוהול צריך לקנות לחתונה?
+          </Link>
         </p>
       </SectionShell>
 

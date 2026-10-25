@@ -518,6 +518,45 @@ export default function SeatingExplainedPage() {
           onClose={() => setFullscreenVideo(null)}
         />
       )}
+      <section dir="rtl" className="bg-[#FFFDF8] px-5 py-12 text-[#3F3025]">
+        <div className="mx-auto max-w-5xl">
+          <h2 className="text-2xl font-black text-[#35281F]">מדריכים קשורים לתכנון האירוע</h2>
+          <ul className="mt-5 flex flex-wrap gap-3">
+            <li>
+              <Link
+                href="/info/guides/wedding-alcohol-calculator"
+                className="inline-flex rounded-full border border-[#E6D2AA] bg-white px-4 py-2 text-sm font-bold text-[#5E4735]"
+              >
+                מחשבון אלכוהול לחתונה
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/info/guides/wedding-venue-guest-guarantee"
+                className="inline-flex rounded-full border border-[#E6D2AA] bg-white px-4 py-2 text-sm font-bold text-[#5E4735]"
+              >
+                התחייבות לאולם
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/info/guides/guest-list"
+                className="inline-flex rounded-full border border-[#E6D2AA] bg-white px-4 py-2 text-sm font-bold text-[#5E4735]"
+              >
+                רשימת מוזמנים
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/info/guides"
+                className="inline-flex rounded-full border border-[#E6D2AA] bg-white px-4 py-2 text-sm font-bold text-[#5E4735]"
+              >
+                כל המדריכים
+              </Link>
+            </li>
+          </ul>
+        </div>
+      </section>
       <ServiceLinks current="/seating-explained" />
     </div>
   );
