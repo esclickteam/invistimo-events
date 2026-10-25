@@ -13,10 +13,10 @@ import {
   EXAMPLE_RECORDS,
   FAMILY_CONSIDERATIONS,
   FAQ_TOPICS,
-  INVITE_STYLES,
   LINKS,
   MEDIA,
   PACKAGE_CARDS,
+  PLANNING_TIPS,
   RSVP_BENEFITS,
   RSVP_SEND_POINTS,
   SEATING_CAPABILITIES,
@@ -36,25 +36,80 @@ const fade = {
   show: { opacity: 1, y: 0 },
 };
 
-function MoroccanPattern({ className = "" }: { className?: string }) {
+/** Subtle Moroccan diamond wash — always behind content (z-0), never above text. */
+function MoroccanPattern({
+  className = "",
+  opacity = 0.08,
+  patternId = "hina-geo",
+}: {
+  className?: string;
+  /** Visual strength; keep ~0.06–0.12 so pattern stays atmospheric. */
+  opacity?: number;
+  patternId?: string;
+}) {
   return (
-    <svg
-      className={className}
+    <div
+      className={`pointer-events-none absolute inset-0 z-0 overflow-hidden ${className}`}
       aria-hidden
-      viewBox="0 0 120 120"
-      xmlns="http://www.w3.org/2000/svg"
+      style={{ opacity }}
     >
-      <defs>
-        <pattern id="hina-geo" width="40" height="40" patternUnits="userSpaceOnUse">
-          <path
-            d="M20 2 L38 20 L20 38 L2 20 Z M20 10 L30 20 L20 30 L10 20 Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="0.8"
-          />
-        </pattern>
-      </defs>
-      <rect width="120" height="120" fill="url(#hina-geo)" />
+      <svg className="h-full w-full" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <pattern id={patternId} width="40" height="40" patternUnits="userSpaceOnUse">
+            <path
+              d="M20 2 L38 20 L20 38 L2 20 Z M20 10 L30 20 L20 30 L10 20 Z"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="0.7"
+            />
+          </pattern>
+        </defs>
+        <rect width="120" height="120" fill={`url(#${patternId})`} />
+      </svg>
+    </div>
+  );
+}
+
+function TipIcon({ tipId }: { tipId: (typeof PLANNING_TIPS)[number]["id"] }) {
+  const common = "h-9 w-9";
+  if (tipId === "guest-list") {
+    return (
+      <svg className={common} viewBox="0 0 32 32" fill="none" aria-hidden>
+        <rect x="6" y="4" width="20" height="24" rx="3" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M11 11h10M11 16h10M11 21h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  if (tipId === "venue") {
+    return (
+      <svg className={common} viewBox="0 0 32 32" fill="none" aria-hidden>
+        <path
+          d="M6 26V14l10-8 10 8v12"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinejoin="round"
+        />
+        <path d="M13 26v-8h6v8" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      </svg>
+    );
+  }
+  if (tipId === "evening") {
+    return (
+      <svg className={common} viewBox="0 0 32 32" fill="none" aria-hidden>
+        <circle cx="16" cy="16" r="10" stroke="currentColor" strokeWidth="1.6" />
+        <path d="M16 10v6l4 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
+    );
+  }
+  return (
+    <svg className={common} viewBox="0 0 32 32" fill="none" aria-hidden>
+      <circle cx="16" cy="16" r="7" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="16" cy="9" r="1.4" fill="currentColor" />
+      <circle cx="22" cy="13" r="1.4" fill="currentColor" />
+      <circle cx="22" cy="19" r="1.4" fill="currentColor" />
+      <circle cx="16" cy="23" r="1.4" fill="currentColor" />
+      <circle cx="10" cy="19" r="1.4" fill="currentColor" />
+      <circle cx="10" cy="13" r="1.4" fill="currentColor" />
     </svg>
   );
 }
@@ -188,29 +243,38 @@ function SeatingDemoCard() {
   );
 }
 
-function InviteStyleCard({
-  style,
-}: {
-  style: (typeof INVITE_STYLES)[number];
-}) {
+function PlanningTipCard({ tip }: { tip: (typeof PLANNING_TIPS)[number] }) {
+  const lightTop = tip.id === "evening" || tip.id === "seating";
   return (
-    <article className="overflow-hidden rounded-[24px] border border-[#D4B483]/60 bg-white/80 shadow-[0_14px_36px_rgba(74,21,32,0.06)]">
+    <article className="group flex h-full flex-col overflow-hidden rounded-[24px] border border-[#D4B483]/60 bg-white/90 shadow-[0_14px_36px_rgba(74,21,32,0.06)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(74,21,32,0.12)]">
       <div
-        className="relative flex h-40 items-center justify-center"
+        className={`relative flex h-28 shrink-0 items-center justify-center ${lightTop ? "text-[#6B1F2A]" : "text-[#FBF5EB]"}`}
         style={{
-          background: `linear-gradient(145deg, ${style.palette[0]} 0%, ${style.palette[1]} 55%, ${style.palette[2]} 100%)`,
+          background: `linear-gradient(145deg, ${tip.palette[0]} 0%, ${tip.palette[1]} 55%, ${tip.palette[2]} 100%)`,
         }}
       >
         <div className="absolute inset-3 rounded-[18px] border border-white/25" />
-        <MoroccanPattern className="absolute inset-0 h-full w-full text-white/15" />
-        <p className={`relative z-10 px-4 text-center text-2xl text-white drop-shadow ${display.className}`}>
-          חינה
-        </p>
+        <MoroccanPattern
+          patternId={`tip-geo-${tip.id}`}
+          opacity={0.07}
+          className={lightTop ? "text-[#4A1520]" : "text-white"}
+        />
+        <div className="relative z-10">
+          <TipIcon tipId={tip.id} />
+        </div>
       </div>
-      <div className="p-5">
-        <p className="text-[11px] font-bold tracking-[0.14em] text-[#A67C3D]">דוגמת השראה</p>
-        <h3 className={`mt-2 text-xl text-[#4A1520] ${display.className}`}>{style.name}</h3>
-        <p className="mt-2 text-sm leading-6 text-[#5C4A3A]">{style.body}</p>
+      <div className="flex flex-1 flex-col p-5">
+        <p className="text-[11px] font-bold tracking-[0.14em] text-[#A67C3D]">{tip.eyebrow}</p>
+        <h3 className={`mt-2 text-xl leading-8 text-[#4A1520] ${display.className}`}>{tip.title}</h3>
+        <p className="mt-2 flex-1 text-sm leading-7 text-[#5C4A3A]">{tip.body}</p>
+        {tip.href && tip.linkLabel ? (
+          <Link
+            href={tip.href}
+            className="mt-4 inline-flex text-sm font-bold text-[#6B1F2A] underline-offset-2 transition hover:underline"
+          >
+            {tip.linkLabel}
+          </Link>
+        ) : null}
       </div>
     </article>
   );
@@ -314,16 +378,17 @@ export default function HinaMarketingPage() {
             className="object-cover"
             sizes="100vw"
           />
-          <div className="absolute inset-0 bg-[linear-gradient(105deg,rgba(251,245,235,0.94)_0%,rgba(251,245,235,0.88)_42%,rgba(74,21,32,0.55)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(105deg,rgba(251,245,235,0.96)_0%,rgba(251,245,235,0.92)_42%,rgba(74,21,32,0.55)_100%)]" />
         </div>
-        <MoroccanPattern className="pointer-events-none absolute inset-0 -z-10 h-full w-full text-[#A67C3D]/12" />
+        <MoroccanPattern patternId="hina-hero-geo" opacity={0.07} className="text-[#A67C3D]" />
 
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-12 md:grid-cols-[1.05fr_0.95fr] md:px-8 md:pb-24 md:pt-16">
+        <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-12 md:grid-cols-[1.05fr_0.95fr] md:px-8 md:pb-24 md:pt-16">
           <motion.div
             initial={reduce ? false : "hidden"}
             animate="show"
             variants={fade}
             transition={{ duration: 0.7 }}
+            className="rounded-[28px] bg-[#FBF5EB]/55 p-1 md:bg-transparent md:p-0"
           >
             <p className={`text-4xl font-bold tracking-tight text-[#6B1F2A] md:text-5xl ${display.className}`}>
               Invistimo
@@ -555,45 +620,28 @@ export default function HinaMarketingPage() {
         </ul>
       </SectionShell>
 
-      {/* Digital invitations */}
-      <SectionShell id="invitations" tone="burgundy" className="relative overflow-hidden">
-        <MoroccanPattern className="pointer-events-none absolute inset-0 h-full w-full text-[#A67C3D]/18" />
-        <div className="relative">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="text-sm font-bold tracking-[0.16em] text-[#D4B483]">הזמנות דיגיטליות לחינה</p>
+      {/* Planning tips — same card chrome, new content */}
+      <SectionShell id="planning-tips" tone="burgundy" className="relative isolate overflow-hidden">
+        <MoroccanPattern patternId="hina-tips-geo" opacity={0.08} className="text-[#D4B483]" />
+        <div className="relative z-10">
+          <div className="mx-auto max-w-3xl rounded-[28px] bg-[#4A1520]/55 px-4 py-2 text-center backdrop-blur-[1px] md:bg-transparent md:px-0 md:py-0 md:backdrop-blur-0">
+            <p className="text-sm font-bold tracking-[0.16em] text-[#D4B483]">מתכננים את החינה</p>
             <h2 className={`mt-3 text-3xl text-[#FBF5EB] md:text-4xl ${display.className}`}>
-              ההתרגשות מתחילה כבר בהזמנה
+              ארבעה דברים שעושים חינה בלתי נשכחת
             </h2>
             <p className="mt-5 text-[16px] leading-8 text-[#E8D5B5]">
-              ההזמנה לחינה היא הרבה יותר מהודעה על תאריך ושעה. היא יכולה לשקף את האווירה של האירוע,
-              את המסורת המשפחתית ואת הסגנון שבחרתם לחגיגה — ולשתף את הפרטים בצורה נוחה ומעוצבת.
+              מהאווירה ועד הפרטים הקטנים — כך יוצרים חגיגה שמחה, אישית ומסודרת.
             </p>
           </div>
-          <div className="mx-auto mt-12 grid max-w-4xl items-center gap-8 md:grid-cols-[0.85fr_1.15fr]">
-            <ArchFrame className="relative mx-auto aspect-[3/4] w-full max-w-[280px] overflow-hidden rounded-[28px] border border-[#D4B483]/50 bg-[#3A1520] shadow-[0_28px_60px_rgba(0,0,0,0.35)]">
-              <Image
-                src={MEDIA.inviteHenna}
-                alt="הזמנה דיגיטלית לחינה — דוגמה אמיתית מתוך המערכת"
-                fill
-                className="object-cover object-top"
-                sizes="280px"
-              />
-            </ArchFrame>
-            <div>
-              <p className="mb-4 text-sm font-bold text-[#D4B483]">
-                סגנונות השראה לעיצוב אישי — לא תבניות לחיצה אחת במערכת
-              </p>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {INVITE_STYLES.map((style) => (
-                  <InviteStyleCard key={style.id} style={style} />
-                ))}
-              </div>
-              <div className="mt-6">
-                <CtaLink href={LINKS.invitations} variant="light">
-                  להזמנות דיגיטליות ב־Invistimo
-                </CtaLink>
-              </div>
-            </div>
+          <div className="mx-auto mt-12 grid max-w-5xl gap-4 sm:grid-cols-2 lg:auto-rows-fr">
+            {PLANNING_TIPS.map((tip) => (
+              <PlanningTipCard key={tip.id} tip={tip} />
+            ))}
+          </div>
+          <div className="mt-8 text-center">
+            <CtaLink href={LINKS.invitations} variant="light">
+              להזמנות דיגיטליות ב־Invistimo
+            </CtaLink>
           </div>
         </div>
       </SectionShell>
