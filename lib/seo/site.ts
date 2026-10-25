@@ -98,9 +98,9 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
   },
   {
     path: "/rsvp/chatuna",
-    title: "אישורי הגעה לחתונה | Invistimo",
+    title: "אישורי הגעה לחתונה ב־WhatsApp | Invistimo",
     description:
-      "איך מנהלים אישורי הגעה לחתונה ב־Invistimo: רשימת מוזמנים, קישור אישי, וואטסאפ, תזכורת עם מספר שולחן ומעקב אחרי מי ענה.",
+      "מתחתנים? נהלו אישורי הגעה לחתונה עם הודעות WhatsApp, קישור אישי לכל אורח, מעקב תשובות ואפשרות לשיחות וסידורי הושבה. הכירו את Invistimo.",
     changeFrequency: "monthly",
     priority: 0.9,
   },

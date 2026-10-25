@@ -48,10 +48,10 @@ const GUIDE_SLUGS = [
   "event-day-checklist",
 ];
 
+/** Paths that render the shared «התשובה הקצרה» chrome. Custom wedding landing `/rsvp/chatuna` intentionally omits that heading. */
 const ANSWER_PATHS = new Set([
   "/",
   "/rsvp",
-  "/rsvp/chatuna",
   "/rsvp/whatsapp",
   "/rsvp/save-the-date",
   "/invitations/chatuna",

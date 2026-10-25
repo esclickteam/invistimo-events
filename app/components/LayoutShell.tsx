@@ -20,11 +20,12 @@ export default function LayoutShell({
      זיהוי אזורים
   ========================================================= */
 
-  // ❌ דפים ציבוריים – בלי Header ובלי Footer
+  // ❌ דפי אורח / מערכת – בלי Header ובלי Footer שיווקיים
+  // הערה: `/rsvp`, `/rsvp/chatuna`, `/rsvp/whatsapp`, `/rsvp/save-the-date` הם עמודי שיווק
+  // וחייבים Header. חוויית האורח לאישור הגעה חיה תחת `/invite/`.
   const hideHeaderAndFooter =
     pathname === "/thank-you" ||
     pathname.startsWith("/invite/") ||
-    pathname.startsWith("/rsvp/") ||
     pathname.startsWith("/invitation/") ||
     pathname === "/w" ||
     pathname.startsWith("/w/") ||
