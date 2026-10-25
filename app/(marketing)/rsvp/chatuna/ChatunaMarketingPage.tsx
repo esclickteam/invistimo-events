@@ -111,7 +111,10 @@ function PhoneFrame({
   );
 }
 
-/** Portrait product clips (phone recordings) must stay in a phone shell — never landscape crop. */
+/**
+ * Portrait journey clips are already filmed inside a phone composite.
+ * Keep a tall phone-shaped stage (never landscape crop) without a second bezel.
+ */
 function PhoneVideoFrame({
   src,
   poster,
@@ -126,14 +129,14 @@ function PhoneVideoFrame({
   videoRef?: RefObject<HTMLVideoElement | null>;
 }) {
   return (
-    <div className="mx-auto w-[min(100%,320px)]">
-      <div className="overflow-hidden rounded-[2.1rem] border-[10px] border-[#1C1612] bg-[#1C1612] shadow-[0_28px_60px_rgba(40,28,16,0.28)]">
+    <div className="mx-auto w-[min(100%,340px)]">
+      <div className="overflow-hidden rounded-[2rem] border border-[#E4D3B6] bg-[#F7EDDF] shadow-[0_24px_50px_rgba(40,28,16,0.16)]">
         <ChatunaVideo
           src={src}
           poster={poster}
           title={title}
           eager={eager}
-          fit="contain"
+          fit="cover"
           videoRef={videoRef}
           className="aspect-[9/16] w-full bg-[#F7EDDF]"
         />
@@ -558,8 +561,14 @@ export default function ChatunaMarketingPage() {
               key={c.title}
               className="flex flex-col overflow-hidden rounded-[24px] border border-[#E4D3B6] bg-[linear-gradient(180deg,#FFFDF8_0%,#F3E6D0_100%)]"
             >
-              <div className="relative aspect-[16/10] w-full overflow-hidden">
-                <Image src={c.image} alt={c.imageAlt} fill className="object-cover" sizes="(max-width:1024px) 100vw, 33vw" />
+              <div className="relative aspect-[16/10] w-full overflow-hidden bg-[#F3E6D0]">
+                <Image
+                  src={c.image}
+                  alt={c.imageAlt}
+                  fill
+                  className="object-cover object-center"
+                  sizes="(max-width:1024px) 100vw, 33vw"
+                />
               </div>
               <div className="px-5 py-6">
                 <h3 className="font-[family-name:var(--font-chatuna-display)] text-2xl text-[#2A211A]">
