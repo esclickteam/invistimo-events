@@ -117,59 +117,35 @@ const BUY_VS_VENUE = [
 export default function AlcoholManagementService() {
   return (
     <article dir="rtl" className="min-h-screen overflow-hidden bg-[#FBF6EE] text-[#3F3025]">
-      <style jsx global>{`
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         @keyframes alcohol-hero-fade-up {
-          from {
-            opacity: 0;
-            transform: translateY(18px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(18px); }
+          to { opacity: 1; transform: translateY(0); }
         }
         @keyframes alcohol-hero-zoom {
-          from {
-            transform: scale(1.08);
-          }
-          to {
-            transform: scale(1);
-          }
+          from { transform: scale(1.08); }
+          to { transform: scale(1); }
         }
-        .alcohol-hero-copy {
-          animation: alcohol-hero-fade-up 0.85s ease-out both;
-        }
-        .alcohol-hero-copy-delay {
-          animation: alcohol-hero-fade-up 0.85s ease-out 0.12s both;
-        }
-        .alcohol-hero-copy-delay-2 {
-          animation: alcohol-hero-fade-up 0.85s ease-out 0.24s both;
-        }
-        .alcohol-hero-point {
-          animation: alcohol-hero-fade-up 0.7s ease-out both;
-        }
-        .alcohol-hero-point:nth-child(1) {
-          animation-delay: 0.32s;
-        }
-        .alcohol-hero-point:nth-child(2) {
-          animation-delay: 0.44s;
-        }
-        .alcohol-hero-point:nth-child(3) {
-          animation-delay: 0.56s;
-        }
-        .alcohol-hero-bg-zoom {
-          animation: alcohol-hero-zoom 18s ease-out forwards;
-        }
+        .alcohol-hero-copy { animation: alcohol-hero-fade-up 0.85s ease-out both; }
+        .alcohol-hero-copy-delay { animation: alcohol-hero-fade-up 0.85s ease-out 0.12s both; }
+        .alcohol-hero-copy-delay-2 { animation: alcohol-hero-fade-up 0.85s ease-out 0.24s both; }
+        .alcohol-hero-point { animation: alcohol-hero-fade-up 0.7s ease-out both; }
+        .alcohol-hero-point:nth-child(1) { animation-delay: 0.32s; }
+        .alcohol-hero-point:nth-child(2) { animation-delay: 0.44s; }
+        .alcohol-hero-point:nth-child(3) { animation-delay: 0.56s; }
+        .alcohol-hero-bg-zoom { animation: alcohol-hero-zoom 18s ease-out forwards; }
         @media (prefers-reduced-motion: reduce) {
           .alcohol-hero-copy,
           .alcohol-hero-copy-delay,
           .alcohol-hero-copy-delay-2,
           .alcohol-hero-point,
-          .alcohol-hero-bg-zoom {
-            animation: none !important;
-          }
+          .alcohol-hero-bg-zoom { animation: none !important; }
         }
-      `}</style>
+      `,
+        }}
+      />
 
       <header className="relative isolate min-h-[min(92vh,900px)] overflow-hidden bg-[#1A120E]">
         <div className="absolute inset-0 overflow-hidden" aria-hidden>
