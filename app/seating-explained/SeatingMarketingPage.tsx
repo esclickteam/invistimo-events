@@ -124,7 +124,8 @@ function ProductShot({
           alt={alt}
           fill
           priority={priority}
-          className={fit === "contain" ? "object-contain object-center p-2" : "object-cover object-top"}
+          unoptimized
+          className={fit === "contain" ? "object-contain object-center" : "object-cover object-top"}
           sizes="(max-width: 768px) 100vw, 720px"
         />
       </div>

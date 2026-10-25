@@ -28,9 +28,9 @@ export const LINKS = {
 export const MEDIA = {
   hall: "/images/rsvp/guides/venue-guarantee-hall.jpg",
   /** Demo floor-plan map only (tables + capacity + free seats). */
-  map: "/images/seating/seating-map.webp",
+  map: "/images/seating/seating-map.png",
   /** Demo guest-assignment sidebar (list, table select, unassigned). */
-  assign: "/images/seating/seating-assign.webp",
+  assign: "/images/seating/seating-assign.png",
   /** Hero product preview — full seating UI with map + sidebar. */
   heroProduct: "/marketing/product/webp/desktop-try-seating.webp",
   seatingPoster: "/images/rsvp/chatuna/video-seating-poster.jpg",
