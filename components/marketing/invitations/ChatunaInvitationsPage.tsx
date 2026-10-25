@@ -202,29 +202,29 @@ function GalleryModal({
 
 function HeroComposition({ reduce }: { reduce: boolean | null }) {
   return (
-    <div className="relative mx-auto h-[380px] w-full max-w-[520px] sm:h-[460px] md:h-[540px]">
-      <div className="absolute inset-x-[8%] top-6 bottom-8 rounded-[36px] bg-[radial-gradient(circle_at_top,#E8D4AF_0%,transparent_55%)] blur-2xl" />
+    <div className="relative mx-auto flex h-[400px] w-full max-w-[560px] items-end justify-center px-2 sm:h-[480px] md:h-[560px]">
+      <div className="pointer-events-none absolute inset-x-[10%] top-8 bottom-12 rounded-[36px] bg-[radial-gradient(circle_at_top,#E8D4AF_0%,transparent_55%)] blur-2xl" />
+
       <div
-        className={`absolute left-0 top-[18%] w-[42%] origin-bottom rotate-[-10deg] sm:w-[40%] ${
+        className={`absolute bottom-6 left-[2%] w-[38%] origin-bottom -rotate-[14deg] sm:left-[4%] sm:w-[36%] ${
           reduce ? "" : "invite-float"
         }`}
         style={{ zIndex: 1 }}
       >
         <InvitationArt id="classic-ivory" compact className="shadow-2xl" />
       </div>
+
       <div
-        className={`absolute right-0 top-[12%] w-[42%] origin-bottom rotate-[10deg] sm:w-[40%] ${
+        className={`absolute bottom-6 right-[2%] w-[38%] origin-bottom rotate-[14deg] sm:right-[4%] sm:w-[36%] ${
           reduce ? "" : "invite-float-delayed"
         }`}
         style={{ zIndex: 2 }}
       >
         <InvitationArt id="botanical-elegance" compact animated={!reduce} className="shadow-2xl" />
       </div>
+
       <div
-        className={`absolute left-1/2 top-0 w-[48%] -translate-x-1/2 sm:w-[46%] ${
-          reduce ? "" : "invite-float-center"
-        }`}
-        style={{ zIndex: 3 }}
+        className={`relative z-[3] mb-0 w-[44%] sm:w-[42%] ${reduce ? "" : "invite-float-center"}`}
       >
         <InvitationArt id="modern-editorial" compact className="shadow-[0_35px_80px_rgba(36,24,16,0.35)]" />
       </div>
@@ -354,7 +354,7 @@ export default function ChatunaInvitationsPage() {
   };
 
   return (
-    <div dir="rtl" className={`${display.variable} overflow-hidden bg-[#FBF6EE] text-[#2C241C]`}>
+    <div dir="rtl" className={`${display.variable} bg-[#FBF6EE] text-[#2C241C]`}>
       {/* HERO */}
       <section className="relative isolate px-5 pb-16 pt-14 md:px-8 md:pb-24 md:pt-20">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,#E9D4AF_0%,transparent_36%),radial-gradient(circle_at_top_left,#F5E8D3_0%,transparent_32%),linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_55%,#F1E4D2_100%)]" />
@@ -409,7 +409,6 @@ export default function ChatunaInvitationsPage() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.15 }}
-            className="order-first lg:order-none"
           >
             <HeroComposition reduce={reduce} />
             <p className="mt-3 text-center text-xs font-semibold text-[#8A7458] sm:mt-4">
