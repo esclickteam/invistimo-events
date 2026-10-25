@@ -90,9 +90,9 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
   },
   {
     path: "/rsvp",
-    title: "אישורי הגעה לאירועים | Invistimo",
+    title: "אישורי הגעה לחתונה ולאירועים ב־WhatsApp | Invistimo",
     description:
-      "אישורי הגעה לאירועים עם קישור אישי לכל אורח, סבבי וואטסאפ, תזכורת SMS ומעקב בזמן אמת. לחתונה, בר מצווה, ברית, חינה, ימי הולדת ואירועי חברה.",
+      "אישורי הגעה לחתונה ולאירועים עם הודעות WhatsApp, קישור אישי לכל אורח, מעקב תשובות בזמן אמת ואפשרות לשיחות ותזכורות. הכירו את Invistimo.",
     changeFrequency: "monthly",
     priority: 0.95,
   },

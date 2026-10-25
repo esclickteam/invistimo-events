@@ -1,158 +1,66 @@
 "use client";
 
+import { Frank_Ruhl_Libre } from "next/font/google";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { EVENT_TYPES, EVENT_TYPE_SECTION } from "@/lib/seo/eventTypes";
+import {
+  CHANNELS,
+  DASHBOARD_POINTS,
+  EVENT_CARDS,
+  HOW_IT_WORKS,
+  HERO_VIDEO,
+  PACKAGE_CARDS,
+  RSVP_FAQS,
+  TIMELINE,
+} from "./content";
+import { CHANNEL_ICONS, HOW_ICONS } from "./components/RsvpIcons";
+import DashboardDemo from "./components/DashboardDemo";
+import JourneyDemo from "./components/JourneyDemo";
+import MarketingVideo from "./components/MarketingVideo";
+
+const display = Frank_Ruhl_Libre({
+  subsets: ["hebrew", "latin"],
+  weight: ["500", "700"],
+  display: "swap",
+  variable: "--font-rsvp-display",
+});
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 42 },
+  hidden: { opacity: 0, y: 28 },
   visible: { opacity: 1, y: 0 },
 };
 
-const fadeIn = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1 },
-};
-
-const features = [
-  "קישור אישי ייחודי לכל אורח",
-  "שליחה אוטומטית ב־WhatsApp או ב־SMS",
-  "אפשרות להוסיף קישור ל־PayBox או מתנות באשראי",
-  "בחירת מגיע / לא מגיע בצורה פשוטה",
-  "בחירת מספר מגיעים",
-  "הוספת הערות כמו כשרויות, אלרגיות והסעות",
-];
-
-const dashboardFeatures = [
-  "סטטוס הגעה מתעדכן אוטומטית",
-  "מספר המגיעים מתעדכן בזמן אמת",
-  "הערות האורחים נשמרות בצורה מסודרת",
-  "מעקב אחרי מי ענה ומי עדיין לא",
-];
-
-const whyItems = [
-  "בלי טלפונים חוזרים",
-  "בלי הודעות מפוזרות",
-  "בלי נתונים סותרים",
-  "בלי ניחושים",
-  "הכל מרוכז במקום אחד",
-];
-
-function PremiumBadge({ children }: { children: React.ReactNode }) {
+function SectionEyebrow({ children, light = false }: { children: React.ReactNode; light?: boolean }) {
   return (
-    <span
-      className="
-        inline-flex items-center gap-2 rounded-full
-        border border-[#EADDC8]
-        bg-white/70 px-5 py-2
-        text-sm font-bold text-[#7A6042]
-        shadow-[0_12px_35px_rgba(91,63,32,0.08)]
-        backdrop-blur-xl
-      "
+    <p
+      className={`text-sm font-bold tracking-[0.16em] ${
+        light ? "text-[#E8D1A5]" : "text-[#A77A38]"
+      }`}
     >
-      <span className="h-2 w-2 rounded-full bg-[#C7A56B]" />
       {children}
-    </span>
+    </p>
   );
 }
 
-function FeatureList({ items }: { items: string[] }) {
+function PrimaryCta({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <ul className="grid gap-3">
-      {items.map((item) => (
-        <li
-          key={item}
-          className="
-            flex items-start gap-3 rounded-2xl
-            border border-[#E6D2AA]
-            bg-gradient-to-l from-[#FFF8EA] via-[#FFFDF7] to-[#F7E8CA]
-            px-4 py-3
-            text-base font-semibold text-[#544437]
-            shadow-[0_12px_30px_rgba(151,108,49,0.08)]
-          "
-        >
-          <span
-            className="
-              mt-1 flex h-5 w-5 shrink-0 items-center justify-center
-              rounded-full bg-[#C7A56B] text-[11px] font-black text-white
-            "
-          >
-            ✓
-          </span>
-          <span>{item}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function VideoFrame({
-  src,
-  variant = "phone",
-}: {
-  src: string;
-  variant?: "phone" | "wide" | "full";
-}) {
-  const isFull = variant === "full";
-  const isWide = variant === "wide" || variant === "full";
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.95, y: 24 }}
-      whileInView={{ opacity: 1, scale: 1, y: 0 }}
-      transition={{ duration: 0.7, ease: "easeOut" }}
-      viewport={{ once: true, amount: 0.25 }}
-      className={`
-        relative mx-auto w-full
-        ${isFull ? "max-w-7xl" : "max-w-[410px]"}
-      `}
+    <Link
+      href={href}
+      className="inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3.5 text-base font-black text-white shadow-[0_18px_45px_rgba(58,43,34,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_55px_rgba(58,43,34,0.36)]"
     >
-      <div
-        className="
-          absolute -inset-6 rounded-[46px]
-          bg-[radial-gradient(circle_at_top,#E8D4AF_0%,transparent_55%),linear-gradient(135deg,#F8EFE1,#FFFFFF)]
-          blur-2xl opacity-90
-        "
-      />
+      {children}
+    </Link>
+  );
+}
 
-      <div
-        className={`
-          relative border border-white/80
-          bg-gradient-to-br from-[#F8EFE1] via-[#FFFDF9] to-[#E7D7BF]
-          shadow-[0_35px_95px_rgba(58,39,20,0.20)]
-          ${isFull ? "rounded-[42px] p-[12px]" : "rounded-[38px] p-[10px]"}
-        `}
-      >
-        <div
-          className={`
-            border border-[#221811]/10
-            bg-[#17120E]
-            shadow-inner
-            ${isFull ? "rounded-[32px] p-[10px]" : "rounded-[30px] p-[8px]"}
-          `}
-        >
-          <div
-            className={`
-              overflow-hidden bg-black
-              ${isFull ? "rounded-[26px] aspect-video" : "rounded-[24px]"}
-              ${!isFull && isWide ? "aspect-video" : ""}
-              ${!isFull && !isWide ? "aspect-[9/16]" : ""}
-            `}
-          >
-            <video
-              src={src}
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="none"
-              controls
-              className="h-full w-full object-cover"
-            />
-          </div>
-        </div>
-      </div>
-    </motion.div>
+function SecondaryCta({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/80 px-8 py-3.5 text-base font-black text-[#5E4735] shadow-[0_12px_30px_rgba(91,63,32,0.08)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
+    >
+      {children}
+    </Link>
   );
 }
 
@@ -160,522 +68,374 @@ export default function RSVPPage() {
   return (
     <div
       dir="rtl"
-      className="
-        min-h-screen overflow-hidden
-        bg-[#FBF6EE]
-        text-[#3F3025]
-      "
+      className={`${display.variable} -mt-[64px] min-h-screen overflow-x-hidden bg-[#FBF6EE] text-[#3F3025]`}
     >
       {/* ================= HERO ================= */}
-      <section
-        className="
-          relative isolate px-6 pb-24 pt-28 text-center
-          md:pb-32 md:pt-36
-        "
-      >
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,#E9D4AF_0%,transparent_34%),radial-gradient(circle_at_top_right,#F5E8D3_0%,transparent_34%),linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_55%,#F6EBDD_100%)]" />
+      <section className="relative isolate px-5 pb-16 pt-[105px] md:px-8 md:pb-24">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,#E9D4AF_0%,transparent_36%),radial-gradient(circle_at_top_right,#F5E8D3_0%,transparent_34%),linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_55%,#F3E8D7_100%)]" />
+        <div className="absolute right-8 top-20 -z-10 h-52 w-52 rounded-full bg-[#D8B77C]/25 blur-3xl" />
+        <div className="absolute bottom-10 left-6 -z-10 h-64 w-64 rounded-full bg-[#B59668]/18 blur-3xl" />
 
-        <div className="absolute right-10 top-24 -z-10 h-48 w-48 rounded-full bg-[#D8B77C]/25 blur-3xl" />
-        <div className="absolute bottom-20 left-10 -z-10 h-64 w-64 rounded-full bg-[#B59668]/20 blur-3xl" />
-
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={fadeIn}
-          transition={{ duration: 0.7 }}
-          className="mb-8"
-        >
-          <PremiumBadge>מערכת RSVP חכמה לאירועים מדויקים יותר</PremiumBadge>
-        </motion.div>
-
-        <motion.h1
-          initial="hidden"
-          animate="visible"
-          variants={fadeUp}
-          transition={{ duration: 0.85 }}
-          className="
-            mx-auto max-w-5xl
-            text-5xl font-black leading-[1.08]
-            tracking-[-0.04em]
-            text-[#35281F]
-            md:text-7xl
-          "
-        >
-          אישורי הגעה לאירועים{" "}
-          <span
-            className="
-              mt-4 block
-              bg-gradient-to-l from-[#B48A4A] via-[#D3B47C] to-[#84613A]
-              bg-clip-text text-transparent
-            "
-          >
-            שמרגישים כמו ניהול פרימיום
-          </span>
-        </motion.h1>
-
-        <motion.p
-          initial="hidden"
-          animate="visible"
-          variants={fadeUp}
-          transition={{ delay: 0.18, duration: 0.85 }}
-          className="
-            mx-auto mt-7 max-w-3xl
-            text-lg leading-8 text-[#6D5B4A]
-            md:text-2xl md:leading-10
-          "
-        >
-          כל אורח מקבל חוויה פשוטה וברורה לאישור הגעה —
-          ואת מקבלת דשבורד מסודר שמתעדכן בזמן אמת.
-        </motion.p>
-
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={fadeUp}
-          transition={{ delay: 0.34, duration: 0.75 }}
-          className="
-            mt-12 flex flex-col items-center justify-center gap-4
-            sm:flex-row
-          "
-        >
-          <Link
-            href="/pricing"
-            className="
-              group inline-flex items-center justify-center
-              rounded-full
-              bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B]
-              px-10 py-5
-              text-lg font-black text-white
-              shadow-[0_22px_55px_rgba(58,43,34,0.32)]
-              transition
-              hover:-translate-y-1
-              hover:shadow-[0_30px_75px_rgba(58,43,34,0.42)]
-            "
-          >
-            התחילו לנהל אישורי הגעה
-            <span className="mr-2 transition group-hover:-translate-x-1">
-              ←
-            </span>
-          </Link>
-
-          <Link
-            href="/pricing"
-            className="
-              inline-flex items-center justify-center
-              rounded-full
-              border border-[#DCC7A6]
-              bg-white/75
-              px-9 py-5
-              text-lg font-black text-[#5E4735]
-              shadow-[0_18px_45px_rgba(91,63,32,0.08)]
-              backdrop-blur-xl
-              transition
-              hover:-translate-y-1
-              hover:bg-white
-            "
-          >
-            צפייה בחבילות
-          </Link>
-        </motion.div>
-
-        <motion.div
-          initial="hidden"
-          animate="visible"
-          variants={fadeUp}
-          transition={{ delay: 0.48, duration: 0.75 }}
-          className="
-            mx-auto mt-16 grid max-w-4xl gap-4
-            sm:grid-cols-3
-          "
-        >
-          {[
-            ["100%", "שליטה בנתונים"],
-            ["Live", "עדכון בזמן אמת"],
-            ["Smart", "ניהול אורחים חכם"],
-          ].map(([title, text]) => (
-            <div
-              key={title}
-              className="
-                rounded-[28px]
-                border border-[#E3C990]
-                bg-gradient-to-br from-[#FFF8E8] via-[#FFFDF7] to-[#F4E3C3]
-                px-6 py-6
-                shadow-[0_20px_55px_rgba(151,108,49,0.12)]
-                backdrop-blur-xl
-              "
-            >
-              <div className="text-3xl font-black text-[#A77A38]">
-                {title}
-              </div>
-              <div className="mt-2 text-sm font-bold text-[#6D5B4A]">
-                {text}
-              </div>
-            </div>
-          ))}
-        </motion.div>
-      </section>
-
-      {/* ================= BLOCK 1 ================= */}
-      <section className="relative bg-white px-6 py-24 md:py-32">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-l from-transparent via-[#E7D3B3] to-transparent" />
-
-        <div className="mx-auto grid max-w-7xl items-center gap-16 md:grid-cols-2">
+        <div className="mx-auto grid max-w-7xl items-start gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
           <motion.div
             initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true, amount: 0.25 }}
+            animate="visible"
             variants={fadeUp}
-            transition={{ duration: 0.75 }}
+            transition={{ duration: 0.7 }}
+            className="text-center lg:text-right"
           >
-            <PremiumBadge>חוויה פשוטה לאורחים</PremiumBadge>
-
-            <h2
-              className="
-                mt-6 text-4xl font-black leading-tight
-                tracking-[-0.03em]
-                text-[#35281F]
-                md:text-5xl
-              "
-            >
-              אישור הגעה עצמאי,
-              <span className="block text-[#B58B4F]">
-                ברור ונוח מכל מכשיר
-              </span>
-            </h2>
-
-            <p className="mt-6 text-lg leading-8 text-[#6D5B4A]">
-              כל אורח מקבל קישור אישי ומאשר הגעה בצורה פשוטה,
-              בלי הרשמה, בלי הורדת אפליקציה ובלי הסברים מיותרים.
-              ניתן לצרף גם קישור ל־PayBox או מתנות באשראי,
-              כך שכל מה שקשור לאישור ההגעה מרוכז במקום אחד.
+            <p className="font-[family-name:var(--font-rsvp-display)] text-5xl font-bold tracking-tight text-[#A77A38] md:text-6xl">
+              Invistimo
             </p>
-
-            <div className="mt-8">
-              <FeatureList items={features} />
+            <h1 className="mt-5 font-[family-name:var(--font-rsvp-display)] text-3xl font-bold leading-[1.2] text-[#35281F] md:text-5xl">
+              אישורי הגעה לאירוע, בלי לרדוף אחרי האורחים
+            </h1>
+            <p className="mt-5 text-lg font-semibold leading-8 text-[#5C4A3A] md:text-xl md:leading-9">
+              אתם מתרגשים לקראת האירוע. אנחנו עוזרים לכם לדעת מי מגיע.
+            </p>
+            <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
+              <PrimaryCta href="/pricing">בואו נתחיל</PrimaryCta>
+              <SecondaryCta href="#rsvp-journey">לצפייה בתהליך</SecondaryCta>
             </div>
-
-            <p className="mt-8 rounded-[26px] border border-[#E3C990] bg-gradient-to-l from-[#FFF8E8] via-[#FFFDF7] to-[#F4E3C3] p-5 text-base font-semibold leading-8 text-[#6D5B4A] shadow-[0_14px_35px_rgba(151,108,49,0.08)]">
-              האורח נכנס לקישור האישי שלו, בוחר אם הוא מגיע או לא מגיע,
-              מעדכן כמה מגיעים ומשאיר הערות חשובות כמו כשרות, אלרגיות
-              או הסעות — והכל נכנס אוטומטית לדשבורד.
-            </p>
           </motion.div>
 
-          <VideoFrame src="/videos/home1.mp4" />
-        </div>
-      </section>
-
-      {/* ================= BLOCK 2 ================= */}
-      <section className="relative px-6 py-24 md:py-32">
-        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,#FBF6EE_0%,#F7EDDF_100%)]" />
-
-        <div className="mx-auto max-w-6xl">
           <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={fadeUp}
-            transition={{ duration: 0.75 }}
-            className="mx-auto max-w-3xl text-center"
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.75 }}
+            className="relative mx-auto w-full max-w-[min(280px,calc((100svh-12rem)*420/760))] sm:max-w-[min(300px,calc((100svh-12rem)*420/760))] lg:max-w-[min(320px,calc((100svh-11rem)*420/760))]"
           >
-            <PremiumBadge>דשבורד חי</PremiumBadge>
-
-            <h2
-              className="
-                mt-6 text-4xl font-black leading-tight
-                tracking-[-0.03em]
-                text-[#35281F]
-                md:text-5xl
-              "
-            >
-              כל אישור מתעדכן בזמן אמת
-            </h2>
-
-            <p className="mt-6 text-lg leading-8 text-[#6D5B4A] md:text-xl">
-              ברגע שאורח מאשר, משנה כמות, מסמן שלא מגיע או משאיר הערה —
-              הדשבורד מתעדכן מיד ומציג תמונת מצב מדויקת של האירוע.
-            </p>
-          </motion.div>
-
-          <div className="mt-14 grid gap-5 md:grid-cols-4">
-            {dashboardFeatures.map((item, index) => (
-              <motion.div
-                key={item}
-                initial={{ opacity: 0, y: 26 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.08, duration: 0.55 }}
-                viewport={{ once: true }}
-                className="
-                  relative overflow-hidden
-                  rounded-[30px]
-                  border border-[#D7B873]
-                  bg-gradient-to-br from-[#FFF7E4] via-[#FFFCF5] to-[#EFD9AD]
-                  p-[1px]
-                  text-center
-                  shadow-[0_24px_65px_rgba(151,108,49,0.18)]
-                  backdrop-blur-xl
-                "
-              >
-                <div
-                  className="
-                    pointer-events-none absolute inset-0
-                    bg-[radial-gradient(circle_at_top,#F4D99C_0%,transparent_52%),linear-gradient(135deg,rgba(215,184,115,0.35),rgba(255,255,255,0.18),rgba(180,138,74,0.22))]
-                  "
+            <div className="absolute -inset-5 rounded-[42px] bg-[radial-gradient(circle_at_top,#E8D4AF,transparent_60%)] blur-2xl" />
+            <div className="relative rounded-[34px] border border-white/80 bg-gradient-to-br from-[#F8EFE1] via-[#FFFDF9] to-[#E7D7BF] p-2.5 shadow-[0_35px_90px_rgba(58,39,20,0.2)]">
+              <div className="overflow-hidden rounded-[26px] border border-[#221811]/10 bg-[#17120E]">
+                <MarketingVideo
+                  src={HERO_VIDEO.src}
+                  poster={HERO_VIDEO.poster}
+                  title={HERO_VIDEO.title}
+                  eager
+                  className="aspect-[420/760] w-full"
                 />
+              </div>
+            </div>
+          </motion.div>
+        </div>
 
-                <div
-                  className="
-                    relative h-full rounded-[29px]
-                    border border-white/70
-                    bg-gradient-to-br from-[#FFFDF6]/90 via-[#FFF8E8]/88 to-[#F3E0BD]/82
-                    p-6
-                  "
-                >
-                  <div
-                    className="
-                      mx-auto mb-5 flex h-12 w-12 items-center justify-center
-                      rounded-2xl bg-[#35281F]
-                      text-lg font-black text-[#E8D1A5]
-                      shadow-[0_12px_28px_rgba(53,40,31,0.18)]
-                    "
-                  >
-                    {index + 1}
-                  </div>
+        <p className="mx-auto mt-12 max-w-3xl text-center text-base leading-8 text-[#6D5B4A] md:mt-16 md:text-lg md:leading-9">
+          עם Invistimo שולחים לאורחים הודעות WhatsApp עם קישור אישי לאישור הגעה, עוקבים אחרי
+          התשובות בזמן אמת ומרכזים את כל המידע במקום אחד. אפשר לשלב סבבי הודעות, שיחות טלפוניות,
+          תזכורות, סידורי הושבה וניהול מוזמנים — כדי להגיע ליום האירוע הרבה יותר מסודרים.
+        </p>
+      </section>
 
-                  <p className="text-base font-black leading-7 text-[#514033]">
-                    {item}
-                  </p>
-                </div>
-              </motion.div>
-            ))}
+      <JourneyDemo />
+
+      {/* ================= HOW IT WORKS ================= */}
+      <section className="relative px-5 py-20 md:px-8 md:py-28" aria-labelledby="how-heading">
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_100%)]" />
+        <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-3xl text-center">
+            <SectionEyebrow>איך עובדים אישורי הגעה ב־Invistimo?</SectionEyebrow>
+            <h2
+              id="how-heading"
+              className="mt-4 font-[family-name:var(--font-rsvp-display)] text-3xl font-bold text-[#35281F] md:text-5xl"
+            >
+              {HOW_IT_WORKS.title}
+            </h2>
+            <p className="mt-5 text-base leading-8 text-[#6D5B4A] md:text-lg">{HOW_IT_WORKS.lede}</p>
           </div>
 
-          <motion.p
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={fadeUp}
-            transition={{ delay: 0.2 }}
-            className="
-              mx-auto mt-12 max-w-2xl text-center
-              text-lg font-semibold leading-8 text-[#6D5B4A]
-            "
-          >
-            במקום לעבור בין וואטסאפים, רשימות וטלפונים —
-            כל המידע נמצא במקום אחד, נקי ומדויק.
-          </motion.p>
+          <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {HOW_IT_WORKS.cards.map((card, index) => {
+              const Icon = HOW_ICONS[card.icon];
+              return (
+                <motion.li
+                  key={card.title}
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.2 }}
+                  transition={{ delay: index * 0.05, duration: 0.45 }}
+                  className="rounded-[28px] border border-[#E6D2AA] bg-white/90 p-6 shadow-[0_16px_40px_rgba(151,108,49,0.08)]"
+                >
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#35281F] text-[#E8D1A5]">
+                    <Icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-black text-[#35281F]">{card.title}</h3>
+                  <p className="mt-2 text-sm leading-7 text-[#5C4A3A] md:text-base">{card.body}</p>
+                </motion.li>
+              );
+            })}
+          </ul>
         </div>
       </section>
 
-      {/* ================= BLOCK 3 - FULL WIDTH VIDEO ONLY ================= */}
-      <section className="relative bg-white px-4 py-20 md:px-6 md:py-28">
-        <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-l from-transparent via-[#E7D3B3] to-transparent" />
+      {/* ================= CHANNELS ================= */}
+      <section
+        className="relative isolate px-5 py-20 md:px-8 md:py-28"
+        aria-labelledby="channels-heading"
+      >
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,#2F241C_0%,#3F3025_50%,#2A211A_100%)]" />
+        <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-3xl text-center">
+            <SectionEyebrow light>הודעות WhatsApp, תזכורות ושיחות</SectionEyebrow>
+            <h2
+              id="channels-heading"
+              className="mt-4 font-[family-name:var(--font-rsvp-display)] text-3xl font-bold text-[#FBF6EE] md:text-5xl"
+            >
+              {CHANNELS.title}
+            </h2>
+            <p className="mt-5 text-base leading-8 text-[#D9CBB8] md:text-lg">{CHANNELS.lede}</p>
+          </div>
 
-        <div className="mx-auto w-full max-w-7xl">
-          <VideoFrame src="/videos/rsvp2.mp4" variant="full" />
+          <ul className="mt-12 grid gap-5 md:grid-cols-3">
+            {CHANNELS.cards.map((card) => {
+              const Icon = CHANNEL_ICONS[card.icon];
+              return (
+                <li
+                  key={card.title}
+                  className="flex h-full flex-col rounded-[28px] border border-white/10 bg-white/[0.06] p-6 backdrop-blur"
+                >
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#C7A56B]/20 text-[#E8D1A5]">
+                    <Icon className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-black text-[#FBF6EE]">{card.title}</h3>
+                  <p className="mt-3 flex-1 text-sm leading-7 text-[#D9CBB8] md:text-base">{card.body}</p>
+                  <Link
+                    href={card.href}
+                    className="mt-5 inline-flex min-h-11 items-center font-bold text-[#E8D1A5] underline-offset-4 hover:underline"
+                  >
+                    לפרטים נוספים
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      </section>
+
+      {/* ================= DASHBOARD ================= */}
+      <section className="relative px-5 py-20 md:px-8 md:py-28" aria-labelledby="dash-heading">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
+          <div>
+            <SectionEyebrow>מה רואים במערכת?</SectionEyebrow>
+            <h2
+              id="dash-heading"
+              className="mt-4 font-[family-name:var(--font-rsvp-display)] text-3xl font-bold text-[#35281F] md:text-5xl"
+            >
+              כל התשובות. תמונה אחת ברורה.
+            </h2>
+            <p className="mt-5 text-base leading-8 text-[#6D5B4A] md:text-lg">
+              במקום לנסות להבין מי ענה בכל הודעה, תוכלו לראות את מצב אישורי ההגעה במערכת אחת.
+            </p>
+            <ul className="mt-8 grid gap-3 sm:grid-cols-2">
+              {DASHBOARD_POINTS.map((point) => (
+                <li
+                  key={point}
+                  className="flex items-start gap-3 rounded-2xl border border-[#E6D2AA] bg-white/90 px-4 py-3 text-sm font-semibold text-[#544437]"
+                >
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#C7A56B] text-[11px] font-black text-white">
+                    ✓
+                  </span>
+                  {point}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-8">
+              <PrimaryCta href="/pricing">למחשבון החבילות</PrimaryCta>
+            </div>
+          </div>
+          <DashboardDemo />
+        </div>
+      </section>
+
+      {/* ================= TIMELINE ================= */}
+      <section
+        className="relative isolate px-5 py-20 md:px-8 md:py-28"
+        aria-labelledby="timing-heading"
+      >
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,#F3E8D7_0%,#FBF6EE_45%,#FFFDF8_100%)]" />
+        <div className="mx-auto max-w-5xl">
+          <div className="mx-auto max-w-3xl text-center">
+            <SectionEyebrow>מתי כדאי להתחיל?</SectionEyebrow>
+            <h2
+              id="timing-heading"
+              className="mt-4 font-[family-name:var(--font-rsvp-display)] text-3xl font-bold text-[#35281F] md:text-5xl"
+            >
+              {TIMELINE.title}
+            </h2>
+            <p className="mt-5 text-base leading-8 text-[#6D5B4A] md:text-lg">{TIMELINE.lede}</p>
+            <p className="mt-3 text-sm font-semibold text-[#8A6B45]">{TIMELINE.note}</p>
+          </div>
+
+          <ol className="relative mt-14 space-y-6">
+            <div
+              className="absolute right-[1.15rem] top-3 bottom-3 w-px bg-gradient-to-b from-[#C7A56B] via-[#E6D2AA] to-transparent md:right-1/2 md:translate-x-1/2"
+              aria-hidden
+            />
+            {TIMELINE.steps.map((item, index) => (
+              <li
+                key={item.title}
+                className={`relative grid gap-4 md:grid-cols-2 md:gap-10 ${
+                  index % 2 === 1 ? "md:[&>*:first-child]:order-2" : ""
+                }`}
+              >
+                <div className="rounded-[28px] border border-[#E6D2AA] bg-white/95 p-6 shadow-[0_16px_40px_rgba(151,108,49,0.08)]">
+                  <p className="text-sm font-bold text-[#A77A38]">{item.when}</p>
+                  <h3 className="mt-2 text-xl font-black text-[#35281F]">{item.title}</h3>
+                  <p className="mt-3 text-sm leading-7 text-[#5C4A3A] md:text-base">{item.body}</p>
+                  <Link
+                    href={item.href}
+                    className="mt-4 inline-flex min-h-11 items-center font-bold text-[#8A642E] underline-offset-4 hover:underline"
+                  >
+                    למידע נוסף
+                  </Link>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-full rounded-[24px] border border-dashed border-[#DCC7A6] bg-[#FFF9F0] px-5 py-6 text-center">
+                    <p className="text-xs font-bold tracking-wide text-[#A77A38]">המחשת הודעה</p>
+                    <p className="mt-3 text-base font-semibold leading-7 text-[#514033]">{item.sample}</p>
+                  </div>
+                </div>
+                <span className="absolute right-3 top-6 z-10 flex h-5 w-5 items-center justify-center rounded-full border-2 border-[#C7A56B] bg-[#FBF6EE] md:right-1/2 md:translate-x-1/2" />
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
       {/* ================= EVENT TYPES ================= */}
-      <section className="relative px-6 py-24 md:py-28">
+      <section className="relative px-5 py-20 md:px-8 md:py-28" aria-labelledby="events-heading">
         <div className="mx-auto max-w-6xl">
-          <motion.div
-            initial="hidden"
-            whileInView="visible"
-            viewport={{ once: true }}
-            variants={fadeUp}
-            transition={{ duration: 0.7 }}
-            className="text-center"
-          >
-            <PremiumBadge>לא רק חתונות</PremiumBadge>
-            <h2 className="mt-8 text-4xl font-black text-[#35281F] md:text-5xl">
-              {EVENT_TYPE_SECTION.heading}
+          <div className="mx-auto max-w-3xl text-center">
+            <SectionEyebrow>אישורי הגעה שמתאימים לאירוע שלכם</SectionEyebrow>
+            <h2
+              id="events-heading"
+              className="mt-4 font-[family-name:var(--font-rsvp-display)] text-3xl font-bold text-[#35281F] md:text-5xl"
+            >
+              לא רק לחתונות. לכל רגע שחשוב לכם.
             </h2>
-            <p className="mx-auto mt-5 max-w-3xl text-lg leading-8 text-[#6D5B4A]">
-              {EVENT_TYPE_SECTION.lede}
+            <p className="mt-5 text-base leading-8 text-[#6D5B4A] md:text-lg">
+              בין אם אתם מתכננים חתונה גדולה או אירוע משפחתי אינטימי, אישורי הגעה מסודרים עוזרים לכם
+              להבין מי צפוי להגיע ולהיערך בהתאם.
             </p>
-          </motion.div>
-
+          </div>
           <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {EVENT_TYPES.map((item, index) => (
-              <motion.li
-                key={item.label}
-                initial={{ opacity: 0, y: 24 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05, duration: 0.5 }}
-                viewport={{ once: true }}
-                className="rounded-[28px] border border-[#E6D2AA] bg-white/90 p-6 text-right shadow-[0_16px_40px_rgba(151,108,49,0.08)]"
-              >
-                <h3 className="text-xl font-black text-[#35281F]">{item.label}</h3>
-                <p className="mt-3 leading-7 text-[#5C4A3A]">{item.blurb}</p>
-              </motion.li>
+            {EVENT_CARDS.map((item) => (
+              <li key={item.label}>
+                <Link
+                  href={item.href}
+                  className="flex h-full flex-col rounded-[28px] border border-[#E6D2AA] bg-white/90 p-6 shadow-[0_14px_35px_rgba(151,108,49,0.08)] transition hover:-translate-y-0.5 hover:border-[#C7A56B]"
+                >
+                  <h3 className="text-xl font-black text-[#35281F]">{item.label}</h3>
+                  <p className="mt-3 flex-1 text-sm leading-7 text-[#5C4A3A] md:text-base">{item.body}</p>
+                </Link>
+              </li>
             ))}
           </ul>
+        </div>
+      </section>
 
-          <p className="mt-8 text-center text-base font-semibold text-[#7A6042]">
-            לחתונה יש גם עמוד ייעודי:{" "}
-            <Link href="/rsvp/chatuna" className="font-black text-[#8A642E] underline-offset-4 hover:underline">
-              אישורי הגעה לחתונה
-            </Link>
-          </p>
+      {/* ================= PACKAGES ================= */}
+      <section
+        id="rsvp-packages"
+        className="relative isolate scroll-mt-24 px-5 py-20 md:px-8 md:py-28"
+        aria-labelledby="packages-heading"
+      >
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,#2C211B_0%,#3A2B22_55%,#241C17_100%)]" />
+        <div className="mx-auto max-w-6xl">
+          <div className="mx-auto max-w-3xl text-center">
+            <SectionEyebrow light>חבילות אישורי הגעה</SectionEyebrow>
+            <h2
+              id="packages-heading"
+              className="mt-4 font-[family-name:var(--font-rsvp-display)] text-3xl font-bold text-[#FBF6EE] md:text-5xl"
+            >
+              בוחרים את הדרך שמתאימה לאירוע שלכם
+            </h2>
+            <p className="mt-5 text-base leading-8 text-[#D9CBB8] md:text-lg">
+              כל אירוע שונה, ולכן אפשר לבחור את אופן ניהול אישורי ההגעה בהתאם למספר המוזמנים ולשירותים
+              הרצויים.
+            </p>
+          </div>
+
+          <ul className="mt-12 grid gap-5 md:grid-cols-2">
+            {PACKAGE_CARDS.map((pkg) => (
+              <li
+                key={pkg.id}
+                className={`flex h-full flex-col rounded-[30px] border p-6 md:p-7 ${
+                  pkg.featured
+                    ? "border-[#C7A56B] bg-gradient-to-br from-[#C7A56B]/20 via-white/[0.07] to-transparent shadow-[0_24px_60px_rgba(199,165,107,0.18)]"
+                    : "border-white/10 bg-white/[0.05]"
+                }`}
+              >
+                {pkg.featured ? (
+                  <span className="mb-3 inline-flex w-fit rounded-full bg-[#C7A56B] px-3 py-1 text-xs font-extrabold text-[#2C211B]">
+                    בחירה פופולרית
+                  </span>
+                ) : null}
+                <h3 className="text-xl font-black text-[#FBF6EE] md:text-2xl">{pkg.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-[#D9CBB8] md:text-base">{pkg.blurb}</p>
+                <ul className="mt-5 flex-1 space-y-2.5">
+                  {pkg.features.map((feature) => (
+                    <li key={feature} className="flex items-start gap-2 text-sm leading-6 text-[#E8DCCB]">
+                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#C7A56B]" />
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href={pkg.href}
+                  className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-[#FBF6EE] px-5 text-sm font-black text-[#35281F] transition hover:bg-white"
+                >
+                  לצפייה במחשבון ולבחירה
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 
       {/* ================= FAQ ================= */}
-      <section className="relative isolate px-6 py-20 md:py-28">
-        <div className="absolute inset-0 -z-10 bg-[linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_100%)]" />
-        <div className="mx-auto max-w-3xl text-right">
-          <PremiumBadge>שאלות נפוצות</PremiumBadge>
-          <h2 className="mt-6 text-3xl font-black text-[#35281F] md:text-5xl">
-            מה חשוב לדעת לפני שמתחילים
+      <section className="relative px-5 py-20 md:px-8 md:py-28" aria-labelledby="faq-heading">
+        <div className="mx-auto max-w-3xl">
+          <SectionEyebrow>שאלות ותשובות</SectionEyebrow>
+          <h2
+            id="faq-heading"
+            className="mt-4 font-[family-name:var(--font-rsvp-display)] text-3xl font-bold text-[#35281F] md:text-5xl"
+          >
+            כל מה שרציתם לדעת על אישורי הגעה
           </h2>
-          <p className="mt-4 text-lg leading-8 text-[#6D5B4A]">
-            תשובות קצרות ומדויקות על אישורי הגעה לאירועים — בלי הבטחות שלא מופיעות במערכת.
+          <p className="mt-4 text-base leading-8 text-[#6D5B4A]">
+            תשובות ברורות על אישורי הגעה לחתונה ולאירועים — לפי מה שהמערכת באמת מאפשרת.
           </p>
-          <div className="mt-10 space-y-4">
-            {[
-              {
-                q: "האם האורח צריך להירשם?",
-                a: "לא. הוא פותח קישור אישי ומאשר הגעה, מספר מגיעים והערה.",
-              },
-              {
-                q: "מה נשלח בחבילת ההודעות?",
-                a: "הזמנה דיגיטלית, שני סבבי וואטסאפ לאישור הגעה, תזכורת SMS עם מספר שולחן, והודעת תודה ב־SMS.",
-              },
-              {
-                q: "האם זה רק לחתונות?",
-                a: "לא. אותו מודל מתאים לבר/בת מצווה, ברית, חינה, ימי הולדת ואירועי חברה. לחתונה יש גם עמוד ייעודי.",
-              },
-              {
-                q: "מה ההבדל מעמוד אישורי הגעה לחתונה?",
-                a: "העמוד הזה הוא ה־hub לביטוי «אישורי הגעה» ולכל סוגי האירוע. עמוד החתונה מעמיק בכאב של זוגות מול האולם וההושבה.",
-              },
-              {
-                q: "איך נקבע המחיר?",
-                a: "במחשבון לפי מספר רשומות, חבילה ותוספות. אין מחיר אחיד לכל אירוע.",
-              },
-            ].map((faq) => (
+          <div className="mt-10 space-y-3">
+            {RSVP_FAQS.map((faq) => (
               <details
                 key={faq.q}
-                open
-                className="rounded-[24px] border border-[#E6D2AA] bg-white px-5 py-4 text-right shadow-[0_12px_30px_rgba(151,108,49,0.06)]"
+                className="group rounded-[24px] border border-[#E6D2AA] bg-white px-5 py-4 shadow-[0_10px_28px_rgba(151,108,49,0.06)]"
               >
                 <summary className="cursor-pointer list-none">
-                  <h3 className="text-lg font-black text-[#35281F]">{faq.q}</h3>
+                  <h3 className="text-base font-black text-[#35281F] md:text-lg">{faq.q}</h3>
                 </summary>
-                <p className="mt-3 leading-8 text-[#5C4A3A]">{faq.a}</p>
+                <p className="mt-3 text-sm leading-8 text-[#5C4A3A] md:text-base">{faq.a}</p>
               </details>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ================= WHY ================= */}
-      <section className="relative isolate px-6 py-24 text-center md:py-32">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top,#EAD6B4_0%,transparent_36%),linear-gradient(180deg,#F7EDDF_0%,#FBF6EE_100%)]" />
-
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fadeUp}
-          transition={{ duration: 0.75 }}
-          className="mx-auto max-w-4xl"
-        >
-          <PremiumBadge>למה זה עובד באמת</PremiumBadge>
-
-          <h2
-            className="
-              mt-6 text-4xl font-black leading-tight
-              tracking-[-0.03em]
-              text-[#35281F]
-              md:text-6xl
-            "
-          >
-            אישורי הגעה שמורידים עומס
-            <span className="block text-[#B58B4F]">
-              ומשאירים אותך בשליטה
-            </span>
+      {/* ================= FINAL CTA ================= */}
+      <section className="relative isolate px-5 pb-24 pt-8 md:px-8 md:pb-32">
+        <div className="mx-auto max-w-4xl rounded-[36px] border border-[#E3C990] bg-gradient-to-br from-[#FFF8E8] via-[#FFFDF7] to-[#F4E3C3] px-6 py-12 text-center shadow-[0_28px_80px_rgba(151,108,49,0.16)] md:px-12">
+          <h2 className="font-[family-name:var(--font-rsvp-display)] text-3xl font-bold text-[#35281F] md:text-4xl">
+            מוכנים לדעת מי מגיע — בלי לרדוף אחרי תשובות?
           </h2>
-
-          <p className="mx-auto mt-7 max-w-2xl text-lg leading-8 text-[#6D5B4A] md:text-xl">
-            במקום לרדוף אחרי תשובות, לעדכן ידנית בכמה מקומות
-            ולנחש כמה אנשים באמת מגיעים — Invistimo עושה סדר.
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-[#6D5B4A]">
+            בחרו חבילה במחשבון, או צפו שוב בתהליך מהודעת WhatsApp ועד אישור ההגעה.
           </p>
-        </motion.div>
-
-        <div className="mx-auto mt-14 grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          {whyItems.map((item, index) => (
-            <motion.div
-              key={item}
-              initial={{ opacity: 0, y: 26 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.07, duration: 0.55 }}
-              viewport={{ once: true }}
-              className="
-                rounded-[28px]
-                border border-[#E3C990]
-                bg-gradient-to-br from-[#FFF8E8] via-[#FFFDF7] to-[#F4E3C3]
-                px-5 py-7
-                shadow-[0_20px_50px_rgba(151,108,49,0.11)]
-                backdrop-blur-xl
-              "
-            >
-              <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-[#C7A56B]" />
-              <p className="text-base font-black text-[#4D3B2F]">
-                {item}
-              </p>
-            </motion.div>
-          ))}
-        </div>
-
-        <motion.div
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true }}
-          variants={fadeUp}
-          transition={{ delay: 0.25, duration: 0.75 }}
-          className="
-            mx-auto mt-16 max-w-4xl rounded-[38px]
-            border border-[#E3C990]
-            bg-gradient-to-br from-[#FFF8E8] via-[#FFFDF7] to-[#F4E3C3]
-            p-8 shadow-[0_28px_80px_rgba(151,108,49,0.16)]
-            backdrop-blur-xl
-            md:p-12
-          "
-        >
-          <h3 className="text-3xl font-black text-[#35281F] md:text-4xl">
-            מתחילים לנהל אישורי הגעה בצורה חכמה יותר
-          </h3>
-
-          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[#6D5B4A]">
-            מערכת אחת שמרכזת את האורחים, האישורים, הכמויות, ההערות,
-            קישורי המתנות והעדכונים בזמן אמת —
-            בצורה יוקרתית, מסודרת ומדויקת.
-          </p>
-
-          <div className="mt-9">
-            <Link
-              href="/pricing"
-              className="
-                group inline-flex items-center justify-center
-                rounded-full
-                bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B]
-                px-12 py-5
-                text-lg font-black text-white
-                shadow-[0_24px_65px_rgba(58,43,34,0.35)]
-                transition
-                hover:-translate-y-1
-                hover:shadow-[0_32px_85px_rgba(58,43,34,0.46)]
-              "
-            >
-              התחילו עכשיו
-              <span className="mr-2 transition group-hover:-translate-x-1">
-                ←
-              </span>
-            </Link>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <PrimaryCta href="/pricing">בואו נתחיל</PrimaryCta>
+            <SecondaryCta href="#rsvp-journey">לצפייה בתהליך</SecondaryCta>
           </div>
-        </motion.div>
+        </div>
       </section>
     </div>
   );

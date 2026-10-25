@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Invistimo RSVP Guest Journey</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&family=Frank+Ruhl+Libre:wght@500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --cream: #FBF6EE;
+      --cream-2: #F7EDDF;
+      --gold: #C7A56B;
+      --gold-dark: #A77A38;
+      --brown: #35281F;
+      --brown-soft: #6D5B4A;
+      --wa-green: #075E54;
+      --wa-bubble: #DCF8C6;
+      --wa-bg: #E5DDD5;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 420px;
+      height: 760px;
+      overflow: hidden;
+      background: #F7EDDF;
+      font-family: Heebo, sans-serif;
+      color: var(--brown);
+    }
+    .stage {
+      width: 420px;
+      height: 760px;
+      position: relative;
+      background:
+        radial-gradient(ellipse at 20% 10%, rgba(232,212,175,0.9), transparent 45%),
+        radial-gradient(ellipse at 90% 90%, rgba(199,165,107,0.28), transparent 40%),
+        linear-gradient(165deg, #FFFDF8 0%, #F7EDDF 48%, #EAD6B4 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .phone {
+      width: 372px;
+      height: 732px;
+      border-radius: 44px;
+      background: #1c1612;
+      padding: 9px;
+      box-shadow:
+        0 0 0 1px rgba(58,43,34,0.35),
+        0 24px 55px rgba(58,39,20,0.22),
+        inset 0 0 0 1px rgba(255,255,255,0.08);
+      position: relative;
+      overflow: hidden;
+    }
+    .phone-notch {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 110px;
+      height: 22px;
+      background: #111;
+      border-radius: 14px;
+      z-index: 40;
+    }
+    .screen {
+      width: 100%;
+      height: 100%;
+      border-radius: 34px;
+      overflow: hidden;
+      position: relative;
+      background: var(--cream);
+    }
+    .scene {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      pointer-events: none;
+    }
+    .scene.active { opacity: 1; }
+
+    /* WhatsApp */
+    .wa {
+      background: var(--wa-bg);
+      display: flex;
+      flex-direction: column;
+    }
+    .wa-header {
+      background: var(--wa-green);
+      color: #fff;
+      padding: 44px 16px 12px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .wa-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #C7A56B, #8A642E);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 14px;
+    }
+    .wa-name { font-weight: 700; font-size: 16px; }
+    .wa-sub { font-size: 11px; opacity: 0.85; }
+    .wa-body {
+      flex: 1;
+      padding: 18px 14px;
+      position: relative;
+    }
+    .wa-bubble {
+      background: #fff;
+      border-radius: 10px 10px 2px 10px;
+      padding: 10px;
+      max-width: 92%;
+      margin-right: auto;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+      transform: translateY(18px);
+      opacity: 0;
+    }
+    .wa-bubble.in {
+      animation: bubbleIn 0.55s ease forwards;
+    }
+    @keyframes bubbleIn {
+      to { transform: none; opacity: 1; }
+    }
+    .wa-img {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      background: #eee;
+    }
+    .wa-text {
+      font-size: 13.5px;
+      line-height: 1.55;
+      white-space: pre-line;
+      color: #111;
+    }
+    .wa-btn {
+      margin-top: 12px;
+      background: #fff;
+      border: 1px solid #e5e5e5;
+      border-radius: 8px;
+      padding: 11px;
+      text-align: center;
+      color: #027eb5;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .wa-time {
+      text-align: left;
+      font-size: 10px;
+      color: #999;
+      margin-top: 6px;
+    }
+
+    /* Invite / RSVP web */
+    .web {
+      background: var(--cream);
+      display: flex;
+      flex-direction: column;
+    }
+    .web-bar {
+      background: #fff;
+      border-bottom: 1px solid #eadcc8;
+      padding: 40px 14px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--brown-soft);
+    }
+    .web-lock {
+      width: 10px; height: 10px; border-radius: 2px;
+      background: #8fbf8f;
+    }
+    .web-url {
+      flex: 1;
+      background: #f3eee7;
+      border-radius: 999px;
+      padding: 6px 12px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      direction: ltr;
+      text-align: left;
+      font-weight: 600;
+    }
+    .web-scroll {
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+    .invite-card {
+      margin: 16px 14px;
+      background: #fff;
+      border-radius: 22px;
+      border: 1px solid #eadcc8;
+      box-shadow: 0 16px 40px rgba(91,63,32,0.1);
+      overflow: hidden;
+    }
+    .invite-hero {
+      width: 100%;
+      height: 220px;
+      object-fit: cover;
+      display: block;
+    }
+    .invite-body { padding: 18px 16px 22px; text-align: center; }
+    .invite-eyebrow {
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      color: var(--gold-dark);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .invite-title {
+      font-family: "Frank Ruhl Libre", serif;
+      font-size: 28px;
+      line-height: 1.2;
+      color: var(--brown);
+      margin-bottom: 8px;
+    }
+    .invite-meta {
+      font-size: 14px;
+      color: var(--brown-soft);
+      line-height: 1.7;
+    }
+    .invite-details {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-top: 16px;
+      text-align: center;
+    }
+    .invite-details div {
+      background: #FBF6EE;
+      border-radius: 14px;
+      padding: 10px 6px;
+      border: 1px solid #eedfca;
+    }
+    .invite-details strong {
+      display: block;
+      font-size: 13px;
+      color: var(--gold-dark);
+      margin-bottom: 2px;
+    }
+    .invite-details span { font-size: 11px; color: var(--brown-soft); }
+
+    .rsvp-card {
+      margin: 0 14px 20px;
+      background: #fff;
+      border-radius: 22px;
+      border: 1px solid #eadcc8;
+      box-shadow: 0 16px 40px rgba(91,63,32,0.1);
+      padding: 18px 16px 20px;
+    }
+    .rsvp-hello {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .rsvp-q {
+      font-size: 14px;
+      color: var(--brown-soft);
+      margin-bottom: 14px;
+      line-height: 1.5;
+    }
+    .rsvp-choices {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+    .choice {
+      border: 1.5px solid #dcc7a6;
+      background: #fff;
+      border-radius: 14px;
+      padding: 12px 8px;
+      font-weight: 700;
+      font-size: 14px;
+      text-align: center;
+      transition: 0.25s ease;
+    }
+    .choice.selected {
+      background: linear-gradient(135deg, #C7A56B, #A77A38);
+      color: #fff;
+      border-color: transparent;
+      box-shadow: 0 10px 24px rgba(167,122,56,0.35);
+    }
+    .count-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    .count-row.show {
+      opacity: 1;
+      transform: none;
+      transition: 0.35s ease;
+    }
+    .count-label { font-weight: 700; font-size: 14px; }
+    .count-ctrl {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #FBF6EE;
+      border-radius: 999px;
+      padding: 6px 10px;
+      border: 1px solid #eedfca;
+    }
+    .count-btn {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: none; background: #35281F; color: #fff;
+      font-weight: 800;
+    }
+    .submit {
+      width: 100%;
+      border: none;
+      border-radius: 16px;
+      padding: 14px;
+      font-weight: 800;
+      font-size: 15px;
+      color: #fff;
+      background: linear-gradient(90deg, #3A2B22, #5A4333, #2C211B);
+      box-shadow: 0 14px 30px rgba(58,43,34,0.28);
+    }
+    .submit.pulse {
+      animation: pulse 0.6s ease;
+    }
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      40% { transform: scale(0.97); }
+      100% { transform: scale(1); }
+    }
+
+    .thanks {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 24px;
+      background:
+        radial-gradient(circle at top, #F4E3C3, transparent 55%),
+        var(--cream);
+    }
+    .thanks-card {
+      background: #fff;
+      border: 1px solid #eadcc8;
+      border-radius: 28px;
+      padding: 36px 24px;
+      box-shadow: 0 20px 50px rgba(91,63,32,0.12);
+      max-width: 300px;
+      opacity: 0;
+      transform: translateY(16px) scale(0.96);
+    }
+    .thanks-card.in {
+      animation: thanksIn 0.7s ease forwards;
+    }
+    @keyframes thanksIn {
+      to { opacity: 1; transform: none; }
+    }
+    .thanks-check {
+      width: 64px; height: 64px; border-radius: 50%;
+      margin: 0 auto 18px;
+      display: grid; place-items: center;
+      background: linear-gradient(135deg, #C7A56B, #A77A38);
+      color: #fff;
+      font-size: 30px;
+      font-weight: 800;
+    }
+    .thanks-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--brown);
+      line-height: 1.35;
+      margin-bottom: 10px;
+    }
+    .thanks-sub {
+      font-size: 14px;
+      color: var(--brown-soft);
+      line-height: 1.6;
+    }
+
+    /* Dashboard organizer view */
+    .dash {
+      background: linear-gradient(180deg, #FBF6EE, #F3E8D7);
+      padding: 44px 14px 16px;
+    }
+    .dash-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255,255,255,0.8);
+      border: 1px solid #eadcc8;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #7A6042;
+      margin-bottom: 12px;
+    }
+    .dash-title {
+      font-size: 20px;
+      font-weight: 800;
+      margin-bottom: 14px;
+    }
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .stat {
+      background: #fff;
+      border: 1px solid #eadcc8;
+      border-radius: 16px;
+      padding: 12px;
+    }
+    .stat b {
+      display: block;
+      font-size: 22px;
+      color: var(--gold-dark);
+      margin-bottom: 2px;
+    }
+    .stat span { font-size: 12px; color: var(--brown-soft); font-weight: 600; }
+    .progress {
+      background: #fff;
+      border: 1px solid #eadcc8;
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .bar {
+      height: 10px;
+      background: #f0e4d2;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .bar > i {
+      display: block;
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, #C7A56B, #A77A38);
+      border-radius: 999px;
+    }
+    .bar > i.fill { animation: fillBar 1.2s ease forwards; }
+    @keyframes fillBar { to { width: 68%; } }
+    .guest-list {
+      background: #fff;
+      border: 1px solid #eadcc8;
+      border-radius: 16px;
+      overflow: hidden;
+    }
+    .guest-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 11px 12px;
+      border-bottom: 1px solid #f1e7d8;
+      font-size: 13px;
+    }
+    .guest-row:last-child { border-bottom: none; }
+    .pill {
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .pill.yes { background: #e8f5e9; color: #2e7d32; }
+    .pill.no { background: #fce8e6; color: #c62828; }
+    .pill.wait { background: #fff4e0; color: #b26a00; }
+
+    /* Cursor / finger */
+    .cursor {
+      position: absolute;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: rgba(53,40,31,0.55);
+      border: 2px solid rgba(255,255,255,0.85);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+      z-index: 50;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      transition: left 0.7s cubic-bezier(.2,.8,.2,1), top 0.7s cubic-bezier(.2,.8,.2,1), opacity 0.25s;
+    }
+    .cursor.tap::after {
+      content: "";
+      position: absolute;
+      inset: -8px;
+      border-radius: 50%;
+      border: 2px solid rgba(199,165,107,0.8);
+      animation: rip 0.55s ease-out;
+    }
+    @keyframes rip {
+      from { transform: scale(0.6); opacity: 1; }
+      to { transform: scale(1.4); opacity: 0; }
+    }
+
+    .demo-tag {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      z-index: 60;
+      background: rgba(255,255,255,0.92);
+      border: 1px solid rgba(199,165,107,0.55);
+      color: #7A6042;
+      font-size: 11px;
+      font-weight: 800;
+      border-radius: 999px;
+      padding: 6px 10px;
+      letter-spacing: 0.02em;
+    }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <div class="demo-tag">המחשה</div>
+    <div class="phone">
+      <div class="phone-notch"></div>
+      <div class="screen" id="screen">
+        <!-- Scene 1: WhatsApp -->
+        <div class="scene wa active" id="scene-wa">
+          <div class="wa-header">
+            <div class="wa-avatar">In</div>
+            <div>
+              <div class="wa-name">Invistimo</div>
+              <div class="wa-sub">הודעת אירוע</div>
+            </div>
+          </div>
+          <div class="wa-body">
+            <div class="wa-bubble" id="wa-bubble">
+              <img class="wa-img" src="/images/rsvp/invite-frame.jpg" alt="" />
+              <div class="wa-text" id="wa-text"></div>
+              <div class="wa-btn" id="wa-link">לאישור הגעה</div>
+              <div class="wa-time">14:22 ✓✓</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scene 2-5: Web invite + RSVP -->
+        <div class="scene web" id="scene-web">
+          <div class="web-bar">
+            <div class="web-lock"></div>
+            <div class="web-url">invistimo.com/invite/··· · קישור אישי</div>
+          </div>
+          <div class="web-scroll" id="web-scroll">
+            <div class="invite-card">
+              <img class="invite-hero" src="/images/rsvp/invite-frame.jpg" alt="" />
+              <div class="invite-body">
+                <div class="invite-eyebrow">הזמנה דיגיטלית</div>
+                <div class="invite-title">מאיה ואיתי</div>
+                <div class="invite-meta">
+                  שמחים להזמין אתכם לחגוג איתנו<br />
+                  גן ורדים · הרצליה
+                </div>
+                <div class="invite-details">
+                  <div><strong>12.11.2026</strong><span>תאריך</span></div>
+                  <div><strong>19:30</strong><span>שעה</span></div>
+                  <div><strong>גן ורדים</strong><span>מיקום</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="rsvp-card" id="rsvp-card">
+              <div class="rsvp-hello">שלום נועה כהן</div>
+              <div class="rsvp-q">נשמח לדעת אם תגיעו לחגוג איתנו</div>
+              <div class="rsvp-choices">
+                <div class="choice" id="choice-no">לא מגיע/ה</div>
+                <div class="choice" id="choice-yes">מגיע/ה</div>
+              </div>
+              <div class="count-row" id="count-row">
+                <div class="count-label">כמה מגיעים?</div>
+                <div class="count-ctrl">
+                  <button class="count-btn" type="button">−</button>
+                  <strong id="count-val">2</strong>
+                  <button class="count-btn" type="button">+</button>
+                </div>
+              </div>
+              <button class="submit" id="submit-btn" type="button">שליחת אישור הגעה</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Scene thank you -->
+        <div class="scene thanks" id="scene-thanks">
+          <div class="thanks-card" id="thanks-card">
+            <div class="thanks-check">✓</div>
+            <div class="thanks-title">תודה! תשובתך התקבלה</div>
+            <div class="thanks-sub">אישור ההגעה נשמר במערכת.<br />נתראה באירוע.</div>
+          </div>
+        </div>
+
+        <!-- Scene dashboard -->
+        <div class="scene dash" id="scene-dash">
+          <div class="dash-badge"><span style="width:7px;height:7px;border-radius:50%;background:#C7A56B;display:inline-block"></span> נתוני המחשה</div>
+          <div class="dash-title">מצב אישורי הגעה</div>
+          <div class="stats">
+            <div class="stat"><b>148</b><span>אישרו הגעה</span></div>
+            <div class="stat"><b>27</b><span>לא מגיעים</span></div>
+            <div class="stat"><b>41</b><span>עדיין לא השיבו</span></div>
+            <div class="stat"><b>216</b><span>מוזמנים בסך הכול</span></div>
+          </div>
+          <div class="progress">
+            <div class="progress-label"><span>התקדמות תשובות</span><span>68%</span></div>
+            <div class="bar"><i id="prog"></i></div>
+          </div>
+          <div class="guest-list">
+            <div class="guest-row"><span>נועה כהן</span><span class="pill yes">מגיעה · 2</span></div>
+            <div class="guest-row"><span>אורן לוי</span><span class="pill wait">ממתין</span></div>
+            <div class="guest-row"><span>יעל אברהם</span><span class="pill no">לא מגיעה</span></div>
+          </div>
+        </div>
+
+        <div class="cursor" id="cursor"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const WA_TEXT =
+      "משפחה וחברים יקרים,\\n" +
+      "הנכם מוזמנים לחתונה של מאיה ואיתי 🤍\\n\\n" +
+      "📅 תאריך: 12.11.2026\\n" +
+      "🕘 שעה: 19:30\\n" +
+      "📍 מיקום: גן ורדים\\n\\n" +
+      "לאישור הגעה לחצו על הכפתור למטה 👇\\n\\n" +
+      "מחכים לשמוח איתכם 💖";
+
+    const cursor = document.getElementById("cursor");
+    const scenes = {
+      wa: document.getElementById("scene-wa"),
+      web: document.getElementById("scene-web"),
+      thanks: document.getElementById("scene-thanks"),
+      dash: document.getElementById("scene-dash"),
+    };
+
+    function show(name) {
+      Object.values(scenes).forEach((el) => el.classList.remove("active"));
+      scenes[name].classList.add("active");
+    }
+
+    function moveCursor(x, y, tap = false) {
+      cursor.style.opacity = "1";
+      cursor.style.left = x + "px";
+      cursor.style.top = y + "px";
+      if (tap) {
+        cursor.classList.remove("tap");
+        void cursor.offsetWidth;
+        cursor.classList.add("tap");
+      }
+    }
+
+    function hideCursor() {
+      cursor.style.opacity = "0";
+      cursor.classList.remove("tap");
+    }
+
+    function wait(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    async function typeText(el, text, speed = 12) {
+      el.textContent = "";
+      for (let i = 0; i < text.length; i++) {
+        el.textContent += text[i] === "\\" && text[i + 1] === "n" ? ((i++), "\\n") : text[i];
+        // Fix: use actual newlines
+      }
+    }
+
+    async function run() {
+      document.getElementById("wa-text").textContent = [
+        "משפחה וחברים יקרים,",
+        "הנכם מוזמנים לחתונה של מאיה ואיתי 🤍",
+        "",
+        "📅 תאריך: 12.11.2026",
+        "🕘 שעה: 19:30",
+        "📍 מיקום: גן ורדים",
+        "",
+        "לאישור הגעה לחצו על הכפתור למטה 👇",
+        "",
+        "מחכים לשמוח איתכם 💖",
+      ].join("\n");
+
+      // Timings (seconds) — keep in sync with JOURNEY_STEPS in content.ts
+      // 01 0.0–7.0 | 02 7.0–10.0 | 03 10.0–18.5 | 04 18.5–25.5 | 05 25.5–34.0 | 06 34.0–42.0
+
+      // Step 01 — WhatsApp arrives (0–7s)
+      show("wa");
+      hideCursor();
+      await wait(500);
+      document.getElementById("wa-bubble").classList.add("in");
+      await wait(6500);
+
+      // Step 02 — tap personal link (7–10s)
+      moveCursor(170, 430);
+      await wait(900);
+      moveCursor(170, 505, true);
+      await wait(1600);
+
+      // Step 03 — invitation opens (10–18.5s)
+      show("web");
+      hideCursor();
+      const scroll = document.getElementById("web-scroll");
+      scroll.scrollTop = 0;
+      await wait(1400);
+      const scrollTarget = 170;
+      const start = performance.now();
+      await new Promise((resolve) => {
+        function frame(now) {
+          const t = Math.min(1, (now - start) / 2800);
+          scroll.scrollTop = scrollTarget * (0.5 - 0.5 * Math.cos(Math.PI * t));
+          if (t < 1) requestAnimationFrame(frame);
+          else resolve();
+        }
+        requestAnimationFrame(frame);
+      });
+      await wait(4300);
+
+      // Step 04 — choose attending + count (18.5–25.5s)
+      moveCursor(250, 560);
+      await wait(600);
+      moveCursor(250, 520, true);
+      document.getElementById("choice-yes").classList.add("selected");
+      await wait(900);
+      document.getElementById("count-row").classList.add("show");
+      await wait(1200);
+      moveCursor(280, 575, true);
+      document.getElementById("count-val").textContent = "2";
+      await wait(4300);
+
+      // Step 05 — submit + thank you (25.5–34s)
+      moveCursor(170, 640);
+      await wait(500);
+      moveCursor(170, 640, true);
+      document.getElementById("submit-btn").classList.add("pulse");
+      await wait(900);
+      show("thanks");
+      hideCursor();
+      document.getElementById("thanks-card").classList.add("in");
+      await wait(7100);
+
+      // Step 06 — organizer dashboard (34–42s)
+      show("dash");
+      document.getElementById("prog").classList.add("fill");
+      await wait(8000);
+
+      // Signal complete for recorder
+      document.body.dataset.done = "1";
+    }
+
+    run();
+  </script>
+</body>
+</html>
