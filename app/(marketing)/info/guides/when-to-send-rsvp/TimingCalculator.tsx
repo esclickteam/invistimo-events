@@ -12,16 +12,16 @@ const PACKAGE_PRESETS = [
 
 type RoundCount = 0 | 1 | 2 | 3;
 
-/** Explicit operational spacing (calendar days), Asia/Jerusalem planning. */
+/**
+ * Recommended RSVP planning window: 14–18 days before the event.
+ * Rounds are spread evenly on Sun–Thu send days inside that window
+ * (further clipped by the venue guest-count deadline). No fixed gap.
+ */
 export const TIMING_RULES = {
-  /** Days for guests to reply between WhatsApp rounds */
-  waGapDays: 5,
-  /** Days between last WhatsApp and first phone round */
-  waToPhoneGapDays: 3,
-  /** Days between phone rounds */
-  phoneGapDays: 3,
-  /** Days after last outreach before venue deadline (finish collecting answers) */
-  bufferBeforeVenueDays: 2,
+  windowEarliestDaysBeforeEvent: 18,
+  windowLatestDaysBeforeEvent: 14,
+  /** Last round must be at least this many days before the venue deadline */
+  bufferBeforeVenueDays: 1,
 } as const;
 
 type TimelineItem = {
@@ -29,6 +29,8 @@ type TimelineItem = {
   title: string;
   date: Date;
   dateLabel: string;
+  weekdayLabel: string;
+  lineLabel: string;
   purpose: string;
   kind: "whatsapp" | "phone" | "milestone";
 };
@@ -65,20 +67,56 @@ function daysBetween(a: Date, b: Date) {
   return Math.round((b.getTime() - a.getTime()) / (24 * 60 * 60 * 1000));
 }
 
-/** Saturday in Asia/Jerusalem for our UTC-noon calendar dates. */
-function isSaturday(d: Date) {
-  return d.getUTCDay() === 6;
+/** Send days: Sunday–Thursday only (no Friday / Saturday). */
+function isSendDay(d: Date) {
+  const day = d.getUTCDay();
+  return day !== 5 && day !== 6;
 }
 
-/** Move to the nearest earlier (or same) non-Saturday send day. */
-function snapBackFromSaturday(d: Date) {
-  let cur = d;
-  let guard = 0;
-  while (isSaturday(cur) && guard < 8) {
-    cur = addDays(cur, -1);
-    guard += 1;
+function listSendDaysInclusive(start: Date, end: Date): Date[] {
+  const out: Date[] = [];
+  if (daysBetween(start, end) < 0) return out;
+  let cur = start;
+  while (daysBetween(cur, end) >= 0) {
+    if (isSendDay(cur)) out.push(new Date(cur.getTime()));
+    cur = addDays(cur, 1);
   }
-  return cur;
+  return out;
+}
+
+/** Pick n distinct days evenly across the available send-day list. */
+function pickEvenlySpaced(days: Date[], n: number): Date[] | null {
+  if (n <= 0) return [];
+  if (days.length < n) return null;
+  if (n === 1) return [days[0]];
+
+  const used = new Set<number>();
+  const idxs: number[] = [];
+  for (let i = 0; i < n; i += 1) {
+    let idx = Math.round((i * (days.length - 1)) / (n - 1));
+    if (used.has(idx)) {
+      let delta = 1;
+      let found = false;
+      while (delta < days.length) {
+        if (idx + delta < days.length && !used.has(idx + delta)) {
+          idx = idx + delta;
+          found = true;
+          break;
+        }
+        if (idx - delta >= 0 && !used.has(idx - delta)) {
+          idx = idx - delta;
+          found = true;
+          break;
+        }
+        delta += 1;
+      }
+      if (!found) return null;
+    }
+    used.add(idx);
+    idxs.push(idx);
+  }
+  idxs.sort((a, b) => a - b);
+  return idxs.map((i) => days[i]);
 }
 
 function asRoundCount(n: number): RoundCount {
@@ -100,6 +138,18 @@ const PHONE_PURPOSE: Record<number, string> = {
   3: "סבב שיחות אחרון לפני סגירת המספרים מול האולם.",
 };
 
+const WA_TITLE: Record<number, string> = {
+  1: "סבב WhatsApp ראשון",
+  2: "סבב WhatsApp שני",
+  3: "סבב WhatsApp שלישי",
+};
+
+const PHONE_TITLE: Record<number, string> = {
+  1: "שיחה טלפונית ראשונה",
+  2: "שיחה טלפונית שנייה",
+  3: "שיחה טלפונית שלישית",
+};
+
 export function planRsvpTimeline(input: {
   eventIso: string;
   venueIso: string;
@@ -112,19 +162,15 @@ export function planRsvpTimeline(input: {
   warnings: string[];
   items: TimelineItem[];
   rules: string[];
-  daysNeeded: number;
-  daysAvailable: number;
 } {
   const errors: string[] = [];
   const warnings: string[] = [];
   const rules = [
-    "תכנון לאחור ממועד מסירת המספרים לאולם (Asia/Jerusalem).",
-    `מרווח בין סבבי WhatsApp: כ־${TIMING_RULES.waGapDays} ימים.`,
-    `מרווח בין WhatsApp לשיחות: כ־${TIMING_RULES.waToPhoneGapDays} ימים.`,
-    `מרווח בין סבבי שיחות: כ־${TIMING_RULES.phoneGapDays} ימים.`,
-    `מרווח להשלמת תשובות לפני מועד האולם: כ־${TIMING_RULES.bufferBeforeVenueDays} ימים.`,
-    "תאריכי שליחה לא נופלים על שבת; מועדים בחגים דורשים בדיקה ידנית מול לוח השנה ומדיניות השליחה.",
-    "התאריכים הם המלצת תכנון — לא התחייבות למועדי שליחה אוטומטיים בפועל.",
+    `חלון התכנון המומלץ: ${TIMING_RULES.windowLatestDaysBeforeEvent}–${TIMING_RULES.windowEarliestDaysBeforeEvent} ימים לפני האירוע (שבועיים עד שבועיים וחצי).`,
+    "כל הסבבים שנבחרו נפרסים באופן מאוזן על ימי שליחה בתוך החלון הזמין — בלי מרווח קבוע מראש.",
+    "ימי שליחה: ראשון עד חמישי בלבד (לא יום שישי ולא שבת).",
+    "כל הסבבים מסתיימים לפני מועד מסירת המספרים לאולם, עם מרווח קצר לעדכון הרשימה.",
+    "התאריכים הם המלצת תכנון — לא התחייבות למועדי שליחה בפועל במערכת.",
     "בחבילת ההודעות כלולים שני סבבי WhatsApp. עד שלושה סבבי שיחות — בחבילות השיחה הנפרדות.",
   ];
 
@@ -143,7 +189,7 @@ export function planRsvpTimeline(input: {
   if (!event) errors.push("נא לבחור תאריך אירוע.");
   if (!venue) errors.push("נא לבחור תאריך אחרון למסירת מספר המוזמנים לאולם.");
   if (!event || !venue || !today) {
-    return { ok: false, errors, warnings, items: [], rules, daysNeeded: 0, daysAvailable: 0 };
+    return { ok: false, errors, warnings, items: [], rules };
   }
 
   if (daysBetween(today, event) <= 0) {
@@ -152,7 +198,8 @@ export function planRsvpTimeline(input: {
   if (daysBetween(venue, event) <= 0) {
     errors.push("תאריך מסירת המספרים לאולם חייב להיות לפני תאריך האירוע.");
   }
-  if (input.waRounds + input.phoneRounds < 1) {
+  const totalRounds = input.waRounds + input.phoneRounds;
+  if (totalRounds < 1) {
     errors.push("יש לבחור לפחות סבב WhatsApp אחד או סבב שיחות אחד.");
   }
   if (input.waRounds === 3) {
@@ -162,119 +209,108 @@ export function planRsvpTimeline(input: {
   }
 
   if (errors.length) {
-    return { ok: false, errors, warnings, items: [], rules, daysNeeded: 0, daysAvailable: 0 };
+    return { ok: false, errors, warnings, items: [], rules };
   }
 
-  const { waGapDays, waToPhoneGapDays, phoneGapDays, bufferBeforeVenueDays } = TIMING_RULES;
+  // Begin at ~18 days before the event (start of the 14–18 day guidance).
+  // End by the earlier of: ~14 days before the event (ideal), or venue − buffer.
+  // If the ideal sub-window lacks enough Sun–Thu days for all rounds, extend toward
+  // the venue deadline only — never before day −18 and never on/after the venue date.
+  const windowStart = addDays(event, -TIMING_RULES.windowEarliestDaysBeforeEvent);
+  const idealWindowEnd = addDays(event, -TIMING_RULES.windowLatestDaysBeforeEvent);
+  const latestAllowedByVenue = addDays(venue, -TIMING_RULES.bufferBeforeVenueDays);
 
-  // Days needed from first send through venue (inclusive gaps)
-  let daysNeeded = bufferBeforeVenueDays;
-  if (input.phoneRounds > 0) {
-    daysNeeded += (input.phoneRounds - 1) * phoneGapDays;
-    if (input.waRounds > 0) daysNeeded += waToPhoneGapDays;
-  }
-  if (input.waRounds > 0) {
-    daysNeeded += (input.waRounds - 1) * waGapDays;
-  }
-
-  const daysAvailable = daysBetween(today, venue);
-  if (daysBetween(today, venue) < 0) {
-    errors.push("מועד מסירת המספרים לאולם כבר חלף — אין אפשרות לתכנן סבבים קדימה ממנו.");
-    return { ok: false, errors, warnings, items: [], rules, daysNeeded, daysAvailable };
-  }
-
-  // Build backwards from venue:
-  // venue → collection end → last outreach (day before when possible) → earlier rounds
-  const collectionEnd = snapBackFromSaturday(addDays(venue, -bufferBeforeVenueDays));
-  let lastOutreach = snapBackFromSaturday(addDays(collectionEnd, -1));
-  if (daysBetween(lastOutreach, collectionEnd) <= 0) {
-    lastOutreach = collectionEnd;
-  }
-
-  const phoneItems: TimelineItem[] = [];
-  if (input.phoneRounds > 0) {
-    let phoneCursor = lastOutreach;
-    for (let i = input.phoneRounds; i >= 1; i -= 1) {
-      phoneItems.unshift({
-        id: `phone-${i}`,
-        title:
-          input.phoneRounds === 1
-            ? "שיחה טלפונית"
-            : `שיחה טלפונית ${["", "ראשונה", "שנייה", "שלישית"][i]}`,
-        date: phoneCursor,
-        dateLabel: formatJerusalem(phoneCursor),
-        purpose: PHONE_PURPOSE[i],
-        kind: "phone",
-      });
-      if (i > 1) phoneCursor = snapBackFromSaturday(addDays(phoneCursor, -phoneGapDays));
-    }
-  }
-
-  const waItems: TimelineItem[] = [];
-  if (input.waRounds > 0) {
-    let waCursor =
-      phoneItems.length > 0
-        ? snapBackFromSaturday(addDays(phoneItems[0].date, -waToPhoneGapDays))
-        : lastOutreach;
-    for (let i = input.waRounds; i >= 1; i -= 1) {
-      waItems.unshift({
-        id: `wa-${i}`,
-        title:
-          input.waRounds === 1
-            ? "סבב WhatsApp"
-            : `סבב WhatsApp ${["", "ראשון", "שני", "שלישי"][i]}`,
-        date: waCursor,
-        dateLabel: formatJerusalem(waCursor),
-        purpose: WA_PURPOSE[i],
-        kind: "whatsapp",
-      });
-      if (i > 1) waCursor = snapBackFromSaturday(addDays(waCursor, -waGapDays));
-    }
-  }
-
-  const outreach = [...waItems, ...phoneItems];
-
-  // Chronology check
-  for (let i = 1; i < outreach.length; i += 1) {
-    if (daysBetween(outreach[i - 1].date, outreach[i].date) <= 0) {
-      errors.push("לא נשאר מספיק זמן לפזר את הסבבים בימים נפרדים לפני מועד האולם.");
-      break;
-    }
-  }
-
-  const firstSend = outreach[0]?.date;
-  if (firstSend && daysBetween(today, firstSend) < 0) {
-    warnings.push(
-      "לפי התכנון, סבב ראשון היה צריך לצאת לפני היום — מומלץ להקדים את תחילת התהליך או לצמצם סבבים."
+  if (daysBetween(windowStart, latestAllowedByVenue) < 0) {
+    errors.push(
+      "הלו״ז אינו ישים: מועד מסירת המספרים לאולם חל לפני או בתוך תחילת חלון 14–18 הימים לפני האירוע. לא ממציאים תאריכי סבבים מחוץ לחלון — יש להקדים את תחילת התהליך או להתאים את דד־ליין האולם."
     );
+    return { ok: false, errors, warnings, items: [], rules };
   }
 
-  const spanNeeded = firstSend ? daysBetween(firstSend, venue) : daysNeeded;
-  if (firstSend && daysBetween(today, venue) < spanNeeded) {
-    warnings.push(
-      "מועד האולם קרוב מדי להשלמת כל הסבבים במרווחים סבירים. מומלץ להקדים את תחילת התהליך או להתאים את מספר הסבבים — לא דוחסים הכל לאותו יום."
+  // Earlier of ideal end (event − 14) and venue − buffer
+  let windowEnd =
+    daysBetween(idealWindowEnd, latestAllowedByVenue) >= 0 ? idealWindowEnd : latestAllowedByVenue;
+  let sendDays = listSendDaysInclusive(windowStart, windowEnd);
+
+  if (sendDays.length < totalRounds) {
+    // Need more days: extend only up to venue buffer (still starting at day −18)
+    if (daysBetween(windowEnd, latestAllowedByVenue) > 0) {
+      windowEnd = latestAllowedByVenue;
+      sendDays = listSendDaysInclusive(windowStart, windowEnd);
+      if (sendDays.length >= totalRounds) {
+        warnings.push(
+          "כדי לפרוס את כל הסבבים לפני מועד האולם, חלק מהסבבים יוצאים אחרי 14 ימים לפני האירוע — עדיין בתוך התכנון שמתחיל כ־18 ימים לפני, ולפני הדד־ליין."
+        );
+      }
+    }
+  }
+
+  if (sendDays.length < totalRounds) {
+    errors.push(
+      `הלו״ז אינו ישים: בין ${formatJerusalem(windowStart)} ל־${formatJerusalem(latestAllowedByVenue)} יש רק ${sendDays.length} ימי שליחה (א׳–ה׳), וצריך ${totalRounds} סבבים. לא דוחסים לשישי/שבת ולא קובעים תאריכים אחרי דד־ליין האולם או לפני חלון 18 הימים.`
     );
+    return { ok: false, errors, warnings, items: [], rules };
   }
 
-  if (errors.length) {
-    return { ok: false, errors, warnings, items: [], rules, daysNeeded: spanNeeded, daysAvailable };
+  const picked = pickEvenlySpaced(sendDays, totalRounds);
+  if (!picked) {
+    errors.push("הלו״ז אינו ישים: לא ניתן לפרוס את כל הסבבים באופן מאוזן בחלון הזמין.");
+    return { ok: false, errors, warnings, items: [], rules };
+  }
+
+  // Last picked must still be strictly before venue
+  const last = picked[picked.length - 1];
+  if (daysBetween(last, venue) <= 0) {
+    errors.push(
+      "הלו״ז אינו ישים: סבב אחרון לא מסתיים לפני מועד מסירת המספרים לאולם."
+    );
+    return { ok: false, errors, warnings, items: [], rules };
+  }
+
+  const roundItems: TimelineItem[] = [];
+  let cursor = 0;
+  for (let i = 1; i <= input.waRounds; i += 1) {
+    const date = picked[cursor++];
+    const weekdayLabel = weekdayJerusalem(date);
+    const dateLabel = formatJerusalem(date);
+    const title = input.waRounds === 1 ? "סבב WhatsApp" : WA_TITLE[i];
+    roundItems.push({
+      id: `wa-${i}`,
+      title,
+      date,
+      dateLabel,
+      weekdayLabel,
+      lineLabel: `${title} — ${weekdayLabel}, ${dateLabel}`,
+      purpose: WA_PURPOSE[i],
+      kind: "whatsapp",
+    });
+  }
+  for (let i = 1; i <= input.phoneRounds; i += 1) {
+    const date = picked[cursor++];
+    const weekdayLabel = weekdayJerusalem(date);
+    const dateLabel = formatJerusalem(date);
+    const title = input.phoneRounds === 1 ? "שיחה טלפונית" : PHONE_TITLE[i];
+    roundItems.push({
+      id: `phone-${i}`,
+      title,
+      date,
+      dateLabel,
+      weekdayLabel,
+      lineLabel: `${title} — ${weekdayLabel}, ${dateLabel}`,
+      purpose: PHONE_PURPOSE[i],
+      kind: "phone",
+    });
   }
 
   const items: TimelineItem[] = [
-    ...outreach,
-    {
-      id: "collect-end",
-      title: "סיום מומלץ של איסוף התשובות",
-      date: collectionEnd,
-      dateLabel: formatJerusalem(collectionEnd),
-      purpose: "זמן לסגור פתוחים לפני מסירת המספרים לאולם.",
-      kind: "milestone",
-    },
+    ...roundItems,
     {
       id: "venue",
       title: "מסירת מספר המוזמנים לאולם",
       date: venue,
       dateLabel: formatJerusalem(venue),
+      weekdayLabel: weekdayJerusalem(venue),
+      lineLabel: `מסירת מספר המוזמנים לאולם — ${weekdayJerusalem(venue)}, ${formatJerusalem(venue)}`,
       purpose: "הדד־ליין מול האולם או הקייטרינג.",
       kind: "milestone",
     },
@@ -283,20 +319,20 @@ export function planRsvpTimeline(input: {
       title: "תאריך האירוע",
       date: event,
       dateLabel: formatJerusalem(event),
+      weekdayLabel: weekdayJerusalem(event),
+      lineLabel: `תאריך האירוע — ${weekdayJerusalem(event)}, ${formatJerusalem(event)}`,
       purpose: "יום האירוע עצמו.",
       kind: "milestone",
     },
   ];
 
-  return {
-    ok: true,
-    errors,
-    warnings,
-    items,
-    rules,
-    daysNeeded: spanNeeded,
-    daysAvailable,
-  };
+  if (daysBetween(today, picked[0]) < 0) {
+    warnings.push(
+      "לפי החלון המומלץ, הסבב הראשון כבר היה צריך לצאת — בדקו אם עדיין ניתן להתחיל עכשיו או שיש לעדכן את התוכנית."
+    );
+  }
+
+  return { ok: true, errors, warnings, items, rules };
 }
 
 export default function TimingCalculator() {
@@ -428,7 +464,8 @@ export default function TimingCalculator() {
             לוח הזמנים המומלץ לאישורי ההגעה שלכם
           </h3>
           <p className="text-sm leading-7 text-[#7A6042]">
-            המלצת תכנון בלבד — לא מועד שליחה מחייב במערכת.
+            המלצת תכנון בלבד — לא מועד שליחה מחייב במערכת. הסבבים נפרסו בחלון 14–18 ימים לפני
+            האירוע (בכפוף לדד־ליין האולם).
           </p>
 
           <ol className="relative mt-2 space-y-0 border-r-2 border-[#E6D2AA] pr-6">
@@ -445,11 +482,12 @@ export default function TimingCalculator() {
                   aria-hidden
                 />
                 <p className="text-xs font-black tracking-wide text-[#8A642E]">
-                  {String(idx + 1).padStart(2, "0")} · {weekdayJerusalem(item.date)}
+                  {String(idx + 1).padStart(2, "0")}
                 </p>
-                <p className="mt-1 text-lg font-black text-[#2C241C]">{item.title}</p>
-                <p className="mt-0.5 text-base font-bold text-[#5E4735]">{item.dateLabel}</p>
-                <p className="mt-1 text-[14px] leading-6 text-[#6D5B4A]">{item.purpose}</p>
+                <p className="mt-1 text-lg font-black text-[#2C241C]">{item.lineLabel}</p>
+                {item.purpose ? (
+                  <p className="mt-1 text-[14px] leading-6 text-[#6D5B4A]">{item.purpose}</p>
+                ) : null}
               </li>
             ))}
           </ol>
