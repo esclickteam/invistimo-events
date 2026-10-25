@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "generate:rsvp-calls-demo": "node scripts/generate-rsvp-calls-demo-audio.mjs",
+    "prebuild": "node scripts/generate-rsvp-calls-demo-audio.mjs",
     "build": "next build",
     "start": "next start",
     "test:telnyx-webrtc-security": "node --test scripts/test-telnyx-webrtc-security.mjs",

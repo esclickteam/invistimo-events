@@ -29,7 +29,8 @@ export const DEMO_EVENT_NAME = "החתונה של מיה ואלון";
 
 /**
  * Outbound IVR script from lib/calls/ivrScript.ts (IVR_GLOBAL_PACK_TEXTS),
- * composed for the demo event. Keys: 1=yes(+count), 2=no, 3=maybe.
+ * composed for the demo event — same three clips guests hear concatenated.
+ * Keys: 1=yes(+count), 2=no, 3=maybe.
  */
 export const DEMO_SCRIPT_LINES = [
   `שלום, אנחנו מתקשרים בנוגע לאירוע ${DEMO_EVENT_NAME}.`,
@@ -38,6 +39,16 @@ export const DEMO_SCRIPT_LINES = [
   "לאי הגעה, הקישו 2.",
   "אם עדיין אינכם יודעים, הקישו 3.",
 ] as const;
+
+/**
+ * Dana demo audio — prefers committed public/audio MP3, else R2-cached file
+ * served by /api/marketing/rsvp-calls-demo (same locked Dana voice + IVR compose).
+ * Never SpeechSynthesis; never per-click TTS once cached.
+ */
+export const DEMO_AUDIO_SRC = "/api/marketing/rsvp-calls-demo";
+export const DEMO_AUDIO_VOICE = "Dana";
+export const DEMO_AUDIO_VOICE_NOTE =
+  "קריינות דנה — אותו קול נשי נעול בשיחות IVR של Invistimo (ElevenLabs).";
 
 export const DEMO_KEYPAD = [
   { digit: "1", label: "אישור הגעה", result: "אישר הגעה", next: "לאחר מכן מקישים את מספר האורחים שיגיעו, כולל אתכם." },
@@ -274,26 +285,46 @@ export const EVENT_TYPES = [
   },
 ] as const;
 
-export const MISTAKES = [
+/** Three equal service paths — none framed as a mistake. */
+export const CALL_PATH_CARDS = [
   {
-    title: "להתקשר לכל אורח שוב ושוב",
-    text: "פניות חוזרות בתדירות גבוהה עלולות להכביד על האורחים. כדאי לעבוד לפי סבבים מתוכננים.",
+    id: "voice",
+    icon: "ai" as const,
+    title: "שיחה מוקלטת. אישור הגעה פשוט ומהיר.",
+    body: "האורחים מקבלים שיחה אוטומטית עם קריינות בעברית, שומעים את פרטי האירוע ומשיבים באמצעות מקשי הטלפון. אפשר לאשר הגעה, לעדכן שלא מגיעים או לציין שעדיין לא יודעים. המסלול מתאים למי שמעדיף תהליך מובנה, יעיל ונוח, ללא צורך בנציג אנושי בכל שיחה.",
+    benefits: [
+      "תהליך אחיד ומסודר",
+      "מענה באמצעות מקשי הטלפון",
+      "מתאים גם להיקף גדול של מוזמנים",
+      "אפשרות לחזרה לאורחים שלא ענו, בהתאם להגדרות השירות",
+    ],
+    closing: "מתאים למי שמחפש פתרון אוטומטי ונוח.",
   },
   {
-    title: "להתייחס לשיחה שלא נענתה כאי־הגעה",
-    text: "אי־מענה אינו אומר שהאורח לא מתכנן להגיע.",
+    id: "personal",
+    icon: "human" as const,
+    title: "שיחה אישית. יחס אנושי לכל אורח.",
+    body: "נציגי המוקד מתקשרים לאורחים, משוחחים איתם ומבררים אם הם מתכננים להגיע לאירוע. השיחה מאפשרת התייחסות אישית, בירור תשובות ועדכון סטטוס ההגעה בהתאם למענה.",
+    benefits: [
+      "שיחה אישית עם נציג",
+      "אפשרות לשאול שאלות ולהבהיר תשובות",
+      "מתאים לאורחים שמעדיפים תקשורת אנושית",
+      "גישה אישית ומכבדת",
+    ],
+    closing: "מתאים למי שמעדיף שירות אישי באמצעות נציגים.",
   },
   {
-    title: "להסתמך רק על שיחה מוקלטת",
-    text: "שיחה אוטומטית אינה מתאימה לכל אורח ולכל מצב.",
-  },
-  {
-    title: "להסתמך רק על מוקד אנושי",
-    text: "במקרים מסוימים, שילוב שיחות אוטומטיות יכול לאפשר שימוש יעיל יותר בזמן הנציגים.",
-  },
-  {
-    title: "לא לעדכן את רשימת המוזמנים",
-    text: "תשובה שלא תועדה בצורה מסודרת עלולה לגרום לבלבול בהמשך.",
+    id: "hybrid",
+    icon: "hybrid" as const,
+    title: "שני העולמות. תהליך אחד מסודר.",
+    body: "אפשר להתחיל בשיחות מוקלטות כדי לאסוף תשובות בצורה יעילה, ולהיעזר במוקד אנושי בהמשך עבור אורחים שעדיין לא התקבלה מהם תשובה או שדורשים בירור נוסף. כך ניתן ליהנות מהיעילות של שיחות אוטומטיות ומהיחס האישי של נציג אנושי.",
+    benefits: [
+      "איסוף תשובות באמצעות שיחות מוקלטות",
+      "אפשרות להמשך טיפול אנושי",
+      "התאמה לקבוצות שונות של מוזמנים",
+      "תהליך גמיש בהתאם לצורכי האירוע",
+    ],
+    closing: "מתאים למי שרוצה לשלב אוטומציה עם מענה אישי.",
   },
 ] as const;
 
