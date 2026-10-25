@@ -3,7 +3,7 @@ import { resolveAppEnv } from "@/lib/env/appEnv";
 
 export const SITE_URL = "https://www.invistimo.com";
 export const SITE_NAME = "Invistimo";
-export const CONTENT_UPDATED = new Date("2026-10-23T11:00:00.000Z");
+export const CONTENT_UPDATED = new Date("2026-10-25T20:00:00.000Z");
 
 /** Preview/Staging must not claim indexability in HTML (align with Vercel x-robots-tag). */
 export function defaultPublicIndexable() {
@@ -103,6 +103,22 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
       "אישורי הגעה לחתונה עם הודעות WhatsApp, קישור אישי לכל אורח, מעקב תשובות ואפשרות לשלב שיחות וסידורי הושבה. גלו איך Invistimo עובדת.",
     changeFrequency: "monthly",
     priority: 0.9,
+  },
+  {
+    path: "/rsvp/bar-bat-mitzvah",
+    title: "אישורי הגעה לבר ובת מצווה וסידורי הושבה | Invistimo",
+    description:
+      "אישורי הגעה לבר ובת מצווה: הזמנות דיגיטליות, אישור דרך ההורים, רשומות בלי טלפון שלא נגרעות מהמכסה, ומעקב מוזמנים. סידורי הושבה והושבה חיה — בהתאם לחבילה.",
+    changeFrequency: "monthly",
+    priority: 0.88,
+  },
+  {
+    path: "/rsvp/brit-brita",
+    title: "אישורי הגעה לברית ובריתה | הזמנות דיגיטליות | Invistimo",
+    description:
+      "אישורי הגעה לברית ולבריתה: הזמנה דיגיטלית מהירה, איסוף תשובות, מספר מגיעים והושבה משפחתית. מתאים לתכנון בזמן קצר — בלי להציג תאריך משוער כמחייב.",
+    changeFrequency: "monthly",
+    priority: 0.88,
   },
   {
     path: "/rsvp/whatsapp",
