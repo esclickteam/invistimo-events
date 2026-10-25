@@ -14,6 +14,12 @@ export type ContentSection = {
   heading: string;
   paragraphs: string[];
   bullets?: string[];
+  /** Side-by-side comparison cards (e.g. family record vs individuals). */
+  compare?: { title: string; text: string }[];
+  /** Visual timeline / stage strip. */
+  timeline?: { title: string; text: string; tone?: "pre" | "rsvp" }[];
+  /** Stacked formula / callout lines. */
+  callout?: { title?: string; lines: string[] };
 };
 
 export type ContentFaq = { q: string; a: string };
@@ -246,6 +252,68 @@ export default function PublicContentPage({
                     </li>
                   ))}
                 </ul>
+              ) : null}
+              {section.compare?.length ? (
+                <ul className="mt-6 grid gap-3 sm:grid-cols-2">
+                  {section.compare.map((item) => (
+                    <li
+                      key={item.title}
+                      className="rounded-[24px] border border-[#E6D2AA] bg-[#FFFDF8] p-5 shadow-[0_12px_28px_rgba(95,68,34,0.06)]"
+                    >
+                      <p className="text-sm font-black tracking-wide text-[#A67C3D]">{item.title}</p>
+                      <p className="mt-2 text-[15px] leading-7 text-[#5C4A3A]">{item.text}</p>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+              {section.timeline?.length ? (
+                <ol className="mt-6 space-y-3">
+                  {section.timeline.map((item, stepIndex) => (
+                    <li
+                      key={item.title}
+                      className="relative flex gap-4 rounded-[24px] border border-[#E6D2AA] bg-[#FFFDF8] p-4 md:p-5"
+                    >
+                      <span
+                        className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-black text-white ${
+                          item.tone === "rsvp" ? "bg-[#3F3A34]" : "bg-[#C7A56B]"
+                        }`}
+                      >
+                        {stepIndex + 1}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-base font-black text-[#35281F]">{item.title}</p>
+                        <p className="mt-1 text-[15px] leading-7 text-[#5C4A3A]">{item.text}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              ) : null}
+              {section.callout ? (
+                <div className="mt-6 overflow-hidden rounded-[24px] border border-[#E3C990] bg-gradient-to-l from-[#FFF8EA] via-white to-[#F7E8CA] p-5 md:p-6">
+                  {section.callout.title ? (
+                    <p className="text-sm font-black tracking-wide text-[#A67C3D]">{section.callout.title}</p>
+                  ) : null}
+                  <ul className="mt-3 space-y-2">
+                    {section.callout.lines.map((line, lineIndex) => {
+                      const isTotal = lineIndex === section.callout!.lines.length - 1;
+                      return (
+                        <li
+                          key={line}
+                          className={`flex items-start gap-3 text-[15px] leading-7 md:text-base ${
+                            isTotal
+                              ? "mt-2 border-t border-[#E6D2AA] pt-3 font-black text-[#35281F]"
+                              : "font-semibold text-[#5C4A3A]"
+                          }`}
+                        >
+                          <span className="mt-0.5 w-4 shrink-0 text-center font-black text-[#A67C3D]">
+                            {isTotal ? "=" : lineIndex === 0 ? "" : "+"}
+                          </span>
+                          <span>{line}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               ) : null}
             </section>
           ))}
