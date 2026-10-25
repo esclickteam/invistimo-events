@@ -204,7 +204,7 @@ function asRoundCount(n: number): RoundCount {
 const WA_PURPOSE: Record<number, string> = {
   1: "פנייה ראשונה לרשימת המוזמנים עם קישור אישי לאישור הגעה.",
   2: "פנייה לאורחים שעדיין לא השיבו.",
-  3: "סבב נוסף למי שעדיין ממתינים לתשובה — מעבר לחבילת ההודעות הסטנדרטית (2 סבבים).",
+  3: "סבב נוסף למי שעדיין ממתינים לתשובה.",
 };
 
 const PHONE_PURPOSE: Record<number, string> = {
@@ -251,7 +251,6 @@ export function planRsvpTimeline(input: {
     "תזכורת: יום לפני האירוע או ביום האירוע (לבחירה). הודעת תודה: יום אחרי האירוע.",
     "אבני הדרך אינן הודעות שנשלחות אוטומטית, ואינן בהכרח כלולות בכל חבילה.",
     "התאריכים הם המלצת תכנון — לא התחייבות למועדי שליחה בפועל במערכת.",
-    "בחבילת ההודעות כלולים שני סבבי WhatsApp. עד שלושה סבבי שיחות — בחבילות השיחה הנפרדות.",
   ];
 
   const event = parseLocalDate(input.eventIso);
@@ -282,12 +281,6 @@ export function planRsvpTimeline(input: {
   if (totalRounds < 1) {
     errors.push("יש לבחור לפחות סבב WhatsApp אחד או סבב שיחות אחד.");
   }
-  if (input.waRounds === 3) {
-    warnings.push(
-      "בחבילת ההודעות הסטנדרטית כלולים שני סבבי WhatsApp. סבב שלישי אינו חלק מחבילת ההודעות הבסיסית."
-    );
-  }
-
   if (errors.length) {
     return { ok: false, errors, warnings, items: [], rules };
   }
@@ -581,7 +574,6 @@ export default function TimingCalculator() {
             {[0, 1, 2, 3].map((n) => (
               <option key={n} value={n}>
                 {n}
-                {n === 2 ? " (כלול בחבילת ההודעות)" : ""}
               </option>
             ))}
           </select>
@@ -599,7 +591,6 @@ export default function TimingCalculator() {
             {[0, 1, 2, 3].map((n) => (
               <option key={n} value={n}>
                 {n}
-                {n === 3 ? " (חבילות השיחה)" : ""}
               </option>
             ))}
           </select>
