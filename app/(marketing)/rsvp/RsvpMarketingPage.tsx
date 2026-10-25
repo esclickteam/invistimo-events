@@ -147,6 +147,7 @@ export default function RSVPPage() {
           <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {HOW_IT_WORKS.cards.map((card, index) => {
               const Icon = HOW_ICONS[card.icon];
+              const href = "href" in card ? card.href : undefined;
               return (
                 <motion.li
                   key={card.title}
@@ -161,6 +162,14 @@ export default function RSVPPage() {
                   </div>
                   <h3 className="text-lg font-black text-[#35281F]">{card.title}</h3>
                   <p className="mt-2 text-sm leading-7 text-[#5C4A3A] md:text-base">{card.body}</p>
+                  {href ? (
+                    <Link
+                      href={href}
+                      className="mt-4 inline-flex min-h-11 items-center text-sm font-bold text-[#8A642E] underline-offset-4 hover:underline"
+                    >
+                      לסידורי הושבה
+                    </Link>
+                  ) : null}
                 </motion.li>
               );
             })}
@@ -437,6 +446,7 @@ export default function RSVPPage() {
           </div>
           <nav aria-label="מדריכים קשורים" className="mt-10 flex flex-wrap justify-center gap-3">
             {[
+              { href: "/seating-explained", label: "סידורי הושבה" },
               { href: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים להתחייב לאולם" },
               { href: "/info/guides/cost-rsvp-wedding", label: "מחיר לפי רשומות" },
               { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },
