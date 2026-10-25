@@ -21,10 +21,12 @@ export default function LayoutShell({
   ========================================================= */
 
   // ❌ דפים ציבוריים – בלי Header ובלי Footer
+  // רק `/rsvp/whatsapp` (עמוד השיווק ב-PR הזה) מציג Header מתוך `/rsvp/*`.
+  // `/rsvp/chatuna` ושאר `/rsvp/*` נשארים כמו ב-main — בלי שינוי Chrome.
   const hideHeaderAndFooter =
     pathname === "/thank-you" ||
     pathname.startsWith("/invite/") ||
-    pathname.startsWith("/rsvp/") ||
+    (pathname.startsWith("/rsvp/") && pathname !== "/rsvp/whatsapp") ||
     pathname.startsWith("/invitation/") ||
     pathname === "/w" ||
     pathname.startsWith("/w/") ||

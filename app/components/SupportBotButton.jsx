@@ -40,10 +40,11 @@ export default function SupportBotButton() {
     /* =====================================================
        ❌ דפי הזמנות / RSVP / תודה – לא להציג
     ===================================================== */
+    /* כמו main: הסתרה תחת `/rsvp/*`, פרט ל־`/rsvp/whatsapp` בעמוד השיווק הזה */
     const isInvitationPage =
       pathname === "/thank-you" ||
       pathname.startsWith("/invite/") ||
-      pathname.startsWith("/rsvp/") ||
+      (pathname.startsWith("/rsvp/") && pathname !== "/rsvp/whatsapp") ||
       pathname.startsWith("/invitation/") ||
       pathname === "/w" ||
       pathname.startsWith("/w/") ||
