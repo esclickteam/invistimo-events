@@ -7,8 +7,11 @@ const LINKS = [
   { href: "/rsvp/save-the-date", label: "Save the Date" },
   { href: "/seating-explained", label: "סידורי הושבה" },
   { href: "/event-management", label: "ניהול אירוע" },
+<<<<<<< HEAD
   { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
   { href: "/services/alcohol-management", label: "ניהול אלכוהול באירועים" },
+=======
+>>>>>>> f5b7a8f3 (Polish alcohol calculator results UX and featured guide link)
   { href: "/pricing", label: "חבילות ומחירים" },
   { href: "/info/guides", label: "מדריכים" },
   { href: "/info/about", label: "אודות" },
