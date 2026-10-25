@@ -418,7 +418,7 @@ export const KEYWORD_MAP: KeywordRow[] = [
     query: "התחייבות לאולם חתונה",
     intent: "informational",
     primaryPath: "/info/guides/wedding-venue-guest-guarantee",
-    supportingPaths: ["/info/guides/reduce-meal-waste", "/rsvp"],
+    supportingPaths: ["/info/guides/guest-list", "/rsvp"],
     volume: null,
     competition: null,
     observation: "כוונת מידע על מינימום מנות ושינוי התחייבות — לא עמוד שירות.",
