@@ -483,6 +483,13 @@ export default function GuestsNoReplyGuide() {
               כל המדריכים
             </Link>
             {" · "}
+            <Link
+              href="/info/guides/wedding-venue-guest-guarantee"
+              className="underline-offset-4 hover:underline"
+            >
+              התחייבות לאולם
+            </Link>
+            {" · "}
             <Link href="/info/guides/cost-rsvp-wedding" className="underline-offset-4 hover:underline">
               עלויות אישורי הגעה
             </Link>

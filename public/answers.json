@@ -23,6 +23,7 @@
     "/info/guides/reduce-meal-waste": "המערכת מראה מי מגיע, כמה אנשים באישור, ומי עדיין בלי תשובה. היא לא מבטיחה סכום שייחסך, ואת המספר מעבירים לאולם בעצמכם.",
     "/info/guides/guest-list": "רשימה אחת שומרת שם, טלפון, סטטוס, מספר מגיעים והערות. ממנה יוצאות ההודעות ואליה חוזרות התשובות. חבילה אחת מיועדת לאירוע אחד, אלא אם סוכם אחרת.",
     "/info/guides/guests-who-dont-reply": "אורחים שלא השיבו נשארים במעקב במערכת, ובהתאם לחבילה ולהגדרות יכולים להיכלל בסבב הפנייה הבא. סוג הפנייה ומספר הסבבים אינם זהים בכל חבילה, ואי־מענה אינו תשובה שלילית.",
+    "/info/guides/wedding-venue-guest-guarantee": "התחייבות לאולם היא מספר מנות מינימלי לתשלום — לא בהכרח מספר המוזמנים. כנקודות ייחוס לתכנון מניסיון Invistimo אפשר לבחון כ־70% מהמוזמנים לפני אישורים, כ־90% מהמאשרים אחרי אישורים, ולעיתים פתיחת משא ומתן הנמוכה בכ־40% ממספר המוזמנים — עם הסתייגות שהן משתנות בין אירועים ואינן המלצת התחייבות אוטומטית.",
     "/info/guides/table-number-message": "אחרי השיבוץ אפשר לשלוח לכל אורח הודעה אישית עם מספר השולחן. בתזכורת ה־SMS של חבילת ההודעות מופיע גם מספר שולחן כשיש הושבה. בלי תוספת הושבה אין להניח שהמפה פתוחה.",
     "/info/guides/event-day-checklist": "לפני יום האירוע סוגרים רשימה, מסיימים סבבי אישור, מעדכנים הושבה אם יש, ומוודאים שהתזכורת והודעת התודה מוגדרות. המערכת לא מחליפה מפיק באולם אלא אם סוכם ליווי."
   },
@@ -74,7 +75,8 @@
     "איך שולחים אישורי הגעה לברית או לחינה עם Invistimo?",
     "האם Invistimo מתאימה לאירוע חברה או כנס?",
     "מה ההבדל בין אישורי הגעה להזמנה דיגיטלית ב־Invistimo?",
-    "איך שולחים מספר שולחן לאורחים ב־Invistimo?"
+    "איך שולחים מספר שולחן לאורחים ב־Invistimo?",
+    "כמה אורחים כדאי להתחייב לאולם חתונה?"
   ],
   "keywordMap": [
     {
@@ -531,6 +533,41 @@
       "volume": null,
       "competition": null,
       "observation": "המדריך מפריד בין סבב וואטסאפ שני לבין חבילות שיחה."
+    },
+    {
+      "query": "כמה אורחים להתחייב לאולם",
+      "intent": "informational",
+      "primaryPath": "/info/guides/wedding-venue-guest-guarantee",
+      "supportingPaths": [
+        "/rsvp/chatuna",
+        "/info/guides/when-to-send-rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מדריך ומחשבון התחייבות. אומדני 70%/90%/40% מוצגים כנקודות ייחוס מניסיון עם הסתייגות."
+    },
+    {
+      "query": "התחייבות לאולם חתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/wedding-venue-guest-guarantee",
+      "supportingPaths": [
+        "/info/guides/reduce-meal-waste",
+        "/rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כוונת מידע על מינימום מנות ושינוי התחייבות — לא עמוד שירות."
+    },
+    {
+      "query": "מינימום מנות באולם",
+      "intent": "informational",
+      "primaryPath": "/info/guides/wedding-venue-guest-guarantee",
+      "supportingPaths": [
+        "/info/guides/when-to-send-rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מכוסה במדריך ההתחייבות עם שאלות חוזה ומחשבון."
     },
     {
       "query": "חבילות אישורי הגעה",

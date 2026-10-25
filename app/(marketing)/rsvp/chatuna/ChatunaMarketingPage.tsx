@@ -677,6 +677,13 @@ export default function ChatunaMarketingPage() {
         </div>
         <p className="mt-6 text-[15px] text-[#5C4A3A]">
           לקריאה נוספת:{" "}
+          <Link
+            href={LINKS.venueGuarantee}
+            className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+          >
+            כמה אורחים כדאי להתחייב לאולם
+          </Link>
+          {" · "}
           <Link href={LINKS.mealWaste} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
             מדריך לסגירת מספר המנות מול האולם
           </Link>

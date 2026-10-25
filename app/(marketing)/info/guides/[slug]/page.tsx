@@ -8,7 +8,11 @@ type Props = { params: Promise<{ slug: string }> };
 
 export function generateStaticParams() {
   // Dedicated routes under app/(marketing)/info/guides/<slug>/page.tsx
-  const dedicated = new Set(["when-to-send-rsvp", "guests-who-dont-reply"]);
+  const dedicated = new Set([
+    "when-to-send-rsvp",
+    "guests-who-dont-reply",
+    "wedding-venue-guest-guarantee",
+  ]);
   return GUIDES.filter((guide) => !dedicated.has(guide.slug)).map((guide) => ({
     slug: guide.slug,
   }));
