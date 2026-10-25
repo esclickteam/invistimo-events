@@ -7,6 +7,7 @@ import AccessibilityScript from "./components/AccessibilityScript";
 import PublicPageShell from "./PublicPageShell";
 import GlobalSoftphoneMount from "./components/staff/GlobalSoftphoneMount";
 import PrivateChromeHider from "./components/staff/PrivateChromeHider";
+import { defaultPublicIndexable } from "@/lib/seo/site";
 
 const heebo = Heebo({
   subsets: ["hebrew", "latin"],
@@ -37,14 +38,17 @@ export const metadata = {
     type: "website",
   },
 
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: {
-      index: true,
-      follow: true,
-    },
-  },
+  robots: (() => {
+    const index = defaultPublicIndexable();
+    return {
+      index,
+      follow: index,
+      googleBot: {
+        index,
+        follow: index,
+      },
+    };
+  })(),
 
   ...(googleVerification || bingVerification
     ? {

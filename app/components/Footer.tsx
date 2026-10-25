@@ -234,11 +234,20 @@ export default function Footer() {
             <Link href="/invitations/chatuna" className="transition hover:text-[#B8862D]">
               הזמנות דיגיטליות
             </Link>
+            <Link href="/wedding-website" className="transition hover:text-[#B8862D]">
+              אתר חתונה אישי
+            </Link>
             <Link href="/seating-explained" className="transition hover:text-[#B8862D]">
               סידורי הושבה
             </Link>
             <Link href="/event-management" className="transition hover:text-[#B8862D]">
               ניהול אירוע
+            </Link>
+            <Link href="/info/demo" className="transition hover:text-[#B8862D]">
+              דמו אינטראקטיבי
+            </Link>
+            <Link href="/for/bar-mitzvah" className="transition hover:text-[#B8862D]">
+              בר מצווה
             </Link>
             <Link href="/faq" className="transition hover:text-[#B8862D]">
               שאלות ותשובות

@@ -35,9 +35,10 @@ export default function Header() {
   const navItems = [
     { label: "ראשי", href: "/" },
     { label: "אישורי הגעה", href: "/rsvp" },
+    { label: "הזמנות ואתר חתונה", href: "/wedding-website" },
     { label: "סידורי הושבה", href: "/seating-explained" },
     { label: "חבילות ומחירים", href: "/pricing" },
-    { label: "ניהול והפקת אירוע", href: "/event-management" },
+    { label: "ניהול אירוע", href: "/event-management" },
     { label: "צור קשר", href: "/contact" },
   ];
 
@@ -143,6 +144,10 @@ export default function Header() {
               <img
                 src="/invistimo-logo.png"
                 alt="Invistimo Logo"
+                width={162}
+                height={54}
+                decoding="async"
+                fetchPriority="low"
                 className="
                   h-[54px] w-auto select-none
                   drop-shadow-[0_6px_14px_rgba(158,116,42,0.14)]
@@ -175,16 +180,21 @@ export default function Header() {
     );
   }
 
+  // Homepage: no bottom padding under the nav chrome — that cream band
+  // read as an empty strip between Header and Hero. Other pages keep py-3.
+  const headerPad =
+    pathname === "/" ? "px-3 pt-3 pb-0" : "px-3 py-3";
+
   return (
     <>
       <header
-        className="
+        className={`
           sticky top-0 z-50
           w-full
           bg-[#F8F5EE]
-          px-3 py-3
+          ${headerPad}
           print:hidden
-        "
+        `}
       >
         <div
           className="
@@ -207,6 +217,7 @@ export default function Header() {
           >
             <div className="flex items-center justify-start">
               <nav
+                aria-label="ניווט ראשי"
                 className="
                   hidden items-center gap-6
                   whitespace-nowrap
@@ -249,6 +260,10 @@ export default function Header() {
                 <img
                   src="/invistimo-logo.png"
                   alt="Invistimo Logo"
+                  width={180}
+                  height={60}
+                  decoding="async"
+                  fetchPriority="low"
                   className="
                     h-[52px] w-auto select-none
                     drop-shadow-[0_6px_14px_rgba(158,116,42,0.14)]
@@ -382,6 +397,10 @@ export default function Header() {
                 <img
                   src="/invistimo-logo.png"
                   alt="Invistimo Logo"
+                  width={168}
+                  height={56}
+                  decoding="async"
+                  fetchPriority="low"
                   className="h-[56px] w-auto select-none"
                   draggable={false}
                 />
@@ -402,7 +421,10 @@ export default function Header() {
               </button>
             </div>
 
-            <nav className="flex flex-col divide-y divide-[#E7D8BD] rounded-[22px] border border-[#E7D8BD] bg-white/70">
+            <nav
+              aria-label="ניווט ראשי בנייד"
+              className="flex flex-col divide-y divide-[#E7D8BD] rounded-[22px] border border-[#E7D8BD] bg-white/70"
+            >
               {navItems.map((item) => (
                 <Link
                   key={item.href}

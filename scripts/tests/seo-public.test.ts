@@ -314,7 +314,10 @@ test("pillar clusters do not assign one URL to two topics and answer-first cover
   assert.match(read("app/seating-explained/layout.tsx"), /AnswerFirst/);
   assert.match(read("app/event-management/page.jsx"), /AnswerFirst/);
   assert.match(read("app/pricing/layout.tsx"), /AnswerFirst/);
-  assert.match(read("app/page.tsx"), /AnswerFirst/);
+  // Homepage ships marketing sections + FAQ schema (not AnswerFirst chrome).
+  assert.match(read("app/HomePageClient.tsx"), /HomeMarketingSections/);
+  assert.doesNotMatch(read("app/HomePageClient.tsx"), /AnswerFirst/);
+  assert.doesNotMatch(read("app/page.tsx"), /AnswerFirst/);
   assert.match(read("app/faq/page.jsx"), /AnswerFirst/);
   assert.doesNotMatch(read("lib/seo/jsonld.ts"), /AggregateRating|Review/);
   assert.match(read("public/llms.txt"), /not a ranking factor/);
