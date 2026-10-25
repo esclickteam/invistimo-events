@@ -30,9 +30,9 @@ export default function AlcoholManagementPage() {
             "@type": "WebPage",
             "@id": `https://www.invistimo.com${PATH}#webpage`,
             url: `https://www.invistimo.com${PATH}`,
-            name: "ניהול אלכוהול לאירועים — אנשי צוות ומעקב ממוחשב",
+            name: "אתם חוגגים. אנחנו דואגים שהבר יעבוד כמו שצריך.",
             description:
-              "שירות ניהול אלכוהול עם אנשי צוות ומערכת ממוחשבת: מלאי פתיחה, הקצאות, תיעוד פתיחה ודוח סיום.",
+              "ניהול אלכוהול מקצועי לאירועים עם צוות ייעודי, מעקב אחר בקבוקים ושליטה במה שנפתח, הוגש ונשאר.",
             inLanguage: "he-IL",
             isPartOf: { "@id": "https://www.invistimo.com/#website" },
           },
