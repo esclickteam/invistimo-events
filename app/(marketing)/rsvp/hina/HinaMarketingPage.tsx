@@ -152,7 +152,10 @@ function SeatingDemoCard() {
           <p className={`text-3xl text-[#4A1520] ${display.className}`}>{DEMO_TABLE.label}</p>
           <p className="mt-1 text-sm text-[#5C4A3A]">{DEMO_TABLE.note}</p>
         </div>
-        <p className={`text-4xl font-bold text-[#6B1F2A] ${display.className}`}>
+        <p
+          dir="ltr"
+          className={`text-4xl font-bold text-[#6B1F2A] ${display.className}`}
+        >
           {DEMO_TABLE.seated}
           <span className="text-xl text-[#A67C3D]"> / {DEMO_TABLE.capacity}</span>
         </p>
