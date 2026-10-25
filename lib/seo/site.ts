@@ -3,7 +3,7 @@ import { resolveAppEnv } from "@/lib/env/appEnv";
 
 export const SITE_URL = "https://www.invistimo.com";
 export const SITE_NAME = "Invistimo";
-export const CONTENT_UPDATED = new Date("2026-10-25T22:30:00.000Z");
+export const CONTENT_UPDATED = new Date("2026-10-25T22:45:00.000Z");
 
 /** Preview/Staging must not claim indexability in HTML (align with Vercel x-robots-tag). */
 export function defaultPublicIndexable() {
@@ -111,6 +111,14 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
       "מתכננים חינה? אישורי הגעה, הזמנות דיגיטליות וסידורי הושבה לחינה — גם לאירוע קטן. מנהלים מוזמנים, שולחנות והגעה בפועל עם Invistimo.",
     changeFrequency: "monthly",
     priority: 0.9,
+  },
+  {
+    path: "/rsvp/bar-bat-mitzvah",
+    title: "אישורי הגעה לבר ובת מצווה וסידורי הושבה | Invistimo",
+    description:
+      "אישורי הגעה לבר ובת מצווה: הזמנות דיגיטליות, אישור דרך ההורים, רשומות בלי טלפון שלא נגרעות מהמכסה, ומעקב מוזמנים. סידורי הושבה והושבה חיה — בהתאם לחבילה.",
+    changeFrequency: "monthly",
+    priority: 0.88,
   },
   {
     path: "/rsvp/brit-brita",
