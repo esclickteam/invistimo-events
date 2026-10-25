@@ -685,9 +685,22 @@ export default function SeatingMarketingPage() {
           </p>
         </div>
 
-        <div className="mt-8 flex flex-wrap gap-3">
-          <PrimaryCta href={LINKS.pricing}>למחשבון החבילות</PrimaryCta>
-          <SecondaryCta href={LINKS.contact}>לשיחה על צוות ו־LIVE</SecondaryCta>
+        <div className="mt-8">
+          <div className="flex flex-wrap gap-3">
+            <PrimaryCta href={LINKS.pricing}>למחשבון החבילות</PrimaryCta>
+            <a
+              href={LINKS.staffWhatsapp}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/80 px-7 py-3.5 text-base font-black !text-[#2C241C] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
+            >
+              לקבלת הצעת מחיר לצוותי הושבה
+            </a>
+          </div>
+          <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-[#5E4735]">
+            צוותי הושבה מקצועיים לניהול קבלת האורחים, עדכון הגעה בפועל וניהול מקומות ורזרבות
+            בזמן האירוע. מספר אנשי הצוות והמחיר מותאמים לגודל האירוע.
+          </p>
         </div>
       </Section>
 
