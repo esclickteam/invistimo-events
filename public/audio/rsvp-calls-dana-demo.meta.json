@@ -1,0 +1,26 @@
+{
+  "generatedAt": "2026-10-25T23:10:14.033Z",
+  "voiceId": "V0stpogHp8KBgdErUZbd",
+  "voiceNameExpected": "Dana",
+  "modelId": "eleven_v3",
+  "languageCode": "he",
+  "voiceSettings": {
+    "stability": 0.45,
+    "similarity_boost": 0.75,
+    "style": 0,
+    "use_speaker_boost": true
+  },
+  "outputFormat": "mp3_44100_128",
+  "pauseSeconds": 0.08,
+  "eventName": "החתונה של מיה ואלון",
+  "segments": [
+    "before",
+    "name",
+    "after"
+  ],
+  "bytes": 254162,
+  "sha256": "725f972009fdcfe8edfe7e1c571a1d65ff3f58a5348deb66bceb678d06e88341",
+  "durationSecondsApprox": 15.86,
+  "source": "production /api/marketing/rsvp-calls-demo warm (same locked Dana + composeIvrIntroAudio)",
+  "note": "Marketing demo only. Same Dana lock + settings as production IVR outbound intro."
+}
