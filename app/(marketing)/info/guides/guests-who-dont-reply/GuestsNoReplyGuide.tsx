@@ -161,7 +161,13 @@ export default function GuestsNoReplyGuide() {
             </p>
             <p className="rounded-[22px] border border-[#E7D3B0] bg-[#FBF6EE] px-5 py-4 text-[15px] leading-7 text-[#5C4A3A]">
               חשוב: מסירה וקריאה בפועל תלויות בגורמים שונים. אנחנו מתארים כאן התנהגות נפוצה של אורחים —
-              לא הבטחה שכל הודעה נמסרה או נקראה, ולא מספר קבוע של סבבים שכל אורח מקבל.
+              לא הבטחה שכל הודעה נמסרה או נקראה, ולא מספר קבוע של סבבים שכל אורח מקבל.{" "}
+              <Link
+                href="/info/guides/whatsapp-vs-sms-rsvp"
+                className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+              >
+                מה ההבדל בין הודעה שלא נמסרה לאורח שלא השיב?
+              </Link>
             </p>
           </div>
         </div>
@@ -481,6 +487,10 @@ export default function GuestsNoReplyGuide() {
           <p className="mt-8 text-sm text-[#B8A890]">
             <Link href="/info/guides" className="underline-offset-4 hover:underline">
               כל המדריכים
+            </Link>
+            {" · "}
+            <Link href="/info/guides/whatsapp-vs-sms-rsvp" className="underline-offset-4 hover:underline">
+              WhatsApp או SMS
             </Link>
             {" · "}
             <Link href="/info/guides/cost-rsvp-wedding" className="underline-offset-4 hover:underline">

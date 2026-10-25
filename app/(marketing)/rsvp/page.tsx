@@ -70,7 +70,13 @@ export default function RsvpPage() {
             <Link href="/rsvp/whatsapp" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">
               אישורי הגעה ב־WhatsApp
             </Link>
-            .
+            . לשאלה{" "}
+            <Link
+              href="/info/guides/whatsapp-vs-sms-rsvp"
+              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+            >
+              WhatsApp או SMS — איך כדאי לשלוח אישורי הגעה?
+            </Link>
           </p>
           {siblings.length ? (
             <ul className="flex flex-wrap gap-3 pt-2">

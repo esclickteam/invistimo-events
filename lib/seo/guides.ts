@@ -44,6 +44,8 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
       { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
+      { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "WhatsApp, SMS ואיך מתבצע הגיבוי?" },
+      { href: "/faq", label: "שאלות נפוצות" },
     ],
   },
   {
@@ -435,6 +437,9 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/cost-rsvp-wedding", label: "כמה עולים אישורי הגעה" },
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
+      { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "איך המערכת מטפלת בהודעות שלא נמסרו?" },
+      { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
+      { href: "/pricing", label: "חבילות" },
     ],
   },
   {
@@ -450,8 +455,29 @@ export const GUIDES: Guide[] = [
     related: [
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
+      { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "מה ההבדל בין הודעה שלא נמסרה לאורח שלא השיב?" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
       { href: "/info/guides/cost-rsvp-wedding", label: "כמה עולים אישורי הגעה" },
+    ],
+  },
+  {
+    // Dedicated UI: app/(marketing)/info/guides/whatsapp-vs-sms-rsvp/
+    slug: "whatsapp-vs-sms-rsvp",
+    title: "אישורי הגעה ב־WhatsApp או SMS — מה עדיף?",
+    description:
+      "WhatsApp או SMS לאישורי הגעה לחתונה? הכירו את היתרונות, המגבלות, מנגנון הגיבוי האוטומטי של Invistimo ודוחות המסירה לפי מספר טלפון.",
+    h1: "אישורי הגעה ב־WhatsApp או SMS — מה באמת עדיף?",
+    lede:
+      "לרוב נוח להתחיל ב־WhatsApp. כאשר WhatsApp נכשל או לא נשלח, Invistimo יכולה לשלוח SMS חלופי אוטומטי עם אותו קישור אישי — ולעקוב אחרי הסטטוסים בדוח השליחה.",
+    sections: [],
+    faqs: [],
+    related: [
+      { href: "/rsvp", label: "אישורי הגעה" },
+      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
+      { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
+      { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },
+      { href: "/info/guides/cost-rsvp-wedding", label: "עלויות אישורי הגעה" },
     ],
   },
   {

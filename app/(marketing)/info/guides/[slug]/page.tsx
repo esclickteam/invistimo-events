@@ -12,6 +12,7 @@ export function generateStaticParams() {
     "when-to-send-rsvp",
     "guests-who-dont-reply",
     "cost-rsvp-wedding",
+    "whatsapp-vs-sms-rsvp",
   ]);
   return GUIDES.filter((guide) => !dedicated.has(guide.slug)).map((guide) => ({
     slug: guide.slug,

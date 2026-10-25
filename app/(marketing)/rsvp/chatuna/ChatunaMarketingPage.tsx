@@ -494,6 +494,10 @@ export default function ChatunaMarketingPage() {
           <Link href={LINKS.noReply} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
             מדריך לאורחים שלא עונים
           </Link>
+          {" · "}
+          <Link href={LINKS.whatsappVsSms} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+            למה כדאי לשלב WhatsApp עם גיבוי SMS?
+          </Link>
         </p>
         <div className="mt-8">
           <CtaLink href={LINKS.pricing} variant="secondary">
