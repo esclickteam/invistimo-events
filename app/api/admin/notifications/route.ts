@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { adminNotificationOwnerId } from "@/lib/customerNotifications/adminCenter";
 import {
   countUnreadAdminNotifications,
   listAdminCenterNotifications,
@@ -10,13 +11,14 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
   const auth = await getUserIdFromRequest(request);
-  if (!auth || auth.role !== "admin" || auth.impersonated) {
+  const adminId = adminNotificationOwnerId(auth);
+  if (!adminId) {
     return NextResponse.json({ success: false }, { status: 401 });
   }
   await dbConnect();
   const [notifications, unreadCount] = await Promise.all([
-    listAdminCenterNotifications(auth.userId),
-    countUnreadAdminNotifications(auth.userId),
+    listAdminCenterNotifications(adminId),
+    countUnreadAdminNotifications(adminId),
   ]);
   return NextResponse.json({
     success: true,
