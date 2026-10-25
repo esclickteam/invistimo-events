@@ -22,6 +22,7 @@ export const PILLARS: ContentPillar[] = [
     clusters: [
       { path: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { path: "/rsvp/hina", label: "אישורי הגעה לחינה" },
+      { path: "/rsvp/bar-bat-mitzvah", label: "אישורי הגעה לבר ובת מצווה" },
       { path: "/rsvp/brit-brita", label: "אישורי הגעה לברית ובריתה" },
       { path: "/rsvp/whatsapp", label: "אישורי הגעה בוואטסאפ" },
       { path: "/rsvp/calls", label: "אישורי הגעה בשיחות טלפון" },
