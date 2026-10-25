@@ -376,7 +376,7 @@ export default function HinaMarketingPage() {
           />
           <div className="absolute inset-0 bg-[linear-gradient(105deg,rgba(251,245,235,0.96)_0%,rgba(251,245,235,0.92)_42%,rgba(74,21,32,0.55)_100%)]" />
         </div>
-        <MoroccanPattern opacity={0.08} color="#8B6F3A" />
+        <MoroccanPattern opacity={0.055} color="#8B6F3A" />
 
         <div className="relative z-10 mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-12 md:grid-cols-[1.05fr_0.95fr] md:px-8 md:pb-24 md:pt-16">
           <motion.div
@@ -384,7 +384,7 @@ export default function HinaMarketingPage() {
             animate="show"
             variants={fade}
             transition={{ duration: 0.7 }}
-            className="rounded-[28px] bg-gradient-to-l from-[#FBF5EB]/80 to-[#FBF5EB]/55 p-4 md:from-[#FBF5EB]/70 md:to-transparent md:p-5"
+            className="rounded-[28px] bg-[#FBF5EB]/88 p-4 shadow-[0_8px_32px_rgba(74,21,32,0.04)] md:bg-[#FBF5EB]/82 md:p-6"
           >
             <p className={`text-4xl font-bold tracking-tight text-[#6B1F2A] md:text-5xl ${display.className}`}>
               Invistimo
@@ -618,9 +618,9 @@ export default function HinaMarketingPage() {
 
       {/* Planning tips — same card chrome, new content */}
       <SectionShell id="planning-tips" tone="burgundy" className="relative isolate overflow-hidden">
-        <MoroccanPattern opacity={0.09} color="#D4B483" />
+        <MoroccanPattern opacity={0.06} color="#E8D5B5" />
         <div className="relative z-10">
-          <div className="mx-auto max-w-3xl rounded-[28px] bg-[#4A1520]/72 px-5 py-6 text-center md:px-8">
+          <div className="mx-auto max-w-3xl rounded-[28px] bg-[#3A1018]/88 px-5 py-6 text-center md:px-8">
             <p className="text-sm font-bold tracking-[0.16em] text-[#D4B483]">מתכננים את החינה</p>
             <h2 className={`mt-3 text-3xl text-[#FBF5EB] md:text-4xl ${display.className}`}>
               ארבעה דברים שעושים חינה בלתי נשכחת

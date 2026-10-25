@@ -267,6 +267,8 @@ export const LINKS = {
   whatsappVsSms: "/info/guides/whatsapp-vs-sms-rsvp",
   venueGuarantee: "/info/guides/wedding-venue-guest-guarantee",
   costGuide: "/info/guides/cost-rsvp-wedding",
+  alcoholCalculator: "/info/guides/wedding-alcohol-calculator",
+  guestList: "/info/guides/guest-list",
   contact: "/contact",
 } as const;
 

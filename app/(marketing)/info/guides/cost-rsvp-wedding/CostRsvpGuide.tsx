@@ -648,6 +648,7 @@ export default function CostRsvpGuide() {
               { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
               { href: "/rsvp/save-the-date", label: "Save the Date" },
               { href: "/invitations/chatuna", label: "הזמנות דיגיטליות" },
+              { href: "/seating-explained", label: "סידורי הושבה" },
               { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
               { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },
               { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },

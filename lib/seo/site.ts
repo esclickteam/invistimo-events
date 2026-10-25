@@ -3,7 +3,7 @@ import { resolveAppEnv } from "@/lib/env/appEnv";
 
 export const SITE_URL = "https://www.invistimo.com";
 export const SITE_NAME = "Invistimo";
-export const CONTENT_UPDATED = new Date("2026-10-23T11:00:00.000Z");
+export const CONTENT_UPDATED = new Date("2026-10-25T22:00:00.000Z");
 
 /** Preview/Staging must not claim indexability in HTML (align with Vercel x-robots-tag). */
 export function defaultPublicIndexable() {
@@ -113,6 +113,14 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
     priority: 0.9,
   },
   {
+    path: "/rsvp/brit-brita",
+    title: "אישורי הגעה לברית ובריתה | הזמנות דיגיטליות | Invistimo",
+    description:
+      "אישורי הגעה לברית ולבריתה: הזמנה דיגיטלית מהירה, איסוף תשובות, מספר מגיעים והושבה משפחתית. מתאים לתכנון בזמן קצר — בלי להציג תאריך משוער כמחייב.",
+    changeFrequency: "monthly",
+    priority: 0.88,
+  },
+  {
     path: "/rsvp/whatsapp",
     title: "אישורי הגעה בוואטסאפ לאירועים | Invistimo",
     description:
@@ -138,9 +146,9 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
   },
   {
     path: "/seating-explained",
-    title: "סידורי הושבה לחתונה ולאירועים | Invistimo",
+    title: "סידורי הושבה לחתונה | הושבה דיגיטלית ו־LIVE | Invistimo",
     description:
-      "סידורי הושבה לפי סקיצת האולם: שולחנות, שיבוץ ידני או לפי קבוצות, והודעה אישית עם מספר השולחן. התוספת מופיעה בעמוד החבילות.",
+      "סידורי הושבה דיגיטליים לחתונה עם מפת שולחנות, שיבוץ אורחים, ניהול הגעה בזמן אמת, מקומות פנויים, רזרבות ואנשי צוות. הכירו את Invistimo.",
     changeFrequency: "monthly",
     priority: 0.9,
   },

@@ -263,7 +263,7 @@ test("marketing pages no longer point the RSVP call to action at a missing short
   assert.ok(fs.existsSync(path.join(root, "public/answers.json")));
   assert.ok(fs.existsSync(path.join(root, "public/homep1.webp")));
   assert.ok(fs.existsSync(path.join(root, "public/og-invistimo.jpg")));
-  assert.equal(GUIDES.length, 11);
+  assert.equal(GUIDES.length, 12);
   assert.equal(SERVICE_PAGES.length, 5);
   assert.match(read("app/components/Footer.tsx"), /href="\/pricing"/);
   assert.match(read("app/components/Footer.tsx"), /href="\/rsvp"/);
@@ -328,7 +328,8 @@ test("pillar clusters do not assign one URL to two topics and answer-first cover
   assert.match(read("components/seo/AnswerFirst.tsx"), /התשובה הקצרה/);
   assert.doesNotMatch(read("app/(marketing)/rsvp/page.tsx"), /AnswerFirst|התשובה הקצרה/);
   assert.match(read("app/(marketing)/rsvp/page.tsx"), /videoNode|FAQPage|BreadcrumbList|faqNode/);
-  assert.match(read("app/seating-explained/layout.tsx"), /AnswerFirst/);
+  assert.doesNotMatch(read("app/seating-explained/layout.tsx"), /AnswerFirst|התשובה הקצרה/);
+  assert.match(read("app/seating-explained/layout.tsx"), /FAQPage|faqNode|BreadcrumbList|WebPage/);
   assert.match(read("app/event-management/page.jsx"), /AnswerFirst/);
   assert.match(read("app/pricing/layout.tsx"), /AnswerFirst/);
   // Homepage ships marketing sections + FAQ schema (not AnswerFirst chrome).

@@ -22,6 +22,7 @@ export const PILLARS: ContentPillar[] = [
     clusters: [
       { path: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { path: "/rsvp/hina", label: "אישורי הגעה לחינה" },
+      { path: "/rsvp/brit-brita", label: "אישורי הגעה לברית ובריתה" },
       { path: "/rsvp/whatsapp", label: "אישורי הגעה בוואטסאפ" },
       { path: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },
       { path: "/info/guides/cost-rsvp-wedding", label: "איך מחושב המחיר" },
@@ -57,7 +58,10 @@ export const PILLARS: ContentPillar[] = [
     name: "ניהול אירועים",
     path: "/event-management",
     summary: "משימות, ספקים, תקציב, תשלומים ולוח זמנים, לצד האישורים וההושבה.",
-    clusters: [{ path: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" }],
+    clusters: [
+      { path: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" },
+      { path: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
+    ],
   },
 ];
 
