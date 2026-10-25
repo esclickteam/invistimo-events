@@ -48,8 +48,8 @@ export const JOURNEY_STEPS = [
 
 /** Hero phone: one continuous personal-link session (invite → RSVP → thanks). */
 export const HERO_VIDEO = {
-  src: "/videos/rsvp-hero-personal-link.mp4",
-  poster: "/images/rsvp/rsvp-hero-personal-link-poster.jpg",
+  src: "/videos/rsvp-hero-live.mp4",
+  poster: "/images/rsvp/rsvp-hero-live-poster.jpg",
   title: "קישור אישי לאישור הגעה — מההזמנה ועד עמוד התודה",
   description:
     "המחשה של כניסה לקישור האישי: הזמנה מעוצבת, אישור הגעה באותו עמוד ועמוד תודה.",
@@ -58,8 +58,8 @@ export const HERO_VIDEO = {
 
 /** Journey section: WhatsApp → personal link → RSVP → thanks → dashboard. */
 export const JOURNEY_VIDEO = {
-  src: "/videos/rsvp-steps-journey.mp4",
-  poster: "/images/rsvp/rsvp-steps-journey-poster.jpg",
+  src: "/videos/rsvp-steps-live.mp4",
+  poster: "/images/rsvp/rsvp-steps-live-poster.jpg",
   title: "מסע האורח מאישור הגעה ב־WhatsApp ועד עמוד התודה",
   description:
     "המחשה של תהליך אישור הגעה ב־Invistimo: הודעת WhatsApp, קישור אישי, הזמנה דיגיטלית, בחירת הגעה, שליחה ועמוד תודה — ואז מעבר לתמונת המצב במערכת.",
