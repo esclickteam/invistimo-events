@@ -2,21 +2,47 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { Frank_Ruhl_Libre } from "next/font/google";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import { ALCOHOL_SERVICE_FAQS } from "./guideFaqs";
 import QuoteForm from "./QuoteForm";
+
+const display = Frank_Ruhl_Libre({
+  subsets: ["hebrew", "latin"],
+  weight: ["500", "600", "700"],
+  display: "swap",
+});
 
 const PATH = "/services/alcohol-management";
 const CALC = "/info/guides/wedding-alcohol-calculator";
 
 const ctaPrimary =
-  "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3.5 text-base font-black text-white shadow-[0_18px_40px_rgba(58,39,20,0.22)] transition hover:-translate-y-0.5";
+  "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3.5 text-base font-black text-white shadow-[0_18px_40px_rgba(58,39,20,0.22)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(58,39,20,0.3)]";
 const ctaSecondary =
-  "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
+  "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition duration-300 hover:bg-white hover:border-[#C9A45C]";
+const heroPrimary =
+  "inline-flex min-h-12 items-center justify-center rounded-full bg-[#F7E6C4] px-8 py-3.5 text-base font-black text-[#2C211B] shadow-[0_14px_36px_rgba(0,0,0,0.28)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#FFE9C2]";
+const heroSecondary =
+  "inline-flex min-h-12 items-center justify-center rounded-full border border-white/35 bg-white/10 px-8 py-3.5 text-base font-black text-[#FFF8EF] backdrop-blur-md transition duration-300 hover:bg-white/18 hover:border-[#E6D2AA]";
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return <p className="text-sm font-black tracking-[0.14em] text-[#7A5530]">{children}</p>;
 }
+
+const HERO_POINTS = [
+  {
+    title: "צוות ייעודי לאירוע",
+    body: "ניהול האלכוהול בזמן אמת.",
+  },
+  {
+    title: "מעקב אחר בקבוקים",
+    body: "תיעוד פתיחה ושימוש בהתאם לתהליך השירות.",
+  },
+  {
+    title: "התאמה לגודל האירוע",
+    body: "מספר אנשי הצוות והמחיר נקבעים בהתאם לצורכי האירוע.",
+  },
+] as const;
 
 const BENEFITS = [
   "תיעוד המלאי בתחילת האירוע",
@@ -91,53 +117,128 @@ const BUY_VS_VENUE = [
 export default function AlcoholManagementService() {
   return (
     <article dir="rtl" className="min-h-screen overflow-hidden bg-[#FBF6EE] text-[#3F3025]">
-      <header className="relative isolate overflow-hidden">
-        <div
-          className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_18%_12%,rgba(201,164,92,0.22),transparent_42%),linear-gradient(180deg,#FFFDF8_0%,#F7EFE0_48%,#FBF6EE_100%)]"
-          aria-hidden
-        />
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-14 pt-6 md:gap-12 md:px-8 md:pb-16 md:pt-8 lg:grid-cols-[1.05fr_0.95fr]">
-          <div>
-            <p className="text-sm font-black tracking-[0.12em] text-[#7A5530]">שירות · Invistimo</p>
-            <h1 className="mt-3 max-w-2xl text-[1.75rem] font-black leading-[1.18] tracking-[-0.03em] text-[#2C241C] md:text-[2.55rem]">
-              ניהול אלכוהול לאירועים — אנשי צוות ומעקב ממוחשב אחרי כל בקבוק
-            </h1>
-            <p className="mt-5 max-w-xl text-xl font-bold leading-9 text-[#5E4735]">
-              אתם דואגים לחגיגה. אנחנו דואגים שתדעו כמה אלכוהול הגיע, לאן כל בקבוק הוקצה, מה נפתח ומה
-              נשאר סגור.
-            </p>
-            <div className="mt-5 max-w-xl space-y-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
-              <p>השקעתם לא מעט כסף באלכוהול לאירוע שלכם.</p>
-              <p>
-                אבל האם אתם באמת יודעים כמה בקבוקים נפתחו במהלך הערב? כמה נשארו סגורים? וכמה הועברו
-                לבר או לשולחנות?
-              </p>
-              <p>
-                שירות ניהול האלכוהול של Invistimo משלב אנשי צוות ייעודיים עם מערכת ממוחשבת לניהול מלאי
-                בזמן האירוע.
+      <style jsx global>{`
+        @keyframes alcohol-hero-fade-up {
+          from {
+            opacity: 0;
+            transform: translateY(18px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes alcohol-hero-zoom {
+          from {
+            transform: scale(1.08);
+          }
+          to {
+            transform: scale(1);
+          }
+        }
+        .alcohol-hero-copy {
+          animation: alcohol-hero-fade-up 0.85s ease-out both;
+        }
+        .alcohol-hero-copy-delay {
+          animation: alcohol-hero-fade-up 0.85s ease-out 0.12s both;
+        }
+        .alcohol-hero-copy-delay-2 {
+          animation: alcohol-hero-fade-up 0.85s ease-out 0.24s both;
+        }
+        .alcohol-hero-point {
+          animation: alcohol-hero-fade-up 0.7s ease-out both;
+        }
+        .alcohol-hero-point:nth-child(1) {
+          animation-delay: 0.32s;
+        }
+        .alcohol-hero-point:nth-child(2) {
+          animation-delay: 0.44s;
+        }
+        .alcohol-hero-point:nth-child(3) {
+          animation-delay: 0.56s;
+        }
+        .alcohol-hero-bg-zoom {
+          animation: alcohol-hero-zoom 18s ease-out forwards;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .alcohol-hero-copy,
+          .alcohol-hero-copy-delay,
+          .alcohol-hero-copy-delay-2,
+          .alcohol-hero-point,
+          .alcohol-hero-bg-zoom {
+            animation: none !important;
+          }
+        }
+      `}</style>
+
+      <header className="relative isolate min-h-[min(92vh,900px)] overflow-hidden bg-[#1A120E]">
+        <div className="absolute inset-0 overflow-hidden" aria-hidden>
+          <Image
+            src="/images/rsvp/guides/alcohol/service/hero-event-bar.jpg"
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="alcohol-hero-bg-zoom object-cover object-[center_35%]"
+          />
+          <div className="absolute inset-0 bg-[linear-gradient(105deg,rgba(28,18,12,0.88)_0%,rgba(28,18,12,0.72)_38%,rgba(58,36,22,0.42)_68%,rgba(28,18,12,0.55)_100%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_70%_20%,rgba(201,164,92,0.22),transparent_48%)]" />
+          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#FBF6EE] to-transparent" />
+        </div>
+
+        <div className="relative z-10 mx-auto flex min-h-[min(92vh,900px)] max-w-6xl flex-col justify-end px-5 pb-10 pt-16 md:justify-center md:px-8 md:pb-16 md:pt-20">
+          <div className="max-w-2xl">
+            <div className="alcohol-hero-copy flex items-center gap-3">
+              <span className="h-px w-8 bg-[#C9A45C]/80" aria-hidden />
+              <p className="text-[11px] font-black tracking-[0.18em] text-[#E6D2AA] md:text-xs">
+                INVISTIMO | ניהול בר ואלכוהול באירועים
               </p>
             </div>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <TrackedCtaLink href="#quote" className={ctaPrimary} location={`hero_quote:${PATH}`}>
+
+            <h1
+              className={`${display.className} alcohol-hero-copy-delay mt-5 max-w-[15ch] text-[2.35rem] font-semibold leading-[1.12] tracking-[-0.02em] text-[#FFF8EF] md:text-[3.35rem] lg:text-[3.75rem]`}
+            >
+              אתם חוגגים. אנחנו דואגים שהבר יעבוד כמו שצריך.
+            </h1>
+
+            <p className="alcohol-hero-copy-delay-2 mt-5 max-w-xl text-lg font-bold leading-8 text-[#F0E0C8] md:text-xl md:leading-9">
+              ניהול אלכוהול מקצועי לאירועים — עם צוות ייעודי, מעקב אחר הבקבוקים ושליטה טובה יותר במה
+              שנפתח, הוגש ונשאר.
+            </p>
+
+            <div className="alcohol-hero-copy-delay-2 mt-5 max-w-xl space-y-3 text-[15px] leading-7 text-[#E8D9C4] md:text-base md:leading-8">
+              <p>השקעתם באלכוהול לאירוע שלכם. עכשיו חשוב לוודא שהוא מנוהל בצורה מסודרת לאורך הערב.</p>
+              <p>
+                עם צוות ניהול האלכוהול של Invistimo תוכלו לקבל תמונה ברורה יותר של השימוש בבקבוקים,
+                לעקוב אחר המלאי ולצמצם חוסר סדר — בזמן שאתם מתרכזים בחגיגה.
+              </p>
+            </div>
+
+            <div className="alcohol-hero-copy-delay-2 mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <TrackedCtaLink href="#quote" className={heroPrimary} location={`hero_quote:${PATH}`}>
                 לקבלת הצעת מחיר לניהול אלכוהול
               </TrackedCtaLink>
-              <TrackedCtaLink href="#how-it-works" className={ctaSecondary} location={`hero_how:${PATH}`}>
-                איך עובד ניהול האלכוהול?
+              <TrackedCtaLink href="#how-it-works" className={heroSecondary} location={`hero_how:${PATH}`}>
+                איך השירות עובד?
               </TrackedCtaLink>
             </div>
           </div>
-          <figure className="overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#FFFDF8] shadow-[0_28px_70px_rgba(58,39,20,0.12)]">
-            <Image
-              src="/images/rsvp/guides/alcohol/service/event-bar.jpg"
-              alt="בר אירוע יוקרתי עם כוסות ומשקאות"
-              width={1280}
-              height={720}
-              className="h-auto w-full object-cover"
-              priority
-              sizes="(max-width:1024px) 100vw, 46vw"
-            />
-          </figure>
+
+          <ul className="mt-10 grid gap-3 border-t border-[#C9A45C]/35 pt-6 sm:grid-cols-3 md:mt-14">
+            {HERO_POINTS.map((point) => (
+              <li key={point.title} className="alcohol-hero-point min-w-0">
+                <p className="text-sm font-black tracking-wide text-[#F7E6C4]">{point.title}</p>
+                <p className="mt-1.5 text-xs leading-5 text-[#D8CBB8] md:text-sm md:leading-6">
+                  {point.body}
+                </p>
+              </li>
+            ))}
+          </ul>
         </div>
+
+        <span className="sr-only">
+          בר אירוע פעיל עם מדפי בקבוקים ותאורת ערב חמה
+        </span>
       </header>
 
       <section className="bg-[#FFFDF8] px-5 py-16 md:px-8 md:py-20">

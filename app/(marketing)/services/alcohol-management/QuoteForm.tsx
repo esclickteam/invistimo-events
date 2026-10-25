@@ -188,10 +188,6 @@ export default function QuoteForm() {
       >
         {loading ? "שולחים…" : "לקבלת הצעת מחיר מותאמת לאירוע"}
       </button>
-      <p className="mt-3 text-xs leading-5 text-[#8A6B45]">
-        בלי אימייל הפנייה תיפתח בוואטסאפ לערוץ התמיכה הקיים של Invistimo. עם אימייל — דרך טופס יצירת
-        הקשר הקיים באתר.
-      </p>
     </form>
   );
 }
