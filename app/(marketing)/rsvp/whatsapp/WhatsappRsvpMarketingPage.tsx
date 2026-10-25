@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Link2, ListChecks, RefreshCw, Send } from "lucide-react";
@@ -15,8 +15,6 @@ const ctaSecondary =
   "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
 const ctaGold =
   "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220] px-8 py-3.5 text-base font-black text-white shadow-[0_18px_38px_rgba(184,134,45,0.26)] transition hover:-translate-y-0.5";
-
-const fadeUp = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } };
 
 /** Product dashboard preview text for rsvp_invitation_media (button opens personal link). */
 const RSVP_WA_BODY =
@@ -332,8 +330,6 @@ function SyncedJourney() {
 }
 
 export default function WhatsappRsvpMarketingPage() {
-  const reduceMotion = useReducedMotion();
-
   return (
     <div dir="rtl" className="min-h-screen overflow-hidden bg-[#FBF6EE] text-[#3F3025]">
       {/* 1. Hero */}
@@ -343,12 +339,7 @@ export default function WhatsappRsvpMarketingPage() {
           aria-hidden
         />
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-6 md:gap-12 md:px-8 md:pb-20 md:pt-8 lg:grid-cols-[1.1fr_0.9fr]">
-          <motion.div
-            initial={reduceMotion ? false : "hidden"}
-            animate="visible"
-            variants={fadeUp}
-            transition={{ duration: 0.7 }}
-          >
+          <div>
             <h1
               id="wa-h1"
               className="max-w-2xl text-[2rem] font-black leading-[1.12] tracking-[-0.03em] text-[#2C241C] md:text-5xl"
@@ -374,13 +365,9 @@ export default function WhatsappRsvpMarketingPage() {
                 כך זה עובד
               </TrackedCtaLink>
             </div>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={reduceMotion ? false : { opacity: 0, y: 28 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.1 }}
-          >
+          <div>
             <PhoneFrame>
               <QuietVideo
                 src="/videos/rsvp1.mp4"
@@ -390,7 +377,7 @@ export default function WhatsappRsvpMarketingPage() {
             <p className="mt-4 text-center text-sm font-semibold text-[#7A6042]">
               תהליך האישור בעמוד שנפתח מהקישור האישי
             </p>
-          </motion.div>
+          </div>
         </div>
       </section>
 

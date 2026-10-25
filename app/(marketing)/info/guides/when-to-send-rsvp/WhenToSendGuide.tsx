@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
@@ -13,8 +13,6 @@ const ctaPrimary =
   "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3.5 text-base font-black text-white shadow-[0_18px_40px_rgba(58,39,20,0.22)] transition hover:-translate-y-0.5";
 const ctaSecondary =
   "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
-
-const fadeUp = { hidden: { opacity: 0, y: 22 }, visible: { opacity: 1, y: 0 } };
 
 function Eyebrow({ children, onDark }: { children: React.ReactNode; onDark?: boolean }) {
   return (
@@ -59,8 +57,6 @@ function TimelineMotion() {
 }
 
 export default function WhenToSendGuide() {
-  const reduceMotion = useReducedMotion();
-
   return (
     <article dir="rtl" className="min-h-screen overflow-hidden bg-[#FBF6EE] text-[#3F3025]">
       {/* Hero */}
@@ -70,7 +66,7 @@ export default function WhenToSendGuide() {
           aria-hidden
         />
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-6 md:px-8 md:pb-20 md:pt-8 lg:grid-cols-[1.15fr_0.85fr]">
-          <motion.div initial={reduceMotion ? false : "hidden"} animate="visible" variants={fadeUp}>
+          <div>
             <p className="text-sm font-black tracking-[0.12em] text-[#7A5530]">מדריך תזמון</p>
             <h1 className="mt-3 max-w-3xl text-[1.85rem] font-black leading-[1.15] tracking-[-0.03em] text-[#2C241C] md:text-5xl">
               מתי שולחים אישורי הגעה לחתונה ולאירועים? המדריך לתזמון נכון
@@ -88,7 +84,7 @@ export default function WhenToSendGuide() {
               במדריך הזה נעשה סדר: מתי שולחים Save the Date, מתי שולחים הזמנה, מתי מתחילים אישורי
               הגעה ואיך מתכננים את הסבבים כך שיישאר מספיק זמן לסגור את הפרטים.
             </p>
-          </motion.div>
+          </div>
           <div className="relative">
             <div className="overflow-hidden rounded-[32px] border border-[#E6D2AA] bg-white shadow-[0_28px_70px_rgba(58,39,20,0.12)]">
               <Image

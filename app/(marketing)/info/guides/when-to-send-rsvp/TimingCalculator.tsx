@@ -154,6 +154,7 @@ export default function TimingCalculator() {
             type="date"
             value={eventDate}
             onChange={(e) => setEventDate(e.target.value)}
+            onInput={(e) => setEventDate((e.target as HTMLInputElement).value)}
             className="min-h-12 rounded-2xl border border-[#E6D2AA] bg-white px-4 text-base font-semibold text-[#2C241C]"
           />
         </label>
@@ -177,6 +178,7 @@ export default function TimingCalculator() {
             type="date"
             value={venueDeadline}
             onChange={(e) => setVenueDeadline(e.target.value)}
+            onInput={(e) => setVenueDeadline((e.target as HTMLInputElement).value)}
             className="min-h-12 rounded-2xl border border-[#E6D2AA] bg-white px-4 text-base font-semibold text-[#2C241C]"
           />
         </label>
