@@ -10,6 +10,7 @@ import {
 } from "@/src/push";
 import { pathForPushScreen } from "@/src/pushRoutes";
 import { resolveAppExperience } from "@/src/roles";
+import { customerNotificationsEnabled } from "@/src/customerNotificationsFlag";
 
 export function PushHost() {
   const { ready, locked, user } = useAuth();
@@ -17,6 +18,7 @@ export function PushHost() {
   useEffect(() => {
     if (!ready || locked || !user) return;
     void (async () => {
+      if (!customerNotificationsEnabled()) return;
       const enabled = await getPushPreference();
       if (enabled) await registerNativePush(true);
     })();

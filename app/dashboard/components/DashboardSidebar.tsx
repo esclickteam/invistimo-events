@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { userCanAccessCheckIn } from "@/lib/checkIn/permissions";
+import { customerNotificationsEnabled } from "@/lib/customerNotifications/featureFlag";
 import {
   hasGuestMessagesFeature,
   hasWeddingWebsiteFeature,
@@ -371,7 +372,7 @@ export default function DashboardSidebar({
         label: "העדפות התראות",
         icon: Bell,
         href: "/dashboard/notifications",
-        hidden: isDemo,
+        hidden: isDemo || !customerNotificationsEnabled(),
         match: (path) => path.startsWith("/dashboard/notifications"),
       },
       {
