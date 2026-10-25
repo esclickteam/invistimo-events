@@ -77,10 +77,10 @@ function CtaLink({
 }) {
   const styles =
     variant === "primary"
-      ? "bg-[#8A642E] text-white hover:bg-[#735325]"
+      ? "bg-[#8A642E] !text-white hover:bg-[#735325]"
       : variant === "secondary"
-        ? "border border-[#8A642E]/45 bg-white/70 text-[#5C4324] hover:bg-white"
-        : "text-[#8A642E] underline-offset-4 hover:underline";
+        ? "border border-[#E8D9C2] bg-[#F7EDDF] !text-[#2A211A] hover:bg-white"
+        : "!text-[#8A642E] underline-offset-4 hover:underline";
   return (
     <Link
       href={href}
@@ -352,7 +352,7 @@ export default function ChatunaMarketingPage() {
 
       {/* 3 Chaos */}
       <SectionShell tone="dark">
-        <h2 className="max-w-3xl font-[family-name:var(--font-chatuna-display)] text-3xl leading-tight md:text-4xl">
+        <h2 className="max-w-3xl font-[family-name:var(--font-chatuna-display)] text-3xl leading-tight text-[#F7EDDF] md:text-4xl">
           החתונה מתקרבת, אבל הרשימה עדיין לא סגורה
         </h2>
         <p className="mt-5 max-w-2xl text-[16px] leading-8 text-[#E8D9C2]">
@@ -762,7 +762,7 @@ export default function ChatunaMarketingPage() {
       {/* 14 Story */}
       <SectionShell tone="dark">
         <p className="text-xs font-bold tracking-[0.18em] text-[#E8C98A]">דוגמה להמחשה — לא סיפור לקוח</p>
-        <h2 className="mt-3 font-[family-name:var(--font-chatuna-display)] text-3xl leading-tight md:text-4xl">
+        <h2 className="mt-3 font-[family-name:var(--font-chatuna-display)] text-3xl leading-tight text-[#F7EDDF] md:text-4xl">
           מהרשימה הראשונה ועד ליום החתונה
         </h2>
         <p className="mt-5 max-w-3xl text-[16px] leading-8 text-[#E8D9C2]">
@@ -829,7 +829,7 @@ export default function ChatunaMarketingPage() {
 
       {/* Final CTA */}
       <SectionShell tone="dark" className="!pb-28">
-        <h2 className="max-w-3xl font-[family-name:var(--font-chatuna-display)] text-3xl leading-tight md:text-4xl">
+        <h2 className="max-w-3xl font-[family-name:var(--font-chatuna-display)] text-3xl leading-tight text-[#F7EDDF] md:text-4xl">
           החתונה שלכם מתקרבת. הגיע הזמן לעשות סדר ברשימת המוזמנים.
         </h2>
         <p className="mt-5 max-w-3xl text-[16px] leading-8 text-[#E8D9C2]">

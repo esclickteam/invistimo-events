@@ -97,8 +97,8 @@ function GoldCta({
       href={href}
       className={
         dark
-          ? "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full bg-[#C9A45C] px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black text-[#1C1612] transition hover:bg-[#D4B06A]"
-          : "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full bg-[#2C241C] px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black text-[#F7F1E8] shadow-[0_16px_36px_rgba(44,36,28,0.18)] transition hover:bg-[#3A3028]"
+          ? "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full bg-[#C9A45C] px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black !text-[#1C1612] transition hover:bg-[#D4B06A]"
+          : "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full bg-[#2C241C] px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black !text-[#F7F1E8] shadow-[0_16px_36px_rgba(44,36,28,0.18)] transition hover:bg-[#3A3028]"
       }
     >
       {children}
@@ -120,8 +120,8 @@ function SoftCta({
       href={href}
       className={
         light
-          ? "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full border border-white/25 px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black text-[#F7F1E8] transition hover:bg-white/10"
-          : "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full border border-[#2C241C]/22 bg-[#FFFDF8]/80 px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black text-[#2C241C] transition hover:bg-white"
+          ? "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full border border-[#F7F1E8]/50 bg-[#F7F1E8] px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black !text-[#1C1612] transition hover:bg-white"
+          : "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full border border-[#2C241C]/22 bg-[#FFFDF8]/80 px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black !text-[#2C241C] transition hover:bg-white"
       }
     >
       {children}
