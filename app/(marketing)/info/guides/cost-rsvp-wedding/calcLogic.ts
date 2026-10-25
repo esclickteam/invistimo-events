@@ -3,17 +3,16 @@
 export type RecordsCalcInputs = {
   withPhoneRecords: number;
   withoutPhoneRecords: number;
-  peopleWithPhone: number;
-  peopleWithoutPhone: number;
+  /** Optional total guests across the list; never used for quota. */
+  totalGuests: number | null;
 };
 
 export type RecordsCalcResult = {
   totalRecords: number;
   billableRecords: number;
   nonBillableRecords: number;
-  totalPeople: number;
+  totalGuests: number | null;
   warnings: string[];
-  assumptions: string[];
 };
 
 function clampNonNeg(n: number) {
@@ -23,45 +22,32 @@ function clampNonNeg(n: number) {
 
 /**
  * Illustrates package quota counting:
- * billable = records with phone digits; people counts are independent.
+ * billable = records with phone; guests total is display-only.
  */
 export function computeRecordsQuota(raw: RecordsCalcInputs): RecordsCalcResult {
   const withPhoneRecords = clampNonNeg(raw.withPhoneRecords);
   const withoutPhoneRecords = clampNonNeg(raw.withoutPhoneRecords);
-  const peopleWithPhone = clampNonNeg(raw.peopleWithPhone);
-  const peopleWithoutPhone = clampNonNeg(raw.peopleWithoutPhone);
-
-  const warnings: string[] = [];
-
-  if (withPhoneRecords > 0 && peopleWithPhone < withPhoneRecords) {
-    warnings.push(
-      "מספר האנשים ברשומות עם טלפון נמוך ממספר הרשומות — בדקו שהזנתם נכון (כל רשומה כוללת לפחות אדם אחד)."
-    );
-  }
-  if (withoutPhoneRecords > 0 && peopleWithoutPhone < withoutPhoneRecords) {
-    warnings.push(
-      "מספר האנשים ברשומות בלי טלפון נמוך ממספר הרשומות — בדקו שהזנתם נכון."
-    );
-  }
+  const totalGuests =
+    raw.totalGuests == null || !Number.isFinite(raw.totalGuests)
+      ? null
+      : clampNonNeg(raw.totalGuests);
 
   const totalRecords = withPhoneRecords + withoutPhoneRecords;
   const billableRecords = withPhoneRecords;
   const nonBillableRecords = withoutPhoneRecords;
-  const totalPeople = peopleWithPhone + peopleWithoutPhone;
 
-  const assumptions = [
-    "רשומה עם מספר טלפון נגרעת ממכסת החבילה.",
-    "רשומה ללא מספר טלפון נשארת ברשימה ואינה נגרעת מהמכסה.",
-    "מספר האנשים אינו הופך אוטומטית למספר רשומות.",
-    "המחשבון ממחיש ספירה בלבד ואינו מחשב מחיר כספי.",
-  ];
+  const warnings: string[] = [];
+  if (totalGuests != null && totalRecords > 0 && totalGuests < totalRecords) {
+    warnings.push(
+      "מספר המוזמנים הכולל קטן מסך הרשומות ברשימה — בדקו שהזנתם נכון (כל רשומה כוללת לפחות מוזמן אחד)."
+    );
+  }
 
   return {
     totalRecords,
     billableRecords,
     nonBillableRecords,
-    totalPeople,
+    totalGuests,
     warnings,
-    assumptions,
   };
 }
