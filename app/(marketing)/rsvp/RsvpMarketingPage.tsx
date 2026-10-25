@@ -8,7 +8,7 @@ import {
   DASHBOARD_POINTS,
   EVENT_CARDS,
   HOW_IT_WORKS,
-  JOURNEY_VIDEO,
+  HERO_VIDEO,
   PACKAGE_CARDS,
   RSVP_FAQS,
   TIMELINE,
@@ -109,9 +109,9 @@ export default function RSVPPage() {
             <div className="relative rounded-[34px] border border-white/80 bg-gradient-to-br from-[#F8EFE1] via-[#FFFDF9] to-[#E7D7BF] p-2.5 shadow-[0_35px_90px_rgba(58,39,20,0.2)]">
               <div className="overflow-hidden rounded-[26px] border border-[#221811]/10 bg-[#17120E]">
                 <MarketingVideo
-                  src={JOURNEY_VIDEO.src}
-                  poster={JOURNEY_VIDEO.poster}
-                  title={JOURNEY_VIDEO.title}
+                  src={HERO_VIDEO.src}
+                  poster={HERO_VIDEO.poster}
+                  title={HERO_VIDEO.title}
                   eager
                   className="aspect-[420/760] w-full"
                 />

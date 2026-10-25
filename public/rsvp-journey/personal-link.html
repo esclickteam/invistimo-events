@@ -5,18 +5,48 @@
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>קישור אישי · הזמנה</title>
 <style>
-  html,body{margin:0;min-height:100%;background:#EDE4D6;font-family:Heebo,Arial,sans-serif;color:#2d241c}
-  .browser{background:#F4EFE6;border-bottom:1px solid #E0D3BF;padding:10px 12px 12px}
+  html,body{margin:0;background:#F7F1E8;font-family:Heebo,Arial,sans-serif;color:#2d241c}
+  .browser{position:sticky;top:0;z-index:5;background:#F4EFE6;border-bottom:1px solid #E0D3BF;padding:10px 12px 12px}
   .dots{display:flex;gap:6px;margin-bottom:8px}
   .dots span{width:8px;height:8px;border-radius:50%;background:#D2C2AA;display:inline-block}
   .url{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid #E5D7C2;border-radius:999px;padding:8px 12px;font-size:12px;font-weight:700;color:#7A6248}
   .url b{color:#B58A55;font-weight:900}
-  .wrap{box-sizing:border-box;padding:22px 16px 40px;background:#F7F1E8;min-height:calc(100vh - 74px)}
+  .wrap{box-sizing:border-box;padding:18px 16px 48px}
   .eyebrow{margin:0;text-align:center;font-size:12px;font-weight:700;letter-spacing:.24em;color:#b58a55}
-  h1{margin:12px 0 18px;text-align:center;font-size:28px;line-height:1.25;font-weight:900}
-  .card{overflow:hidden;border-radius:26px;background:#faf7f1;box-shadow:0 18px 40px rgba(58,39,20,.12)}
-  .card img{display:block;width:100%;height:auto;object-fit:contain;background:#faf7f1}
-  .hint{margin:22px 16px 0;text-align:center;font-size:15px;font-weight:700;line-height:1.6;color:#5C4A3A}
+  h1{margin:10px 0 16px;text-align:center;font-size:26px;line-height:1.25;font-weight:900}
+  .invite{overflow:hidden;border-radius:26px;background:#faf7f1;box-shadow:0 18px 40px rgba(58,39,20,.12)}
+  .invite img{display:block;width:100%;height:auto;object-fit:contain;background:#faf7f1}
+  .rsvp{margin-top:22px;border-radius:26px;background:#fff;box-shadow:0 14px 34px rgba(58,39,20,.1);padding:22px 18px 20px}
+  .rsvp h2{margin:0 0 16px;text-align:center;font-size:20px;line-height:1.35;font-weight:900}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .choice,.choice-wide,.submit{
+    appearance:none;border:1px solid #E6D8C4;background:#FFFDF8;border-radius:16px;
+    padding:14px 10px;font-size:15px;font-weight:800;color:#3F3025;cursor:pointer;
+  }
+  .choice-wide{width:100%;margin-top:10px}
+  .choice.active,.submit{
+    border-color:transparent;color:#fff;
+    background:linear-gradient(90deg,#B88945,#8F652C);
+  }
+  .count{margin-top:18px;text-align:center}
+  .count p{margin:0 0 10px;font-size:15px;font-weight:800}
+  .counter{display:inline-flex;align-items:center;gap:14px}
+  .counter button{
+    width:42px;height:42px;border-radius:999px;border:1px solid #E6D8C4;background:#fff;
+    font-size:22px;font-weight:800;cursor:pointer;color:#3F3025;
+  }
+  .counter span{
+    min-width:48px;padding:10px 14px;border-radius:14px;background:#F7F1E8;
+    font-size:20px;font-weight:900;
+  }
+  .submit{width:100%;margin-top:18px;padding:16px 12px}
+  .thanks{display:none;min-height:70vh;align-items:center;justify-content:center;text-align:center;padding:48px 20px}
+  .thanks.show{display:flex;flex-direction:column}
+  .thanks h2{margin:0 0 14px;font-size:28px;line-height:1.35;font-weight:900;color:#A77A38}
+  .thanks p{margin:0;font-size:16px;line-height:1.7;font-weight:700;color:#5C4A3A}
+  .emoji{font-size:42px;margin:10px 0 16px}
+  body.thanks-mode .invite-block, body.thanks-mode .rsvp{display:none}
+  body.thanks-mode .thanks{display:flex}
 </style>
 </head>
 <body>
@@ -24,13 +54,55 @@
     <div class="dots"><span></span><span></span><span></span></div>
     <div class="url"><b>קישור אישי</b><span>invistimo.com/invite/meya-alon</span></div>
   </div>
-  <div class="wrap">
+
+  <div class="wrap invite-block">
     <p class="eyebrow">הזמנה לאירוע</p>
     <h1>החתונה של מיה ואלון</h1>
-    <div class="card">
+    <div class="invite">
       <img alt="הזמנה" src="/rsvp-journey/invite.jpg"/>
     </div>
-    <p class="hint">נשמח לדעת אם תגיעו לחגוג איתנו</p>
   </div>
+
+  <div class="wrap rsvp" id="rsvp">
+    <h2>נשמח לדעת אם תגיעו לחגוג איתנו</h2>
+    <div class="row">
+      <button class="choice" type="button" data-choice="no">לא מגיע/ה</button>
+      <button class="choice active" type="button" data-choice="yes" id="yes">מגיע/ה</button>
+    </div>
+    <button class="choice-wide" type="button">עדיין לא בטוחים</button>
+    <div class="count" id="count">
+      <p>כמה מגיעים?</p>
+      <div class="counter">
+        <button type="button" id="minus">−</button>
+        <span id="num">2</span>
+        <button type="button" id="plus">+</button>
+      </div>
+    </div>
+    <button class="submit" type="button" id="submit">שליחת אישור הגעה</button>
+  </div>
+
+  <div class="thanks" id="thanks">
+    <h2>תודה שבחרתם להיות חלק מהשמחה שלנו</h2>
+    <div class="emoji">🎉</div>
+    <p>נתראה באירוע – מחכים לכם באהבה ❤️</p>
+  </div>
+
+<script>
+  const yes = document.getElementById("yes");
+  const num = document.getElementById("num");
+  document.querySelectorAll(".choice").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".choice").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      document.getElementById("count").style.display = btn.dataset.choice === "yes" ? "" : "none";
+    });
+  });
+  document.getElementById("plus").onclick = () => { num.textContent = String(+num.textContent + 1); };
+  document.getElementById("minus").onclick = () => { num.textContent = String(Math.max(1, +num.textContent - 1)); };
+  document.getElementById("submit").onclick = () => {
+    document.body.classList.add("thanks-mode");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+</script>
 </body>
 </html>
