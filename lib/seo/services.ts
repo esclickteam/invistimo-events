@@ -422,6 +422,7 @@ export const SERVICE_PAGES: ServicePage[] = [
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { href: "/rsvp", label: "אישורי הגעה לאירועים" },
       { href: "/info/guides/save-the-date-vs-invitation", label: "ההבדל מההזמנה" },
+      { href: "/info/guides/cost-rsvp-wedding", label: "איך מחושב מחיר אישורי הגעה" },
     ],
     breadcrumbs: [home, { name: "Save the Date", path: "/rsvp/save-the-date" }],
     ctaTitle: "רוצים Save the Date ואחר כך אישורים מסודרים?",

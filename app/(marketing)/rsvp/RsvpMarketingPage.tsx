@@ -435,6 +435,14 @@ export default function RSVPPage() {
             <PrimaryCta href="/pricing">בואו נתחיל</PrimaryCta>
             <SecondaryCta href="#rsvp-journey">לצפייה בתהליך</SecondaryCta>
           </div>
+          <p className="mt-8 text-sm font-semibold text-[#6D5B4A]">
+            <Link
+              href="/info/guides/cost-rsvp-wedding"
+              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+            >
+              איך מחשבים מחיר אישורי הגעה לפי רשומות
+            </Link>
+          </p>
         </div>
       </section>
     </div>
