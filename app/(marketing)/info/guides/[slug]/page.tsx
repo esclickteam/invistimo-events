@@ -7,8 +7,9 @@ import { pageMetadata } from "@/lib/seo/site";
 type Props = { params: Promise<{ slug: string }> };
 
 export function generateStaticParams() {
-  // Dedicated route: app/(marketing)/info/guides/when-to-send-rsvp/page.tsx
-  return GUIDES.filter((guide) => guide.slug !== "when-to-send-rsvp").map((guide) => ({
+  // Dedicated routes under app/(marketing)/info/guides/<slug>/page.tsx
+  const dedicated = new Set(["when-to-send-rsvp", "guests-who-dont-reply"]);
+  return GUIDES.filter((guide) => !dedicated.has(guide.slug)).map((guide) => ({
     slug: guide.slug,
   }));
 }
