@@ -280,6 +280,12 @@ test("marketing RSVP service pages keep the public pre-login header and footer",
   assert.doesNotMatch(layoutShell, /pathname\.startsWith\("\/rsvp\/"\)/);
 });
 
+test("globals do not force brown heading color outside layers (dark-on-dark)", () => {
+  const css = read("app/globals.css");
+  // Unlayered h1/h2/h3 color beats Tailwind text-* utilities and breaks dark sections.
+  assert.doesNotMatch(css, /h1,\s*h2,\s*h3\s*\{\s*color:\s*var\(--brown-dark\)/);
+});
+
 test("each search query has one primary page and no invented volume", () => {
   const queries = KEYWORD_MAP.map((row) => row.query);
   assert.equal(new Set(queries).size, queries.length);

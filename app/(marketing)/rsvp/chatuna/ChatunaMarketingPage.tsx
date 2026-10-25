@@ -352,7 +352,7 @@ export default function ChatunaMarketingPage() {
 
       {/* 3 Chaos */}
       <SectionShell tone="dark">
-        <h2 className="max-w-3xl font-[family-name:var(--font-chatuna-display)] text-3xl leading-tight md:text-4xl">
+        <h2 className="max-w-3xl font-[family-name:var(--font-chatuna-display)] text-3xl leading-tight text-[#F7EDDF] md:text-4xl">
           החתונה מתקרבת, אבל הרשימה עדיין לא סגורה
         </h2>
         <p className="mt-5 max-w-2xl text-[16px] leading-8 text-[#E8D9C2]">
@@ -762,7 +762,7 @@ export default function ChatunaMarketingPage() {
       {/* 14 Story */}
       <SectionShell tone="dark">
         <p className="text-xs font-bold tracking-[0.18em] text-[#E8C98A]">דוגמה להמחשה — לא סיפור לקוח</p>
-        <h2 className="mt-3 font-[family-name:var(--font-chatuna-display)] text-3xl leading-tight md:text-4xl">
+        <h2 className="mt-3 font-[family-name:var(--font-chatuna-display)] text-3xl leading-tight text-[#F7EDDF] md:text-4xl">
           מהרשימה הראשונה ועד ליום החתונה
         </h2>
         <p className="mt-5 max-w-3xl text-[16px] leading-8 text-[#E8D9C2]">
@@ -829,7 +829,7 @@ export default function ChatunaMarketingPage() {
 
       {/* Final CTA */}
       <SectionShell tone="dark" className="!pb-28">
-        <h2 className="max-w-3xl font-[family-name:var(--font-chatuna-display)] text-3xl leading-tight md:text-4xl">
+        <h2 className="max-w-3xl font-[family-name:var(--font-chatuna-display)] text-3xl leading-tight text-[#F7EDDF] md:text-4xl">
           החתונה שלכם מתקרבת. הגיע הזמן לעשות סדר ברשימת המוזמנים.
         </h2>
         <p className="mt-5 max-w-3xl text-[16px] leading-8 text-[#E8D9C2]">
