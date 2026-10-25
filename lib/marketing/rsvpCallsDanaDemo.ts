@@ -18,7 +18,6 @@ import {
 import {
   IVR_LOCKED_FEMALE_VOICE_ID,
   IVR_TTS_LANGUAGE_CODE,
-  hashTtsContent,
   synthesizeElevenLabsSpeech,
 } from "@/lib/calls/elevenlabs";
 import { composeIvrIntroAudio } from "@/lib/calls/ivrComposeIntro";
@@ -89,11 +88,6 @@ async function synthesizeAndComposeDemo(): Promise<Buffer> {
       languageCode: IVR_TTS_LANGUAGE_CODE,
     }),
   ]);
-
-  // Content hashes keep this aligned with IVR cache identity (voice + text).
-  void hashTtsContent(beforeText, voiceId);
-  void hashTtsContent(nameText, voiceId);
-  void hashTtsContent(afterText, voiceId);
 
   const composed = await composeIvrIntroAudio({
     beforeMp3: before.buffer,
