@@ -22,8 +22,8 @@ const ROOT = join(__dirname, "../..");
 const OUT_DIR = join(ROOT, "public/videos");
 const POSTER_DIR = join(ROOT, "public/images/rsvp");
 const RAW_DIR = join(__dirname, ".record");
-const FINAL_MP4 = join(OUT_DIR, "rsvp-guest-journey-v3.mp4");
-const POSTER = join(POSTER_DIR, "rsvp-guest-journey-poster-v3.jpg");
+const FINAL_MP4 = join(OUT_DIR, "rsvp-guest-journey-v4.mp4");
+const POSTER = join(POSTER_DIR, "rsvp-guest-journey-poster-v4.jpg");
 const BASE = process.env.RSVP_RECORD_BASE || "http://127.0.0.1:3000";
 
 const SCREEN_W = 390;
@@ -157,28 +157,30 @@ const hideDemoInviteHero = async () => {
 mark("01 whatsapp");
 await page.goto(pathToFileURL(waFramePath).href, { waitUntil: "domcontentloaded" });
 await wait(300);
-await holdUntil(7000);
-
-// 02 Open link cue 7–10s
-mark("02 open link");
+await holdUntil(6500);
 await page.evaluate(() => {
   document.getElementById("wa-btn")?.classList.add("pulse");
 });
+await holdUntil(7000);
+
+// 02 Personal link 7–10s — open the dedicated invite page (Mia & Alon artwork)
+mark("02 personal link");
+await page.goto(pathToFileURL(personalPath).href, { waitUntil: "domcontentloaded" });
+await wait(250);
+await page.evaluate(() => window.scrollTo(0, 0));
 await holdUntil(10000);
 
-// 03 Personal-link invitation 10–18.5s — dedicated frame (no demo page)
-mark("03 invite");
-await page.goto(pathToFileURL(personalPath).href, { waitUntil: "domcontentloaded" });
-await wait(300);
+// 03 Same personal-link invite 10–18.5s — hold + gentle scroll (no demo page)
+mark("03 invite details");
 await page.evaluate(async () => {
   window.scrollTo(0, 0);
-  await new Promise((r) => setTimeout(r, 2400));
+  await new Promise((r) => setTimeout(r, 2200));
   const start = performance.now();
   const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
   const target = Math.min(220, max);
   await new Promise((resolve) => {
     const tick = (now) => {
-      const t = Math.min(1, (now - start) / 2800);
+      const t = Math.min(1, (now - start) / 3200);
       window.scrollTo(0, target * (0.5 - 0.5 * Math.cos(Math.PI * t)));
       if (t < 1) requestAnimationFrame(tick);
       else resolve();
