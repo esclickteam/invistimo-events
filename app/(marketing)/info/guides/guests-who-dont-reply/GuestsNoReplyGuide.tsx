@@ -247,6 +247,12 @@ export default function GuestsNoReplyGuide() {
             <span className="text-[#6B5A48]" aria-hidden>
               ·
             </span>
+            <Link href="/rsvp/calls" className="font-bold text-[#E8C988] underline-offset-4 hover:underline">
+              אישורי הגעה בשיחות טלפון
+            </Link>
+            <span className="text-[#6B5A48]" aria-hidden>
+              ·
+            </span>
             <Link href="/rsvp/chatuna" className="font-bold text-[#E8C988] underline-offset-4 hover:underline">
               אישורי הגעה לחתונה
             </Link>
@@ -315,7 +321,10 @@ export default function GuestsNoReplyGuide() {
               אינן כלולות אוטומטית בכל חבילת הודעות.
             </p>
           </div>
-          <p className="mt-6">
+          <p className="mt-6 flex flex-wrap gap-x-4 gap-y-2">
+            <Link href="/rsvp/calls" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              איך עובדים אישורי הגעה בשיחות טלפון?
+            </Link>
             <Link href="/info/guides/cost-rsvp-wedding" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
               כמה עולים אישורי הגעה לחתונה?
             </Link>
@@ -477,16 +486,20 @@ export default function GuestsNoReplyGuide() {
               לצפייה בחבילות
             </TrackedCtaLink>
             <TrackedCtaLink
-              href="/rsvp/whatsapp"
+              href="/rsvp/calls"
               className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/20 bg-white/5 px-8 py-3.5 text-base font-black text-[#FFF8EF] transition hover:bg-white/10"
-              location={`footer_whatsapp:${PATH}`}
+              location={`footer_calls:${PATH}`}
             >
-              אישורי הגעה ב־WhatsApp
+              אישורי הגעה בשיחות
             </TrackedCtaLink>
           </div>
           <p className="mt-8 text-sm text-[#B8A890]">
             <Link href="/info/guides" className="underline-offset-4 hover:underline">
               כל המדריכים
+            </Link>
+            {" · "}
+            <Link href="/rsvp/whatsapp" className="underline-offset-4 hover:underline">
+              WhatsApp
             </Link>
             {" · "}
             <Link

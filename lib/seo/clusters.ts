@@ -24,6 +24,7 @@ export const PILLARS: ContentPillar[] = [
       { path: "/rsvp/hina", label: "אישורי הגעה לחינה" },
       { path: "/rsvp/brit-brita", label: "אישורי הגעה לברית ובריתה" },
       { path: "/rsvp/whatsapp", label: "אישורי הגעה בוואטסאפ" },
+      { path: "/rsvp/calls", label: "אישורי הגעה בשיחות טלפון" },
       { path: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },
       { path: "/info/guides/cost-rsvp-wedding", label: "איך מחושב המחיר" },
       { path: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },

@@ -260,6 +260,7 @@ export const LINKS = {
   pricing: "/pricing",
   rsvp: "/rsvp",
   whatsapp: "/rsvp/whatsapp",
+  calls: "/rsvp/calls",
   invitations: "/invitations/chatuna",
   seating: "/seating-explained",
   whenToSend: "/info/guides/when-to-send-rsvp",
