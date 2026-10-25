@@ -7,7 +7,10 @@ import { pageMetadata } from "@/lib/seo/site";
 type Props = { params: Promise<{ slug: string }> };
 
 export function generateStaticParams() {
-  return GUIDES.map((guide) => ({ slug: guide.slug }));
+  // Dedicated route: app/(marketing)/info/guides/when-to-send-rsvp/page.tsx
+  return GUIDES.filter((guide) => guide.slug !== "when-to-send-rsvp").map((guide) => ({
+    slug: guide.slug,
+  }));
 }
 
 export async function generateMetadata({ params }: Props) {
