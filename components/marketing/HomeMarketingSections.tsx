@@ -97,8 +97,8 @@ function GoldCta({
       href={href}
       className={
         dark
-          ? "inline-flex min-h-12 items-center justify-center rounded-full bg-[#C9A45C] px-8 py-3.5 text-sm font-black text-[#1C1612] transition hover:bg-[#D4B06A]"
-          : "inline-flex min-h-12 items-center justify-center rounded-full bg-[#2C241C] px-8 py-3.5 text-sm font-black text-[#F7F1E8] shadow-[0_16px_36px_rgba(44,36,28,0.18)] transition hover:bg-[#3A3028]"
+          ? "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full bg-[#C9A45C] px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black text-[#1C1612] transition hover:bg-[#D4B06A]"
+          : "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full bg-[#2C241C] px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black text-[#F7F1E8] shadow-[0_16px_36px_rgba(44,36,28,0.18)] transition hover:bg-[#3A3028]"
       }
     >
       {children}
@@ -120,8 +120,8 @@ function SoftCta({
       href={href}
       className={
         light
-          ? "inline-flex min-h-12 items-center justify-center rounded-full border border-white/25 px-8 py-3.5 text-sm font-black text-[#F7F1E8] transition hover:bg-white/10"
-          : "inline-flex min-h-12 items-center justify-center rounded-full border border-[#2C241C]/22 bg-[#FFFDF8]/80 px-8 py-3.5 text-sm font-black text-[#2C241C] transition hover:bg-white"
+          ? "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full border border-white/25 px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black text-[#F7F1E8] transition hover:bg-white/10"
+          : "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full border border-[#2C241C]/22 bg-[#FFFDF8]/80 px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black text-[#2C241C] transition hover:bg-white"
       }
     >
       {children}
@@ -411,7 +411,7 @@ export default function HomeMarketingSections() {
       <section
         dir="rtl"
         aria-labelledby="home-intro"
-        className="relative overflow-hidden bg-[#F7F1E8] px-5 py-20 md:px-10 md:py-28"
+        className="relative overflow-hidden bg-[#F7F1E8] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
       >
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_20%,rgba(201,164,92,0.18),transparent_40%),radial-gradient(circle_at_88%_78%,rgba(255,255,255,0.7),transparent_42%)]"
@@ -483,7 +483,7 @@ export default function HomeMarketingSections() {
       <section
         dir="rtl"
         aria-labelledby="home-services"
-        className="relative overflow-hidden bg-[#1C1612] px-5 py-20 md:px-10 md:py-28"
+        className="relative overflow-hidden bg-[#1C1612] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
       >
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_10%,rgba(201,164,92,0.16),transparent_36%),radial-gradient(circle_at_10%_90%,rgba(255,255,255,0.05),transparent_40%)]"
@@ -534,7 +534,7 @@ export default function HomeMarketingSections() {
       <section
         dir="rtl"
         aria-labelledby="home-std"
-        className="relative overflow-hidden bg-[#F4F0E8] px-5 py-20 md:px-10 md:py-28"
+        className="relative overflow-hidden bg-[#F4F0E8] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
       >
         <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
           <div>
@@ -569,7 +569,7 @@ export default function HomeMarketingSections() {
       <section
         dir="rtl"
         aria-labelledby="home-journey"
-        className="relative overflow-hidden bg-[#FFFDF8] px-5 py-20 md:px-10 md:py-28"
+        className="relative overflow-hidden bg-[#FFFDF8] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
       >
         <div className="mx-auto max-w-6xl">
           <Eyebrow>לכל הודעה יש את הזמן שלה</Eyebrow>
@@ -657,7 +657,7 @@ export default function HomeMarketingSections() {
       <section
         dir="rtl"
         aria-labelledby="home-rsvp"
-        className="relative bg-[#F7F1E8] px-5 py-20 md:px-10 md:py-28"
+        className="relative bg-[#F7F1E8] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
       >
         <div className="mx-auto max-w-6xl">
           <Eyebrow>פחות טלפונים, יותר תשובות</Eyebrow>
@@ -720,7 +720,7 @@ export default function HomeMarketingSections() {
       <section
         dir="rtl"
         aria-labelledby="home-seating"
-        className="relative overflow-hidden bg-[#1C1612] px-5 py-20 md:px-10 md:py-28"
+        className="relative overflow-hidden bg-[#1C1612] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
       >
         <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
           <div>
@@ -757,7 +757,7 @@ export default function HomeMarketingSections() {
       <section
         dir="rtl"
         aria-labelledby="home-events"
-        className="relative bg-[#F4F0E8] px-5 py-20 md:px-10 md:py-28"
+        className="relative bg-[#F4F0E8] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
       >
         <div className="mx-auto max-w-6xl">
           <Eyebrow>כל סיבה לחגוג</Eyebrow>
@@ -809,7 +809,7 @@ export default function HomeMarketingSections() {
       <section
         dir="rtl"
         aria-labelledby="home-pricing"
-        className="relative overflow-hidden bg-[#241C16] px-5 py-20 md:px-10 md:py-28"
+        className="relative overflow-hidden bg-[#241C16] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
       >
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(201,164,92,0.2),transparent_40%)]"
@@ -839,7 +839,7 @@ export default function HomeMarketingSections() {
       <section
         dir="rtl"
         aria-labelledby="home-faq"
-        className="relative bg-[#FFFDF8] px-5 py-20 md:px-10 md:py-28"
+        className="relative bg-[#FFFDF8] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
       >
         <div className="mx-auto max-w-3xl">
           <Eyebrow>טוב לדעת לפני שמתחילים</Eyebrow>
@@ -875,7 +875,7 @@ export default function HomeMarketingSections() {
       <section
         dir="rtl"
         aria-labelledby="home-final"
-        className="relative overflow-hidden bg-[#1C1612] px-5 py-24 md:px-10 md:py-32"
+        className="relative overflow-hidden bg-[#1C1612] px-4 py-20 max-[360px]:px-3 sm:px-5 md:px-10 md:py-32"
       >
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(201,164,92,0.22),transparent_45%),radial-gradient(circle_at_20%_100%,rgba(255,255,255,0.05),transparent_35%)]"

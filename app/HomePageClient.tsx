@@ -23,30 +23,32 @@ function DemoButton({
   const baseClass =
     variant === "dark"
       ? `
-        group inline-flex min-w-[240px]
+        group inline-flex w-full min-w-0
         items-center justify-center gap-3
         rounded-full
         bg-[#3F3A34]
-        px-10 py-4
+        px-6 py-4
         text-[17px] font-extrabold
         text-white
         shadow-[0_18px_40px_rgba(63,58,52,0.20)]
         transition
         hover:-translate-y-0.5
         hover:bg-[#2F2B27]
+        sm:w-auto sm:min-w-[220px] sm:px-10
       `
       : `
-        group inline-flex min-w-[220px]
+        group inline-flex w-full min-w-0
         items-center justify-center gap-3
         rounded-full
         bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
-        px-9 py-4
+        px-6 py-4
         text-[16px] font-extrabold
         text-white
         shadow-[0_18px_38px_rgba(184,134,45,0.26)]
         transition
         hover:-translate-y-0.5
         hover:shadow-[0_22px_46px_rgba(184,134,45,0.34)]
+        sm:w-auto sm:min-w-[220px] sm:px-9
       `;
 
   return (
@@ -289,12 +291,14 @@ export default function HomePageClient() {
           className="absolute inset-0 z-0 bg-[url('/homep1.webp')] bg-cover bg-center"
           aria-hidden
         />
+        {/* Mobile/tablet: cream veil so espresso type stays readable over the photo.
+            Desktop (lg+): keep the approved diagonal wash (dark → cream). */}
         <div
-          className="absolute inset-0 z-0 bg-[linear-gradient(105deg,rgba(18,14,10,0.72)_0%,rgba(42,33,26,0.35)_42%,rgba(244,240,232,0.88)_72%,rgba(244,240,232,0.96)_100%)]"
+          className="absolute inset-0 z-0 bg-[linear-gradient(180deg,rgba(247,241,232,0.94)_0%,rgba(244,240,232,0.88)_42%,rgba(244,240,232,0.72)_100%)] lg:bg-[linear-gradient(105deg,rgba(18,14,10,0.72)_0%,rgba(42,33,26,0.35)_42%,rgba(244,240,232,0.88)_72%,rgba(244,240,232,0.96)_100%)]"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute inset-0 z-0 opacity-40 mix-blend-soft-light"
+          className="pointer-events-none absolute inset-0 z-0 opacity-30 mix-blend-soft-light lg:opacity-40"
           style={{
             backgroundImage:
               "radial-gradient(circle at 20% 20%, rgba(201,164,92,0.35), transparent 40%), radial-gradient(circle at 80% 80%, rgba(255,255,255,0.25), transparent 35%)",
@@ -304,7 +308,7 @@ export default function HomePageClient() {
 
         <div
           dir="rtl"
-          className="relative z-10 mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-8 px-5 pb-12 pt-6 md:gap-10 md:px-10 md:pb-14 md:pt-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pt-6"
+          className="relative z-10 mx-auto grid max-w-[1440px] grid-cols-1 items-center gap-8 px-4 pb-12 pt-6 max-[360px]:px-3 sm:px-5 md:gap-10 md:px-10 md:pb-14 md:pt-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-6 lg:pt-6"
         >
           <motion.div
             initial={{ opacity: 0, y: 28 }}
@@ -312,13 +316,13 @@ export default function HomePageClient() {
             transition={{ duration: 0.85, ease: "easeOut" }}
             className="text-center lg:text-right"
           >
-            <h1 className="text-[40px] font-black leading-[1.08] tracking-[-0.04em] text-[#F7F1E8] md:text-[58px] lg:text-[68px] lg:text-[#2C241C]">
+            <h1 className="text-[36px] font-black leading-[1.1] tracking-[-0.04em] text-[#2C241C] max-[360px]:text-[32px] sm:text-[40px] md:text-[58px] lg:text-[68px]">
               האירוע שלכם.
-              <span className="mt-2 block bg-gradient-to-l from-[#8B642B] via-[#D4B06A] to-[#B88A2D] bg-clip-text text-transparent">
+              <span className="mt-2 block bg-gradient-to-l from-[#6E4E1F] via-[#A67C2D] to-[#8B6220] bg-clip-text text-transparent lg:from-[#8B642B] lg:via-[#D4B06A] lg:to-[#B88A2D]">
                 הסדר שלנו.
               </span>
             </h1>
-            <p className="mx-auto mt-6 max-w-[36rem] text-[17px] font-semibold leading-8 text-[#E8DFD2] md:text-[19px] lg:mx-0 lg:text-[#4A3F34]">
+            <p className="mx-auto mt-6 max-w-[36rem] text-[16px] font-semibold leading-8 text-[#3F3328] sm:text-[17px] md:text-[19px] lg:mx-0 lg:text-[#4A3F34]">
               מהרגע שבו שולחים את ההזמנה ועד שהאורח האחרון מוצא את מקומו — כל הפרטים
               הקטנים שמאחורי אירוע גדול, במקום אחד.
               <span className="mt-3 block">
@@ -326,14 +330,14 @@ export default function HomePageClient() {
                 תוכלו להתרגש מהרגעים החשובים באמת.
               </span>
             </p>
-            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row lg:justify-start">
-              <DemoButton>
+            <div className="mt-10 flex w-full flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center sm:gap-4 lg:justify-start">
+              <DemoButton className="w-full min-w-0 sm:w-auto sm:min-w-[220px]">
                 בואו נתחיל
                 <span className="transition group-hover:-translate-x-1">←</span>
               </DemoButton>
               <Link
                 href="/pricing"
-                className="inline-flex min-w-[220px] items-center justify-center rounded-full border border-[#2C241C]/25 bg-[#F7F1E8]/90 px-9 py-4 text-[16px] font-extrabold text-[#2C241C] shadow-[0_14px_32px_rgba(28,22,18,0.12)] transition hover:bg-white"
+                className="inline-flex w-full min-w-0 items-center justify-center rounded-full border border-[#2C241C]/25 bg-[#F7F1E8]/95 px-6 py-4 text-[16px] font-extrabold text-[#2C241C] shadow-[0_14px_32px_rgba(28,22,18,0.12)] transition hover:bg-white sm:w-auto sm:min-w-[220px] sm:px-9"
               >
                 לגלות את החבילות
               </Link>
