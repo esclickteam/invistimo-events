@@ -46,7 +46,7 @@ function PrimaryCta({ href, children }: { href: string; children: React.ReactNod
   return (
     <Link
       href={href}
-      className="inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3.5 text-base font-black text-white shadow-[0_18px_45px_rgba(58,43,34,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_55px_rgba(58,43,34,0.36)]"
+      className="inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3.5 text-base font-black !text-white shadow-[0_18px_45px_rgba(58,43,34,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_55px_rgba(58,43,34,0.36)]"
     >
       {children}
     </Link>
@@ -57,7 +57,7 @@ function SecondaryCta({ href, children }: { href: string; children: React.ReactN
   return (
     <Link
       href={href}
-      className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/80 px-8 py-3.5 text-base font-black text-[#5E4735] shadow-[0_12px_30px_rgba(91,63,32,0.08)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
+      className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-[#FBF6EE] px-8 py-3.5 text-base font-black !text-[#2C241C] shadow-[0_12px_30px_rgba(91,63,32,0.08)] transition hover:-translate-y-0.5 hover:bg-white"
     >
       {children}
     </Link>

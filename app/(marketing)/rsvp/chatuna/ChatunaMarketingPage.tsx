@@ -77,10 +77,10 @@ function CtaLink({
 }) {
   const styles =
     variant === "primary"
-      ? "bg-[#8A642E] text-white hover:bg-[#735325]"
+      ? "bg-[#8A642E] !text-white hover:bg-[#735325]"
       : variant === "secondary"
-        ? "border border-[#8A642E]/45 bg-white/70 text-[#5C4324] hover:bg-white"
-        : "text-[#8A642E] underline-offset-4 hover:underline";
+        ? "border border-[#E8D9C2] bg-[#F7EDDF] !text-[#2A211A] hover:bg-white"
+        : "!text-[#8A642E] underline-offset-4 hover:underline";
   return (
     <Link
       href={href}
