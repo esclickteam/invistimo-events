@@ -47,12 +47,12 @@ export const JOURNEY_STEPS = [
 ] as const;
 
 export const JOURNEY_VIDEO = {
-  src: "/videos/rsvp-guest-journey.mp4",
-  poster: "/images/rsvp/rsvp-guest-journey-poster.jpg",
+  src: "/videos/rsvp-guest-journey-v3.mp4",
+  poster: "/images/rsvp/rsvp-guest-journey-poster-v3.jpg",
   title: "מסע האורח מאישור הגעה ב־WhatsApp ועד עמוד התודה",
   description:
     "המחשה של תהליך אישור הגעה ב־Invistimo: הודעת WhatsApp, קישור אישי, הזמנה דיגיטלית, בחירת הגעה, שליחה ועמוד תודה — ואז מעבר לתמונת המצב במערכת.",
-  uploadDate: "2026-10-24",
+  uploadDate: "2026-10-25",
 } as const;
 
 export const HOW_IT_WORKS = {

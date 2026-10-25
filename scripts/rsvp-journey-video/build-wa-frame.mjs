@@ -1,7 +1,8 @@
 /**
- * Builds the WhatsApp preview frame using the approved invitation image
- * (public/images/rsvp/invite-frame.*) and a caption aligned to that invite.
- * Still mints a demo storageState for later real-product recording steps.
+ * Builds clean HTML frames for the journey video (no demo-page image swapping):
+ * - wa-frame.html — WhatsApp message with approved invite artwork
+ * - personal-invite.html — personal-link invitation page with the same artwork
+ * Also mints demo storageState for RSVP form / thanks / dashboard steps.
  */
 import { chromium } from "playwright";
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
@@ -14,16 +15,12 @@ const RAW_DIR = join(__dirname, ".record");
 const BASE = process.env.RSVP_RECORD_BASE || "http://127.0.0.1:3000";
 mkdirSync(RAW_DIR, { recursive: true });
 
-const invitePng = join(ROOT, "public/images/rsvp/invite-frame.png");
 const inviteJpg = join(ROOT, "public/images/rsvp/invite-frame.jpg");
-const invitePath = existsSync(invitePng) ? invitePng : inviteJpg;
-if (!existsSync(invitePath)) {
-  throw new Error("Missing public/images/rsvp/invite-frame.(png|jpg)");
+if (!existsSync(inviteJpg)) {
+  throw new Error("Missing public/images/rsvp/invite-frame.jpg");
 }
 
-const inviteBytes = readFileSync(invitePath);
-const inviteMime = invitePath.endsWith(".png") ? "image/png" : "image/jpeg";
-const imageDataUrl = `data:${inviteMime};base64,${inviteBytes.toString("base64")}`;
+const imageDataUrl = `data:image/jpeg;base64,${readFileSync(inviteJpg).toString("base64")}`;
 
 const caption = [
   "משפחה וחברים יקרים,",
@@ -37,7 +34,7 @@ const caption = [
   "נשמח לראותכם בשמחתנו 💖",
 ].join("\n");
 
-const html = `<!doctype html>
+const waHtml = `<!doctype html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="utf-8"/>
@@ -60,7 +57,7 @@ const html = `<!doctype html>
       <div class="hdr">INVISTIMO · WhatsApp</div>
       <div class="pad">
         <div class="card">
-          <img alt="" src="${imageDataUrl}"/>
+          <img alt="הזמנה" src="${imageDataUrl}"/>
           <div class="txt">${caption.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</div>
         </div>
         <button class="btn" id="wa-btn" type="button">אישור הגעה</button>
@@ -70,9 +67,35 @@ const html = `<!doctype html>
 </body>
 </html>`;
 
-writeFileSync(join(RAW_DIR, "wa-frame.html"), html);
+const personalHtml = `<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<style>
+  html,body{margin:0;min-height:100%;background:#F7F1E8;font-family:Heebo,Arial,sans-serif;color:#2d241c}
+  .wrap{min-height:100vh;box-sizing:border-box;padding:28px 18px 40px}
+  .eyebrow{margin:0;text-align:center;font-size:12px;font-weight:700;letter-spacing:.24em;color:#b58a55}
+  h1{margin:12px 0 18px;text-align:center;font-size:28px;line-height:1.25;font-weight:900}
+  .card{overflow:hidden;border-radius:26px;background:#faf7f1;box-shadow:0 18px 40px rgba(58,39,20,.12)}
+  .card img{display:block;width:100%;height:auto;object-fit:contain;background:#faf7f1}
+  .hint{margin:22px 16px 0;text-align:center;font-size:15px;font-weight:700;line-height:1.6;color:#5C4A3A}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="eyebrow">הזמנה לאירוע</p>
+    <h1>החתונה של מיה ואלון</h1>
+    <div class="card">
+      <img alt="הזמנה" src="${imageDataUrl}"/>
+    </div>
+    <p class="hint">נשמח לדעת אם תגיעו לחגוג איתנו</p>
+  </div>
+</body>
+</html>`;
 
-// Mint demo session for invite/dashboard recording steps
+writeFileSync(join(RAW_DIR, "wa-frame.html"), waHtml);
+writeFileSync(join(RAW_DIR, "personal-invite.html"), personalHtml);
+
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext({
   viewport: { width: 1280, height: 900 },
@@ -87,7 +110,6 @@ await page.goto(`${BASE}/try/dashboard`, {
   timeout: 60000,
 });
 await page.waitForTimeout(800);
-const storage = await context.storageState();
-writeFileSync(join(RAW_DIR, "storage.json"), JSON.stringify(storage));
+writeFileSync(join(RAW_DIR, "storage.json"), JSON.stringify(await context.storageState()));
 await browser.close();
-console.log("wrote wa-frame.html with approved invite image");
+console.log("wrote wa-frame.html + personal-invite.html");

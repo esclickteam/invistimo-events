@@ -1,16 +1,17 @@
 /**
- * Records guest journey from real Invistimo product screens (demo session),
- * keeps JOURNEY_STEPS timings, composites into cream stage + phone bezel.
+ * Records a fresh guest-journey video:
+ * - WhatsApp + personal-link use dedicated HTML frames with the approved invite
+ *   artwork baked in (no demo-page image swapping / flash).
+ * - RSVP choose / thanks / dashboard use real product screens with the invite
+ *   hero hidden before first paint so the old demo image never appears.
  */
 import { chromium } from "playwright";
 import {
   copyFileSync,
   existsSync,
   mkdirSync,
-  readFileSync,
   readdirSync,
   unlinkSync,
-  writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -21,8 +22,8 @@ const ROOT = join(__dirname, "../..");
 const OUT_DIR = join(ROOT, "public/videos");
 const POSTER_DIR = join(ROOT, "public/images/rsvp");
 const RAW_DIR = join(__dirname, ".record");
-const FINAL_MP4 = join(OUT_DIR, "rsvp-guest-journey.mp4");
-const POSTER = join(POSTER_DIR, "rsvp-guest-journey-poster.jpg");
+const FINAL_MP4 = join(OUT_DIR, "rsvp-guest-journey-v3.mp4");
+const POSTER = join(POSTER_DIR, "rsvp-guest-journey-poster-v3.jpg");
 const BASE = process.env.RSVP_RECORD_BASE || "http://127.0.0.1:3000";
 
 const SCREEN_W = 390;
@@ -43,15 +44,15 @@ for (const f of readdirSync(RAW_DIR)) {
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// 1) Build WA frame + storage from real product preview
 spawnSync("node", [join(__dirname, "build-wa-frame.mjs")], {
   stdio: "inherit",
   env: process.env,
 });
 const waFramePath = join(RAW_DIR, "wa-frame.html");
+const personalPath = join(RAW_DIR, "personal-invite.html");
 const storagePath = join(RAW_DIR, "storage.json");
-if (!existsSync(waFramePath) || !existsSync(storagePath)) {
-  throw new Error("WA frame build failed");
+if (!existsSync(waFramePath) || !existsSync(personalPath) || !existsSync(storagePath)) {
+  throw new Error("Frame build failed");
 }
 
 async function hideNoise(page) {
@@ -68,7 +69,6 @@ async function hideNoise(page) {
     .catch(() => {});
   await page.evaluate(() => {
     const kill = (el) => el && el.style.setProperty("display", "none", "important");
-    // Compact floating chrome only
     document.querySelectorAll("body *").forEach((el) => {
       const t = (el.textContent || "").replace(/\s+/g, " ").trim();
       if (!t || t.length > 120) return;
@@ -77,7 +77,7 @@ async function hideNoise(page) {
         t === "התחל סיור מחדש" ||
         t === "איפוס" ||
         t === "סיום והשארת פרטים" ||
-        /^\\d+\\s*Issues$/i.test(t)
+        /^\d+\s*Issues$/i.test(t)
       ) {
         let cur = el;
         for (let i = 0; i < 6 && cur; i++) {
@@ -90,7 +90,6 @@ async function hideNoise(page) {
         }
       }
     });
-    // Demo sample-event banner: hide only short banner strips
     document.querySelectorAll("body *").forEach((el) => {
       const t = (el.textContent || "").replace(/\s+/g, " ").trim();
       if (!t.includes("אירוע הדוגמה") && !t.includes("בלי הודעות, שיחות או חיובים")) return;
@@ -108,6 +107,16 @@ const context = await browser.newContext({
   storageState: storagePath,
   recordVideo: { dir: RAW_DIR, size: { width: SCREEN_W, height: SCREEN_H } },
 });
+
+// Block demo invite artwork at the network layer — never download/paint it
+await context.route("**/*homep1*", (route) =>
+  route.fulfill({
+    status: 204,
+    body: "",
+    headers: { "content-type": "image/png" },
+  })
+);
+
 const page = await context.newPage();
 const t0 = Date.now();
 const mark = (label) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${label}`);
@@ -116,9 +125,38 @@ const holdUntil = async (ms) => {
   if (left > 0) await wait(left);
 };
 
-// 01 WhatsApp 0–7s — real product preview content (inline-styled frame)
+const hideDemoInviteHero = async () => {
+  await page.addStyleTag({
+    content: `
+      img[alt="תמונת ההזמנה"],
+      img[src*="homep1"],
+      img[alt="תמונת ההזמנה"] ~ *,
+      .relative:has(> img[alt="תמונת ההזמנה"]) {
+        display: none !important;
+      }
+    `,
+  }).catch(() => {});
+  await page.evaluate(() => {
+    document.querySelectorAll('img[alt="תמונת ההזמנה"], img[src*="homep1"]').forEach((img) => {
+      let cur = img;
+      for (let i = 0; i < 3 && cur; i++) {
+        cur.style.setProperty("display", "none", "important");
+        cur = cur.parentElement;
+      }
+    });
+    document.querySelectorAll("h1, p").forEach((el) => {
+      const t = (el.textContent || "").trim();
+      if (t === "הזמנה לאירוע" || t.includes("החתונה של")) {
+        el.style.setProperty("display", "none", "important");
+      }
+    });
+  });
+};
+
+// 01 WhatsApp 0–7s — dedicated frame with approved invite
 mark("01 whatsapp");
-await page.goto(pathToFileURL(waFramePath).href, { waitUntil: "load" });
+await page.goto(pathToFileURL(waFramePath).href, { waitUntil: "domcontentloaded" });
+await wait(300);
 await holdUntil(7000);
 
 // 02 Open link cue 7–10s
@@ -128,51 +166,42 @@ await page.evaluate(() => {
 });
 await holdUntil(10000);
 
-// 03 Personal-link invitation 10–18.5s — same approved invite artwork
+// 03 Personal-link invitation 10–18.5s — dedicated frame (no demo page)
 mark("03 invite");
-await page.goto(`${BASE}/invite/demo-share?token=dmo_noa`, {
-  waitUntil: "domcontentloaded",
-  timeout: 60000,
-});
-await wait(500);
-await hideNoise(page);
-await page.evaluate(async (inviteUrl) => {
-  const applyInvite = () => {
-    document.querySelectorAll('img[alt="תמונת ההזמנה"], img[src*="homep1"]').forEach((img) => {
-      img.src = inviteUrl;
-      img.srcset = "";
-      img.style.objectFit = "contain";
-      img.style.background = "#faf7f1";
-    });
-    document.querySelectorAll("h1").forEach((h) => {
-      if ((h.textContent || "").includes("מאיה")) h.textContent = "החתונה של מיה ואלון";
-    });
-  };
-  applyInvite();
-  // Hold the full invitation in view first, then ease down toward RSVP
+await page.goto(pathToFileURL(personalPath).href, { waitUntil: "domcontentloaded" });
+await wait(300);
+await page.evaluate(async () => {
   window.scrollTo(0, 0);
-  await new Promise((r) => setTimeout(r, 2800));
-  applyInvite();
+  await new Promise((r) => setTimeout(r, 2400));
   const start = performance.now();
   const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-  const target = Math.min(520, max);
+  const target = Math.min(220, max);
   await new Promise((resolve) => {
     const tick = (now) => {
-      const t = Math.min(1, (now - start) / 3200);
+      const t = Math.min(1, (now - start) / 2800);
       window.scrollTo(0, target * (0.5 - 0.5 * Math.cos(Math.PI * t)));
       if (t < 1) requestAnimationFrame(tick);
       else resolve();
     };
     requestAnimationFrame(tick);
   });
-}, `${BASE}/images/rsvp/invite-frame.jpg`);
+});
 await holdUntil(18500);
 
-// 04 Choose 18.5–25.5s
+// 04 Choose on real RSVP form — hide demo invite hero immediately (no image swap)
 mark("04 choose");
+await page.goto(`${BASE}/invite/demo-share?token=dmo_noa`, {
+  waitUntil: "domcontentloaded",
+  timeout: 60000,
+});
+await hideDemoInviteHero();
+await hideNoise(page);
+await wait(200);
+await hideDemoInviteHero();
 const yes = page.locator("button").filter({ hasText: /^מגיע/ }).first();
 await yes.waitFor({ state: "visible", timeout: 20000 });
 await yes.scrollIntoViewIfNeeded();
+await wait(500);
 await yes.click();
 await wait(600);
 const plus = page.locator("button").filter({ hasText: /^\+$/ }).first();
@@ -196,16 +225,17 @@ await page.goto(`${BASE}/try/dashboard`, {
   timeout: 60000,
 });
 await wait(1200);
-await page.addStyleTag({
-  content: `
+await page
+  .addStyleTag({
+    content: `
     nextjs-portal, [data-nextjs-dialog-overlay], iframe[src*="userway"],
     .userway, .uwy, #userwayAccessibilityIcon, header, footer, a[href*="wa.me"] {
       display: none !important;
     }
   `,
-}).catch(() => {});
+  })
+  .catch(() => {});
 await page.evaluate(() => {
-  // Soft-hide demo chrome without destroying React trees
   document.querySelectorAll("body *").forEach((el) => {
     const t = (el.textContent || "").replace(/\s+/g, " ").trim();
     if (!t) return;
