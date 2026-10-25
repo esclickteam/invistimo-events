@@ -1,0 +1,174 @@
+@keyframes invite-satin-sweep {
+  0%,
+  100% {
+    transform: translateX(-8%) rotate(-18deg);
+    opacity: 0.25;
+  }
+  50% {
+    transform: translateX(8%) rotate(-18deg);
+    opacity: 0.55;
+  }
+}
+
+@keyframes invite-fade-up {
+  0%,
+  100% {
+    opacity: 0.85;
+    transform: translateY(4px);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes invite-bloom {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes invite-gold-glow {
+  0%,
+  100% {
+    text-shadow: 0 0 0 transparent;
+  }
+  50% {
+    text-shadow: 0 0 18px rgba(201, 169, 98, 0.35);
+  }
+}
+
+@keyframes invite-envelope-open {
+  0%,
+  18% {
+    transform: rotateX(0deg);
+  }
+  45%,
+  100% {
+    transform: rotateX(-168deg);
+  }
+}
+
+@keyframes invite-reveal {
+  0%,
+  30% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  55%,
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes invite-type-in {
+  0%,
+  15% {
+    opacity: 0;
+    letter-spacing: 0.35em;
+  }
+  40%,
+  100% {
+    opacity: 1;
+    letter-spacing: 0.08em;
+  }
+}
+
+@keyframes invite-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-4deg);
+  }
+  50% {
+    transform: translateY(-10px) rotate(-2deg);
+  }
+}
+
+@keyframes invite-float-delayed {
+  0%,
+  100% {
+    transform: translateY(0) rotate(5deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(3deg);
+  }
+}
+
+@keyframes invite-float-center {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.invite-satin-sweep {
+  animation: invite-satin-sweep 7s ease-in-out infinite;
+}
+
+.invite-fade-up {
+  animation: invite-fade-up 5.5s ease-in-out infinite;
+}
+
+.invite-bloom {
+  animation: invite-bloom 6s ease-in-out infinite;
+  transform-origin: center top;
+}
+
+.invite-bloom.delay-200 {
+  animation-delay: 0.35s;
+}
+
+.invite-gold-glow {
+  animation: invite-gold-glow 4.5s ease-in-out infinite;
+}
+
+.invite-envelope-flap {
+  transform-origin: top center;
+  transform-style: preserve-3d;
+  animation: invite-envelope-open 6s ease-in-out infinite;
+}
+
+.invite-reveal {
+  animation: invite-reveal 6s ease-in-out infinite;
+}
+
+.invite-type-in {
+  animation: invite-type-in 5.5s ease-in-out infinite;
+}
+
+.invite-float {
+  animation: invite-float 7s ease-in-out infinite;
+}
+
+.invite-float-delayed {
+  animation: invite-float-delayed 7.5s ease-in-out infinite;
+}
+
+.invite-float-center {
+  animation: invite-float-center 6.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .invite-satin-sweep,
+  .invite-fade-up,
+  .invite-bloom,
+  .invite-gold-glow,
+  .invite-envelope-flap,
+  .invite-reveal,
+  .invite-type-in,
+  .invite-float,
+  .invite-float-delayed,
+  .invite-float-center {
+    animation: none !important;
+  }
+}
