@@ -1,4 +1,4 @@
-import { SEATING_ADDON_ILS } from "@/lib/pricing/packageQuote";
+import { INVISTIMO_WHATSAPP_PHONE, SEATING_ADDON_ILS } from "@/lib/pricing/packageQuote";
 
 export const SEATING_PATH = "/seating-explained";
 
@@ -9,6 +9,13 @@ export const SEATING_META = {
 } as const;
 
 export const UPDATED_AT = "2026-10-25";
+
+export const STAFF_WHATSAPP_MESSAGE =
+  "שלום, אשמח לקבל פרטים והצעת מחיר לצוותי הושבה וניהול LIVE ביום האירוע. מה השירות כולל?";
+
+export const STAFF_WHATSAPP_URL = `https://wa.me/${INVISTIMO_WHATSAPP_PHONE}?text=${encodeURIComponent(
+  STAFF_WHATSAPP_MESSAGE
+)}`;
 
 export const LINKS = {
   pricing: "/pricing",
@@ -23,6 +30,7 @@ export const LINKS = {
   tableMessage: "/info/guides/table-number-message",
   contact: "/contact",
   trySeating: "/try/dashboard/seating",
+  staffWhatsapp: STAFF_WHATSAPP_URL,
 } as const;
 
 export const MEDIA = {
