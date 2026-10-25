@@ -93,7 +93,9 @@ export const PLANNING_TIPS = [
     eyebrow: "רשימת המוזמנים",
     title: "למי שולחים הזמנה לחינה?",
     body: "לפני שסוגרים מספר מנות, כדאי להכין רשימה מסודרת של המשפחה הקרובה, המשפחה המורחבת והחברים. חשוב לתאם בין שתי המשפחות ולנהל אישורי הגעה כדי לדעת כמה משתתפים צפויים להגיע.",
-    palette: ["#C45C3A", "#A67C3D", "#2F4F3E", "#F7E8D2"],
+    image: "/images/rsvp/hina/tip-guests.jpg",
+    imageAlt:
+      "אורחים ומשפחה בחגיגת חינה — לבוש חגיגי ואווירת אירוח חמה",
     href: "/rsvp" as string | null,
     linkLabel: "לאישורי הגעה" as string | null,
   },
@@ -102,7 +104,9 @@ export const PLANNING_TIPS = [
     eyebrow: "המקום והאווירה",
     title: "איך בוחרים מקום שמתאים לחינה?",
     body: "כדאי לבדוק את גודל המקום, אזור הטקס, רחבת הריקודים, הנגישות והמקום לתלבושות. העיצוב, המוזיקה והתאורה צריכים להשתלב עם האופי והמסורת של המשפחה.",
-    palette: ["#6B1F2A", "#A67C3D", "#F3E6D0", "#2A211A"],
+    image: "/images/rsvp/hina/tip-venue.jpg",
+    imageAlt:
+      "מתחם חינה יוקרתי בעיצוב מרוקאי — פנסים, בדים, פרחים ותאורה חמה",
     href: null,
     linkLabel: null,
   },
@@ -111,7 +115,9 @@ export const PLANNING_TIPS = [
     eyebrow: "מהלך הערב",
     title: "מה כדאי לתכנן מראש?",
     body: "קבלת הפנים, טקס החינה, החלפת התלבושות, הברכות והריקודים. תכנון סדר הערב עוזר לספקים ולמשפחה לדעת מה צפוי ומתי, בלי להפוך את האירוע לנוקשה.",
-    palette: ["#FBF5EB", "#E8D5B5", "#8B6F3A", "#3A2A1F"],
+    image: "/images/rsvp/hina/tip-ceremony.jpg",
+    imageAlt:
+      "טקס חינה מסורתי — מגש חינה, תלבושות חגיגיות ואלמנטים אותנטיים",
     href: null,
     linkLabel: null,
   },
@@ -120,7 +126,9 @@ export const PLANNING_TIPS = [
     eyebrow: "סידורי ההושבה",
     title: "איך דואגים שלכולם יהיה נוח?",
     body: "כדאי לתכנן מראש את חלוקת השולחנות בין המשפחות והחברים, להתחשב באורחים מבוגרים ובצרכים מיוחדים, ולהכין מקומות רזרבה בהתאם למספר המשתתפים.",
-    palette: ["#F0E0C8", "#B85A3A", "#2F4F3E", "#5C1A24"],
+    image: "/images/rsvp/hina/tip-seating.jpg",
+    imageAlt:
+      "שולחנות ערוכים לחינה — בורדו, זהב, כלי הגשה ופרחים",
     href: "/seating-explained" as string | null,
     linkLabel: "לסידורי הושבה" as string | null,
   },

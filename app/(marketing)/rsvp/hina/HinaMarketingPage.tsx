@@ -67,50 +67,6 @@ function MoroccanPattern({
   );
 }
 
-function TipIcon({ tipId }: { tipId: (typeof PLANNING_TIPS)[number]["id"] }) {
-  const common = "h-9 w-9";
-  if (tipId === "guest-list") {
-    return (
-      <svg className={common} viewBox="0 0 32 32" fill="none" aria-hidden>
-        <rect x="6" y="4" width="20" height="24" rx="3" stroke="currentColor" strokeWidth="1.6" />
-        <path d="M11 11h10M11 16h10M11 21h6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  if (tipId === "venue") {
-    return (
-      <svg className={common} viewBox="0 0 32 32" fill="none" aria-hidden>
-        <path
-          d="M6 26V14l10-8 10 8v12"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinejoin="round"
-        />
-        <path d="M13 26v-8h6v8" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-      </svg>
-    );
-  }
-  if (tipId === "evening") {
-    return (
-      <svg className={common} viewBox="0 0 32 32" fill="none" aria-hidden>
-        <circle cx="16" cy="16" r="10" stroke="currentColor" strokeWidth="1.6" />
-        <path d="M16 10v6l4 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-      </svg>
-    );
-  }
-  return (
-    <svg className={common} viewBox="0 0 32 32" fill="none" aria-hidden>
-      <circle cx="16" cy="16" r="7" stroke="currentColor" strokeWidth="1.6" />
-      <circle cx="16" cy="9" r="1.4" fill="currentColor" />
-      <circle cx="22" cy="13" r="1.4" fill="currentColor" />
-      <circle cx="22" cy="19" r="1.4" fill="currentColor" />
-      <circle cx="16" cy="23" r="1.4" fill="currentColor" />
-      <circle cx="10" cy="19" r="1.4" fill="currentColor" />
-      <circle cx="10" cy="13" r="1.4" fill="currentColor" />
-    </svg>
-  );
-}
-
 function ArchFrame({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <div className={`relative ${className}`}>
@@ -241,27 +197,26 @@ function SeatingDemoCard() {
 }
 
 function PlanningTipCard({ tip }: { tip: (typeof PLANNING_TIPS)[number] }) {
-  const lightTop = tip.id === "evening" || tip.id === "seating";
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-[24px] border border-[#D4B483]/60 bg-white shadow-[0_14px_36px_rgba(74,21,32,0.06)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_42px_rgba(74,21,32,0.12)]">
+    <article className="group flex h-full flex-col overflow-hidden rounded-[24px] border border-[#D4B483]/55 bg-[#FBF5EB] shadow-[0_16px_40px_rgba(40,16,20,0.14)]">
+      {/* Inline aspectRatio: flex + next/image fill can collapse Tailwind aspect-* to 0 height. */}
       <div
-        className={`relative flex h-28 shrink-0 items-center justify-center ${lightTop ? "text-[#6B1F2A]" : "text-[#FBF5EB]"}`}
-        style={{
-          background: `linear-gradient(145deg, ${tip.palette[0]} 0%, ${tip.palette[1]} 55%, ${tip.palette[2]} 100%)`,
-        }}
+        className="relative w-full shrink-0 overflow-hidden bg-[#3A1018]"
+        style={{ aspectRatio: "5 / 4", minHeight: 220 }}
       >
-        <div className="absolute inset-3 z-[1] rounded-[18px] border border-white/25" />
-        <MoroccanPattern
-          opacity={0.1}
-          color={lightTop ? "#4A1520" : "#FFFFFF"}
+        <Image
+          src={tip.image}
+          alt={tip.imageAlt}
+          fill
+          sizes="(max-width: 640px) 100vw, 480px"
+          className="object-cover transition duration-700 ease-out group-hover:scale-[1.04]"
         />
-        <div className="relative z-10">
-          <TipIcon tipId={tip.id} />
-        </div>
       </div>
-      <div className="flex flex-1 flex-col p-5">
-        <p className="text-[11px] font-bold tracking-[0.14em] text-[#A67C3D]">{tip.eyebrow}</p>
-        <h3 className={`mt-2 text-xl leading-8 text-[#4A1520] ${display.className}`}>{tip.title}</h3>
+      <div className="flex flex-1 flex-col px-5 pb-5 pt-4 md:px-6 md:pb-6 md:pt-5">
+        <p className="text-[11px] font-bold tracking-[0.16em] text-[#A67C3D]">{tip.eyebrow}</p>
+        <h3 className={`mt-2 text-xl leading-8 text-[#3A2A1F] md:text-[1.35rem] ${display.className}`}>
+          {tip.title}
+        </h3>
         <p className="mt-2 flex-1 text-sm leading-7 text-[#5C4A3A]">{tip.body}</p>
         {tip.href && tip.linkLabel ? (
           <Link
@@ -616,9 +571,9 @@ export default function HinaMarketingPage() {
         </ul>
       </SectionShell>
 
-      {/* Planning tips — same card chrome, new content */}
+      {/* Planning tips — magazine-style photo cards */}
       <SectionShell id="planning-tips" tone="burgundy" className="relative isolate overflow-hidden">
-        <MoroccanPattern opacity={0.06} color="#E8D5B5" />
+        <MoroccanPattern opacity={0.05} color="#E8D5B5" />
         <div className="relative z-10">
           <div className="mx-auto max-w-3xl rounded-[28px] bg-[#3A1018]/88 px-5 py-6 text-center md:px-8">
             <p className="text-sm font-bold tracking-[0.16em] text-[#D4B483]">מתכננים את החינה</p>
@@ -629,12 +584,12 @@ export default function HinaMarketingPage() {
               מהאווירה ועד הפרטים הקטנים — כך יוצרים חגיגה שמחה, אישית ומסודרת.
             </p>
           </div>
-          <div className="mx-auto mt-12 grid max-w-5xl gap-4 sm:grid-cols-2 lg:auto-rows-fr">
+          <div className="mx-auto mt-12 grid max-w-5xl items-stretch gap-5 sm:grid-cols-2 sm:gap-6">
             {PLANNING_TIPS.map((tip) => (
               <PlanningTipCard key={tip.id} tip={tip} />
             ))}
           </div>
-          <div className="mt-8 text-center">
+          <div className="mt-10 text-center">
             <CtaLink href={LINKS.invitations} variant="light">
               להזמנות דיגיטליות ב־Invistimo
             </CtaLink>
