@@ -196,46 +196,22 @@ const EVENTS = [
     image: "/marketing/invites/invite-wedding-mia-alon.webp",
   },
   {
-    href: "/for/henna",
+    href: "/rsvp/hina",
     title: "חינה",
     body: "חגיגה של מסורת, משפחה ואנשים אהובים.",
     image: "/marketing/invites/invite-henna.webp",
   },
   {
-    href: "/for/bar-mitzvah",
-    title: "בר מצווה",
-    body: "היום המיוחד שלו, עם כל המוזמנים במקום אחד.",
+    href: "/rsvp/bar-bat-mitzvah",
+    title: "בר / בת מצווה",
+    body: "היום המיוחד שלהם — עם המשפחה, החברים וההושבה במקום אחד.",
     image: "/marketing/invites/invite-bar-mitzvah.webp",
   },
   {
-    href: "/for/bat-mitzvah",
-    title: "בת מצווה",
-    body: "חגיגה מרגשת שמתחילה כבר בהזמנה.",
-    image: "/marketing/invites/invite-bat-mitzvah.webp",
-  },
-  {
-    href: "/for/brit",
-    title: "ברית ובריתה",
+    href: "/rsvp/brit-brita",
+    title: "ברית / בריתה",
     body: "משתפים את הבשורה ומזמינים את האנשים הקרובים.",
     image: "/marketing/invites/invite-brit.webp",
-  },
-  {
-    href: "/for/birthday",
-    title: "יום הולדת",
-    body: "קטן או גדול — כל אורח הוא חלק מהחגיגה.",
-    image: "/marketing/invites/invite-birthday.webp",
-  },
-  {
-    href: "/for/corporate",
-    title: "אירוע חברה",
-    body: "הזמנות, אישורי הגעה ורשימת משתתפים מסודרת.",
-    image: "/marketing/invites/invite-corporate.webp",
-  },
-  {
-    href: "/for/private-party",
-    title: "אירוע פרטי",
-    body: "כל חגיגה שחשוב לכם לתכנן כמו שצריך.",
-    image: "/marketing/invites/invite-save-the-date-maya-itai.webp",
   },
 ] as const;
 
@@ -768,8 +744,8 @@ export default function HomeMarketingSections() {
             לכל חגיגה יש סיפור. אנחנו כאן כדי לעזור לכם לנהל אותו.
           </h2>
           <p className="mt-5 max-w-3xl text-lg leading-8 text-[#5C4A3A]">
-            חתונה גדולה, חינה מרגשת, בר מצווה משפחתית או חגיגה אינטימית — לכל אירוע יש את
-            האנשים שלו. עם Invistimo אפשר לבחור את הכלים שמתאימים לאופי האירוע.
+            חתונה, חינה, בר ובת מצווה או ברית ובריתה — לכל אירוע יש את האנשים שלו. עם Invistimo
+            אפשר לבחור את הכלים שמתאימים לאופי האירוע.
           </p>
 
           <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
