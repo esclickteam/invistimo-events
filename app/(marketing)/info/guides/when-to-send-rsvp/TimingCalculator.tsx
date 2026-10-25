@@ -24,6 +24,8 @@ export const TIMING_RULES = {
   bufferBeforeVenueDays: 1,
 } as const;
 
+type TimelineKind = "invite" | "whatsapp" | "phone" | "milestone" | "followup";
+
 type TimelineItem = {
   id: string;
   title: string;
@@ -32,8 +34,12 @@ type TimelineItem = {
   weekdayLabel: string;
   lineLabel: string;
   purpose: string;
-  kind: "whatsapp" | "phone" | "milestone";
+  kind: TimelineKind;
+  /** Soft note under the step (past date / Fri–Sat send caveat) */
+  note?: string;
 };
+
+type ReminderTiming = "day_before" | "day_of";
 
 function formatJerusalem(d: Date) {
   return new Intl.DateTimeFormat("he-IL", {
@@ -63,8 +69,42 @@ function addDays(base: Date, days: number) {
   return next;
 }
 
+function addMonths(base: Date, months: number) {
+  const next = new Date(base.getTime());
+  next.setUTCMonth(next.getUTCMonth() + months);
+  return next;
+}
+
 function daysBetween(a: Date, b: Date) {
   return Math.round((b.getTime() - a.getTime()) / (24 * 60 * 60 * 1000));
+}
+
+function isWeekend(d: Date) {
+  const day = d.getUTCDay();
+  return day === 5 || day === 6;
+}
+
+function makeItem(input: {
+  id: string;
+  title: string;
+  date: Date;
+  purpose: string;
+  kind: TimelineKind;
+  note?: string;
+}): TimelineItem {
+  const weekdayLabel = weekdayJerusalem(input.date);
+  const dateLabel = formatJerusalem(input.date);
+  return {
+    id: input.id,
+    title: input.title,
+    date: input.date,
+    dateLabel,
+    weekdayLabel,
+    lineLabel: `${input.title} — ${weekdayLabel}, ${dateLabel}`,
+    purpose: input.purpose,
+    kind: input.kind,
+    note: input.note,
+  };
 }
 
 /** Send days: Sunday–Thursday only (no Friday / Saturday). */
@@ -155,6 +195,7 @@ export function planRsvpTimeline(input: {
   venueIso: string;
   waRounds: RoundCount;
   phoneRounds: RoundCount;
+  reminderTiming?: ReminderTiming;
   todayIso?: string;
 }): {
   ok: boolean;
@@ -165,11 +206,13 @@ export function planRsvpTimeline(input: {
 } {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const reminderTiming = input.reminderTiming ?? "day_before";
   const rules = [
-    `חלון התכנון המומלץ: ${TIMING_RULES.windowLatestDaysBeforeEvent}–${TIMING_RULES.windowEarliestDaysBeforeEvent} ימים לפני האירוע (שבועיים עד שבועיים וחצי).`,
-    "כל הסבבים שנבחרו נפרסים באופן מאוזן על ימי שליחה בתוך החלון הזמין — בלי מרווח קבוע מראש.",
-    "ימי שליחה: ראשון עד חמישי בלבד (לא יום שישי ולא שבת).",
-    "כל הסבבים מסתיימים לפני מועד מסירת המספרים לאולם, עם מרווח קצר לעדכון הרשימה.",
+    `חלון אישורי ההגעה המומלץ: ${TIMING_RULES.windowLatestDaysBeforeEvent}–${TIMING_RULES.windowEarliestDaysBeforeEvent} ימים לפני האירוע (שבועיים עד שבועיים וחצי).`,
+    "סבבי WhatsApp ושיחות נפרסים באופן מאוזן על ימי שליחה (א׳–ה׳) בתוך החלון — בלי מרווח קבוע מראש.",
+    "Save the Date (כ־4 חודשים לפני) והזמנה דיגיטלית (כ־5 שבועות לפני) הן המלצות תכנון בלבד.",
+    "תזכורת: יום לפני האירוע או ביום האירוע (לבחירה). הודעת תודה: יום אחרי האירוע.",
+    "אבני הדרך אינן הודעות שנשלחות אוטומטית, ואינן בהכרח כלולות בכל חבילה.",
     "התאריכים הם המלצת תכנון — לא התחייבות למועדי שליחה בפועל במערכת.",
     "בחבילת ההודעות כלולים שני סבבי WhatsApp. עד שלושה סבבי שיחות — בחבילות השיחה הנפרדות.",
   ];
@@ -271,59 +314,112 @@ export function planRsvpTimeline(input: {
   let cursor = 0;
   for (let i = 1; i <= input.waRounds; i += 1) {
     const date = picked[cursor++];
-    const weekdayLabel = weekdayJerusalem(date);
-    const dateLabel = formatJerusalem(date);
     const title = input.waRounds === 1 ? "סבב WhatsApp" : WA_TITLE[i];
-    roundItems.push({
-      id: `wa-${i}`,
-      title,
-      date,
-      dateLabel,
-      weekdayLabel,
-      lineLabel: `${title} — ${weekdayLabel}, ${dateLabel}`,
-      purpose: WA_PURPOSE[i],
-      kind: "whatsapp",
-    });
+    roundItems.push(
+      makeItem({
+        id: `wa-${i}`,
+        title,
+        date,
+        purpose: WA_PURPOSE[i],
+        kind: "whatsapp",
+      })
+    );
   }
   for (let i = 1; i <= input.phoneRounds; i += 1) {
     const date = picked[cursor++];
-    const weekdayLabel = weekdayJerusalem(date);
-    const dateLabel = formatJerusalem(date);
     const title = input.phoneRounds === 1 ? "שיחה טלפונית" : PHONE_TITLE[i];
-    roundItems.push({
-      id: `phone-${i}`,
-      title,
-      date,
-      dateLabel,
-      weekdayLabel,
-      lineLabel: `${title} — ${weekdayLabel}, ${dateLabel}`,
-      purpose: PHONE_PURPOSE[i],
-      kind: "phone",
-    });
+    roundItems.push(
+      makeItem({
+        id: `phone-${i}`,
+        title,
+        date,
+        purpose: PHONE_PURPOSE[i],
+        kind: "phone",
+      })
+    );
   }
 
+  const pastNote = (d: Date) =>
+    daysBetween(today, d) < 0
+      ? "התאריך המומלץ כבר עבר — מוצג לתכנון בלבד, לא כשליחה עתידית."
+      : undefined;
+
+  const weekendSendNote = (d: Date) =>
+    isWeekend(d)
+      ? "התאריך חל ביום שישי או שבת. השליחה בפועל תלויה בהגדרות השירות ובמגבלות השליחה — יום האירוע עצמו לא הוזז."
+      : undefined;
+
+  // Planning milestones (do not move RSVP round dates)
+  const saveTheDate = addMonths(event, -4);
+  const digitalInvite = addDays(event, -35); // ~5 weeks
+  // Prefer a distinct “collection end” the day after last outreach when still before venue
+  let collectionDate = addDays(last, 1);
+  if (daysBetween(collectionDate, venue) <= 0) {
+    collectionDate = last;
+  }
+
+  const reminderDate =
+    reminderTiming === "day_of" ? new Date(event.getTime()) : addDays(event, -1);
+  const thankYouDate = addDays(event, 1);
+
+  // Fixed chronological stage order (RSVP dates unchanged)
   const items: TimelineItem[] = [
+    makeItem({
+      id: "save-the-date",
+      title: "Save the Date — שמרו את התאריך",
+      date: saveTheDate,
+      purpose: "הודעה מוקדמת לאורחים כדי שיוכלו לשריין את התאריך ולהיערך מראש.",
+      kind: "invite",
+      note: pastNote(saveTheDate),
+    }),
+    makeItem({
+      id: "digital-invite",
+      title: "שליחת ההזמנה הדיגיטלית",
+      date: digitalInvite,
+      purpose:
+        "שליחת ההזמנה הרשמית עם שמות בני הזוג, פרטי האירוע, שעות קבלת הפנים והחופה ומיקום האולם.",
+      kind: "invite",
+      note: pastNote(digitalInvite),
+    }),
     ...roundItems,
-    {
+    makeItem({
+      id: "collect-end",
+      title: "סיום איסוף אישורי ההגעה",
+      date: collectionDate,
+      purpose: "זמן לסגור פתוחים ולעדכן את הרשימה לפני מסירת המספרים לאולם.",
+      kind: "milestone",
+    }),
+    makeItem({
       id: "venue",
-      title: "מסירת מספר המוזמנים לאולם",
+      title: "המועד האחרון למסירת מספר המוזמנים לאולם",
       date: venue,
-      dateLabel: formatJerusalem(venue),
-      weekdayLabel: weekdayJerusalem(venue),
-      lineLabel: `מסירת מספר המוזמנים לאולם — ${weekdayJerusalem(venue)}, ${formatJerusalem(venue)}`,
       purpose: "הדד־ליין מול האולם או הקייטרינג.",
       kind: "milestone",
-    },
-    {
+    }),
+    makeItem({
+      id: "reminder",
+      title: "תזכורת לאורחים — האירוע מתקרב!",
+      date: reminderDate,
+      purpose:
+        "תזכורת לאורחים עם פרטי האירוע וקישור ניווט. כאשר שירות ההושבה פעיל והשיבוץ הושלם, אפשר לכלול גם את מספר השולחן בהתאם ליכולות המערכת.",
+      kind: "followup",
+      note: weekendSendNote(reminderDate),
+    }),
+    makeItem({
       id: "event",
-      title: "תאריך האירוע",
+      title: "יום האירוע",
       date: event,
-      dateLabel: formatJerusalem(event),
-      weekdayLabel: weekdayJerusalem(event),
-      lineLabel: `תאריך האירוע — ${weekdayJerusalem(event)}, ${formatJerusalem(event)}`,
       purpose: "יום האירוע עצמו.",
       kind: "milestone",
-    },
+    }),
+    makeItem({
+      id: "thank-you",
+      title: "הודעת תודה לאורחים ❤️",
+      date: thankYouDate,
+      purpose: "הודעת תודה אישית לאורחים על כך שהיו חלק מהשמחה שלכם.",
+      kind: "followup",
+      note: weekendSendNote(thankYouDate),
+    }),
   ];
 
   if (daysBetween(today, picked[0]) < 0) {
@@ -335,12 +431,21 @@ export function planRsvpTimeline(input: {
   return { ok: true, errors, warnings, items, rules };
 }
 
+function kindDotClass(kind: TimelineKind) {
+  if (kind === "whatsapp") return "border-[#C9A45C] bg-[#FFF8EF]";
+  if (kind === "phone") return "border-[#5E4735] bg-[#E8DCC8]";
+  if (kind === "invite") return "border-[#B8862D]/70 bg-[#F7EBD9]";
+  if (kind === "followup") return "border-[#8A642E]/80 bg-[#EFE4D2]";
+  return "border-[#8A642E] bg-[#C9A45C]";
+}
+
 export default function TimingCalculator() {
   const [eventDate, setEventDate] = useState("");
   const [venueDeadline, setVenueDeadline] = useState("");
   const [waRounds, setWaRounds] = useState<RoundCount>(2);
   const [phoneRounds, setPhoneRounds] = useState<RoundCount>(0);
   const [preset, setPreset] = useState<string>("messages");
+  const [reminderTiming, setReminderTiming] = useState<ReminderTiming>("day_before");
 
   const result = useMemo(
     () =>
@@ -349,8 +454,9 @@ export default function TimingCalculator() {
         venueIso: venueDeadline,
         waRounds,
         phoneRounds,
+        reminderTiming,
       }),
-    [eventDate, venueDeadline, waRounds, phoneRounds]
+    [eventDate, venueDeadline, waRounds, phoneRounds, reminderTiming]
   );
 
   function applyPreset(id: string) {
@@ -442,6 +548,31 @@ export default function TimingCalculator() {
             ))}
           </select>
         </label>
+        <fieldset className="md:col-span-2">
+          <legend className="mb-2 text-sm font-bold text-[#5E4735]">מועד תזכורת לאירוע</legend>
+          <div className="flex flex-wrap gap-4 text-[15px] font-semibold text-[#3F3025]">
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="radio"
+                name="reminder-timing"
+                checked={reminderTiming === "day_before"}
+                onChange={() => setReminderTiming("day_before")}
+                className="h-4 w-4 accent-[#8A642E]"
+              />
+              יום לפני האירוע
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="radio"
+                name="reminder-timing"
+                checked={reminderTiming === "day_of"}
+                onChange={() => setReminderTiming("day_of")}
+                className="h-4 w-4 accent-[#8A642E]"
+              />
+              ביום האירוע
+            </label>
+          </div>
+        </fieldset>
       </div>
 
       {!showTimeline ? (
@@ -464,21 +595,15 @@ export default function TimingCalculator() {
             לוח הזמנים המומלץ לאישורי ההגעה שלכם
           </h3>
           <p className="text-sm leading-7 text-[#7A6042]">
-            המלצת תכנון בלבד — לא מועד שליחה מחייב במערכת. הסבבים נפרסו בחלון 14–18 ימים לפני
-            האירוע (בכפוף לדד־ליין האולם).
+            לוח תכנון בלבד — לא מועדי שליחה מחייבים ולא הבטחה שכל השלבים כלולים בכל חבילה. סבבי
+            אישורי ההגעה נפרסו בחלון 14–18 ימים לפני האירוע (בכפוף לדד־ליין האולם).
           </p>
 
           <ol className="relative mt-2 space-y-0 border-r-2 border-[#E6D2AA] pr-6">
             {result.items.map((item, idx) => (
               <li key={item.id} className="relative pb-6 last:pb-0">
                 <span
-                  className={`absolute -right-[1.55rem] top-1.5 h-3.5 w-3.5 rounded-full border-2 ${
-                    item.kind === "whatsapp"
-                      ? "border-[#C9A45C] bg-[#FFF8EF]"
-                      : item.kind === "phone"
-                        ? "border-[#5E4735] bg-[#E8DCC8]"
-                        : "border-[#8A642E] bg-[#C9A45C]"
-                  }`}
+                  className={`absolute -right-[1.55rem] top-1.5 h-3.5 w-3.5 rounded-full border-2 ${kindDotClass(item.kind)}`}
                   aria-hidden
                 />
                 <p className="text-xs font-black tracking-wide text-[#8A642E]">
@@ -487,6 +612,9 @@ export default function TimingCalculator() {
                 <p className="mt-1 text-lg font-black text-[#2C241C]">{item.lineLabel}</p>
                 {item.purpose ? (
                   <p className="mt-1 text-[14px] leading-6 text-[#6D5B4A]">{item.purpose}</p>
+                ) : null}
+                {item.note ? (
+                  <p className="mt-1 text-[13px] font-semibold leading-6 text-[#8A4B2E]">{item.note}</p>
                 ) : null}
               </li>
             ))}
