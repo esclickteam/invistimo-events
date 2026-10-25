@@ -13,13 +13,15 @@ const PACKAGE_PRESETS = [
 type RoundCount = 0 | 1 | 2 | 3;
 
 /**
- * Recommended RSVP planning window: 14–18 days before the event.
- * Rounds are spread evenly on Sun–Thu send days inside that window
- * (further clipped by the venue guest-count deadline). No fixed gap.
+ * First RSVP round starts ~14–18 days before the event (Sun–Thu).
+ * Later rounds spread evenly from that first day through the last send day
+ * before the venue guest-count deadline. 14–18 is NOT an end window.
  */
 export const TIMING_RULES = {
-  windowEarliestDaysBeforeEvent: 18,
-  windowLatestDaysBeforeEvent: 14,
+  /** Preferred first-round start: this many days before the event */
+  firstRoundEarliestDaysBeforeEvent: 18,
+  /** Latest acceptable first-round start within the recommended band */
+  firstRoundLatestDaysBeforeEvent: 14,
   /** Last round must be at least this many days before the venue deadline */
   bufferBeforeVenueDays: 1,
 } as const;
@@ -124,7 +126,40 @@ function listSendDaysInclusive(start: Date, end: Date): Date[] {
   return out;
 }
 
-/** Pick n distinct days evenly across the available send-day list. */
+/**
+ * First round: prefer the earliest send day in the 14–18 day band
+ * (event − 18 … event − 14). If that band has no Sun–Thu day, fall back
+ * to the nearest send day just before the band.
+ */
+function pickFirstRoundDate(event: Date): Date | null {
+  const earliest = addDays(event, -TIMING_RULES.firstRoundEarliestDaysBeforeEvent);
+  const latest = addDays(event, -TIMING_RULES.firstRoundLatestDaysBeforeEvent);
+  let cur = earliest;
+  while (daysBetween(cur, latest) >= 0) {
+    if (isSendDay(cur)) return new Date(cur.getTime());
+    cur = addDays(cur, 1);
+  }
+  cur = addDays(earliest, -1);
+  for (let i = 0; i < 7; i += 1) {
+    if (isSendDay(cur)) return new Date(cur.getTime());
+    cur = addDays(cur, -1);
+  }
+  return null;
+}
+
+/** Last outreach day: last Sun–Thu strictly before the venue deadline. */
+function pickLastRoundDate(venue: Date): Date | null {
+  let cur = addDays(venue, -TIMING_RULES.bufferBeforeVenueDays);
+  for (let i = 0; i < 14; i += 1) {
+    if (isSendDay(cur) && daysBetween(cur, venue) > 0) {
+      return new Date(cur.getTime());
+    }
+    cur = addDays(cur, -1);
+  }
+  return null;
+}
+
+/** Pick n distinct days evenly across the available send-day list (first & last fixed). */
 function pickEvenlySpaced(days: Date[], n: number): Date[] | null {
   if (n <= 0) return [];
   if (days.length < n) return null;
@@ -208,8 +243,10 @@ export function planRsvpTimeline(input: {
   const warnings: string[] = [];
   const reminderTiming = input.reminderTiming ?? "day_before";
   const rules = [
-    `חלון אישורי ההגעה המומלץ: ${TIMING_RULES.windowLatestDaysBeforeEvent}–${TIMING_RULES.windowEarliestDaysBeforeEvent} ימים לפני האירוע (שבועיים עד שבועיים וחצי).`,
-    "סבבי WhatsApp ושיחות נפרסים באופן מאוזן על ימי שליחה (א׳–ה׳) בתוך החלון — בלי מרווח קבוע מראש.",
+    `הסבב הראשון מתחיל כ־${TIMING_RULES.firstRoundLatestDaysBeforeEvent}–${TIMING_RULES.firstRoundEarliestDaysBeforeEvent} ימים לפני האירוע (יום שליחה א׳–ה׳).`,
+    "יתר הסבבים נפרסים באופן מאוזן מהסבב הראשון ועד יום השליחה האחרון לפני מועד מסירת המספרים לאולם.",
+    "הסבב האחרון סמוך לדד־ליין האולם (יום חול אחרון לפניו) — לא מסיימים שבוע מוקדם בלי סיבה.",
+    "אין סבבים בשישי או שבת; כל סבב ביום נפרד; קודם WhatsApp ואז שיחות.",
     "Save the Date (כ־4 חודשים לפני) והזמנה דיגיטלית (כ־5 שבועות לפני) הן המלצות תכנון בלבד.",
     "תזכורת: יום לפני האירוע או ביום האירוע (לבחירה). הודעת תודה: יום אחרי האירוע.",
     "אבני הדרך אינן הודעות שנשלחות אוטומטית, ואינן בהכרח כלולות בכל חבילה.",
@@ -255,42 +292,30 @@ export function planRsvpTimeline(input: {
     return { ok: false, errors, warnings, items: [], rules };
   }
 
-  // Begin at ~18 days before the event (start of the 14–18 day guidance).
-  // End by the earlier of: ~14 days before the event (ideal), or venue − buffer.
-  // If the ideal sub-window lacks enough Sun–Thu days for all rounds, extend toward
-  // the venue deadline only — never before day −18 and never on/after the venue date.
-  const windowStart = addDays(event, -TIMING_RULES.windowEarliestDaysBeforeEvent);
-  const idealWindowEnd = addDays(event, -TIMING_RULES.windowLatestDaysBeforeEvent);
-  const latestAllowedByVenue = addDays(venue, -TIMING_RULES.bufferBeforeVenueDays);
+  // First round ≈ 14–18 days before the event; last round = last send day before venue.
+  // Spread all rounds evenly across Sun–Thu days between those anchors.
+  const firstRound = pickFirstRoundDate(event);
+  const lastRoundAnchor = pickLastRoundDate(venue);
 
-  if (daysBetween(windowStart, latestAllowedByVenue) < 0) {
+  if (!firstRound || !lastRoundAnchor) {
     errors.push(
-      "הלו״ז אינו ישים: מועד מסירת המספרים לאולם חל לפני או בתוך תחילת חלון 14–18 הימים לפני האירוע. לא ממציאים תאריכי סבבים מחוץ לחלון — יש להקדים את תחילת התהליך או להתאים את דד־ליין האולם."
+      "הלו״ז אינו ישים: לא נמצאו ימי שליחה מתאימים (א׳–ה׳) בין תחילת חלון הסבב הראשון לבין מועד האולם."
     );
     return { ok: false, errors, warnings, items: [], rules };
   }
 
-  // Earlier of ideal end (event − 14) and venue − buffer
-  let windowEnd =
-    daysBetween(idealWindowEnd, latestAllowedByVenue) >= 0 ? idealWindowEnd : latestAllowedByVenue;
-  let sendDays = listSendDaysInclusive(windowStart, windowEnd);
-
-  if (sendDays.length < totalRounds) {
-    // Need more days: extend only up to venue buffer (still starting at day −18)
-    if (daysBetween(windowEnd, latestAllowedByVenue) > 0) {
-      windowEnd = latestAllowedByVenue;
-      sendDays = listSendDaysInclusive(windowStart, windowEnd);
-      if (sendDays.length >= totalRounds) {
-        warnings.push(
-          "כדי לפרוס את כל הסבבים לפני מועד האולם, חלק מהסבבים יוצאים אחרי 14 ימים לפני האירוע — עדיין בתוך התכנון שמתחיל כ־18 ימים לפני, ולפני הדד־ליין."
-        );
-      }
-    }
+  if (daysBetween(firstRound, lastRoundAnchor) < 0) {
+    errors.push(
+      "הלו״ז אינו ישים: מועד מסירת המספרים לאולם חל לפני או בתוך חלון 14–18 הימים המומלץ לסבב הראשון. התזמון הרגיל אינו אפשרי — יש להקדים את תחילת התהליך או להתאים את דד־ליין האולם."
+    );
+    return { ok: false, errors, warnings, items: [], rules };
   }
+
+  const sendDays = listSendDaysInclusive(firstRound, lastRoundAnchor);
 
   if (sendDays.length < totalRounds) {
     errors.push(
-      `הלו״ז אינו ישים: בין ${formatJerusalem(windowStart)} ל־${formatJerusalem(latestAllowedByVenue)} יש רק ${sendDays.length} ימי שליחה (א׳–ה׳), וצריך ${totalRounds} סבבים. לא דוחסים לשישי/שבת ולא קובעים תאריכים אחרי דד־ליין האולם או לפני חלון 18 הימים.`
+      `הלו״ז אינו ישים: בין ${formatJerusalem(firstRound)} ל־${formatJerusalem(lastRoundAnchor)} יש רק ${sendDays.length} ימי שליחה (א׳–ה׳), וצריך ${totalRounds} סבבים. לא דוחסים שני סבבים לאותו יום ולא קובעים שישי/שבת.`
     );
     return { ok: false, errors, warnings, items: [], rules };
   }
@@ -301,7 +326,41 @@ export function planRsvpTimeline(input: {
     return { ok: false, errors, warnings, items: [], rules };
   }
 
-  // Last picked must still be strictly before venue
+  // Ensure anchors: first = first send day, last = last send day before venue
+  picked[0] = sendDays[0];
+  picked[picked.length - 1] = sendDays[sendDays.length - 1];
+  // Re-resolve middle collisions if anchors collided with evenly spaced picks
+  {
+    const used = new Set<number>([0, sendDays.length - 1]);
+    for (let i = 1; i < picked.length - 1; i += 1) {
+      let idx = Math.round((i * (sendDays.length - 1)) / (picked.length - 1));
+      if (used.has(idx)) {
+        let delta = 1;
+        let found = false;
+        while (delta < sendDays.length) {
+          if (idx + delta < sendDays.length - 1 && !used.has(idx + delta)) {
+            idx = idx + delta;
+            found = true;
+            break;
+          }
+          if (idx - delta > 0 && !used.has(idx - delta)) {
+            idx = idx - delta;
+            found = true;
+            break;
+          }
+          delta += 1;
+        }
+        if (!found) {
+          errors.push("הלו״ז אינו ישים: לא ניתן לפרוס את כל הסבבים באופן מאוזן בחלון הזמין.");
+          return { ok: false, errors, warnings, items: [], rules };
+        }
+      }
+      used.add(idx);
+      picked[i] = sendDays[idx];
+    }
+    picked.sort((a, b) => a.getTime() - b.getTime());
+  }
+
   const last = picked[picked.length - 1];
   if (daysBetween(last, venue) <= 0) {
     errors.push(
@@ -352,11 +411,8 @@ export function planRsvpTimeline(input: {
   // Planning milestones (do not move RSVP round dates)
   const saveTheDate = addMonths(event, -4);
   const digitalInvite = addDays(event, -35); // ~5 weeks
-  // Prefer a distinct “collection end” the day after last outreach when still before venue
-  let collectionDate = addDays(last, 1);
-  if (daysBetween(collectionDate, venue) <= 0) {
-    collectionDate = last;
-  }
+  // Close the list on venue day (last outreach already sits on the prior send day)
+  const collectionDate = venue;
 
   const reminderDate =
     reminderTiming === "day_of" ? new Date(event.getTime()) : addDays(event, -1);
@@ -595,8 +651,8 @@ export default function TimingCalculator() {
             לוח הזמנים המומלץ לאישורי ההגעה שלכם
           </h3>
           <p className="text-sm leading-7 text-[#7A6042]">
-            לוח תכנון בלבד — לא מועדי שליחה מחייבים ולא הבטחה שכל השלבים כלולים בכל חבילה. סבבי
-            אישורי ההגעה נפרסו בחלון 14–18 ימים לפני האירוע (בכפוף לדד־ליין האולם).
+            לוח תכנון בלבד — לא מועדי שליחה מחייבים ולא הבטחה שכל השלבים כלולים בכל חבילה. הסבב
+            הראשון בחלון 14–18 ימים לפני האירוע; יתר הסבבים עד לפני מועד מסירת המספרים לאולם.
           </p>
 
           <ol className="relative mt-2 space-y-0 border-r-2 border-[#E6D2AA] pr-6">
