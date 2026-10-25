@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Frank_Ruhl_Libre } from "next/font/google";
 import { motion, useReducedMotion } from "framer-motion";
 import SeatReleaseScenario from "./components/SeatReleaseScenario";
+import SeatingDemoVideo from "./components/SeatingDemoVideo";
 import { FAQ_TOPIC_IDS, FAQ_TOPICS, SEATING_FAQS } from "./seatingFaqs";
 import {
   COMPARE_ROWS,
@@ -20,7 +21,6 @@ import {
   STAFF_TASKS,
   TABLE_EXAMPLES,
   TIMELINE,
-  UPDATED_AT,
   WHY_POINTS,
 } from "./content";
 
@@ -108,21 +108,23 @@ function ProductShot({
   alt,
   caption,
   priority = false,
+  fit = "cover",
 }: {
   src: string;
   alt: string;
   caption: string;
   priority?: boolean;
+  fit?: "cover" | "contain";
 }) {
   return (
     <figure className="overflow-hidden rounded-[24px] border border-[#E6D2AA] bg-white shadow-[0_20px_48px_rgba(95,68,34,0.1)]">
-      <div className="relative aspect-[16/10] w-full bg-[#F3E8D7]">
+      <div className="relative aspect-[16/10] w-full bg-[#FFFDF8]">
         <Image
           src={src}
           alt={alt}
           fill
           priority={priority}
-          className="object-cover object-top"
+          className={fit === "contain" ? "object-contain object-center p-2" : "object-cover object-top"}
           sizes="(max-width: 768px) 100vw, 720px"
         />
       </div>
@@ -218,7 +220,7 @@ export default function SeatingMarketingPage() {
             <div className="overflow-hidden rounded-[22px] border border-[#E6D2AA] bg-white/90 shadow-[0_24px_60px_rgba(70,48,24,0.18)] backdrop-blur">
               <div className="relative aspect-[16/10] w-full">
                 <Image
-                  src={MEDIA.map}
+                  src={MEDIA.heroProduct}
                   alt="מפת הושבה דיגיטלית של Invistimo עם שולחנות ושיבוץ אורחים"
                   fill
                   priority
@@ -250,7 +252,6 @@ export default function SeatingMarketingPage() {
             וכאשר בוחרים בשירות LIVE המתאים, אפשר להמשיך לנהל הגעה ומקומות פנויים גם במהלך
             האירוע.
           </p>
-          <p className="mt-5 text-sm font-semibold text-[#8A6B45]">עודכן לאחרונה: {UPDATED_AT}</p>
         </motion.div>
 
         <div className="mt-10 flex flex-wrap justify-center gap-2">
@@ -346,13 +347,14 @@ export default function SeatingMarketingPage() {
           <ProductShot
             src={MEDIA.map}
             alt="מפת הושבה עם שולחנות, קיבולת ומקומות פנויים"
-            caption="צילום 1 — מפת ההושבה: שולחנות, קיבולת ומספר משובצים"
+            caption="מפת ההושבה — כל השולחנות, השיבוצים והמקומות הפנויים במבט אחד"
             priority
           />
           <ProductShot
-            src={MEDIA.dashboardSeating}
-            alt="שיבוץ אורחים לשולחנות במערכת Invistimo"
-            caption="צילום 2 — שיבוץ אורחים: רשימה, שולחן ומספר משתתפים ברשומה"
+            src={MEDIA.assign}
+            alt="שיבוץ אורחים לשולחנות — רשימת מוזמנים ושיוך לשולחן"
+            caption="שיבוץ אורחים לשולחנות — ניהול הרשימה והשינויים במקום אחד"
+            fit="contain"
           />
         </div>
 
@@ -383,19 +385,12 @@ export default function SeatingMarketingPage() {
           })}
         </div>
 
-        <div className="mt-10 overflow-hidden rounded-[24px] border border-[#E6D2AA] bg-[#1E1814]">
-          <video
-            className="aspect-video w-full object-cover"
-            controls
-            playsInline
-            preload="metadata"
+        <div className="mt-10">
+          <SeatingDemoVideo
+            src={MEDIA.mapVideo}
             poster={MEDIA.seatingPoster}
-          >
-            <source src={MEDIA.mapVideo} type="video/mp4" />
-          </video>
-          <p className="px-4 py-3 text-sm font-semibold text-[#E8D1A5]">
-            סרטון הדגמה — שיבוץ אורחים במפת ההושבה (נתוני דמו בלבד)
-          </p>
+            title="סרטון הדגמה — שיבוץ אורחים במפת ההושבה"
+          />
         </div>
       </Section>
 
