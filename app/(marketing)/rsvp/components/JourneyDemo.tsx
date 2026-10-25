@@ -162,9 +162,6 @@ export default function JourneyDemo() {
                   />
                 </div>
               </div>
-              <p className="mt-4 text-center text-xs font-semibold text-[#B9A792]">
-                המחשה עם נתוני בדיקה מבודדים · ללא אפליקציה לאורח
-              </p>
             </div>
           </div>
         </div>

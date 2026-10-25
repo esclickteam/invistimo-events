@@ -9,7 +9,7 @@ export default function DashboardDemo() {
     >
       <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-[#E6D2AA] bg-white/80 px-3 py-1.5 text-xs font-bold text-[#7A6042]">
         <span className="h-2 w-2 rounded-full bg-[#C7A56B]" />
-        נתוני המחשה · לא נתוני לקוח אמיתיים
+        להמחשה בלבד
       </div>
 
       <h3 className="text-xl font-black text-[#35281F] md:text-2xl">מצב אישורי הגעה</h3>
