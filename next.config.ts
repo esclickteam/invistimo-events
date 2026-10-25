@@ -5,6 +5,15 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   // Keep ffmpeg-static external so its path is not rewritten to /ROOT/... at build time.
   serverExternalPackages: ["ffmpeg-static", "web-push", "@hebcal/core"],
+  async redirects() {
+    return [
+      {
+        source: "/info/guides/reduce-meal-waste",
+        destination: "/info/guides/wedding-venue-guest-guarantee",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     const noindex = [{ key: "X-Robots-Tag", value: "noindex, nofollow" }];
     const privateSources = [
