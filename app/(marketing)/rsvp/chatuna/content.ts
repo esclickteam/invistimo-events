@@ -42,7 +42,7 @@ export const SEATING_VIDEO = {
 } as const;
 
 export const TIMING_VIDEO = {
-  src: "/videos/chatuna-timing.mp4",
+  src: "/videos/chatuna-timing-v.mp4",
   poster: "/images/rsvp/chatuna/video-timing-poster.jpg",
   title: "מתי שולחים אישורי הגעה לחתונה — ציר זמן",
   description:

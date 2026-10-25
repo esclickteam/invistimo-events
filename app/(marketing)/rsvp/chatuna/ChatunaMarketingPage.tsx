@@ -131,6 +131,7 @@ function PhoneVideoFrame({
   return (
     <div className="mx-auto w-[min(100%,340px)]">
       <div className="overflow-hidden rounded-[2rem] border border-[#E4D3B6] bg-[#F7EDDF] shadow-[0_24px_50px_rgba(40,28,16,0.16)]">
+        {/* Fixed 9:16 stage — video is absolutely filled inside ChatunaVideo */}
         <ChatunaVideo
           src={src}
           poster={poster}
@@ -513,12 +514,7 @@ export default function ChatunaMarketingPage() {
           כלל קבוע. התזמון צריך להתחשב במועד שבו האולם מבקש מספר מנות, במספר סבבי ההודעות והשיחות,
           בחגים ובזמינות האורחים.
         </p>
-        <div className="mt-10 grid items-start gap-10 lg:grid-cols-[0.95fr_1.05fr]">
-          <PhoneVideoFrame
-            src={TIMING_VIDEO.src}
-            poster={TIMING_VIDEO.poster}
-            title={TIMING_VIDEO.title}
-          />
+        <div className="mt-10 grid items-start gap-10 lg:grid-cols-[1.05fr_0.95fr]">
           <ol className="relative space-y-0 border-r-2 border-[#D8B77C]/70 pr-6">
             {TIMELINE.map((t, i) => (
               <li key={t.title} className="relative pb-10 last:pb-0">
@@ -538,6 +534,11 @@ export default function ChatunaMarketingPage() {
               </li>
             ))}
           </ol>
+          <PhoneVideoFrame
+            src={TIMING_VIDEO.src}
+            poster={TIMING_VIDEO.poster}
+            title={TIMING_VIDEO.title}
+          />
         </div>
         <div className="mt-8">
           <CtaLink href={LINKS.whenToSend} variant="primary">

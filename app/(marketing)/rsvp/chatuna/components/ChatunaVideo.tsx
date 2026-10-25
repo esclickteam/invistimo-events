@@ -73,7 +73,9 @@ export default function ChatunaVideo({
         autoPlay={!reducedMotion}
         controls
         preload={eager ? "metadata" : "none"}
-        className={`h-full w-full ${fit === "contain" ? "object-contain" : "object-cover object-top"}`}
+        className={`absolute inset-0 h-full w-full ${
+          fit === "contain" ? "object-contain" : "object-cover object-center"
+        }`}
         onTimeUpdate={(e) => onTimeUpdate?.(e.currentTarget.currentTime)}
         onPlay={() => setPausedByUser(false)}
         onPause={() => {
