@@ -21,6 +21,7 @@ export const PILLARS: ContentPillar[] = [
     summary: "קישור אישי, סבבי וואטסאפ, תזכורת, ורשימה אחת של מי ענה.",
     clusters: [
       { path: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { path: "/rsvp/brit-brita", label: "אישורי הגעה לברית ובריתה" },
       { path: "/rsvp/whatsapp", label: "אישורי הגעה בוואטסאפ" },
       { path: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },
       { path: "/info/guides/cost-rsvp-wedding", label: "איך מחושב המחיר" },

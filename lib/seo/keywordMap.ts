@@ -72,11 +72,11 @@ export const KEYWORD_MAP: KeywordRow[] = [
   {
     query: "אישורי הגעה לברית",
     intent: "commercial",
-    primaryPath: "/rsvp",
-    supportingPaths: ["/rsvp/whatsapp"],
+    primaryPath: "/rsvp/brit-brita",
+    supportingPaths: ["/rsvp", "/rsvp/whatsapp"],
     volume: null,
     competition: null,
-    observation: "כוונה מסחרית קצרה — מכוסה ב־/rsvp.",
+    observation: "עמוד ייעודי משותף לברית ובריתה ב־/rsvp/brit-brita.",
   },
   {
     query: "אישורי הגעה לחינה",
@@ -126,11 +126,11 @@ export const KEYWORD_MAP: KeywordRow[] = [
   {
     query: "אישורי הגעה לבריתה",
     intent: "commercial",
-    primaryPath: "/rsvp",
-    supportingPaths: ["/rsvp/whatsapp"],
+    primaryPath: "/rsvp/brit-brita",
+    supportingPaths: ["/rsvp", "/rsvp/whatsapp"],
     volume: null,
     competition: null,
-    observation: "וריאציית כתיב / כוונה קרובה לברית — מכוסה ב־/rsvp.",
+    observation: "וריאציית בריתה — אותו עמוד כמו ברית.",
   },
   {
     query: "אישורי הגעה לכנס",
