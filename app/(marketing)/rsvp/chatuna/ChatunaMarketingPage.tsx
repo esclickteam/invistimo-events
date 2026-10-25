@@ -513,7 +513,12 @@ export default function ChatunaMarketingPage() {
           כלל קבוע. התזמון צריך להתחשב במועד שבו האולם מבקש מספר מנות, במספר סבבי ההודעות והשיחות,
           בחגים ובזמינות האורחים.
         </p>
-        <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_1fr]">
+        <div className="mt-10 grid items-start gap-10 lg:grid-cols-[0.95fr_1.05fr]">
+          <PhoneVideoFrame
+            src={TIMING_VIDEO.src}
+            poster={TIMING_VIDEO.poster}
+            title={TIMING_VIDEO.title}
+          />
           <ol className="relative space-y-0 border-r-2 border-[#D8B77C]/70 pr-6">
             {TIMELINE.map((t, i) => (
               <li key={t.title} className="relative pb-10 last:pb-0">
@@ -533,15 +538,6 @@ export default function ChatunaMarketingPage() {
               </li>
             ))}
           </ol>
-          <div className="overflow-hidden rounded-[28px] border border-[#E4D3B6] bg-[#F7EDDF]">
-            <ChatunaVideo
-              src={TIMING_VIDEO.src}
-              poster={TIMING_VIDEO.poster}
-              title={TIMING_VIDEO.title}
-              fit="contain"
-              className="aspect-video w-full"
-            />
-          </div>
         </div>
         <div className="mt-8">
           <CtaLink href={LINKS.whenToSend} variant="primary">
