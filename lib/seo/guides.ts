@@ -44,8 +44,8 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
       { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
+      { href: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים להתחייב לאולם" },
       { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "WhatsApp, SMS ואיך מתבצע הגיבוי?" },
-      { href: "/faq", label: "שאלות נפוצות" },
     ],
   },
   {
@@ -373,6 +373,11 @@ export const GUIDES: Guide[] = [
         a: "ההערה נשמרת עם האישור. איך האולם מתמחר מנה כשרה או אלרגיה תלוי באולם, לא במערכת.",
       },
     ],
+    related: [
+      { href: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים להתחייב לאולם" },
+      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
+    ],
   },
   {
     slug: "guest-list",
@@ -436,6 +441,8 @@ export const GUIDES: Guide[] = [
     related: [
       { href: "/info/guides/cost-rsvp-wedding", label: "כמה עולים אישורי הגעה" },
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים להתחייב לאולם" },
+      { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
       { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "איך המערכת מטפלת בהודעות שלא נמסרו?" },
       { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
@@ -457,7 +464,27 @@ export const GUIDES: Guide[] = [
       { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
       { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "מה ההבדל בין הודעה שלא נמסרה לאורח שלא השיב?" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
+      { href: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים להתחייב לאולם" },
       { href: "/info/guides/cost-rsvp-wedding", label: "כמה עולים אישורי הגעה" },
+    ],
+  },
+  {
+    // Dedicated UI: app/(marketing)/info/guides/wedding-venue-guest-guarantee/
+    slug: "wedding-venue-guest-guarantee",
+    title: "כמה אורחים להתחייב לאולם? מדריך ומחשבון",
+    description:
+      "כמה מנות כדאי להתחייב לאולם חתונה? מדריך להערכת כמות האורחים, התחייבות מינימלית, רזרבות, שינוי התחייבות ואישורי הגעה, כולל מחשבון.",
+    h1: "כמה אורחים כדאי להתחייב לאולם לחתונה?",
+    lede: "התחייבות נכונה מתחילה במספר ריאלי — לא במספר השמות ברשימת המוזמנים.",
+    sections: [],
+    faqs: [],
+    related: [
+      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
+      { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
+      { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
+      { href: "/info/guides/reduce-meal-waste", label: "צמצום מנות מיותרות" },
+      { href: "/seating-explained", label: "סידורי הושבה" },
     ],
   },
   {

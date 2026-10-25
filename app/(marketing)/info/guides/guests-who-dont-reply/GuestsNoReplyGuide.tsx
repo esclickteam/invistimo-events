@@ -489,6 +489,13 @@ export default function GuestsNoReplyGuide() {
               כל המדריכים
             </Link>
             {" · "}
+            <Link
+              href="/info/guides/wedding-venue-guest-guarantee"
+              className="underline-offset-4 hover:underline"
+            >
+              התחייבות לאולם
+            </Link>
+            {" · "}
             <Link href="/info/guides/whatsapp-vs-sms-rsvp" className="underline-offset-4 hover:underline">
               WhatsApp או SMS
             </Link>

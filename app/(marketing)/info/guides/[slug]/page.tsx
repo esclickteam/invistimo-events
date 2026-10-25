@@ -11,6 +11,7 @@ export function generateStaticParams() {
   const dedicated = new Set([
     "when-to-send-rsvp",
     "guests-who-dont-reply",
+    "wedding-venue-guest-guarantee",
     "cost-rsvp-wedding",
     "whatsapp-vs-sms-rsvp",
   ]);

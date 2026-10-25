@@ -435,14 +435,23 @@ export default function RSVPPage() {
             <PrimaryCta href="/pricing">בואו נתחיל</PrimaryCta>
             <SecondaryCta href="#rsvp-journey">לצפייה בתהליך</SecondaryCta>
           </div>
-          <p className="mt-8 text-sm font-semibold text-[#6D5B4A]">
-            <Link
-              href="/info/guides/cost-rsvp-wedding"
-              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
-            >
-              איך מחשבים מחיר אישורי הגעה לפי רשומות
-            </Link>
-          </p>
+          <nav aria-label="מדריכים קשורים" className="mt-10 flex flex-wrap justify-center gap-3">
+            {[
+              { href: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים להתחייב לאולם" },
+              { href: "/info/guides/cost-rsvp-wedding", label: "מחיר לפי רשומות" },
+              { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },
+              { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
+              { href: "/info/guides", label: "כל המדריכים" },
+            ].map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                className="inline-flex min-h-11 items-center rounded-full border border-[#E3C990] bg-white/70 px-4 py-2 text-sm font-bold text-[#5E4735]"
+              >
+                {l.label}
+              </Link>
+            ))}
+          </nav>
         </div>
       </section>
     </div>

@@ -27,6 +27,7 @@ export const PILLARS: ContentPillar[] = [
       { path: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
       { path: "/info/guides/whatsapp-vs-sms-rsvp", label: "WhatsApp או SMS" },
       { path: "/info/guides/guest-list", label: "רשימת מוזמנים" },
+      { path: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות לאולם" },
       { path: "/info/guides/reduce-meal-waste", label: "מספר מנות לאולם" },
     ],
   },
