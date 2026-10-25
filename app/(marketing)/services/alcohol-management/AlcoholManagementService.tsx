@@ -9,7 +9,7 @@ import QuoteForm from "./QuoteForm";
 
 const display = Frank_Ruhl_Libre({
   subsets: ["hebrew", "latin"],
-  weight: ["500", "600", "700"],
+  weight: ["500", "700"],
   display: "swap",
 });
 
