@@ -23,6 +23,7 @@ Official site: https://www.invistimo.com/
 - Digital invitations: https://www.invistimo.com/invitations/chatuna
 - Seating: https://www.invistimo.com/seating-explained
 - Event management: https://www.invistimo.com/event-management
+- Alcohol management (staff + inventory system): https://www.invistimo.com/services/alcohol-management
 - Guides: https://www.invistimo.com/info/guides
 
 ## Pages worth citing
@@ -35,6 +36,7 @@ Official site: https://www.invistimo.com/
 - https://www.invistimo.com/rsvp/save-the-date
 - https://www.invistimo.com/seating-explained
 - https://www.invistimo.com/event-management
+- https://www.invistimo.com/services/alcohol-management
 - https://www.invistimo.com/pricing
 - https://www.invistimo.com/faq
 - https://www.invistimo.com/info/about

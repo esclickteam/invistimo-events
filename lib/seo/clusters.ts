@@ -59,6 +59,7 @@ export const PILLARS: ContentPillar[] = [
     clusters: [
       { path: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" },
       { path: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
+      { path: "/services/alcohol-management", label: "ניהול אלכוהול באירועים" },
     ],
   },
 ];
