@@ -1,9 +1,7 @@
 /**
- * Records a fresh guest-journey video:
- * - WhatsApp + personal-link use dedicated HTML frames with the approved invite
- *   artwork baked in (no demo-page image swapping / flash).
- * - RSVP choose / thanks / dashboard use real product screens with the invite
- *   hero hidden before first paint so the old demo image never appears.
+ * Fresh recording of the /rsvp guest journey.
+ * WhatsApp + personal-link are filmed from dedicated pages under /rsvp-journey/
+ * that already contain the approved Mia & Alon invitation (no demo image swap).
  */
 import { chromium } from "playwright";
 import {
@@ -11,10 +9,12 @@ import {
   existsSync,
   mkdirSync,
   readdirSync,
+  statSync,
   unlinkSync,
+  writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -22,8 +22,8 @@ const ROOT = join(__dirname, "../..");
 const OUT_DIR = join(ROOT, "public/videos");
 const POSTER_DIR = join(ROOT, "public/images/rsvp");
 const RAW_DIR = join(__dirname, ".record");
-const FINAL_MP4 = join(OUT_DIR, "rsvp-guest-journey-v4.mp4");
-const POSTER = join(POSTER_DIR, "rsvp-guest-journey-poster-v4.jpg");
+const FINAL_MP4 = join(OUT_DIR, "rsvp-mia-alon-journey.mp4");
+const POSTER = join(POSTER_DIR, "rsvp-mia-alon-journey-poster.jpg");
 const BASE = process.env.RSVP_RECORD_BASE || "http://127.0.0.1:3000";
 
 const SCREEN_W = 390;
@@ -44,15 +44,18 @@ for (const f of readdirSync(RAW_DIR)) {
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-spawnSync("node", [join(__dirname, "build-wa-frame.mjs")], {
-  stdio: "inherit",
-  env: process.env,
-});
-const waFramePath = join(RAW_DIR, "wa-frame.html");
-const personalPath = join(RAW_DIR, "personal-invite.html");
-const storagePath = join(RAW_DIR, "storage.json");
-if (!existsSync(waFramePath) || !existsSync(personalPath) || !existsSync(storagePath)) {
-  throw new Error("Frame build failed");
+// Mint demo session for RSVP form / thanks / dashboard
+{
+  const b = await chromium.launch({ headless: true });
+  const c = await b.newContext({ locale: "he-IL" });
+  await c.request.post(`${BASE}/api/demo/interactive`, {
+    data: { mode: "free", restart: true },
+  });
+  const p = await c.newPage();
+  await p.goto(`${BASE}/try/dashboard`, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await wait(600);
+  writeFileSync(join(RAW_DIR, "storage.json"), JSON.stringify(await c.storageState()));
+  await b.close();
 }
 
 async function hideNoise(page) {
@@ -90,12 +93,6 @@ async function hideNoise(page) {
         }
       }
     });
-    document.querySelectorAll("body *").forEach((el) => {
-      const t = (el.textContent || "").replace(/\s+/g, " ").trim();
-      if (!t.includes("אירוע הדוגמה") && !t.includes("בלי הודעות, שיחות או חיובים")) return;
-      const r = el.getBoundingClientRect();
-      if (r.height > 24 && r.height < 110 && r.width > 180) kill(el);
-    });
   });
 }
 
@@ -104,17 +101,12 @@ const context = await browser.newContext({
   viewport: { width: SCREEN_W, height: SCREEN_H },
   deviceScaleFactor: 2,
   locale: "he-IL",
-  storageState: storagePath,
+  storageState: join(RAW_DIR, "storage.json"),
   recordVideo: { dir: RAW_DIR, size: { width: SCREEN_W, height: SCREEN_H } },
 });
 
-// Block demo invite artwork at the network layer — never download/paint it
 await context.route("**/*homep1*", (route) =>
-  route.fulfill({
-    status: 204,
-    body: "",
-    headers: { "content-type": "image/png" },
-  })
+  route.fulfill({ status: 204, body: "", headers: { "content-type": "image/png" } })
 );
 
 const page = await context.newPage();
@@ -126,16 +118,14 @@ const holdUntil = async (ms) => {
 };
 
 const hideDemoInviteHero = async () => {
-  await page.addStyleTag({
-    content: `
-      img[alt="תמונת ההזמנה"],
-      img[src*="homep1"],
-      img[alt="תמונת ההזמנה"] ~ *,
-      .relative:has(> img[alt="תמונת ההזמנה"]) {
-        display: none !important;
-      }
+  await page
+    .addStyleTag({
+      content: `
+      img[alt="תמונת ההזמנה"], img[src*="homep1"],
+      .relative:has(> img[alt="תמונת ההזמנה"]) { display: none !important; }
     `,
-  }).catch(() => {});
+    })
+    .catch(() => {});
   await page.evaluate(() => {
     document.querySelectorAll('img[alt="תמונת ההזמנה"], img[src*="homep1"]').forEach((img) => {
       let cur = img;
@@ -153,31 +143,32 @@ const hideDemoInviteHero = async () => {
   });
 };
 
-// 01 WhatsApp 0–7s — dedicated frame with approved invite
+// 01 WhatsApp 0–7s
 mark("01 whatsapp");
-await page.goto(pathToFileURL(waFramePath).href, { waitUntil: "domcontentloaded" });
-await wait(300);
+await page.goto(`${BASE}/rsvp-journey/whatsapp.html`, { waitUntil: "networkidle", timeout: 60000 });
+await page.waitForSelector('img[alt="הזמנה"]');
 await holdUntil(6500);
-await page.evaluate(() => {
-  document.getElementById("wa-btn")?.classList.add("pulse");
-});
+await page.evaluate(() => document.getElementById("wa-btn")?.classList.add("pulse"));
 await holdUntil(7000);
 
-// 02 Personal link 7–10s — open the dedicated invite page (Mia & Alon artwork)
+// 02 Personal link 7–10s — filmed page with Mia & Alon invite
 mark("02 personal link");
-await page.goto(pathToFileURL(personalPath).href, { waitUntil: "domcontentloaded" });
-await wait(250);
+await page.goto(`${BASE}/rsvp-journey/personal-link.html`, {
+  waitUntil: "networkidle",
+  timeout: 60000,
+});
+await page.waitForSelector('img[alt="הזמנה"]');
 await page.evaluate(() => window.scrollTo(0, 0));
 await holdUntil(10000);
 
-// 03 Same personal-link invite 10–18.5s — hold + gentle scroll (no demo page)
+// 03 Same personal-link invite 10–18.5s
 mark("03 invite details");
 await page.evaluate(async () => {
   window.scrollTo(0, 0);
   await new Promise((r) => setTimeout(r, 2200));
   const start = performance.now();
   const max = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-  const target = Math.min(220, max);
+  const target = Math.min(240, max);
   await new Promise((resolve) => {
     const tick = (now) => {
       const t = Math.min(1, (now - start) / 3200);
@@ -190,7 +181,7 @@ await page.evaluate(async () => {
 });
 await holdUntil(18500);
 
-// 04 Choose on real RSVP form — hide demo invite hero immediately (no image swap)
+// 04 Choose RSVP form
 mark("04 choose");
 await page.goto(`${BASE}/invite/demo-share?token=dmo_noa`, {
   waitUntil: "domcontentloaded",
@@ -210,7 +201,7 @@ const plus = page.locator("button").filter({ hasText: /^\+$/ }).first();
 if (await plus.count()) await plus.click().catch(() => {});
 await holdUntil(25500);
 
-// 05 Submit + thanks 25.5–34s
+// 05 Submit + thanks
 mark("05 submit");
 const submit = page.locator("button").filter({ hasText: /שליחת אישור הגעה/ }).first();
 await submit.waitFor({ state: "visible", timeout: 15000 });
@@ -220,7 +211,7 @@ await page.locator("text=תודה").first().waitFor({ state: "visible", timeout:
 await hideNoise(page);
 await holdUntil(34000);
 
-// 06 Dashboard 34–42s
+// 06 Dashboard
 mark("06 dashboard");
 await page.goto(`${BASE}/try/dashboard`, {
   waitUntil: "domcontentloaded",
@@ -242,8 +233,7 @@ await page.evaluate(() => {
     const t = (el.textContent || "").replace(/\s+/g, " ").trim();
     if (!t) return;
     const r = el.getBoundingClientRect();
-    const isCompact = r.height > 0 && r.height < 100;
-    if (!isCompact) return;
+    if (!(r.height > 0 && r.height < 100)) return;
     if (
       t.includes("דמו מבודד") ||
       t.includes("אירוע הדוגמה") ||
@@ -351,9 +341,10 @@ if (enc.status !== 0) {
 }
 
 copyFileSync(composed, FINAL_MP4);
+// Poster from personal-link step so the new invite is obvious before play
 spawnSync(
   "ffmpeg",
-  ["-y", "-ss", "2", "-i", FINAL_MP4, "-update", "1", "-frames:v", "1", "-q:v", "3", POSTER],
+  ["-y", "-ss", "8", "-i", FINAL_MP4, "-update", "1", "-frames:v", "1", "-q:v", "3", POSTER],
   { encoding: "utf8" }
 );
-console.log(JSON.stringify({ mp4: FINAL_MP4, poster: POSTER }, null, 2));
+console.log(JSON.stringify({ mp4: FINAL_MP4, poster: POSTER, bytes: statSync(FINAL_MP4).size }, null, 2));

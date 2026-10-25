@@ -47,8 +47,8 @@ export const JOURNEY_STEPS = [
 ] as const;
 
 export const JOURNEY_VIDEO = {
-  src: "/videos/rsvp-guest-journey-v4.mp4",
-  poster: "/images/rsvp/rsvp-guest-journey-poster-v4.jpg",
+  src: "/videos/rsvp-mia-alon-journey.mp4",
+  poster: "/images/rsvp/rsvp-mia-alon-journey-poster.jpg",
   title: "מסע האורח מאישור הגעה ב־WhatsApp ועד עמוד התודה",
   description:
     "המחשה של תהליך אישור הגעה ב־Invistimo: הודעת WhatsApp, קישור אישי, הזמנה דיגיטלית, בחירת הגעה, שליחה ועמוד תודה — ואז מעבר לתמונת המצב במערכת.",
