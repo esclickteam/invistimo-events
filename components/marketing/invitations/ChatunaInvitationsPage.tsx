@@ -202,31 +202,31 @@ function GalleryModal({
 
 function HeroComposition({ reduce }: { reduce: boolean | null }) {
   return (
-    <div className="relative mx-auto flex h-[400px] w-full max-w-[560px] items-end justify-center px-2 sm:h-[480px] md:h-[560px]">
-      <div className="pointer-events-none absolute inset-x-[10%] top-8 bottom-12 rounded-[36px] bg-[radial-gradient(circle_at_top,#E8D4AF_0%,transparent_55%)] blur-2xl" />
-
-      <div
-        className={`absolute bottom-6 left-[2%] w-[38%] origin-bottom -rotate-[14deg] sm:left-[4%] sm:w-[36%] ${
-          reduce ? "" : "invite-float"
-        }`}
-        style={{ zIndex: 1 }}
-      >
-        <InvitationArt id="classic-ivory" compact className="shadow-2xl" />
-      </div>
-
-      <div
-        className={`absolute bottom-6 right-[2%] w-[38%] origin-bottom rotate-[14deg] sm:right-[4%] sm:w-[36%] ${
-          reduce ? "" : "invite-float-delayed"
-        }`}
-        style={{ zIndex: 2 }}
-      >
-        <InvitationArt id="botanical-elegance" compact animated={!reduce} className="shadow-2xl" />
-      </div>
-
-      <div
-        className={`relative z-[3] mb-0 w-[44%] sm:w-[42%] ${reduce ? "" : "invite-float-center"}`}
-      >
-        <InvitationArt id="modern-editorial" compact className="shadow-[0_35px_80px_rgba(36,24,16,0.35)]" />
+    <div className="relative mx-auto w-full max-w-[560px] px-1 pt-4 sm:pt-6">
+      <div className="pointer-events-none absolute inset-x-[8%] top-10 bottom-8 rounded-[36px] bg-[radial-gradient(circle_at_top,#E8D4AF_0%,transparent_55%)] blur-2xl" />
+      <div className="relative flex items-end justify-center pb-2">
+        <div
+          className={`w-[34%] shrink-0 origin-bottom -translate-y-2 -rotate-[12deg] ${
+            reduce ? "" : "invite-float"
+          }`}
+          style={{ zIndex: 1, marginInlineEnd: "-6%" }}
+        >
+          <InvitationArt id="classic-ivory" compact className="shadow-2xl" />
+        </div>
+        <div
+          className={`w-[40%] shrink-0 origin-bottom ${reduce ? "" : "invite-float-center"}`}
+          style={{ zIndex: 3 }}
+        >
+          <InvitationArt id="modern-editorial" compact className="shadow-[0_35px_80px_rgba(36,24,16,0.38)]" />
+        </div>
+        <div
+          className={`w-[34%] shrink-0 origin-bottom -translate-y-2 rotate-[12deg] ${
+            reduce ? "" : "invite-float-delayed"
+          }`}
+          style={{ zIndex: 2, marginInlineStart: "-6%" }}
+        >
+          <InvitationArt id="botanical-elegance" compact animated={!reduce} className="shadow-2xl" />
+        </div>
       </div>
     </div>
   );
