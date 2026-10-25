@@ -530,6 +530,7 @@ export default function WhenToSendGuide() {
           <nav aria-label="קישורים נוספים" className="mt-12 flex flex-wrap justify-center gap-3">
             {[
               { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+              { href: "/rsvp/hina", label: "אישורי הגעה לחינה" },
               { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות לאולם" },
               { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
               { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "באיזה ערוץ כדאי לשלוח אישורי הגעה?" },

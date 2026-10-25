@@ -12,6 +12,11 @@ const nextConfig: NextConfig = {
         destination: "/info/guides/wedding-venue-guest-guarantee",
         permanent: true,
       },
+      {
+        source: "/for/henna",
+        destination: "/rsvp/hina",
+        permanent: true,
+      },
     ];
   },
   async headers() {

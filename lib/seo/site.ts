@@ -105,6 +105,14 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
     priority: 0.9,
   },
   {
+    path: "/rsvp/hina",
+    title: "אישורי הגעה לחינה וסידורי הושבה | Invistimo",
+    description:
+      "מתכננים חינה? אישורי הגעה, הזמנות דיגיטליות וסידורי הושבה לחינה — גם לאירוע קטן. מנהלים מוזמנים, שולחנות והגעה בפועל עם Invistimo.",
+    changeFrequency: "monthly",
+    priority: 0.9,
+  },
+  {
     path: "/rsvp/brit-brita",
     title: "אישורי הגעה לברית ובריתה | הזמנות דיגיטליות | Invistimo",
     description:

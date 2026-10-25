@@ -81,11 +81,11 @@ export const KEYWORD_MAP: KeywordRow[] = [
   {
     query: "אישורי הגעה לחינה",
     intent: "commercial",
-    primaryPath: "/rsvp",
-    supportingPaths: ["/invitations/chatuna", "/seating-explained"],
+    primaryPath: "/rsvp/hina",
+    supportingPaths: ["/rsvp", "/seating-explained", "/invitations/chatuna"],
     volume: null,
     competition: null,
-    observation: "מכוסה ב־hub; הושבה כתומך אם רלוונטי.",
+    observation: "עמוד ייעודי לחינה; hub והושבה כתומכים.",
   },
   {
     query: "אישורי הגעה לאירוע חברה",
@@ -144,11 +144,11 @@ export const KEYWORD_MAP: KeywordRow[] = [
   {
     query: "סידורי הושבה לחינה",
     intent: "commercial",
-    primaryPath: "/seating-explained",
-    supportingPaths: ["/info/guides/seating-plan"],
+    primaryPath: "/rsvp/hina",
+    supportingPaths: ["/seating-explained", "/info/guides/seating-plan"],
     volume: null,
     competition: null,
-    observation: "בלי עמוד חינה נפרד; אותו מוצר הושבה.",
+    observation: "כוונת חינה מכוסה בעמוד /rsvp/hina; מוצר ההושבה כתומך.",
   },
   {
     query: "סידורי הושבה לבר מצווה",
