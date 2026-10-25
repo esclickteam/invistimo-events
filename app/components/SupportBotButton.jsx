@@ -40,10 +40,10 @@ export default function SupportBotButton() {
     /* =====================================================
        ❌ דפי הזמנות / RSVP / תודה – לא להציג
     ===================================================== */
+    // חוויית אורח בלבד — עמודי שיווק `/rsvp` / `/rsvp/chatuna` וכו' כן מציגים תמיכה
     const isInvitationPage =
       pathname === "/thank-you" ||
       pathname.startsWith("/invite/") ||
-      pathname.startsWith("/rsvp/") ||
       pathname.startsWith("/invitation/") ||
       pathname === "/w" ||
       pathname.startsWith("/w/") ||
