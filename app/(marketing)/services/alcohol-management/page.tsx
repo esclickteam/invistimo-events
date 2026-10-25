@@ -21,8 +21,6 @@ export const metadata: Metadata = pageMetadata({
 });
 
 export default function AlcoholManagementPage() {
-  const faqs = ALCOHOL_SERVICE_FAQS.map((f) => ({ question: f.q, answer: f.a }));
-
   return (
     <>
       <JsonLd
@@ -50,7 +48,7 @@ export default function AlcoholManagementPage() {
             { name: "שירותים", path: "/event-management" },
             { name: "ניהול אלכוהול", path: PATH },
           ]),
-          faqNode(faqs),
+          faqNode(ALCOHOL_SERVICE_FAQS),
         ])}
       />
       <AlcoholManagementService />
