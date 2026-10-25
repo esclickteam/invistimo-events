@@ -3,7 +3,7 @@ import { resolveAppEnv } from "@/lib/env/appEnv";
 
 export const SITE_URL = "https://www.invistimo.com";
 export const SITE_NAME = "Invistimo";
-export const CONTENT_UPDATED = new Date("2026-10-23T11:00:00.000Z");
+export const CONTENT_UPDATED = new Date("2026-10-25T20:00:00.000Z");
 
 /** Preview/Staging must not claim indexability in HTML (align with Vercel x-robots-tag). */
 export function defaultPublicIndexable() {
@@ -141,6 +141,14 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
     title: "מערכת ניהול אירועים | Invistimo",
     description:
       "מערכת עצמאית לניהול אירוע: משימות, ספקים, תקציב, תשלומים, לוח זמנים, אישורי הגעה והושבה. אפשר להוסיף ליווי וניהול באולם.",
+    changeFrequency: "monthly",
+    priority: 0.85,
+  },
+  {
+    path: "/services/alcohol-management",
+    title: "ניהול אלכוהול לאירועים | אנשי צוות ומערכת ממוחשבת | Invistimo",
+    description:
+      "ניהול אלכוהול לחתונות ולאירועים עם אנשי צוות ומערכת ממוחשבת: ספירת מלאי, הקצאת בקבוקים לברים ולשולחנות, תיעוד פתיחה ודוח סיום. הצעת מחיר מותאמת.",
     changeFrequency: "monthly",
     priority: 0.85,
   },

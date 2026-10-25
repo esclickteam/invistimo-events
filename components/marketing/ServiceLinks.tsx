@@ -7,6 +7,7 @@ const LINKS = [
   { href: "/rsvp/save-the-date", label: "Save the Date" },
   { href: "/seating-explained", label: "סידורי הושבה" },
   { href: "/event-management", label: "ניהול אירוע" },
+  { href: "/services/alcohol-management", label: "ניהול אלכוהול באירועים" },
   { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
   { href: "/pricing", label: "חבילות ומחירים" },
   { href: "/info/guides", label: "מדריכים" },

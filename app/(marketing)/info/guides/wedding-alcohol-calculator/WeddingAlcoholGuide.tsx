@@ -396,6 +396,29 @@ export default function WeddingAlcoholGuide() {
         </div>
       </section>
 
+      {/* Day-of management bridge */}
+      <section className="bg-[#F7EDDF] px-5 py-16 md:px-8 md:py-20">
+        <div className="mx-auto max-w-3xl rounded-[28px] border border-[#E6D2AA] bg-white/90 p-6 md:p-8">
+          <Eyebrow>יום האירוע</Eyebrow>
+          <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+            כבר יודעים כמה אלכוהול לקנות? עכשיו צריך גם לנהל אותו נכון
+          </h2>
+          <p className="mt-4 text-base leading-8 text-[#5C4A3A]">
+            המחשבון עוזר לתכנן את הכמויות לפני האירוע. שירות ניהול האלכוהול של Invistimo מסייע לעקוב
+            אחר הבקבוקים בפועל ביום האירוע, באמצעות אנשי צוות ומערכת ממוחשבת.
+          </p>
+          <div className="mt-6">
+            <TrackedCtaLink
+              href="/services/alcohol-management"
+              className={ctaPrimary}
+              location={`bridge_mgmt:${PATH}`}
+            >
+              לשירות ניהול אלכוהול באירועים
+            </TrackedCtaLink>
+          </div>
+        </div>
+      </section>
+
       {/* FAQ */}
       <section aria-labelledby="faq" className="bg-[#FFFDF8] px-5 py-16 md:px-8 md:py-20">
         <div className="mx-auto max-w-3xl">
@@ -448,6 +471,7 @@ export default function WeddingAlcoholGuide() {
           </div>
           <nav aria-label="מדריכים קשורים" className="mt-10 flex flex-wrap justify-center gap-3 text-sm">
             {[
+              { href: "/services/alcohol-management", label: "ניהול אלכוהול ביום האירוע" },
               { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות לאולם" },
               { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
               { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
