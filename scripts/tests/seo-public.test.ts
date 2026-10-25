@@ -263,7 +263,7 @@ test("marketing pages no longer point the RSVP call to action at a missing short
   assert.ok(fs.existsSync(path.join(root, "public/answers.json")));
   assert.ok(fs.existsSync(path.join(root, "public/homep1.webp")));
   assert.ok(fs.existsSync(path.join(root, "public/og-invistimo.jpg")));
-  assert.equal(GUIDES.length, 12);
+  assert.equal(GUIDES.length, 11);
   assert.equal(SERVICE_PAGES.length, 5);
   assert.match(read("app/components/Footer.tsx"), /href="\/pricing"/);
   assert.match(read("app/components/Footer.tsx"), /href="\/rsvp"/);

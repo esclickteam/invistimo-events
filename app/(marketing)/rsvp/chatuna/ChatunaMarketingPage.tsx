@@ -685,11 +685,7 @@ export default function ChatunaMarketingPage() {
             href={LINKS.venueGuarantee}
             className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
           >
-            כמה אורחים כדאי להתחייב לאולם
-          </Link>
-          {" · "}
-          <Link href={LINKS.mealWaste} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
-            מדריך לסגירת מספר המנות מול האולם
+            כמה אורחים כדאי להתחייב לאולם?
           </Link>
         </p>
       </SectionShell>

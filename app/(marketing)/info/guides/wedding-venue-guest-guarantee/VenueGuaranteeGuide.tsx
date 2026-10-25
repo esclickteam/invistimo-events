@@ -687,7 +687,6 @@ export default function VenueGuaranteeGuide() {
               { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
               { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
               { href: "/info/guides/cost-rsvp-wedding", label: "עלויות אישורי הגעה" },
-              { href: "/info/guides/reduce-meal-waste", label: "צמצום מנות מיותרות" },
               { href: "/info/guides", label: "כל המדריכים" },
             ].map((l) => (
               <Link

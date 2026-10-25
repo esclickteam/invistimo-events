@@ -31,7 +31,7 @@ const MARKETING = [
   "/info/guides/table-number-message",
   "/info/guides/event-day-checklist",
   "/info/guides/guest-list",
-  "/info/guides/reduce-meal-waste",
+  "/info/guides/wedding-venue-guest-guarantee",
   "/contact",
 ];
 
