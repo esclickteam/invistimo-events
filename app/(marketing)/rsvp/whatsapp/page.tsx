@@ -63,7 +63,7 @@ export default function WhatsappRsvpPage() {
             name: "מסע האורח — מאישור WhatsApp עד לרשימת המוזמנים",
             description:
               "הדגמה מתוך Invistimo: הודעת WhatsApp, קישור אישי להזמנה, אישור הגעה ומעקב תשובות בדשבורד.",
-            contentUrl: "/marketing/videos/hero-guest-journey.webm",
+            contentUrl: "/videos/rsvp1.mp4",
             posterUrl: "/marketing/videos/hero-guest-journey-poster.jpg",
             uploadDate: "2026-10-01",
             path: PATH,
