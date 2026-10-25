@@ -17,9 +17,9 @@ import {
   DIAL_OUTCOMES,
   EVENT_TYPES,
   FLOW_PATH,
+  CALL_PATH_CARDS,
   HUMAN_CASES,
   LINKS,
-  MISTAKES,
   MORE_GUIDES,
   NO_ANSWER_EXAMPLES,
   PACKAGE_BLURBS,
@@ -27,6 +27,62 @@ import {
   REPORT_FIELDS,
   WHY_CARDS,
 } from "./content";
+
+function PathIcon({ kind }: { kind: "ai" | "human" | "hybrid" }) {
+  if (kind === "ai") {
+    // Phone + sound wave — recorded AI calls
+    return (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <path
+          d="M8.2 3.8c.5-.5 1.3-.5 1.8 0l1.3 1.3c.5.5.5 1.2.1 1.7l-.9 1.1c.9 1.8 2.3 3.2 4.1 4.1l1.1-.9c.5-.4 1.2-.4 1.7.1l1.3 1.3c.5.5.5 1.3 0 1.8l-1 1c-.6.6-1.4.8-2.2.6-2.4-.6-4.9-2.3-7.1-4.5S4.6 8.1 4 5.7c-.2-.8 0-1.6.6-2.2l1.6-1.7Z"
+          stroke="#C9A45C"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+        />
+        <path
+          d="M16.2 4.5v3.2M14.6 5.5v1.2M17.8 5.5v1.2"
+          stroke="#8A642E"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+  if (kind === "human") {
+    // Agent with headset — human desk
+    return (
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
+        <circle cx="12" cy="9" r="3" stroke="#8A642E" strokeWidth="1.6" />
+        <path
+          d="M5.8 19c.7-3 3-4.7 6.2-4.7s5.5 1.7 6.2 4.7"
+          stroke="#8A642E"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+        />
+        <path
+          d="M5.5 11.2a6.5 6.5 0 0 1 13 0"
+          stroke="#C9A45C"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+        <path
+          d="M5.5 11.2v2.2c0 .7.6 1.3 1.3 1.3h.4M18.5 11.2v2.2c0 .7-.6 1.3-1.3 1.3h-.4"
+          stroke="#C9A45C"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        />
+      </svg>
+    );
+  }
+  // Two gentle overlapping paths — hybrid
+  return (
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden>
+      <circle cx="8.2" cy="12" r="4.2" stroke="#8A642E" strokeWidth="1.6" />
+      <circle cx="15.8" cy="12" r="4.2" stroke="#C9A45C" strokeWidth="1.6" />
+      <path d="M10.2 12h3.6" stroke="#8A642E" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 const display = Frank_Ruhl_Libre({
   subsets: ["hebrew", "latin"],
@@ -494,8 +550,8 @@ export default function CallsMarketingPage() {
               כך נשמעת שיחת אישור הגעה אוטומטית
             </h2>
             <p className="mt-4 max-w-3xl text-lg leading-8 text-[#D8CBB8]">
-              האזינו לתסריט המבוסס על השיחה המוקלטת במערכת, ונסו את מקשי המענה בהדגמה. האודיו לא מופעל
-              אוטומטית עם פתיחת העמוד.
+              האזינו לקריינות דנה — אותו קול נשי שמוגדר בשיחות IVR של Invistimo — לפי תסריט המערכת
+              האמיתי. נסו גם את מקשי המענה בהדגמה. האודיו לא מופעל אוטומטית עם פתיחת העמוד.
             </p>
           </Reveal>
           <div className="mt-10">
@@ -593,12 +649,12 @@ export default function CallsMarketingPage() {
 
           <aside className="mt-10 rounded-[28px] border border-[#E6D2AA] bg-[#FFFDF8] p-6 md:p-8">
             <p className={`text-2xl font-bold text-[#2C241C] ${display.className}`}>
-              לרוב כדאי לשקול שילוב בין שיחות אוטומטיות למוקד אנושי — ולא לבחור בהכרח רק באחד מהם.
+              שלושה מסלולים לגיטימיים — בוחרים לפי האירוע
             </p>
             <p className="mt-4 max-w-3xl text-base leading-8 text-[#5C4A3A]">
-              שיחה מוקלטת יכולה להתאים לפנייה ראשונית לקבוצת אורחים שעדיין לא השיבו. מוקד אנושי יכול
-              להתאים להמשך טיפול במוזמנים שלא הגיבו, או במקרים שבהם דרוש בירור אישי. זו המלצת תכנון
-              אפשרית — לא הבטחה שכל חבילה כוללת את שני השירותים. במחשבון קיים גם מסלול משולב.
+              שיחות מוקלטות, מוקד אנושי או שילוב ביניהם הם שלוש אפשרויות שירות פעילות. אפשר לבחור
+              מסלול אחד בלבד או מסלול משולב — לפי מספר המוזמנים, אופי הקהל, התקציב ומידת הליווי
+              הרצויה.
             </p>
           </aside>
         </div>
@@ -821,24 +877,59 @@ export default function CallsMarketingPage() {
         </div>
       </section>
 
-      {/* 12. Mistakes */}
-      <section aria-labelledby="mistakes-title" className="bg-[#FFFDF8] px-5 py-20 md:px-8 md:py-28">
+      {/* 12. Call path cards */}
+      <section aria-labelledby="paths-title" className="bg-[#FFFDF8] px-5 py-20 md:px-8 md:py-28">
         <div className="mx-auto max-w-6xl">
           <Reveal>
-            <Eyebrow>טעויות נפוצות</Eyebrow>
-            <h2 id="mistakes-title" className={`mt-3 max-w-3xl text-3xl font-bold text-[#2C241C] md:text-4xl ${display.className}`}>
-              חמש טעויות שכדאי להימנע מהן באישורי הגעה טלפוניים
+            <Eyebrow>בוחרים את הדרך שמתאימה לכם</Eyebrow>
+            <h2 id="paths-title" className={`mt-3 max-w-3xl text-3xl font-bold text-[#2C241C] md:text-4xl ${display.className}`}>
+              איזה סוג של אישורי הגעה טלפוניים מתאים לאירוע שלכם?
             </h2>
+            <p className="mt-5 max-w-3xl text-lg leading-8 text-[#5C4A3A]">
+              יש אורחים שמעדיפים שיחה קצרה ופשוטה, ויש כאלה שנוח להם יותר לדבר עם נציג אנושי. ב־Invistimo
+              אפשר לבחור את סוג השיחות שמתאים לאירוע שלכם — או לשלב בין האפשרויות.
+            </p>
           </Reveal>
-          <ol className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {MISTAKES.map((m, i) => (
-              <li key={m.title} className="rounded-[24px] border border-[#E7D3B0] bg-[#FBF6EE] p-6">
-                <span className="text-xs font-black tracking-[0.16em] text-[#8A642E]">0{i + 1}</span>
-                <h3 className="mt-3 text-lg font-black text-[#2C241C]">{m.title}</h3>
-                <p className="mt-2 text-[15px] leading-7 text-[#5C4A3A]">{m.text}</p>
-              </li>
+          <div className="mt-12 grid gap-5 lg:grid-cols-3">
+            {CALL_PATH_CARDS.map((card) => (
+              <article
+                key={card.id}
+                className="flex h-full flex-col rounded-[28px] border border-[#E7D3B0] bg-[#FBF6EE] p-6 shadow-[0_14px_36px_rgba(44,36,28,0.05)] transition hover:border-[#C9A45C]"
+              >
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#2A211A]">
+                  <PathIcon kind={card.icon} />
+                </span>
+                <h3 className="mt-5 text-xl font-black leading-8 text-[#2C241C]">{card.title}</h3>
+                <p className="mt-3 text-[15px] leading-7 text-[#5C4A3A]">{card.body}</p>
+                <ul className="mt-5 space-y-2">
+                  {card.benefits.map((b) => (
+                    <li key={b} className="flex gap-2 text-sm leading-6 text-[#5C4A3A]">
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#C9A45C]" aria-hidden />
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-auto pt-5 text-sm font-bold text-[#8A642E]">{card.closing}</p>
+              </article>
             ))}
-          </ol>
+          </div>
+          <div className="mt-12 max-w-3xl">
+            <h3 className={`text-2xl font-bold text-[#2C241C] ${display.className}`}>
+              אז מה עדיף — שיחות מוקלטות או מוקד אנושי?
+            </h3>
+            <div className="mt-4 space-y-4 text-base leading-8 text-[#5C4A3A]">
+              <p>אין תשובה אחת שמתאימה לכל אירוע.</p>
+              <p>
+                שיחות מוקלטות מתאימות למי שרוצה תהליך אוטומטי ומובנה. מוקד אנושי מתאים למי שמעדיף קשר
+                אישי עם המוזמנים. שילוב ביניהם יכול להתאים כאשר רוצים להתחיל בתהליך אוטומטי ולהמשיך
+                בטיפול אישי במידת הצורך.
+              </p>
+              <p>
+                הבחירה תלויה במספר המוזמנים, באופי הקהל, בתקציב ובמידת הליווי הרצויה. שלושת המסלולים
+                זמינים בחבילות הפעילות במחשבון.
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -848,10 +939,12 @@ export default function CallsMarketingPage() {
           <Reveal>
             <Eyebrow>חבילות</Eyebrow>
             <h2 id="packages-title" className={`mt-3 max-w-3xl text-3xl font-bold text-[#2C241C] md:text-4xl ${display.className}`}>
-              איך בוחרים מסלול שיחות?
+              איך בוחרים את חבילת השיחות המתאימה לכם?
             </h2>
             <p className="mt-5 max-w-3xl text-lg leading-8 text-[#5C4A3A]">
-              חבילות השיחות כוללות גם את בסיס ההודעות. המחיר לפי מספר רשומות מופיע במחשבון — לא כאן.
+              כל חבילות השיחות של Invistimo כוללות גם שירות אישורי הגעה בהודעות. בחרו את סוג השיחות
+              המתאים לאירוע שלכם — שיחות מוקלטות, מוקד אנושי או שילוב ביניהם — וגלו במחשבון את המחיר
+              בהתאם למספר הרשומות ברשימת המוזמנים.
             </p>
           </Reveal>
           <div className="mt-10 grid gap-5 md:grid-cols-3">
