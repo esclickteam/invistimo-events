@@ -652,23 +652,25 @@ export default function ChatunaInvitationsPage() {
             ))}
           </ol>
 
-          <div className="mt-12 grid items-center gap-8 rounded-[28px] border border-[#E6D2AA] bg-[#17120E] p-6 text-[#F3E7D2] md:grid-cols-[1.1fr_0.9fr] md:p-8">
+          <div className="mt-12 grid items-center gap-8 rounded-[28px] border border-[#E6D2AA] bg-[#17120E] p-6 text-[#F3E7D2] md:grid-cols-[1.15fr_0.85fr] md:p-8">
             <div>
               <p className="text-sm font-bold tracking-[0.16em] text-[#E8D1A5]">מסע האורח</p>
-              <h3 className="mt-2 font-[family-name:var(--font-invite-display)] text-3xl">מההזמנה ועד לאישור ההגעה</h3>
+              <h3 className="mt-2 font-[family-name:var(--font-invite-display)] text-3xl text-[#F7F1E6]">
+                מההזמנה ועד לאישור ההגעה
+              </h3>
               <p className="mt-4 text-sm leading-7 text-[#D8C4A4] md:text-base">
                 סרטון אמיתי של מסע האורח במערכת: פתיחת הקישור, צפייה בהזמנה והמשך לאישור הגעה. אין כאן עורך תבניות
                 מדומה — זה תהליך השיתוף והאישור כפי שהוא עובד במוצר.
               </p>
             </div>
-            <div className="overflow-hidden rounded-[22px] border border-white/10 bg-black">
+            <div className="mx-auto w-full max-w-[280px] overflow-hidden rounded-[22px] border border-white/10 bg-black shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
               <video
                 src="/marketing/videos/hero-guest-journey.webm"
                 poster="/marketing/videos/hero-guest-journey-poster.jpg"
                 controls
                 playsInline
                 preload="none"
-                className="aspect-[9/16] h-auto w-full object-cover md:aspect-video"
+                className="aspect-[9/16] h-auto w-full object-cover"
               >
                 הסרטון אינו נתמך בדפדפן זה
               </video>
@@ -775,14 +777,14 @@ export default function ChatunaInvitationsPage() {
               לגלות איך עובדים אישורי ההגעה לחתונה
             </Link>
           </div>
-          <div className="overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-2xl">
+          <div className="mx-auto w-full max-w-[300px] overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-2xl">
             <video
               src="/marketing/videos/hero-guest-journey.webm"
               poster="/marketing/videos/hero-guest-journey-poster.jpg"
               controls
               playsInline
               preload="none"
-              className="aspect-[9/16] w-full object-cover"
+              className="aspect-[9/16] h-auto w-full object-cover"
             />
           </div>
         </div>
@@ -814,7 +816,7 @@ export default function ChatunaInvitationsPage() {
               </PhoneFrame>
             </div>
             <div className="rounded-[28px] border border-[#E6D2AA] bg-[#17120E] p-6 text-[#F3E7D2]">
-              <h3 className="font-[family-name:var(--font-invite-display)] text-2xl">אתר חתונה</h3>
+              <h3 className="font-[family-name:var(--font-invite-display)] text-2xl text-[#F7F1E6]">אתר חתונה</h3>
               <p className="mt-3 text-sm leading-7 text-[#D8C4A4]">
                 תבניות אתר מלאות עם סקשנים, גלריות ואנימציות — מסך נפרד מההזמנה לאישור.
               </p>
