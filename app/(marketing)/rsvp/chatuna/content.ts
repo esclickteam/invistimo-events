@@ -264,6 +264,7 @@ export const LINKS = {
   seating: "/seating-explained",
   whenToSend: "/info/guides/when-to-send-rsvp",
   noReply: "/info/guides/guests-who-dont-reply",
+  whatsappVsSms: "/info/guides/whatsapp-vs-sms-rsvp",
   mealWaste: "/info/guides/reduce-meal-waste",
   costGuide: "/info/guides/cost-rsvp-wedding",
   contact: "/contact",
