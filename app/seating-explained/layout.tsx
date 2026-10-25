@@ -89,6 +89,14 @@ export default function SeatingLayout({ children }: { children: React.ReactNode 
               <li key={item.label} className="rounded-2xl border border-[#E6D2AA] bg-white px-4 py-4">
                 <h3 className="font-black text-[#35281F]">{item.label}</h3>
                 <p className="mt-2 text-sm leading-6 text-[#5C4A3A]">{item.blurb}</p>
+                {item.label === "חינה" ? (
+                  <Link
+                    href="/rsvp/hina"
+                    className="mt-3 inline-flex text-sm font-bold text-[#8A672E] underline-offset-2 hover:underline"
+                  >
+                    לעמוד אישורי הגעה והושבה לחינה
+                  </Link>
+                ) : null}
               </li>
             ))}
           </ul>

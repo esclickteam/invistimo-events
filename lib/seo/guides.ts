@@ -39,6 +39,7 @@ export const GUIDES: Guide[] = [
     related: [
       { href: "/pricing", label: "מחירון ומחשבון חבילות" },
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/rsvp/hina", label: "אישורי הגעה לחינה" },
       { href: "/rsvp/save-the-date", label: "Save the Date" },
       { href: "/invitations/chatuna", label: "הזמנות דיגיטליות לחתונה" },
       { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
@@ -250,6 +251,13 @@ export const GUIDES: Guide[] = [
         a: "לא. זו תוספת במחשבון.",
       },
     ],
+    related: [
+      { href: "/seating-explained", label: "סידורי הושבה" },
+      { href: "/rsvp/hina", label: "אישורי הגעה והושבה לחינה" },
+      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },
+      { href: "/pricing", label: "חבילות ומחירים" },
+    ],
   },
   {
     slug: "save-the-date-vs-invitation",
@@ -382,6 +390,7 @@ export const GUIDES: Guide[] = [
     related: [
       { href: "/info/guides/cost-rsvp-wedding", label: "כמה עולים אישורי הגעה" },
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/rsvp/hina", label: "אישורי הגעה לחינה" },
       { href: "/rsvp/save-the-date", label: "Save the Date" },
       { href: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים להתחייב לאולם" },
       { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
@@ -402,6 +411,7 @@ export const GUIDES: Guide[] = [
     faqs: [],
     related: [
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/rsvp/hina", label: "אישורי הגעה לחינה" },
       { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
       { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "מה ההבדל בין הודעה שלא נמסרה לאורח שלא השיב?" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },

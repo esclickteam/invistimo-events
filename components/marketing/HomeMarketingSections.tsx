@@ -196,7 +196,7 @@ const EVENTS = [
     image: "/marketing/invites/invite-wedding-mia-alon.webp",
   },
   {
-    href: "/for/henna",
+    href: "/rsvp/hina",
     title: "חינה",
     body: "חגיגה של מסורת, משפחה ואנשים אהובים.",
     image: "/marketing/invites/invite-henna.webp",

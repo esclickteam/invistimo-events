@@ -228,6 +228,9 @@ export default function Footer() {
             <Link href="/rsvp/chatuna" className="transition hover:text-[#B8862D]">
               אישורי הגעה לחתונה
             </Link>
+            <Link href="/rsvp/hina" className="transition hover:text-[#B8862D]">
+              אישורי הגעה לחינה
+            </Link>
             <Link href="/rsvp/whatsapp" className="transition hover:text-[#B8862D]">
               אישורי הגעה בוואטסאפ
             </Link>
