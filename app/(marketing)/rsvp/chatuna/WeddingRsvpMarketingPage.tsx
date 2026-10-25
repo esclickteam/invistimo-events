@@ -334,9 +334,21 @@ function PhoneFrame({ children, className = "" }: { children: React.ReactNode; c
   );
 }
 
-function SectionEyebrow({ children }: { children: React.ReactNode }) {
+function SectionEyebrow({
+  children,
+  onDark = false,
+}: {
+  children: React.ReactNode;
+  onDark?: boolean;
+}) {
   return (
-    <p className="text-sm font-black tracking-[0.14em] text-[#A67C3D]">{children}</p>
+    <p
+      className={`text-sm font-black tracking-[0.14em] ${
+        onDark ? "text-[#E8C988]" : "text-[#7A5530]"
+      }`}
+    >
+      {children}
+    </p>
   );
 }
 
@@ -372,14 +384,9 @@ export default function WeddingRsvpMarketingPage() {
             variants={fadeUp}
             transition={{ duration: 0.75 }}
           >
-            <p className="font-[family-name:var(--font-heebo)] text-3xl font-black tracking-[-0.03em] text-[#2C241C] md:text-4xl">
-              Invistimo
-            </p>
-            <p className="mt-2 text-sm font-bold text-[#8A642E]">אישורי הגעה לחתונה</p>
-
             <h1
               id="wedding-rsvp-h1"
-              className="mt-5 max-w-2xl text-[2rem] font-black leading-[1.12] tracking-[-0.03em] text-[#2C241C] md:text-5xl md:leading-[1.1]"
+              className="max-w-2xl text-[2rem] font-black leading-[1.12] tracking-[-0.03em] text-[#2C241C] md:text-5xl md:leading-[1.1]"
             >
               אישורי הגעה לחתונה,{" "}
               <span className="bg-gradient-to-l from-[#B48A4A] via-[#D3B47C] to-[#84613A] bg-clip-text text-transparent">
@@ -506,7 +513,7 @@ export default function WeddingRsvpMarketingPage() {
           aria-hidden
         />
         <div className="relative mx-auto max-w-6xl">
-          <SectionEyebrow>חוויית האורח</SectionEyebrow>
+          <SectionEyebrow onDark>חוויית האורח</SectionEyebrow>
           <h2
             id="guest-journey-title"
             className="mt-3 max-w-3xl text-3xl font-black leading-[1.15] text-[#FFF8EF] md:text-4xl"
@@ -625,7 +632,7 @@ export default function WeddingRsvpMarketingPage() {
         className="bg-[#2C241C] px-5 py-20 text-[#F7F1E8] md:px-8 md:py-28"
       >
         <div className="mx-auto max-w-6xl">
-          <SectionEyebrow>השלמת תשובות</SectionEyebrow>
+          <SectionEyebrow onDark>השלמת תשובות</SectionEyebrow>
           <h2
             id="no-reply-title"
             className="mt-3 max-w-3xl text-3xl font-black leading-[1.15] text-[#FFF8EF] md:text-4xl"
@@ -848,7 +855,7 @@ export default function WeddingRsvpMarketingPage() {
         className="bg-[#1C1612] px-5 py-20 text-[#F7F1E8] md:px-8 md:py-28"
       >
         <div className="mx-auto max-w-6xl">
-          <SectionEyebrow>בחירת שירות</SectionEyebrow>
+          <SectionEyebrow onDark>בחירת שירות</SectionEyebrow>
           <h2
             id="packages-title"
             className="mt-3 max-w-3xl text-3xl font-black leading-[1.15] text-[#FFF8EF] md:text-4xl"
