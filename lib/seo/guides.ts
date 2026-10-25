@@ -442,10 +442,10 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/cost-rsvp-wedding", label: "כמה עולים אישורי הגעה" },
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { href: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים להתחייב לאולם" },
+      { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
       { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
       { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "איך המערכת מטפלת בהודעות שלא נמסרו?" },
-      { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
       { href: "/pricing", label: "חבילות" },
     ],
   },
@@ -484,7 +484,26 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
       { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
       { href: "/info/guides/reduce-meal-waste", label: "צמצום מנות מיותרות" },
+      { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
       { href: "/seating-explained", label: "סידורי הושבה" },
+    ],
+  },
+  {
+    // Dedicated UI: app/(marketing)/info/guides/wedding-alcohol-calculator/
+    slug: "wedding-alcohol-calculator",
+    title: "כמה אלכוהול לקנות לחתונה? מחשבון כמויות ועלויות",
+    description:
+      "כמה אלכוהול צריך לחתונה? מחשבון לתכנון משקאות, השוואת רכישה עצמאית מול חבילת האולם, דמי מזיגה והחזרת בקבוקים סגורים.",
+    h1: "כמה אלכוהול צריך לקנות לחתונה?",
+    lede: "מתכננים את הבר, בוחרים את המשקאות ומשווים עלויות — לפני שמוציאים כסף.",
+    sections: [],
+    faqs: [],
+    related: [
+      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/rsvp", label: "אישורי הגעה" },
+      { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
+      { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
+      { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות לאולם" },
     ],
   },
   {
