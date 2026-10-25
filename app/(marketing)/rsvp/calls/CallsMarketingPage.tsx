@@ -56,14 +56,17 @@ function Eyebrow({ children, onDark = false }: { children: ReactNode; onDark?: b
 
 function Reveal({ children, className = "" }: { children: ReactNode; className?: string }) {
   const reduce = useReducedMotion();
+  // Keep content visible without JS (SSR / crawlers / failed hydration).
+  // Motion only enhances after mount — never start at opacity 0.
   if (reduce) return <div className={className}>{children}</div>;
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, y: 20 }}
+      initial={false}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-60px" }}
+      viewport={{ once: true, amount: 0.12 }}
       transition={{ duration: 0.45, ease: "easeOut" }}
+      style={{ opacity: 1 }}
     >
       {children}
     </motion.div>
