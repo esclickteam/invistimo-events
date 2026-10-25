@@ -202,22 +202,28 @@ function GalleryModal({
 
 function HeroComposition({ reduce }: { reduce: boolean | null }) {
   return (
-    <div className="relative mx-auto h-[420px] w-full max-w-[460px] sm:h-[480px] md:h-[520px]">
-      <div className="absolute inset-x-[12%] top-8 bottom-10 rounded-[36px] bg-[radial-gradient(circle_at_top,#E8D4AF_0%,transparent_55%)] blur-2xl" />
+    <div className="relative mx-auto h-[380px] w-full max-w-[520px] sm:h-[460px] md:h-[540px]">
+      <div className="absolute inset-x-[8%] top-6 bottom-8 rounded-[36px] bg-[radial-gradient(circle_at_top,#E8D4AF_0%,transparent_55%)] blur-2xl" />
       <div
-        className={`absolute left-0 top-16 w-[46%] ${reduce ? "" : "invite-float"}`}
+        className={`absolute left-0 top-[18%] w-[42%] origin-bottom rotate-[-10deg] sm:w-[40%] ${
+          reduce ? "" : "invite-float"
+        }`}
         style={{ zIndex: 1 }}
       >
         <InvitationArt id="classic-ivory" compact className="shadow-2xl" />
       </div>
       <div
-        className={`absolute right-0 top-10 w-[46%] ${reduce ? "" : "invite-float-delayed"}`}
+        className={`absolute right-0 top-[12%] w-[42%] origin-bottom rotate-[10deg] sm:w-[40%] ${
+          reduce ? "" : "invite-float-delayed"
+        }`}
         style={{ zIndex: 2 }}
       >
         <InvitationArt id="botanical-elegance" compact animated={!reduce} className="shadow-2xl" />
       </div>
       <div
-        className={`absolute left-1/2 top-0 w-[52%] -translate-x-1/2 ${reduce ? "" : "invite-float-center"}`}
+        className={`absolute left-1/2 top-0 w-[48%] -translate-x-1/2 sm:w-[46%] ${
+          reduce ? "" : "invite-float-center"
+        }`}
         style={{ zIndex: 3 }}
       >
         <InvitationArt id="modern-editorial" compact className="shadow-[0_35px_80px_rgba(36,24,16,0.35)]" />
@@ -355,7 +361,7 @@ export default function ChatunaInvitationsPage() {
         <div className="absolute left-[6%] top-20 -z-10 h-56 w-56 rounded-full bg-[#D8B77C]/20 blur-3xl" />
         <div className="absolute bottom-8 right-[10%] -z-10 h-64 w-64 rounded-full bg-[#B59668]/15 blur-3xl" />
 
-        <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12">
           <motion.div initial="hidden" animate="visible" variants={fadeUp} transition={{ duration: 0.7 }}>
             <nav aria-label="מיקום בעמוד" className="mb-6 text-sm font-semibold text-[#7A6042]">
               <Link href="/" className="hover:text-[#8A642E]">
@@ -365,31 +371,31 @@ export default function ChatunaInvitationsPage() {
               <span>הזמנות דיגיטליות לחתונה</span>
             </nav>
 
-            <p className="mb-4 font-[family-name:var(--font-invite-display)] text-3xl text-[#8A642E] md:text-4xl">
+            <p className="mb-3 font-[family-name:var(--font-invite-display)] text-4xl text-[#8A642E] md:text-5xl">
               Invistimo
             </p>
 
-            <h1 className="font-[family-name:var(--font-invite-display)] text-4xl font-medium leading-[1.15] text-[#241E18] md:text-5xl lg:text-[3.35rem]">
+            <h1 className="font-[family-name:var(--font-invite-display)] text-[2rem] font-medium leading-[1.2] text-[#241E18] sm:text-4xl md:text-5xl lg:text-[3.2rem]">
               הזמנות דיגיטליות לחתונה, בעיצוב שמרגיש בדיוק כמוכם
             </h1>
 
-            <p className="mt-5 text-xl font-medium leading-9 text-[#5C4A38] md:text-2xl">
+            <p className="mt-4 text-lg font-medium leading-8 text-[#5C4A38] md:mt-5 md:text-2xl md:leading-9">
               הסיפור שלכם מתחיל הרבה לפני החופה. הוא מתחיל בהזמנה.
             </p>
 
-            <div className="mt-6 space-y-4 text-base leading-8 text-[#5C4A38] md:text-lg">
+            <div className="mt-5 space-y-4 text-base leading-8 text-[#5C4A38] md:mt-6 md:text-lg">
               <p>יש רגע שבו החתונה מתחילה להרגיש אמיתית: כשההזמנה הראשונה נשלחת.</p>
               <p>
                 עם Invistimo תוכלו לבחור הזמנה דיגיטלית לחתונה, להתאים אותה לסגנון שלכם ולשתף את הרגע המרגש עם האנשים
                 שאתם אוהבים.
               </p>
-              <p>
+              <p className="hidden sm:block">
                 מעיצוב מינימליסטי ואלגנטי ועד הזמנות עם פרחים, טקסטורות יוקרתיות ואנימציות עדינות — ההזמנה שלכם יכולה
                 להיות הרבה יותר מהודעה עם תאריך ומיקום.
               </p>
             </div>
 
-            <div className="mt-8 flex flex-wrap gap-3">
+            <div className="mt-7 flex flex-wrap gap-3 md:mt-8">
               <button type="button" onClick={scrollToGallery} className={primaryCta}>
                 לגלות את עיצובי ההזמנות
               </button>
@@ -403,9 +409,10 @@ export default function ChatunaInvitationsPage() {
             initial={{ opacity: 0, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.15 }}
+            className="order-first lg:order-none"
           >
             <HeroComposition reduce={reduce} />
-            <p className="mt-4 text-center text-xs font-semibold text-[#8A7458]">
+            <p className="mt-3 text-center text-xs font-semibold text-[#8A7458] sm:mt-4">
               שלוש השראות עיצוב · לא תבניות לבחירה אוטומטית במערכת
             </p>
           </motion.div>
