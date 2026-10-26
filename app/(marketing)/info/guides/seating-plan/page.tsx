@@ -18,7 +18,7 @@ const DESCRIPTION =
 const H1 = "איך מכינים סידורי הושבה לחתונה? מדריך מעשי צעד אחר צעד";
 
 const OG_SHARE = {
-  url: absoluteUrl("/images/rsvp/guides/wedding-planning/hall-tables.jpg"),
+  url: absoluteUrl("/images/rsvp/guides/unique-atmosphere/seating-plan-hall.jpg"),
   width: 1280,
   height: 720,
   alt: "שולחנות חתונה ערוכים באולם — מדריך מעשי להכנת סידורי הושבה",

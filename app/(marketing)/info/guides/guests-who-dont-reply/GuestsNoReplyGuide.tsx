@@ -3,6 +3,7 @@
 import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
+import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import { GUESTS_NO_REPLY_FAQS } from "./guideFaqs";
 
@@ -119,19 +120,30 @@ export default function GuestsNoReplyGuide() {
               </TrackedCtaLink>
             </div>
           </div>
-          <figure className="relative">
+          <figure className="relative space-y-4">
             <div className="overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#FFFDF8] shadow-[0_28px_70px_rgba(58,39,20,0.12)]">
               <Image
-                src="/images/rsvp/chatuna/dashboard-guests.jpg"
+                src="/images/marketing-captures/unique/module-guests-pending-filter.webp"
                 alt="מסך ניהול מוזמנים אמיתי ב־Invistimo עם סטטוסים: אישרו הגעה, לא מגיעים וממתינים לתשובה"
                 width={1200}
                 height={900}
-                className="h-auto w-full object-cover object-top"
+                className="h-auto w-full object-contain object-top"
                 priority
                 sizes="(max-width:1024px) 100vw, 46vw"
               />
             </div>
-            <figcaption className="mt-3 text-center text-sm text-[#7A6042]">
+            <div className="overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#1E1814]">
+              <PublicAutoplayVideo
+                src="/videos/marketing-captures/demo-guests-dashboard.webm"
+                poster="/videos/marketing-captures/demo-guests-dashboard-poster.jpg"
+                title="סרטון דמו — דשבורד מוזמנים עם סטטוסי אישור הגעה"
+                shellClassName="w-full"
+                className="aspect-[8/5] w-full"
+                expandable
+                frameBg="#1E1814"
+              />
+            </div>
+            <figcaption className="text-center text-sm text-[#7A6042]">
               סטטוסים אמיתיים במערכת: אישרו הגעה · לא מגיעים · ממתינים לתשובה
             </figcaption>
           </figure>
@@ -366,7 +378,7 @@ export default function GuestsNoReplyGuide() {
           </p>
           <div className="mt-10 overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-white shadow-[0_24px_60px_rgba(58,39,20,0.1)]">
             <Image
-              src="/images/rsvp/chatuna/dashboard-guests.jpg"
+              src="/images/marketing-captures/unique/module-guests-pending-filter.webp"
               alt="צילום מסך אמיתי של דשבורד מוזמנים ב־Invistimo עם סיכומי סטטוס אישורי הגעה"
               width={1400}
               height={1000}

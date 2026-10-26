@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import GuideToolbar from "@/components/marketing/guides/GuideToolbar";
+import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import CopyExamples from "./CopyExamples";
 import JourneyDemo from "./JourneyDemo";
 import PlanningCalculator from "./PlanningCalculator";
@@ -684,16 +685,14 @@ export default function SaveTheDateVsInvitationGuide() {
           </ol>
           <div className="mt-10 grid gap-6 lg:grid-cols-2">
             <figure className="overflow-hidden rounded-[24px] border border-[#E6D2AA] bg-[#1C1612]">
-              <video
-                className="aspect-video h-auto w-full object-cover"
+              <PublicAutoplayVideo
                 src="/marketing/videos/home-save-the-date.webm"
                 poster="/marketing/videos/home-save-the-date-poster.jpg"
-                controls
-                playsInline
-                preload="metadata"
-              >
-                סרטון הדגמת Save the Date
-              </video>
+                title="סרטון הדגמת Save the Date"
+                shellClassName="w-full"
+                className="aspect-video w-full"
+                frameBg="#1C1612"
+              />
               <figcaption className="px-4 py-3 text-center text-sm text-[#D8CBB8]">
                 הדגמת מותג · חוויית Save the Date בטלפון
               </figcaption>

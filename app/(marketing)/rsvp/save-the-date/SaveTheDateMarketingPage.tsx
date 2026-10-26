@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
+import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import { SAVE_THE_DATE_FAQS } from "./guideFaqs";
 
 const PATH = "/rsvp/save-the-date";
@@ -338,16 +339,14 @@ export default function SaveTheDateMarketingPage() {
           </div>
         </div>
         <div className="mx-auto mt-12 max-w-6xl overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#1C1612]">
-          <video
-            className="aspect-video h-auto w-full object-cover"
+          <PublicAutoplayVideo
             src={STD_VIDEO}
             poster={STD_POSTER}
-            controls
-            playsInline
-            preload="metadata"
-          >
-            סרטון הדגמת Save the Date
-          </video>
+            title="סרטון הדגמת Save the Date"
+            shellClassName="w-full"
+            className="aspect-video w-full"
+            frameBg="#1C1612"
+          />
           <p className="px-4 py-3 text-center text-sm text-[#D8CBB8]">
             סרטון הדגמה מהמותג — כך נראית חוויית Save the Date בטלפון
           </p>

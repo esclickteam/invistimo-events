@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Frank_Ruhl_Libre } from "next/font/google";
 import { motion, useReducedMotion } from "framer-motion";
+import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import GiftOptionsDemo from "./components/GiftOptionsDemo";
 import { CREDIT_GIFTS_FAQS, FAQ_TOPIC_IDS, FAQ_TOPICS } from "./creditGiftsFaqs";
 import {
@@ -212,6 +213,20 @@ export default function CreditGiftsMarketingPage() {
           >
             <GiftOptionsDemo />
           </motion.div>
+        </div>
+        <div className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#1E1814]">
+          <PublicAutoplayVideo
+            src={MEDIA.video}
+            poster={MEDIA.videoPoster}
+            title="המחשה — הצגת אפשרויות מתנה דיגיטליות (אשראי חיצוני, bit ו־PayBox)"
+            shellClassName="w-full"
+            className="aspect-video w-full"
+            expandable
+            frameBg="#1E1814"
+          />
+          <p className="border-t border-[#3A322C] bg-[#241E1A] px-5 py-3 text-sm font-semibold text-[#E8D5A3]">
+            Invistimo מציגה קישור/מספר שאתם מזינים — אינה סולקת כרטיסים ואינה מאמתת תשלומי bit או PayBox
+          </p>
         </div>
       </section>
 

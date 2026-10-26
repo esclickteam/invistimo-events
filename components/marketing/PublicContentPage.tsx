@@ -3,6 +3,7 @@ import Link from "next/link";
 import FactTableView from "@/components/seo/FactTableView";
 import JsonLd from "@/components/seo/JsonLd";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
+import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import { answerFor, tableFor, type FactTable } from "@/lib/seo/answers";
 import { clusterSiblings } from "@/lib/seo/clusters";
 import { EVENT_TYPES, EVENT_TYPE_SECTION } from "@/lib/seo/eventTypes";
@@ -394,15 +395,13 @@ function HeroMedia({ media }: { media: ContentMedia }) {
       <div className="relative rounded-[36px] border border-white/80 bg-gradient-to-br from-[#F8EFE1] via-[#FFFDF9] to-[#E7D7BF] p-[10px] shadow-[0_35px_95px_rgba(58,39,20,0.2)]">
         <div className="overflow-hidden rounded-[28px] border border-[#221811]/10 bg-[#17120E]">
           {media.type === "video" ? (
-            <video
+            <PublicAutoplayVideo
               src={media.src}
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="none"
-              controls
-              className={`h-full w-full object-cover ${isPhone ? "aspect-[9/16]" : "aspect-video"}`}
+              title={media.alt || media.caption || "סרטון הדגמה"}
+              poster={undefined}
+              shellClassName="w-full"
+              className={isPhone ? "aspect-[9/16] w-full" : "aspect-video w-full"}
+              frameBg="#17120E"
             />
           ) : (
             <Image

@@ -1,10 +1,10 @@
 "use client";
 
-import { useReducedMotion } from "framer-motion";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Link2, ListChecks, RefreshCw, Send } from "lucide-react";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
+import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import { WHATSAPP_RSVP_FAQS } from "./whatsappFaqs";
 
 const PATH = "/rsvp/whatsapp";
@@ -235,51 +235,20 @@ function QuietVideo({
   className?: string;
   onTime?: (t: number) => void;
 }) {
-  const reduceMotion = useReducedMotion();
-  const ref = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || reduceMotion) return;
-    el.play().catch(() => undefined);
-    if (!onTime) return;
-    const handler = () => onTime(el.currentTime);
-    el.addEventListener("timeupdate", handler);
-    return () => el.removeEventListener("timeupdate", handler);
-  }, [reduceMotion, onTime, src]);
-
-  if (reduceMotion && poster) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={poster} alt="" className={`h-full w-full object-cover object-top ${className || ""}`} loading="lazy" decoding="async" />
-    );
-  }
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   return (
-    <span className={`relative block h-full w-full overflow-hidden ${className || ""}`}>
-      {poster ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={poster}
-          alt=""
-          aria-hidden
-          className="absolute inset-0 h-full w-full object-cover object-top"
-          loading="eager"
-          decoding="async"
-        />
-      ) : null}
-      <video
-        ref={ref}
-        src={src}
-        poster={poster}
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        className="absolute inset-0 z-[1] h-full w-full object-cover object-top"
-        aria-label="הדגמת אישור הגעה ב־WhatsApp מתוך Invistimo"
-      />
-    </span>
+    <PublicAutoplayVideo
+      src={src}
+      poster={poster}
+      title="הדגמת אישור הגעה ב־WhatsApp מתוך Invistimo"
+      className={className || "aspect-[9/16] w-full"}
+      shellClassName="block h-full w-full"
+      eager
+      videoRef={videoRef}
+      onTimeUpdate={onTime}
+      frameBg="#0B0908"
+    />
   );
 }
 
@@ -305,14 +274,12 @@ function SyncedJourney() {
       {/* First in RTL = visual right: native portrait product video (never landscape crop) */}
       <div className="mx-auto w-full max-w-[min(100%,340px)]">
         <div className="relative overflow-hidden rounded-[32px] border border-white/10 bg-[#0B0908] shadow-[0_30px_80px_rgba(0,0,0,0.35)]">
-          <div className="aspect-[9/16] w-full">
-            <QuietVideo
-              src={JOURNEY_VIDEO.src}
-              poster={JOURNEY_VIDEO.poster}
-              className="h-full w-full"
-              onTime={setT}
-            />
-          </div>
+          <QuietVideo
+            src={JOURNEY_VIDEO.src}
+            poster={JOURNEY_VIDEO.poster}
+            className="aspect-[9/16] w-full"
+            onTime={setT}
+          />
           <p className="sr-only">
             סרטון אמיתי מתוך Invistimo: הודעת WhatsApp, פתיחת קישור אישי, הזמנה דיגיטלית, אישור הגעה
             ומסך תודה. האישור מתבצע בעמוד שנפתח מהקישור.
@@ -386,7 +353,7 @@ export default function WhatsappRsvpMarketingPage() {
               <QuietVideo
                 src={JOURNEY_VIDEO.src}
                 poster={JOURNEY_VIDEO.poster}
-                className="h-full w-full object-cover object-top"
+                className="aspect-[9/16] h-full w-full"
               />
             </PhoneFrame>
             <p className="mt-4 text-center text-sm font-semibold text-[#7A6042]">
@@ -477,7 +444,7 @@ export default function WhatsappRsvpMarketingPage() {
                 <QuietVideo
                   src={JOURNEY_VIDEO.src}
                   poster={JOURNEY_VIDEO.poster}
-                  className="h-full w-full object-cover object-top"
+                  className="aspect-[9/16] h-full w-full"
                 />
               </PhoneFrame>
             </div>

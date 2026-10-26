@@ -119,7 +119,7 @@ export default function VenueGuaranteeGuide() {
           <div className="relative">
             <figure className="overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#FFFDF8] shadow-[0_28px_70px_rgba(58,39,20,0.12)]">
               <Image
-                src="/images/rsvp/guides/venue-guarantee-hall.jpg"
+                src="/images/rsvp/guides/unique-atmosphere/venue-guarantee-hall.jpg"
                 alt="אולם חתונה יוקרתי ערוך עם שולחנות עגולים, מפות שמנת ומרכזי פרחים"
                 width={1280}
                 height={720}
@@ -343,7 +343,7 @@ export default function VenueGuaranteeGuide() {
           <figure>
             <div className="overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-white shadow-[0_24px_60px_rgba(58,39,20,0.1)]">
               <Image
-                src="/images/rsvp/chatuna/dashboard-guests.jpg"
+                src="/images/marketing-captures/unique/module-guests-overview.webp"
                 alt="צילום אמיתי של נתוני אישורי הגעה ב־Invistimo: מאשרים, לא מגיעים וממתינים"
                 width={1400}
                 height={1000}

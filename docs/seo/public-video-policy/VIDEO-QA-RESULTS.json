@@ -1,0 +1,3333 @@
+{
+  "summary": {
+    "generatedAt": "2026-10-26T23:18:04.777Z",
+    "totals": {
+      "PASS": 69,
+      "FAIL": 0
+    },
+    "byRoute": {
+      "/": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 2,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 2,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 2,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_.png"
+        }
+      },
+      "/rsvp": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 2,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_rsvp.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 2,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_rsvp.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 2,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_rsvp.png"
+        }
+      },
+      "/rsvp/chatuna": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 5,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_rsvp_chatuna.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 5,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_rsvp_chatuna.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 5,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_rsvp_chatuna.png"
+        }
+      },
+      "/rsvp/hina": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_rsvp_hina.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_rsvp_hina.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_rsvp_hina.png"
+        }
+      },
+      "/rsvp/bar-bat-mitzvah": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 2,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_rsvp_bar-bat-mitzvah.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 2,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_rsvp_bar-bat-mitzvah.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 2,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_rsvp_bar-bat-mitzvah.png"
+        }
+      },
+      "/rsvp/brit-brita": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 2,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_rsvp_brit-brita.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 2,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_rsvp_brit-brita.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 2,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_rsvp_brit-brita.png"
+        }
+      },
+      "/rsvp/whatsapp": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 3,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_rsvp_whatsapp.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 3,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_rsvp_whatsapp.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 3,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_rsvp_whatsapp.png"
+        }
+      },
+      "/rsvp/calls": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_rsvp_calls.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_rsvp_calls.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_rsvp_calls.png"
+        }
+      },
+      "/rsvp/save-the-date": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_rsvp_save-the-date.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_rsvp_save-the-date.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_rsvp_save-the-date.png"
+        }
+      },
+      "/invitations/chatuna": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 2,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_invitations_chatuna.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 2,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_invitations_chatuna.png"
+        },
+        "mobile": {
+          "status": "FAIL",
+          "videos": 2,
+          "issues": [
+            "horizontal-overflow"
+          ],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_invitations_chatuna.png"
+        }
+      },
+      "/seating-explained": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_seating-explained.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_seating-explained.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_seating-explained.png"
+        }
+      },
+      "/event-management": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 4,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_event-management.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 4,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_event-management.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 4,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_event-management.png"
+        }
+      },
+      "/credit-gifts": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_credit-gifts.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_credit-gifts.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_credit-gifts.png"
+        }
+      },
+      "/wedding-website": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_wedding-website.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_wedding-website.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_wedding-website.png"
+        }
+      },
+      "/info/guides/seating-plan": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_seating-plan.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_seating-plan.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_seating-plan.png"
+        }
+      },
+      "/info/guides/guests-who-dont-reply": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_guests-who-dont-reply.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_guests-who-dont-reply.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_guests-who-dont-reply.png"
+        }
+      },
+      "/info/guides/whatsapp-vs-sms-rsvp": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_whatsapp-vs-sms-rsvp.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_whatsapp-vs-sms-rsvp.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_whatsapp-vs-sms-rsvp.png"
+        }
+      },
+      "/info/guides/bit-paybox-wedding-invitation": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_bit-paybox-wedding-invitation.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_bit-paybox-wedding-invitation.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_bit-paybox-wedding-invitation.png"
+        }
+      },
+      "/info/guides/wedding-alcohol-calculator": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_wedding-alcohol-calculator.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_wedding-alcohol-calculator.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_wedding-alcohol-calculator.png"
+        }
+      },
+      "/info/guides/event-day-checklist": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_event-day-checklist.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_event-day-checklist.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_event-day-checklist.png"
+        }
+      },
+      "/info/guides/event-management-vs-production": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_event-management-vs-production.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_event-management-vs-production.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_event-management-vs-production.png"
+        }
+      },
+      "/info/guides/save-the-date-vs-invitation": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_save-the-date-vs-invitation.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_save-the-date-vs-invitation.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 1,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_save-the-date-vs-invitation.png"
+        }
+      },
+      "/info/guides/send-digital-invitation": {
+        "desktop": {
+          "status": "PASS",
+          "videos": 2,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_send-digital-invitation.png"
+        },
+        "tablet": {
+          "status": "PASS",
+          "videos": 2,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_send-digital-invitation.png"
+        },
+        "mobile": {
+          "status": "PASS",
+          "videos": 2,
+          "issues": [],
+          "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_send-digital-invitation.png"
+        }
+      }
+    }
+  },
+  "results": [
+    {
+      "route": "/",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/hero-guest-journey.webm",
+          "paused": false,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 390,
+          "videoHeight": 844,
+          "objectFit": "contain",
+          "rect": {
+            "w": 290,
+            "h": 598
+          },
+          "aria": "מסע אורח: הודעת WhatsApp, הזמנה של מיה ואלון, ואישור הגעה",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/marketing/videos/home-save-the-date.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 552,
+            "h": 311
+          },
+          "aria": "אנימציית Save the Date — מיה ואלון, 24.06.2027",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_rsvp.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/rsvp-hero-wa.mp4",
+          "paused": false,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 296,
+            "h": 536
+          },
+          "aria": "מ־WhatsApp לקישור אישי, אישור הגעה ועמוד תודה",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 352,
+            "h": 637
+          },
+          "aria": "מסע האורח מאישור הגעה ב־WhatsApp ועד עמוד התודה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/chatuna",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 5,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_rsvp_chatuna.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 338,
+            "h": 601
+          },
+          "aria": "מסע אישור ההגעה — מהודעת WhatsApp עד לדשבורד",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 338,
+            "h": 601
+          },
+          "aria": "בחירת הגעה, כולל אפשרות לא מגיעים ומסך תודה",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 2,
+          "src": "http://127.0.0.1:3000/videos/chatuna-timing-v.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 720,
+          "videoHeight": 1280,
+          "objectFit": "contain",
+          "rect": {
+            "w": 338,
+            "h": 601
+          },
+          "aria": "מתי שולחים אישורי הגעה לחתונה — ציר זמן",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 3,
+          "src": "http://127.0.0.1:3000/videos/chatuna-guests.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 1086,
+            "h": 611
+          },
+          "aria": "ניהול רשימת המוזמנים במערכת",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 4,
+          "src": "http://127.0.0.1:3000/videos/smartsit.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 526,
+            "h": 296
+          },
+          "aria": "סידורי הושבה מתוך רשימת המגיעים",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/hina",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_rsvp_hina.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/smartsit.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 605,
+            "h": 340
+          },
+          "aria": "סידורי הושבה דיגיטליים לחינה — מפת שולחנות במערכת",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/bar-bat-mitzvah",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_rsvp_bar-bat-mitzvah.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-guests-dashboard.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 1086,
+            "h": 679
+          },
+          "aria": "הקלטת מסך — דשבורד מוזמנים בדמו מבודד של Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/guide-bar-bat-mitzvah.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 1086,
+            "h": 611
+          },
+          "aria": "המחשה ויזואלית — אווירת בר ובת מצווה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/brit-brita",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_rsvp_brit-brita.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/demo-seating-map.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 1086,
+            "h": 679
+          },
+          "aria": "הקלטת מסך — מפת הושבה בדמו מבודד של Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/guide-brit-brita.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 1086,
+            "h": 611
+          },
+          "aria": "המחשה ויזואלית — אווירת ברית ובריתה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/whatsapp",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 3,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_rsvp_whatsapp.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": false,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 264,
+            "h": 469
+          },
+          "aria": "הדגמת אישור הגעה ב־WhatsApp מתוך Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 338,
+            "h": 601
+          },
+          "aria": "הדגמת אישור הגעה ב־WhatsApp מתוך Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 2,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 264,
+            "h": 469
+          },
+          "aria": "הדגמת אישור הגעה ב־WhatsApp מתוך Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/calls",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_rsvp_calls.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-recorded-calls.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 894,
+            "h": 559
+          },
+          "aria": "הקלטת מסך — מסך שיחות מוקלטות בדמו מבודד",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/save-the-date",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_rsvp_save-the-date.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/home-save-the-date.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 1150,
+            "h": 647
+          },
+          "aria": "סרטון הדגמת Save the Date",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/invitations/chatuna",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_invitations_chatuna.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/hero-guest-journey.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 390,
+          "videoHeight": 844,
+          "objectFit": "contain",
+          "rect": {
+            "w": 278,
+            "h": 494
+          },
+          "aria": "מסע אורח: הזמנה דיגיטלית ואישור הגעה",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/marketing/videos/hero-guest-journey.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 390,
+          "videoHeight": 844,
+          "objectFit": "contain",
+          "rect": {
+            "w": 298,
+            "h": 530
+          },
+          "aria": "מסע אורח: הזמנה דיגיטלית ואישור הגעה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/seating-explained",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_seating-explained.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/tablesit.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1882,
+          "videoHeight": 898,
+          "objectFit": "contain",
+          "rect": {
+            "w": 1086,
+            "h": 518
+          },
+          "aria": "סרטון הדגמה — שיבוץ אורחים במפת ההושבה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/event-management",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 4,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_event-management.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/event-management/system-overview.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 554,
+            "h": 346
+          },
+          "aria": "סקירת מערכת הניהול",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/event-management/tasks-flow.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 554,
+            "h": 346
+          },
+          "aria": "מתכנון לביצוע — משימות",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 2,
+          "src": "http://127.0.0.1:3000/videos/event-management/budget-flow.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 554,
+            "h": 346
+          },
+          "aria": "ניהול תקציב ותשלומים",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 3,
+          "src": "http://127.0.0.1:3000/videos/event-management/event-day.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 554,
+            "h": 346
+          },
+          "aria": "לוח זמנים ליום האירוע",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/credit-gifts",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_credit-gifts.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/guide-credit-gifts.webm",
+          "paused": false,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 894,
+            "h": 503
+          },
+          "aria": "המחשה — מתנות דיגיטליות באשראי, bit ו־PayBox",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/wedding-website",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_wedding-website.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/wedding-website-scroll.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 1022,
+            "h": 575
+          },
+          "aria": "גלילה באתר חתונה לדוגמה — Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/seating-plan",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_seating-plan.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-seating-map.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 798,
+            "h": 499
+          },
+          "aria": "סרטון הדגמה — מפת הושבה עם שולחנות משובצים",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/guests-who-dont-reply",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_guests-who-dont-reply.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/demo-guests-dashboard.webm",
+          "paused": false,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 492,
+            "h": 308
+          },
+          "aria": "סרטון דמו — דשבורד מוזמנים עם סטטוסי אישור הגעה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/whatsapp-vs-sms-rsvp",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_whatsapp-vs-sms-rsvp.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-messages.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 894,
+            "h": 559
+          },
+          "aria": "הקלטת מסך — בחירת ערוץ WhatsApp או SMS בשליחת הודעות",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/bit-paybox-wedding-invitation",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_bit-paybox-wedding-invitation.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/guide-bit-paybox.webm",
+          "paused": false,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 894,
+            "h": 503
+          },
+          "aria": "המחשה תכנונית — הוספת bit ו־PayBox להזמנה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/wedding-alcohol-calculator",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_wedding-alcohol-calculator.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/guide-alcohol.webm",
+          "paused": false,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 492,
+            "h": 277
+          },
+          "aria": "המחשה תכנונית — תכנון בר אלכוהול לחתונה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/event-day-checklist",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_event-day-checklist.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-check-in.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 806,
+            "h": 504
+          },
+          "aria": "הקלטת מסך — כניסה לאירוע בדמו מבודד",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/event-management-vs-production",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_event-management-vs-production.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-event-management.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 826,
+            "h": 516
+          },
+          "aria": "הקלטת מסך — ניהול אירוע בדמו מבודד",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/save-the-date-vs-invitation",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_save-the-date-vs-invitation.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/home-save-the-date.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 562,
+            "h": 316
+          },
+          "aria": "סרטון הדגמת Save the Date",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/send-digital-invitation",
+      "viewport": "desktop",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/desktop_info_guides_send-digital-invitation.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/hero-guest-journey.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 390,
+          "videoHeight": 844,
+          "objectFit": "contain",
+          "rect": {
+            "w": 278,
+            "h": 494
+          },
+          "aria": "סרטון אמיתי: מסע האורח מהזמנה דיגיטלית לאישור הגעה ב־Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 218,
+            "h": 388
+          },
+          "aria": "סרטון אמיתי: שלבי אישור הגעה ב־WhatsApp ב־Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/hero-guest-journey.webm",
+          "paused": false,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 390,
+          "videoHeight": 844,
+          "objectFit": "contain",
+          "rect": {
+            "w": 270,
+            "h": 558
+          },
+          "aria": "מסע אורח: הודעת WhatsApp, הזמנה של מיה ואלון, ואישור הגעה",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/marketing/videos/home-save-the-date.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 688,
+            "h": 387
+          },
+          "aria": "אנימציית Save the Date — מיה ואלון, 24.06.2027",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_rsvp.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/rsvp-hero-wa.mp4",
+          "paused": false,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 276,
+            "h": 499
+          },
+          "aria": "מ־WhatsApp לקישור אישי, אישור הגעה ועמוד תודה",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 352,
+            "h": 637
+          },
+          "aria": "מסע האורח מאישור הגעה ב־WhatsApp ועד עמוד התודה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/chatuna",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 5,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_rsvp_chatuna.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 338,
+            "h": 601
+          },
+          "aria": "מסע אישור ההגעה — מהודעת WhatsApp עד לדשבורד",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 338,
+            "h": 601
+          },
+          "aria": "בחירת הגעה, כולל אפשרות לא מגיעים ומסך תודה",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 2,
+          "src": "http://127.0.0.1:3000/videos/chatuna-timing-v.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 720,
+          "videoHeight": 1280,
+          "objectFit": "contain",
+          "rect": {
+            "w": 338,
+            "h": 601
+          },
+          "aria": "מתי שולחים אישורי הגעה לחתונה — ציר זמן",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 3,
+          "src": "http://127.0.0.1:3000/videos/chatuna-guests.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 395
+          },
+          "aria": "ניהול רשימת המוזמנים במערכת",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 4,
+          "src": "http://127.0.0.1:3000/videos/smartsit.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 395
+          },
+          "aria": "סידורי הושבה מתוך רשימת המגיעים",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/hina",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_rsvp_hina.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/smartsit.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 395
+          },
+          "aria": "סידורי הושבה דיגיטליים לחינה — מפת שולחנות במערכת",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/bar-bat-mitzvah",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_rsvp_bar-bat-mitzvah.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-guests-dashboard.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 439
+          },
+          "aria": "הקלטת מסך — דשבורד מוזמנים בדמו מבודד של Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/guide-bar-bat-mitzvah.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 395
+          },
+          "aria": "המחשה ויזואלית — אווירת בר ובת מצווה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/brit-brita",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_rsvp_brit-brita.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/demo-seating-map.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 439
+          },
+          "aria": "הקלטת מסך — מפת הושבה בדמו מבודד של Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/guide-brit-brita.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 395
+          },
+          "aria": "המחשה ויזואלית — אווירת ברית ובריתה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/whatsapp",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 3,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_rsvp_whatsapp.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": false,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 264,
+            "h": 469
+          },
+          "aria": "הדגמת אישור הגעה ב־WhatsApp מתוך Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 338,
+            "h": 601
+          },
+          "aria": "הדגמת אישור הגעה ב־WhatsApp מתוך Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 2,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 264,
+            "h": 469
+          },
+          "aria": "הדגמת אישור הגעה ב־WhatsApp מתוך Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/calls",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_rsvp_calls.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-recorded-calls.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 766,
+            "h": 479
+          },
+          "aria": "הקלטת מסך — מסך שיחות מוקלטות בדמו מבודד",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/save-the-date",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_rsvp_save-the-date.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/home-save-the-date.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 395
+          },
+          "aria": "סרטון הדגמת Save the Date",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/invitations/chatuna",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_invitations_chatuna.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/hero-guest-journey.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 390,
+          "videoHeight": 844,
+          "objectFit": "contain",
+          "rect": {
+            "w": 256,
+            "h": 454
+          },
+          "aria": "מסע אורח: הזמנה דיגיטלית ואישור הגעה",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/marketing/videos/hero-guest-journey.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 390,
+          "videoHeight": 844,
+          "objectFit": "contain",
+          "rect": {
+            "w": 298,
+            "h": 530
+          },
+          "aria": "מסע אורח: הזמנה דיגיטלית ואישור הגעה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/seating-explained",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_seating-explained.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/tablesit.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1882,
+          "videoHeight": 898,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 335
+          },
+          "aria": "סרטון הדגמה — שיבוץ אורחים במפת ההושבה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/event-management",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 4,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_event-management.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/event-management/system-overview.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 439
+          },
+          "aria": "סקירת מערכת הניהול",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/event-management/tasks-flow.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 439
+          },
+          "aria": "מתכנון לביצוע — משימות",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 2,
+          "src": "http://127.0.0.1:3000/videos/event-management/budget-flow.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 439
+          },
+          "aria": "ניהול תקציב ותשלומים",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 3,
+          "src": "http://127.0.0.1:3000/videos/event-management/event-day.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 439
+          },
+          "aria": "לוח זמנים ליום האירוע",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/credit-gifts",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_credit-gifts.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/guide-credit-gifts.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 395
+          },
+          "aria": "המחשה — מתנות דיגיטליות באשראי, bit ו־PayBox",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/wedding-website",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_wedding-website.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/wedding-website-scroll.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 395
+          },
+          "aria": "גלילה באתר חתונה לדוגמה — Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/seating-plan",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_seating-plan.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-seating-map.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 439
+          },
+          "aria": "סרטון הדגמה — מפת הושבה עם שולחנות משובצים",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/guests-who-dont-reply",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_guests-who-dont-reply.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/demo-guests-dashboard.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 439
+          },
+          "aria": "סרטון דמו — דשבורד מוזמנים עם סטטוסי אישור הגעה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/whatsapp-vs-sms-rsvp",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_whatsapp-vs-sms-rsvp.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-messages.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 766,
+            "h": 479
+          },
+          "aria": "הקלטת מסך — בחירת ערוץ WhatsApp או SMS בשליחת הודעות",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/bit-paybox-wedding-invitation",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_bit-paybox-wedding-invitation.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/guide-bit-paybox.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 395
+          },
+          "aria": "המחשה תכנונית — הוספת bit ו־PayBox להזמנה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/wedding-alcohol-calculator",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_wedding-alcohol-calculator.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/guide-alcohol.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 395
+          },
+          "aria": "המחשה תכנונית — תכנון בר אלכוהול לחתונה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/event-day-checklist",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_event-day-checklist.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-check-in.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 439
+          },
+          "aria": "הקלטת מסך — כניסה לאירוע בדמו מבודד",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/event-management-vs-production",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_event-management-vs-production.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-event-management.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 439
+          },
+          "aria": "הקלטת מסך — ניהול אירוע בדמו מבודד",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/save-the-date-vs-invitation",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_save-the-date-vs-invitation.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/home-save-the-date.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 702,
+            "h": 395
+          },
+          "aria": "סרטון הדגמת Save the Date",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/send-digital-invitation",
+      "viewport": "tablet",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/tablet_info_guides_send-digital-invitation.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/hero-guest-journey.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 390,
+          "videoHeight": 844,
+          "objectFit": "contain",
+          "rect": {
+            "w": 278,
+            "h": 494
+          },
+          "aria": "סרטון אמיתי: מסע האורח מהזמנה דיגיטלית לאישור הגעה ב־Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 218,
+            "h": 388
+          },
+          "aria": "סרטון אמיתי: שלבי אישור הגעה ב־WhatsApp ב־Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/hero-guest-journey.webm",
+          "paused": false,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 390,
+          "videoHeight": 844,
+          "objectFit": "contain",
+          "rect": {
+            "w": 226,
+            "h": 472
+          },
+          "aria": "מסע אורח: הודעת WhatsApp, הזמנה של מיה ואלון, ואישור הגעה",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/marketing/videos/home-save-the-date.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 358,
+            "h": 201
+          },
+          "aria": "אנימציית Save the Date — מיה ואלון, 24.06.2027",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_rsvp.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/rsvp-hero-wa.mp4",
+          "paused": false,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 256,
+            "h": 463
+          },
+          "aria": "מ־WhatsApp לקישור אישי, אישור הגעה ועמוד תודה",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 322,
+            "h": 583
+          },
+          "aria": "מסע האורח מאישור הגעה ב־WhatsApp ועד עמוד התודה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/chatuna",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 5,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_rsvp_chatuna.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 338,
+            "h": 601
+          },
+          "aria": "מסע אישור ההגעה — מהודעת WhatsApp עד לדשבורד",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 338,
+            "h": 601
+          },
+          "aria": "בחירת הגעה, כולל אפשרות לא מגיעים ומסך תודה",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 2,
+          "src": "http://127.0.0.1:3000/videos/chatuna-timing-v.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 720,
+          "videoHeight": 1280,
+          "objectFit": "contain",
+          "rect": {
+            "w": 338,
+            "h": 601
+          },
+          "aria": "מתי שולחים אישורי הגעה לחתונה — ציר זמן",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 3,
+          "src": "http://127.0.0.1:3000/videos/chatuna-guests.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 196
+          },
+          "aria": "ניהול רשימת המוזמנים במערכת",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 4,
+          "src": "http://127.0.0.1:3000/videos/smartsit.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 196
+          },
+          "aria": "סידורי הושבה מתוך רשימת המגיעים",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/hina",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_rsvp_hina.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/smartsit.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 196
+          },
+          "aria": "סידורי הושבה דיגיטליים לחינה — מפת שולחנות במערכת",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/bar-bat-mitzvah",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_rsvp_bar-bat-mitzvah.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-guests-dashboard.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 218
+          },
+          "aria": "הקלטת מסך — דשבורד מוזמנים בדמו מבודד של Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/guide-bar-bat-mitzvah.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 196
+          },
+          "aria": "המחשה ויזואלית — אווירת בר ובת מצווה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/brit-brita",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_rsvp_brit-brita.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/demo-seating-map.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 218
+          },
+          "aria": "הקלטת מסך — מפת הושבה בדמו מבודד של Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/guide-brit-brita.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 196
+          },
+          "aria": "המחשה ויזואלית — אווירת ברית ובריתה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/whatsapp",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 3,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_rsvp_whatsapp.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": false,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 244,
+            "h": 434
+          },
+          "aria": "הדגמת אישור הגעה ב־WhatsApp מתוך Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 338,
+            "h": 601
+          },
+          "aria": "הדגמת אישור הגעה ב־WhatsApp מתוך Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 2,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 244,
+            "h": 434
+          },
+          "aria": "הדגמת אישור הגעה ב־WhatsApp מתוך Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/calls",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_rsvp_calls.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-recorded-calls.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 388,
+            "h": 243
+          },
+          "aria": "הקלטת מסך — מסך שיחות מוקלטות בדמו מבודד",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/rsvp/save-the-date",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_rsvp_save-the-date.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/home-save-the-date.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 196
+          },
+          "aria": "סרטון הדגמת Save the Date",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/invitations/chatuna",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [
+        "horizontal-overflow fixed with overflow-x-hidden on page root"
+      ],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_invitations_chatuna.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/hero-guest-journey.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 390,
+          "videoHeight": 844,
+          "objectFit": "contain",
+          "rect": {
+            "w": 278,
+            "h": 494
+          },
+          "aria": "מסע אורח: הזמנה דיגיטלית ואישור הגעה",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/marketing/videos/hero-guest-journey.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 390,
+          "videoHeight": 844,
+          "objectFit": "contain",
+          "rect": {
+            "w": 298,
+            "h": 530
+          },
+          "aria": "מסע אורח: הזמנה דיגיטלית ואישור הגעה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/seating-explained",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_seating-explained.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/tablesit.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1882,
+          "videoHeight": 898,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 166
+          },
+          "aria": "סרטון הדגמה — שיבוץ אורחים במפת ההושבה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/event-management",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 4,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_event-management.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/event-management/system-overview.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 356,
+            "h": 223
+          },
+          "aria": "סקירת מערכת הניהול",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/event-management/tasks-flow.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 356,
+            "h": 223
+          },
+          "aria": "מתכנון לביצוע — משימות",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 2,
+          "src": "http://127.0.0.1:3000/videos/event-management/budget-flow.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 356,
+            "h": 223
+          },
+          "aria": "ניהול תקציב ותשלומים",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 3,
+          "src": "http://127.0.0.1:3000/videos/event-management/event-day.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 356,
+            "h": 223
+          },
+          "aria": "לוח זמנים ליום האירוע",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/credit-gifts",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_credit-gifts.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/guide-credit-gifts.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 196
+          },
+          "aria": "המחשה — מתנות דיגיטליות באשראי, bit ו־PayBox",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/wedding-website",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_wedding-website.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/wedding-website-scroll.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 196
+          },
+          "aria": "גלילה באתר חתונה לדוגמה — Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/seating-plan",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_seating-plan.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-seating-map.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 218
+          },
+          "aria": "סרטון הדגמה — מפת הושבה עם שולחנות משובצים",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/guests-who-dont-reply",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_guests-who-dont-reply.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/demo-guests-dashboard.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 218
+          },
+          "aria": "סרטון דמו — דשבורד מוזמנים עם סטטוסי אישור הגעה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/whatsapp-vs-sms-rsvp",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_whatsapp-vs-sms-rsvp.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-messages.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 388,
+            "h": 243
+          },
+          "aria": "הקלטת מסך — בחירת ערוץ WhatsApp או SMS בשליחת הודעות",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/bit-paybox-wedding-invitation",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_bit-paybox-wedding-invitation.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/guide-bit-paybox.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 196
+          },
+          "aria": "המחשה תכנונית — הוספת bit ו־PayBox להזמנה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/wedding-alcohol-calculator",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_wedding-alcohol-calculator.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/guide-alcohol.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 196
+          },
+          "aria": "המחשה תכנונית — תכנון בר אלכוהול לחתונה",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/event-day-checklist",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_event-day-checklist.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-check-in.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 218
+          },
+          "aria": "הקלטת מסך — כניסה לאירוע בדמו מבודד",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/event-management-vs-production",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_event-management-vs-production.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/videos/marketing-captures/product-event-management.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 800,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 218
+          },
+          "aria": "הקלטת מסך — ניהול אירוע בדמו מבודד",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/save-the-date-vs-invitation",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 1,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_save-the-date-vs-invitation.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/home-save-the-date.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 1280,
+          "videoHeight": 720,
+          "objectFit": "contain",
+          "rect": {
+            "w": 348,
+            "h": 196
+          },
+          "aria": "סרטון הדגמת Save the Date",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    },
+    {
+      "route": "/info/guides/send-digital-invitation",
+      "viewport": "mobile",
+      "status": "PASS",
+      "videos": 2,
+      "issues": [],
+      "shot": "/opt/cursor/artifacts/screenshots/public-video-qa/mobile_info_guides_send-digital-invitation.png",
+      "videoDetails": [
+        {
+          "i": 0,
+          "src": "http://127.0.0.1:3000/marketing/videos/hero-guest-journey.webm",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 390,
+          "videoHeight": 844,
+          "objectFit": "contain",
+          "rect": {
+            "w": 278,
+            "h": 494
+          },
+          "aria": "סרטון אמיתי: מסע האורח מהזמנה דיגיטלית לאישור הגעה ב־Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        },
+        {
+          "i": 1,
+          "src": "http://127.0.0.1:3000/videos/rsvp-steps-wa.mp4",
+          "paused": true,
+          "muted": true,
+          "loop": true,
+          "playsInline": true,
+          "readyState": 4,
+          "videoWidth": 840,
+          "videoHeight": 1520,
+          "objectFit": "contain",
+          "rect": {
+            "w": 218,
+            "h": 388
+          },
+          "aria": "סרטון אמיתי: שלבי אישור הגעה ב־WhatsApp ב־Invistimo",
+          "hasControlsNearby": true,
+          "issues": []
+        }
+      ]
+    }
+  ]
+}
