@@ -23,7 +23,7 @@ const ctaSecondary =
   "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
 
 const TOC: TocItem[] = [
-  { id: "answer", label: "תשובה קצרה" },
+  { id: "answer", label: "מבוא" },
   { id: "when-to-start", label: "מתי מתחילים" },
   { id: "three-numbers", label: "מוזמנים ומאשרים" },
   { id: "ten-percent", label: "האם 10%?" },
@@ -131,10 +131,7 @@ function Prose({ children }: { children: React.ReactNode }) {
 
 function DirectAnswer({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mt-5 rounded-[22px] border border-[#E7D3B0] bg-[#FFF8EA] px-5 py-4 text-[15px] font-semibold leading-7 text-[#3F3025] md:text-base">
-      <span className="font-black text-[#2C241C]">תשובה ישירה: </span>
-      {children}
-    </div>
+    <p className="mt-5 text-base font-semibold leading-8 text-[#3F3025] md:text-lg">{children}</p>
   );
 }
 
@@ -237,9 +234,8 @@ export default function WeddingSeatingGuide() {
         <StickyToc items={TOC} />
 
         <div className="min-w-0 space-y-16 md:space-y-20">
-          {/* 1 Direct answer */}
           <section id="answer" className="scroll-mt-24" aria-labelledby="answer-h">
-            <Eyebrow>תקציר</Eyebrow>
+            <Eyebrow>מבוא</Eyebrow>
             <h2 id="answer-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               האם כדאי למלא את כל השולחנות?
             </h2>

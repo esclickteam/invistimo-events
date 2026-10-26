@@ -94,8 +94,8 @@ for (const p of MARKETING) {
     const hasH1 = /<h1[\s>]/i.test(text);
     const canonical = (text.match(/rel=["']canonical["'][^>]*href=["']([^"']+)["']/i) ||
       text.match(/href=["']([^"']+)["'][^>]*rel=["']canonical["']/i) || [])[1] || "";
-    const answer = /התשובה הקצרה/.test(text);
-    const ok = status === 200 && hasH1 && title.length > 0;
+    const legacyAnswerChrome = /התשובה הקצרה/.test(text);
+    const ok = status === 200 && hasH1 && title.length > 0 && !legacyAnswerChrome;
     if (!ok) fails += 1;
     rows.push({
       group: "marketing",
@@ -104,7 +104,7 @@ for (const p of MARKETING) {
       title,
       hasH1,
       canonical,
-      answerFirst: answer,
+      legacyAnswerChrome,
       result: ok ? "PASS" : "FAIL",
     });
     console.log(ok ? "PASS" : "FAIL", status, p, title.slice(0, 60));

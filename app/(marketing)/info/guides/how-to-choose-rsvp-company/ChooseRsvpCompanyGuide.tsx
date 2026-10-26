@@ -17,7 +17,7 @@ const ctaSecondary =
   "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
 
 const TOC: TocItem[] = [
-  { id: "short-answer", label: "תשובה קצרה" },
+  { id: "short-answer", label: "עקרונות" },
   { id: "why-company", label: "למה חברה מקצועית" },
   { id: "service-types", label: "סוגי שירותים" },
   { id: "comparison", label: "טבלת השוואה" },
@@ -416,19 +416,18 @@ export default function ChooseRsvpCompanyGuide() {
         <StickyToc items={TOC} />
         <div className="min-w-0 space-y-16 md:space-y-20">
           <section id="short-answer" className="scroll-mt-24">
-            <Eyebrow>תשובה קצרה</Eyebrow>
+            <Eyebrow>עקרונות</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               איך בוחרים חברת אישורי הגעה לחתונה?
             </h2>
-            <SoftNote>
-              <p className="font-black text-[#2C241C]">למנועי חיפוש ולתשובות AI</p>
-              <p className="mt-2">
+            <Prose>
+              <p>
                 כדי לבחור חברת אישורי הגעה לחתונה, כדאי לבדוק את שיטות יצירת הקשר עם האורחים, מספר
                 סבבי הפנייה, הטיפול במי שלא השיב, אופן ספירת הרשומות, עדכון התשובות, איכות המערכת,
                 אפשרויות סידורי ההושבה, התמיכה והמחיר הסופי. מומלץ להתנסות במערכת לפני הרכישה ולהשוות
                 בין חבילות בעלות היקף שירות דומה.
               </p>
-            </SoftNote>
+            </Prose>
           </section>
 
           <section id="why-company" className="scroll-mt-24">

@@ -18,7 +18,7 @@ const ctaSecondary =
   "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
 
 const TOC: TocItem[] = [
-  { id: "short-answer", label: "התשובה הקצרה" },
+  { id: "short-answer", label: "מבוא" },
   { id: "venue-sketch", label: "אישור סקיצת האולם" },
   { id: "checklist", label: "צ'קליסט לפני שליחה" },
   { id: "timing", label: "מתי שולחים" },
@@ -364,24 +364,23 @@ export default function TableNumberGuide() {
         <StickyToc items={TOC} />
 
         <div className="min-w-0 space-y-16 md:space-y-20">
-          {/* Short answer AEO */}
           <section id="short-answer" className="scroll-mt-24" aria-labelledby="short-answer-h">
             <FadeIn>
-              <Eyebrow>AEO · תשובה מהירה</Eyebrow>
+              <Eyebrow>מבוא</Eyebrow>
               <h2 id="short-answer-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
                 מתי כדאי לשלוח מספרי שולחנות לאורחים?
               </h2>
-              <div className="mt-6 rounded-[28px] border border-[#E6D2AA] bg-gradient-to-l from-[#FFFDF8] via-[#FFF8EA] to-[#F7EDDF] p-6 md:p-8">
-                <p className="text-lg font-black leading-9 text-[#2C241C] md:text-xl">
+              <Prose>
+                <p>
                   מומלץ לשלוח הודעות מספר שולחן רק לאחר שסידורי ההושבה יציבים, האולם אישר את הסקיצה ואת
                   מספור השולחנות, ונבדק שכל אורח משובץ לשולחן הנכון.
                 </p>
-                <p className="mt-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
+                <p>
                   אם מתבצעים שינויים לאחר השליחה, יש לעדכן את האורחים שהושפעו. כאשר השינוי משמעותי,
                   כדאי לשקול סבב הודעות נוסף, לאחר בדיקה חוזרת מול האולם. עדכון שיבוץ במפה אינו מעדכן
                   אוטומטית הודעה שכבר התקבלה בטלפון של האורח.
                 </p>
-              </div>
+              </Prose>
             </FadeIn>
           </section>
 
@@ -989,15 +988,14 @@ export default function TableNumberGuide() {
             </FadeIn>
           </section>
 
-          {/* AEO blocks */}
           <section id="aeo-blocks" className="scroll-mt-24" aria-labelledby="aeo-blocks-h">
             <FadeIn>
-              <Eyebrow>GEO / AEO</Eyebrow>
+              <Eyebrow>בקצרה</Eyebrow>
               <h2 id="aeo-blocks-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
                 תשובות מהירות לשאלות נפוצות
               </h2>
               <Prose>
-                <p>כל בלוק בנוי מתשובה ישירה, פירוט, דוגמה והמלצה — כדי שאפשר יהיה להבין גם במקטע בודד.</p>
+                <p>כל בלוק כולל סיכום, פירוט, דוגמה והמלצה — כדי שאפשר יהיה להבין גם במקטע בודד.</p>
               </Prose>
             </FadeIn>
             <div className="mt-8 grid gap-4">

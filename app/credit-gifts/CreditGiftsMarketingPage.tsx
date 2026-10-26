@@ -194,6 +194,9 @@ export default function CreditGiftsMarketingPage() {
             <p className="mt-4 max-w-xl text-lg font-semibold leading-8 text-[#5C4A3A]">
               האורחים בוחרים איך להעניק. אתם בוחרים אילו אפשרויות להציג.
             </p>
+            <p className="mt-4 max-w-xl text-base leading-8 text-[#5C4A3A] md:text-[17px]">
+              {PAGE_ANSWER}
+            </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <PrimaryCta href="#gift-methods">גלו את אפשרויות המתנה</PrimaryCta>
               <SecondaryCta href={LINKS.pricing}>בדקו חבילות ומחירים</SecondaryCta>
@@ -212,14 +215,6 @@ export default function CreditGiftsMarketingPage() {
         </div>
       </section>
 
-      {/* Direct answer for AEO */}
-      <Section tone="white" className="!py-10">
-        <p className="mx-auto max-w-4xl text-center text-base font-semibold leading-8 text-[#5C4A3A] md:text-lg">
-          {PAGE_ANSWER}
-        </p>
-      </Section>
-
-      {/* Intro context */}
       <Section tone="cream" id="intro">
         <Eyebrow>למה כמה דרכים?</Eyebrow>
         <h2 className={`${display.className} mt-3 text-3xl font-bold md:text-4xl`}>

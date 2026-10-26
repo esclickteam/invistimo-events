@@ -45,7 +45,7 @@ const ctaSecondary =
   "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
 
 const TOC: TocItem[] = [
-  { id: "short-answer", label: "התשובה הקצרה" },
+  { id: "short-answer", label: "מבוא" },
   { id: "checklist", label: "הצ׳קליסט" },
   { id: "timeline", label: "לוח זמנים" },
   { id: "venue", label: "בדיקת האולם" },
@@ -375,18 +375,18 @@ export default function EventDayChecklistGuide() {
         <StickyToc items={TOC} />
         <div className="min-w-0 space-y-20">
           <motion.section id="short-answer" className="scroll-mt-24" aria-labelledby="short-answer-h" {...fade}>
-            <Eyebrow>AEO · תשובה ישירה</Eyebrow>
+            <Eyebrow>מבוא</Eyebrow>
             <h2 id="short-answer-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מה חובה לבדוק לפני יום החתונה?
             </h2>
-            <div className="mt-6 rounded-[28px] border border-[#E6D2AA] bg-gradient-to-l from-[#FFF8EA] to-[#FFFDF8] p-6 shadow-[0_14px_36px_rgba(58,39,20,0.06)] md:p-8">
-              <p className="text-base leading-8 text-[#3F3025] md:text-lg">
+            <Prose>
+              <p>
                 לפני יום החתונה חשוב לוודא שכל הספקים אישרו את פרטי ההגעה וההסכמים, שהתשלומים
                 והמקדמות מעודכנים, שלוח הזמנים סופי, שרשימת המוזמנים ואישורי ההגעה מעודכנים, שמפת
                 ההושבה מוכנה ושהאולם קיבל את מספר האורחים לפי המועד שסוכם. בנוסף, יש להכין אנשי קשר,
                 ציוד אישי, פתרונות למקרים בלתי צפויים וחלוקת אחריות ברורה ליום האירוע.
               </p>
-            </div>
+            </Prose>
             <ul className="mt-5 flex flex-wrap gap-2">
               {ANCHOR_LINKS.map((link) => (
                 <li key={link.href}>
