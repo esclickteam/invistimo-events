@@ -211,25 +211,25 @@ export default function ContactPage() {
       />
 
       {/* ===== HERO — compact editorial ===== */}
-      <section className="relative mx-auto max-w-6xl px-5 pb-6 pt-10 md:px-8 md:pb-8 md:pt-12">
-        <div className="grid items-center gap-8 lg:grid-cols-[1.15fr_0.85fr] lg:gap-12">
+      <section className="relative mx-auto max-w-6xl px-5 pb-4 pt-8 md:px-8 md:pb-5 md:pt-10">
+        <div className="grid items-center gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:gap-10">
           <div className="order-1">
             <p className="font-[family-name:var(--font-contact-display)] text-[11px] font-medium tracking-[0.28em] text-[#8A6A3E] sm:text-xs">
               INVISTIMO&nbsp;&nbsp;/&nbsp;&nbsp;GET IN TOUCH
             </p>
 
             <h1
-              className={`${display.className} mt-4 max-w-[18ch] text-[1.85rem] font-medium leading-[1.25] text-[#2C2118] sm:text-[2.35rem] md:text-[2.65rem]`}
+              className={`${display.className} mt-3 max-w-[18ch] text-[1.75rem] font-medium leading-[1.22] text-[#2C2118] sm:text-[2.15rem] md:text-[2.4rem]`}
             >
               יש דברים שפשוט כיף לתכנן יחד.
             </h1>
 
-            <p className="mt-4 max-w-xl text-[15px] leading-7 text-[#6B5745] sm:text-base sm:leading-8">
+            <p className="mt-3 max-w-xl text-[15px] leading-7 text-[#6B5745]">
               שאלה על ההזמנה, אישורי ההגעה, ההושבה או השירותים שלנו? אנחנו כאן כדי להפוך את הדרך
               לאירוע שלכם לפשוטה ונעימה יותר.
             </p>
 
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
               <a
                 href={WHATSAPP_URL}
                 target="_blank"
@@ -252,10 +252,10 @@ export default function ContactPage() {
           </div>
 
           {/* Editorial image — desktop right / mobile after CTAs, compact */}
-          <div className="order-2 mx-auto w-full max-w-[280px] sm:max-w-[320px] lg:mx-0 lg:max-w-none">
+          <div className="order-2 mx-auto hidden w-full max-w-[240px] sm:block sm:max-w-[260px] lg:mx-0 lg:max-w-[300px]">
             <figure className="relative">
               <div
-                className="absolute -inset-2 rounded-[2px] border border-[#C9A46A]/45 sm:-inset-2.5"
+                className="absolute -inset-1.5 rounded-[2px] border border-[#C9A46A]/45"
                 aria-hidden
               />
               <div className="relative aspect-[4/5] overflow-hidden bg-[#EDE3D4]">
@@ -264,7 +264,7 @@ export default function ContactPage() {
                   alt={HERO_IMAGE.alt}
                   fill
                   priority
-                  sizes="(max-width: 1024px) 280px, 360px"
+                  sizes="(max-width: 1024px) 240px, 300px"
                   className={`object-cover object-center ${
                     reduceMotion
                       ? ""
@@ -272,7 +272,7 @@ export default function ContactPage() {
                   }`}
                 />
               </div>
-              <figcaption className="mt-3 text-center font-[family-name:var(--font-contact-display)] text-[11px] tracking-[0.18em] text-[#9A8164] lg:text-start">
+              <figcaption className="mt-2 text-center font-[family-name:var(--font-contact-display)] text-[10px] tracking-[0.18em] text-[#9A8164] lg:text-start">
                 Every detail begins here
               </figcaption>
             </figure>
@@ -281,38 +281,28 @@ export default function ContactPage() {
       </section>
 
       {/* ===== Editorial signature — WOW ===== */}
-      <section className="relative mx-auto max-w-6xl px-5 py-6 md:px-8 md:py-8" aria-label="חתימה עריכתית">
+      <section className="relative mx-auto max-w-6xl px-5 py-4 md:px-8 md:py-5" aria-label="חתימה עריכתית">
         <motion.div
           {...motionProps}
-          className="flex flex-col items-start gap-4 border-y border-[#E2D2B8]/80 py-6 sm:flex-row sm:items-center sm:gap-8 sm:py-7"
+          className="flex flex-col items-start gap-3 border-y border-[#E2D2B8]/80 py-4 sm:flex-row sm:items-center sm:gap-6 sm:py-5"
         >
           <span
-            className={`${display.className} text-[13px] tracking-[0.2em] text-[#C4A46A]`}
+            className={`${display.className} text-[12px] tracking-[0.2em] text-[#C4A46A]`}
             aria-hidden
           >
             01
           </span>
-          <div className="hidden h-px w-10 shrink-0 bg-[#C4A46A] sm:block" aria-hidden />
+          <div className="hidden h-px w-8 shrink-0 bg-[#C4A46A] sm:block" aria-hidden />
           <p
-            className={`${display.className} max-w-3xl text-lg font-medium leading-relaxed text-[#4A3728] sm:text-xl md:text-[1.35rem]`}
+            className={`${display.className} max-w-3xl text-base font-medium leading-relaxed text-[#4A3728] sm:text-lg md:text-xl`}
           >
             Every beautiful celebration begins with a conversation.
           </p>
         </motion.div>
       </section>
 
-      {/* ===== AEO direct answer — visible, not hidden ===== */}
-      <section className="mx-auto max-w-6xl px-5 pb-2 md:px-8" aria-labelledby="contact-aeo-heading">
-        <div className="max-w-3xl">
-          <h2 id="contact-aeo-heading" className="text-base font-black text-[#2C2118] sm:text-lg">
-            איך יוצרים קשר עם Invistimo?
-          </h2>
-          <p className="mt-2 text-[15px] leading-7 text-[#6B5745]">{CONTACT_DIRECT_ANSWER}</p>
-        </div>
-      </section>
-
-      {/* ===== Contact composition — form + rail ===== */}
-      <section className="relative mx-auto max-w-6xl px-5 pb-14 pt-8 md:px-8 md:pb-16 md:pt-10">
+      {/* ===== Contact composition — form + rail (starts in first desktop viewport) ===== */}
+      <section className="relative mx-auto max-w-6xl px-5 pb-14 pt-5 md:px-8 md:pb-16 md:pt-6">
         <div className="grid gap-10 lg:grid-cols-[1.35fr_0.85fr] lg:gap-12 lg:items-start">
           {/* Form column */}
           <motion.div {...motionProps} id="contact-form" className="scroll-mt-28">
@@ -624,6 +614,19 @@ export default function ContactPage() {
               ))}
             </div>
           </motion.div>
+        </div>
+      </section>
+
+      {/* ===== AEO direct answer — visible, after contact actions ===== */}
+      <section
+        className="border-t border-[#E2D2B8]/80 bg-[#FFFDF8]/70"
+        aria-labelledby="contact-aeo-heading"
+      >
+        <div className="mx-auto max-w-6xl px-5 py-10 md:px-8 md:py-12">
+          <h2 id="contact-aeo-heading" className="text-base font-black text-[#2C2118] sm:text-lg">
+            איך יוצרים קשר עם Invistimo?
+          </h2>
+          <p className="mt-2 max-w-3xl text-[15px] leading-7 text-[#6B5745]">{CONTACT_DIRECT_ANSWER}</p>
         </div>
       </section>
 
