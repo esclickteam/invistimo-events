@@ -51,10 +51,11 @@ async function main() {
   // --- Scroll recording on real demo ---
   const demo = await context.newPage();
   await demo.goto(`${BASE}/wedding-website/eternal-gold?embed=1`, {
-    waitUntil: "networkidle",
+    waitUntil: "domcontentloaded",
     timeout: 120000,
   });
-  await demo.waitForTimeout(1500);
+  await demo.waitForSelector("#hero, .wedding-website-root, body", { timeout: 60000 });
+  await demo.waitForTimeout(2500);
 
   const scrollHeight = await demo.evaluate(() => document.documentElement.scrollHeight);
   const viewport = 720;
@@ -112,8 +113,9 @@ async function main() {
 
   // --- Marketing page screenshots ---
   const page = await context.newPage();
-  await page.goto(`${BASE}/wedding-website`, { waitUntil: "networkidle", timeout: 180000 });
-  await page.waitForTimeout(2500);
+  await page.goto(`${BASE}/wedding-website`, { waitUntil: "domcontentloaded", timeout: 180000 });
+  await page.waitForSelector("h1", { timeout: 60000 });
+  await page.waitForTimeout(3500);
 
   await page.screenshot({
     path: path.join(ARTIFACTS, "wedding-website-full.png"),
@@ -158,8 +160,9 @@ async function main() {
 
   // Mobile viewport shot of marketing page
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto(`${BASE}/wedding-website`, { waitUntil: "networkidle", timeout: 180000 });
-  await page.waitForTimeout(2000);
+  await page.goto(`${BASE}/wedding-website`, { waitUntil: "domcontentloaded", timeout: 180000 });
+  await page.waitForSelector("h1", { timeout: 60000 });
+  await page.waitForTimeout(2500);
   await page.screenshot({
     path: path.join(ARTIFACTS, "wedding-website-mobile-viewport.png"),
     fullPage: false,

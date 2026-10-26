@@ -72,12 +72,17 @@ export function MobileLiveFrame({ template, className = "" }: FrameProps) {
 export function HeroDeviceDuo({ template }: { template: WeddingTemplate }) {
   return (
     <div className="relative mx-auto w-full max-w-[640px]">
-      <div className="pointer-events-none absolute inset-x-[10%] top-8 bottom-10 rounded-[40px] bg-[radial-gradient(circle_at_top,#E8D4AF_0%,transparent_55%)] blur-2xl" />
-      <div className="relative grid items-end gap-4 sm:grid-cols-[1.35fr_0.75fr] sm:gap-0">
-        <div className="ww-mkt-float relative z-[1] sm:ml-[-6%]">
+      <div className="pointer-events-none absolute inset-x-[10%] top-8 bottom-10 hidden rounded-[40px] bg-[radial-gradient(circle_at_top,#E8D4AF_0%,transparent_55%)] blur-2xl md:block" />
+      {/* Mobile-first: one large readable phone preview */}
+      <div className="md:hidden">
+        <MobileLiveFrame template={template} className="max-w-[300px]" />
+      </div>
+      {/* Desktop: browser + phone composition */}
+      <div className="relative hidden items-end md:grid md:grid-cols-[1.35fr_0.75fr]">
+        <div className="ww-mkt-float relative z-[1] ml-[-4%]">
           <DesktopLiveFrame template={template} />
         </div>
-        <div className="ww-mkt-float-delayed relative z-[2] mx-auto w-[78%] sm:mb-6 sm:mr-0 sm:w-auto sm:justify-self-end">
+        <div className="ww-mkt-float-delayed relative z-[2] mb-8 justify-self-end">
           <MobileLiveFrame template={template} />
         </div>
       </div>
@@ -113,13 +118,16 @@ export function FeaturedTemplateShowcase({
       }`}
     >
       <div className={odd ? "lg:order-2" : undefined}>
-        <div className="relative">
+        <div className="relative pb-4 md:pb-10">
           <DesktopLiveFrame template={template} />
-          <div className="pointer-events-none absolute -bottom-8 -left-2 w-[42%] sm:-left-6 sm:w-[38%]">
-            <div className="pointer-events-auto">
-              <MobileLiveFrame template={template} className="max-w-none scale-[0.92] origin-bottom" />
+          <div className="pointer-events-none absolute -bottom-2 left-3 hidden w-[36%] md:block lg:-bottom-6 lg:left-0 lg:w-[38%]">
+            <div className="pointer-events-auto drop-shadow-2xl">
+              <MobileLiveFrame template={template} className="max-w-none origin-bottom scale-[0.88]" />
             </div>
           </div>
+        </div>
+        <div className="mt-6 md:hidden">
+          <MobileLiveFrame template={template} className="max-w-[280px]" />
         </div>
       </div>
 
