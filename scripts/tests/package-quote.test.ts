@@ -219,19 +219,20 @@ test("package copy keeps the original included services and a single call line",
 test("pricing page restores the original add-ons and drops Wedding Challenges", () => {
   const page = read("app/pricing/page.tsx");
 
-  assert.match(page, /בחרו את החבילה שמתאימה לאירוע שלכם/);
+  assert.match(page, /חבילות ומחירים/);
+  assert.match(page, /בחרו את כמות הרשומות וגלו את החבילה המתאימה לאירוע שלכם/);
   assert.doesNotMatch(page, /שמתאימה\s*<br/);
   assert.match(page, /כמה רשומות מוזמנים יש לכם\?/);
   assert.match(page, /תוספות אפשריות/);
   assert.match(page, /בחרו חבילה/);
   assert.match(page, /אני רוצה את החבילה/);
   assert.match(page, /buildWhatsappUrl/);
-  assert.doesNotMatch(page, /החבילה שלכם/);
   assert.doesNotMatch(page, /בחירת החבילה/);
   assert.match(page, /GuestRecordSlider/);
-  assert.match(page, /buildWhatsappUrl/);
   assert.match(page, /ADDON_ORDER/);
   assert.match(page, /ADDON_LABELS/);
+  assert.match(read("app/pricing/GuestRecordSlider.tsx"), /role="slider"/);
+  assert.doesNotMatch(read("app/pricing/GuestRecordSlider.tsx"), /<select\b/);
   assert.deepEqual(Object.values(ADDON_LABELS), [
     "מתנות באשראי דרך ספק חיצוני",
     "הושבה דיגיטלית",

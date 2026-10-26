@@ -1033,6 +1033,7 @@ export default function CallsMarketingPage() {
             {[
               { href: LINKS.chatuna, label: "אישורי הגעה לחתונה" },
               { href: LINKS.whatsapp, label: "WhatsApp" },
+              { href: LINKS.chooseCompany, label: "איך בוחרים חברה" },
               { href: LINKS.whatsappVsSms, label: "WhatsApp מול SMS" },
               { href: LINKS.noReply, label: "אורחים שלא עונים" },
               { href: LINKS.whenToSend, label: "מתי לשלוח" },

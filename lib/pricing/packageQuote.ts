@@ -85,7 +85,7 @@ export const PACKAGES: Record<PackageId, PackageDefinition> = {
     id: "personal",
     name: "Invistimo Personal",
     hebrewName: "שיחות אנושיות",
-    badge: "הבחירה הפופולרית",
+    badge: "מסלול מורחב",
     description: "3 סבבי שיחות במוקד אנושי.",
     summaryService: "שיחות אנושיות",
     serviceLabel: "3 סבבי שיחות במוקד אנושי",

@@ -1,24 +1,45 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
-import { UserRound } from "lucide-react";
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import { Minus, Plus, UserRound } from "lucide-react";
 import { RECORD_MAX, RECORD_MIN, clampRecords } from "@/lib/pricing/packageQuote";
 
 type GuestRecordSliderProps = {
   value: number;
   onChange: (value: number) => void;
+  /** Fires once when a drag gesture ends — used for a single gold flash on package cards. */
+  onDragEnd?: () => void;
 };
 
 const MARKS = [0, 250, 500, 750, 1000];
+/** Rate-table brackets used for a subtle tick when crossing a new records tier. */
+const TIER_STEP = 50;
 
 export default function GuestRecordSlider({
   value,
   onChange,
+  onDragEnd,
 }: GuestRecordSliderProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
+  const draggingRef = useRef(false);
+  const [tick, setTick] = useState(false);
+  const lastTier = useRef(Math.floor(clampRecords(value) / TIER_STEP));
   const safeValue = clampRecords(value);
   const percent = (safeValue / RECORD_MAX) * 100;
+
+  useEffect(() => {
+    const tier = Math.floor(safeValue / TIER_STEP);
+    if (tier === lastTier.current) return;
+    lastTier.current = tier;
+    const reduce =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return;
+    setTick(true);
+    const timer = window.setTimeout(() => setTick(false), 280);
+    return () => window.clearTimeout(timer);
+  }, [safeValue]);
 
   function valueFromClientX(clientX: number) {
     const rect = trackRef.current?.getBoundingClientRect();
@@ -34,22 +55,37 @@ export default function GuestRecordSlider({
     onChange(valueFromClientX(clientX));
   }
 
-  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
-    event.currentTarget.setPointerCapture(event.pointerId);
+  function beginDrag(clientX: number, target?: HTMLDivElement, pointerId?: number) {
+    if (target && typeof pointerId === "number") {
+      try {
+        target.setPointerCapture(pointerId);
+      } catch {
+        // Some environments reject capture; mouse fallbacks still work.
+      }
+    }
+    draggingRef.current = true;
     setDragging(true);
-    moveTo(event.clientX);
+    moveTo(clientX);
+  }
+
+  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    beginDrag(event.clientX, event.currentTarget, event.pointerId);
   }
 
   function onPointerMove(event: PointerEvent<HTMLDivElement>) {
-    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    if (!draggingRef.current && !event.currentTarget.hasPointerCapture(event.pointerId)) return;
     moveTo(event.clientX);
   }
 
-  function endDrag(event: PointerEvent<HTMLDivElement>) {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+  function endDrag(event?: PointerEvent<HTMLDivElement>) {
+    if (event?.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
+    const wasDragging = draggingRef.current;
+    draggingRef.current = false;
     setDragging(false);
+    if (wasDragging) onDragEnd?.();
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -68,8 +104,52 @@ export default function GuestRecordSlider({
     onChange(clampRecords(next));
   }
 
+  function nudge(delta: number) {
+    onChange(clampRecords(safeValue + delta));
+    onDragEnd?.();
+  }
+
+  // Keep the bubble inside the track: clamp horizontal offset near edges.
+  const bubbleShift =
+    percent <= 6 ? "translate(10%, 0)" : percent >= 94 ? "translate(90%, 0)" : "translate(50%, 0)";
+
   return (
-    <div dir="rtl" className="px-8 sm:px-10">
+    <div dir="rtl" className="px-1 sm:px-4">
+      <div className="mb-3 flex items-center justify-center gap-3 sm:gap-4">
+        <button
+          type="button"
+          aria-label="הקטן מספר רשומות"
+          onClick={() => nudge(-1)}
+          disabled={safeValue <= RECORD_MIN}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-[#D7B98D] bg-[#FFFDF9] text-[#A86F2B] shadow-[0_8px_18px_rgba(168,111,43,0.1)] transition enabled:hover:border-[#C9A46A] enabled:hover:bg-[#FFF8EE] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Minus size={18} strokeWidth={2} aria-hidden="true" />
+        </button>
+
+        <div className="min-w-[8.5rem] text-center">
+          <p
+            data-testid="record-display"
+            className={`pricing-record-display text-4xl font-black tabular-nums leading-none text-[#3E2D20] sm:text-5xl ${
+              tick ? "is-tick" : ""
+            }`}
+            aria-live="polite"
+          >
+            {safeValue.toLocaleString("he-IL")}
+          </p>
+          <p className="mt-1 text-xs font-bold text-[#A07C52]">רשומות</p>
+        </div>
+
+        <button
+          type="button"
+          aria-label="הגדל מספר רשומות"
+          onClick={() => nudge(1)}
+          disabled={safeValue >= RECORD_MAX}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-[#D7B98D] bg-[#FFFDF9] text-[#A86F2B] shadow-[0_8px_18px_rgba(168,111,43,0.1)] transition enabled:hover:border-[#C9A46A] enabled:hover:bg-[#FFF8EE] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Plus size={18} strokeWidth={2} aria-hidden="true" />
+        </button>
+      </div>
+
       <div
         ref={trackRef}
         role="slider"
@@ -86,35 +166,56 @@ export default function GuestRecordSlider({
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onLostPointerCapture={() => setDragging(false)}
+        onMouseDown={(event) => {
+          // Fallback when PointerEvent capture is unavailable.
+          if (event.button !== 0) return;
+          beginDrag(event.clientX);
+        }}
+        onMouseMove={(event) => {
+          if (!draggingRef.current) return;
+          if ((event.buttons & 1) === 0) return;
+          moveTo(event.clientX);
+        }}
+        onMouseUp={() => endDrag()}
         onKeyDown={onKeyDown}
-        className="relative h-16 cursor-grab touch-pan-y select-none outline-none focus-visible:ring-4 focus-visible:ring-[#D8B16A]/30 active:cursor-grabbing"
+        className="relative h-16 cursor-grab touch-none select-none outline-none focus-visible:ring-4 focus-visible:ring-[#D8B16A]/30 active:cursor-grabbing sm:h-14"
       >
-        <div className="absolute inset-x-0 top-1/2 h-2.5 -translate-y-1/2 rounded-full bg-[#E8D9C7] shadow-inner" />
+        <div className="pricing-slider-track-bg absolute inset-x-0 top-1/2 h-3 -translate-y-1/2 rounded-full shadow-inner sm:h-2.5" />
         <div
-          className="absolute top-1/2 h-2.5 -translate-y-1/2 rounded-full bg-gradient-to-l from-[#A86F2B] to-[#E4C48A]"
+          className="pricing-slider-fill absolute top-1/2 h-3 -translate-y-1/2 rounded-full sm:h-2.5"
           style={{ width: `${percent}%`, right: 0 }}
         />
+
         <div
-          className="absolute top-1/2 z-10"
+          className={`pricing-slider-thumb absolute top-1/2 z-10 ${dragging ? "is-dragging" : ""}`}
           style={{
             right: `${percent}%`,
-            transform: `translate(50%, -50%) scale(${dragging ? 1.08 : 1})`,
-            transition: dragging
-              ? "transform 140ms ease"
-              : "right 90ms linear, transform 140ms ease",
+            transform: dragging ? undefined : "translate(50%, -50%)",
+            transition: dragging ? "none" : "right 90ms linear",
           }}
         >
           <span
-            className={`flex h-14 w-14 items-center justify-center rounded-full border-2 border-[#C89545] bg-[#FFFDF9] text-[#A86F2B] shadow-[0_12px_24px_rgba(168,111,43,0.28)] ${
-              dragging ? "ring-4 ring-[#D8B16A]/30" : ""
+            className={`pricing-slider-bubble absolute bottom-[calc(100%+0.45rem)] left-1/2 whitespace-nowrap rounded-full border border-[#D4B06E] bg-[#3E2D20] px-2.5 py-1 text-[11px] font-black tabular-nums text-[#F7E9D3] shadow-[0_10px_22px_rgba(62,45,32,0.28)] ${
+              tick ? "is-tick" : ""
+            }`}
+            style={{ transform: bubbleShift }}
+            aria-hidden="true"
+          >
+            {safeValue.toLocaleString("he-IL")}
+            <span className="absolute left-1/2 top-full h-0 w-0 -translate-x-1/2 border-x-[5px] border-t-[6px] border-x-transparent border-t-[#3E2D20]" />
+          </span>
+
+          <span
+            className={`flex h-14 w-14 items-center justify-center rounded-full border-[2.5px] border-[#C89545] bg-[#FFFDF9] text-[#A86F2B] shadow-[0_12px_24px_rgba(168,111,43,0.28)] sm:h-12 sm:w-12 ${
+              dragging ? "ring-4 ring-[#D8B16A]/35" : ""
             }`}
           >
-            <UserRound size={28} strokeWidth={1.75} aria-hidden="true" />
+            <UserRound size={24} strokeWidth={1.75} aria-hidden="true" />
           </span>
         </div>
       </div>
 
-      <div className="mt-2 flex justify-between text-[11px] font-bold text-[#9C866D] sm:text-xs">
+      <div className="mt-1.5 flex justify-between text-[11px] font-bold text-[#9C866D] sm:text-xs">
         {MARKS.map((mark) => (
           <span key={mark}>{mark.toLocaleString("he-IL")}</span>
         ))}

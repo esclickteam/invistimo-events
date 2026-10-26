@@ -48,6 +48,7 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
       { href: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים להתחייב לאולם" },
       { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "WhatsApp, SMS ואיך מתבצע הגיבוי?" },
+      { href: "/info/guides/how-to-choose-rsvp-company", label: "איך בוחרים חברת אישורי הגעה" },
       { href: "/info/guides/wedding-planning", label: "תכנון חתונה מלא" },
     ],
   },
@@ -184,80 +185,48 @@ export const GUIDES: Guide[] = [
     ],
   },
   {
-    slug: "seating-plan",
-    title: "איך מכינים סידורי הושבה לחתונה?",
-    description: "סקיצת אולם, שולחנות, שיבוץ ידני או לפי קבוצות, והודעה עם מספר שולחן. תוספת שמופיעה במחשבון.",
-    h1: "איך מכינים סידורי הושבה לחתונה?",
-    titleAccent: "סקיצה, שיבוץ והודעת שולחן",
-    lede: "סידור ההושבה ב־Invistimo מתחיל מסקיצה של האולם. אחר כך ממקמים שולחנות, משבצים אורחים, ובסוף אפשר לשלוח לכל אורח את מספר השולחן.",
-    media: {
-      type: "video",
-      src: "/videos/smartsit.mp4",
-      variant: "wide",
-      caption: "המחשת סידור הושבה במערכת",
-    },
-    benefits: [
-      {
-        title: "עבודה על סקיצת האולם",
-        text: "השולחנות על המפה — לא רק ברשימה נפרדת.",
-      },
-      {
-        title: "שיבוץ גמיש",
-        text: "ידני או לפי קבוצות, עם תיקון אחרי חלוקה ראשונית.",
-      },
-      {
-        title: "הודעת מספר שולחן",
-        text: "אחרי השיבוץ אפשר לשלוח לכל אורח הודעה אישית.",
-      },
-    ],
-    steps: [
-      { title: "מעלים סקיצה", text: "לפי מבנה האולם." },
-      { title: "ממקמים שולחנות", text: "על הסקיצה." },
-      { title: "משבצים אורחים", text: "ידנית או לפי קבוצות, ואז מתקנים." },
-      { title: "שולחים מספר שולחן", text: "בהודעה אישית ובתזכורת כשיש הושבה." },
-    ],
-    showEventTypes: true,
-    sections: [
-      {
-        heading: "השלבים במערכת",
-        paragraphs: [
-          "מעלים סקיצה ועובדים לפי המבנה של האולם. שולחנות ממוקמים על הסקיצה, לא רק ברשימה.",
-          "שיבוץ אפשר לעשות מהשולחן או מרשימת האורחים, גם כקבוצה. יש גם חלוקה ראשונית לפי קבוצות, ואחריה עורכים ידנית.",
-        ],
-        bullets: [
-          "סקיצה ומפת שולחנות",
-          "שיבוץ ידני או לפי קבוצות",
-          "הודעה אישית עם מספר השולחן",
-        ],
-      },
-      {
-        heading: "מתי זה אפשרי",
-        paragraphs: [
-          "הושבה דיגיטלית היא תוספת במחשבון החבילות, לא חלק אוטומטי מכל חבילת הודעות. בלי התוספת אין להניח שמפת ההושבה פתוחה.",
-          "עדיף לשבץ אחרי שיש תשובות, כי מי שלא מגיע לא תופס כיסא. מי שעדיין לא ענה נשאר פתוח עד שמחליטים אם לשמור לו מקום.",
-          "אותו תהליך רלוונטי גם לחינה, בר מצווה או אירוע חברה עם שולחנות — כשהתוספת נרכשה.",
-        ],
-      },
-    ],
-    faqs: [
-      {
-        q: "האם השיבוץ האוטומטי סוגר את ההושבה?",
-        a: "לא. הוא נותן חלוקה ראשונית לפי קבוצות. אחר כך עוברים ומתקנים.",
-      },
-      {
-        q: "איך האורח יודע איפה לשבת?",
-        a: "אחרי השיבוץ אפשר לשלוח הודעה אישית עם מספר השולחן. בתזכורת ה־SMS של החבילה יש גם מספר שולחן.",
-      },
-      {
-        q: "האם ההושבה כלולה בכל חבילה?",
-        a: "לא. זו תוספת במחשבון.",
-      },
-    ],
+    // Dedicated UI: app/(marketing)/info/guides/bit-paybox-wedding-invitation/
+    slug: "bit-paybox-wedding-invitation",
+    title: "איך מוסיפים bit ו־PayBox להזמנה דיגיטלית לחתונה?",
+    description:
+      "מדריך מעשי להוספת bit ו־PayBox להזמנה דיגיטלית לחתונה: הגדרת מספר טלפון וקישור, בדיקת ההזמנה, חוויית האורחים, אבטחה ופתרון תקלות.",
+    h1: "איך מוסיפים bit ו־PayBox להזמנה דיגיטלית לחתונה?",
+    lede:
+      "רוצים לאפשר לאורחים לשלוח מתנה דרך bit או PayBox? ב־Invistimo מגדירים קישור PayBox ומספר טלפון ל־bit; ההעברה עצמה מתבצעת מחוץ למערכת.",
+    sections: [],
+    faqs: [],
     related: [
-      { href: "/seating-explained", label: "סידורי הושבה" },
-      { href: "/rsvp/hina", label: "אישורי הגעה והושבה לחינה" },
+      { href: "/credit-gifts", label: "מתנות באשראי, bit ו־PayBox" },
+      { href: "/invitations/chatuna", label: "הזמנות דיגיטליות" },
+      { href: "/info/guides/send-digital-invitation", label: "איך שולחים הזמנה" },
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/rsvp/save-the-date", label: "Save the Date" },
+      { href: "/info/guides", label: "מרכז המדריכים" },
+      { href: "/pricing", label: "חבילות ומחירים" },
+      { href: "/try", label: "דמו" },
+    ],
+  },
+  {
+    // Dedicated UI: app/(marketing)/info/guides/seating-plan/
+    slug: "seating-plan",
+    title: "איך מכינים סידורי הושבה לחתונה? מדריך צעד אחר צעד",
+    description:
+      "איך מכינים סידורי הושבה לחתונה? מדריך מעשי להכנת רשימת מוזמנים, חלוקה לשולחנות, עבודה עם סקיצת האולם, רזרבות, בדיקות ודוגמאות להושבה של 300 אורחים.",
+    h1: "איך מכינים סידורי הושבה לחתונה? מדריך מעשי צעד אחר צעד",
+    lede: "רשימה מעודכנת, סקיצת אולם, חלוקה לקבוצות, שיבוץ לפי קיבולת, רזרבות ובדיקה סופית — צעד אחר צעד.",
+    sections: [],
+    faqs: [],
+    related: [
+      { href: "/seating-explained", label: "שירות סידורי הושבה" },
+      {
+        href: "/info/guides/wedding-seating-arrangements",
+        label: "המדריך המלא לסידורי הושבה",
+      },
       { href: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },
+      { href: "/info/guides/event-day-checklist", label: "לפני יום האירוע" },
+      { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
+      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/try/dashboard/seating", label: "דמו הושבה" },
       { href: "/pricing", label: "חבילות ומחירים" },
     ],
   },
@@ -303,6 +272,7 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/cost-rsvp-wedding", label: "כמה עולים אישורי הגעה" },
       { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "WhatsApp ו־SMS" },
       { href: "/info/guides/wedding-planning", label: "תכנון חתונה מלא" },
+      { href: "/info/guides/event-day-checklist", label: "צ'קליסט לפני יום האירוע" },
       { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
       { href: "/rsvp/calls", label: "שיחות טלפון" },
       { href: "/rsvp/bar-bat-mitzvah", label: "בר ובת מצווה" },
@@ -325,9 +295,11 @@ export const GUIDES: Guide[] = [
       { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
       { href: "/rsvp/calls", label: "אישורי הגעה בשיחות טלפון" },
       { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "מה ההבדל בין הודעה שלא נמסרה לאורח שלא השיב?" },
+      { href: "/info/guides/how-to-choose-rsvp-company", label: "איך בוחרים חברת אישורי הגעה" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
       { href: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים להתחייב לאולם" },
       { href: "/info/guides/cost-rsvp-wedding", label: "כמה עולים אישורי הגעה" },
+      { href: "/info/guides/event-day-checklist", label: "צ'קליסט לפני יום האירוע" },
     ],
   },
   {
@@ -345,7 +317,11 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
       { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות לאולם" },
-      { href: "/info/guides/seating-plan", label: "סידורי הושבה" },
+      {
+        href: "/info/guides/wedding-seating-arrangements",
+        label: "סידורי הושבה לחתונה",
+      },
+      { href: "/info/guides/seating-plan", label: "איך מכינים הושבה במערכת" },
       { href: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" },
       { href: "/event-management", label: "ניהול אירוע" },
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
@@ -387,10 +363,33 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
       { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
       { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
+      { href: "/info/guides/wedding-seating-arrangements", label: "סידורי הושבה לחתונה" },
       { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
       { href: "/info/guides/wedding-planning", label: "תכנון חתונה מלא" },
       { href: "/info/guides/wedding-vendors-contracts", label: "ספקים וחוזים" },
       { href: "/seating-explained", label: "סידורי הושבה" },
+      { href: "/pricing", label: "חבילות ומחירים" },
+    ],
+  },
+  {
+    // Dedicated UI: app/(marketing)/info/guides/wedding-seating-arrangements/
+    slug: "wedding-seating-arrangements",
+    title: "סידורי הושבה לחתונה: שולחנות, מאשרים ורזרבות",
+    description:
+      "איך מתכננים סידורי הושבה לחתונה? האם למלא שולחנות, איך משבצים את כל מאשרי ההגעה ומה עושים עם רזרבות וביטולים? מדריך מקצועי ומחשבון.",
+    h1: "סידורי הושבה לחתונה: המדריך המלא לחלוקת שולחנות, מאשרי הגעה ורזרבות",
+    lede: "איך מחלקים שולחנות, מה עושים עם מאשרי הגעה ורזרבות, ולמה אסור להסתמך על אי־הגעה משוערת כקיבולת.",
+    sections: [],
+    faqs: [],
+    related: [
+      { href: "/seating-explained", label: "שירות סידורי הושבה" },
+      { href: "/info/guides/seating-plan", label: "איך מכינים הושבה במערכת" },
+      { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות למנות ורזרבות" },
+      { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
+      { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
+      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/rsvp/calls", label: "שיחות אישורי הגעה" },
+      { href: "/info/guides/wedding-planning", label: "תכנון חתונה מלא" },
       { href: "/pricing", label: "חבילות ומחירים" },
     ],
   },
@@ -428,50 +427,80 @@ export const GUIDES: Guide[] = [
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
       { href: "/rsvp/calls", label: "אישורי הגעה בשיחות טלפון" },
+      { href: "/info/guides/how-to-choose-rsvp-company", label: "איך בוחרים חברת אישורי הגעה" },
       { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },
       { href: "/info/guides/cost-rsvp-wedding", label: "עלויות אישורי הגעה" },
     ],
   },
   {
+    // Dedicated UI: app/(marketing)/info/guides/how-to-choose-rsvp-company/
+    slug: "how-to-choose-rsvp-company",
+    title: "איך בוחרים חברת אישורי הגעה לחתונה? מדריך והשוואה",
+    description:
+      "איך בוחרים חברת אישורי הגעה? השוואת WhatsApp, SMS, שיחות מוקלטות ומוקד אנושי, מחירים, סבבים וסידורי הושבה. מדריך מקצועי של Invistimo.",
+    h1: "איך בוחרים חברת אישורי הגעה לחתונה? המדריך המלא להשוואת שירותים ומחירים",
+    lede:
+      "כדי לבחור חברת אישורי הגעה לחתונה, כדאי לבדוק שיטות פנייה, סבבים, טיפול בממתינים, ספירת רשומות, מערכת ניהול, הושבה, תמיכה ומחיר סופי — ולהשוות חבילות בעלות היקף שירות דומה.",
+    sections: [],
+    faqs: [],
+    related: [
+      { href: "/rsvp", label: "אישורי הגעה" },
+      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
+      { href: "/rsvp/calls", label: "שיחות מוקלטות ומוקד אנושי" },
+      { href: "/pricing", label: "חבילות ומחירים" },
+      { href: "/try", label: "דמו" },
+      { href: "/seating-explained", label: "סידורי הושבה" },
+      { href: "/info/guides/cost-rsvp-wedding", label: "מחיר לפי רשומות" },
+      { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "WhatsApp או SMS" },
+      { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
+      { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
+      { href: "/info/guides/seating-plan", label: "סידורי הושבה — מדריך" },
+      { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },
+    ],
+  },
+  {
     slug: "table-number-message",
-    title: "איך שולחים לאורחים את מספר השולחן?",
-    description: "הודעת מספר שולחן אחרי שיבוץ, ותזכורת SMS עם מספר שולחן בחבילת ההודעות. דורש תוספת הושבה.",
-    h1: "איך שולחים לאורחים את מספר השולחן?",
-    titleAccent: "אחרי השיבוץ — לא עם האישור",
-    lede: "אחרי שסידורתם הושבה אפשר לשלוח לכל אורח הודעה אישית עם מספר השולחן. זו פעולה נפרדת משיבוץ השולחנות, והיא לא מחליפה את סבבי אישור ההגעה.",
+    title: "הודעת מספר שולחן לאורחים: מתי שולחים ומה אם משתנה?",
+    description:
+      "מתי שולחים מספר שולחן לאורחים? מדריך מלא לאישור סקיצת האולם, בדיקת ההושבה, שליחת הודעות, טיפול בשינויים וסבב עדכון נוסף.",
+    h1: "הודעת מספר שולחן לאורחים: מתי שולחים, מה בודקים ומה עושים כשיש שינויים?",
+    titleAccent: "אחרי אישור הסקיצה — לא לפני",
+    lede: "מומלץ לשלוח מספרי שולחנות רק אחרי שהאולם אישר סקיצה ומספור, השיבוצים יציבים, ויש תוכנית לעדכון אורחים אם משהו משתנה אחרי השליחה.",
     benefits: [
       {
-        title: "הודעה אישית",
-        text: "מספר השולחן יוצא מהמערכת לכל אורח ששובץ.",
+        title: "אישור סקיצה לפני שליחה",
+        text: "מונע בלבול כשמספור האולם שונה מהמפה הדיגיטלית.",
       },
       {
-        title: "גם בתזכורת SMS",
-        text: "בחבילת ההודעות, כשיש הושבה.",
+        title: "הודעת שולחן + תזכורת",
+        text: "הודעה ייעודית אחרי שיבוץ; בתזכורת — עם מספר למי שמשובץ, ובלי מספר למי שלא.",
       },
       {
-        title: "דורש תוספת הושבה",
-        text: "בלי התוספת במחשבון אין להניח שהמפה פתוחה.",
+        title: "טיפול בשינויים",
+        text: "מתי לשלוח סבב עדכון נוסף ומה צוות הקבלה צריך לדעת.",
       },
     ],
     steps: [
-      { title: "סוגרים אישורים", text: "כמה שאפשר לפני השיבוץ." },
-      { title: "משבצים שולחנות", text: "על הסקיצה." },
-      { title: "שולחים מספר שולחן", text: "בהודעה אישית." },
-      { title: "תזכורת לפני האירוע", text: "SMS עם מספר שולחן כשיש הושבה." },
+      { title: "מאשרים סקיצה", text: "מול האולם — מספור וקיבולת." },
+      { title: "משבצים ובודקים", text: "צ'קליסט לפני שליחה." },
+      { title: "שולחים מספר שולחן", text: "SMS ו/או WhatsApp לאורחים עם שולחן." },
+      { title: "מעדכנים אחרי שינוי", text: "הודעת תיקון + צוות קבלה." },
     ],
     sections: [
       {
         heading: "מתי שולחים",
         paragraphs: [
-          "שולחים אחרי שיש שיבוץ יציב מספיק, ומי שלא מגיע כבר לא תופס כיסא. אם עדיין יש הרבה רשומות פתוחות, עדיף קודם לסיים סבבי אישור.",
-          "ההודעה האישית עם מספר השולחן יוצאת מתוך המערכת. היא לא דורשת מהאורח להתקין אפליקציה.",
+          "שולחים הודעת מספר שולחן אחרי שיש שיבוץ יציב מספיק והאולם אישר את הסקיצה.",
+          "תזכורת SMS נשלחת בדרך כלל ביום שלפני האירוע או ביום האירוע: משובץ מקבל מספר שולחן, לא משובץ מקבל תזכורת בלי מספר.",
+          "עדכון שיבוץ במפה אינו מעדכן אוטומטית הודעה שכבר התקבלה בטלפון של האורח.",
         ],
       },
       {
         heading: "תזכורת SMS ומגבלות",
         paragraphs: [
-          "בתזכורת ה־SMS של חבילת ההודעות מופיע גם מספר שולחן כשיש הושבה. התזכורת היא שלב נפרד מהודעת השיבוץ עצמה.",
+          "התזכורת היא שלב נפרד מהודעת השיבוץ עצמה. מספר השולחן נכלל בה לפי מצב השיבוץ של האורח בזמן השליחה.",
           "הושבה דיגיטלית היא תוספת במחשבון. בלי התוספת אין להניח שמפת ההושבה או שליחת מספר השולחן פתוחות.",
         ],
       },
@@ -479,67 +508,45 @@ export const GUIDES: Guide[] = [
     faqs: [
       {
         q: "האם מספר השולחן נשלח עם אישור ההגעה?",
-        a: "לא. סבבי אישור ההגעה אוספים תשובה. מספר השולחן נשלח אחרי השיבוץ, וגם בתזכורת כשיש הושבה.",
+        a: "לא. סבבי אישור ההגעה אוספים תשובה. מספר השולחן נשלח אחרי השיבוץ — בהודעה ייעודית, ובתזכורת למי שמשובץ.",
       },
       {
         q: "מה קורה אם משנים שולחן אחרי השליחה?",
-        a: "מעדכנים את השיבוץ במערכת. אם כבר נשלח מספר ישן, צריך לשלוח שוב או לעדכן את האורח ידנית.",
+        a: "מעדכנים את השיבוץ במערכת. אם כבר נשלח מספר ישן, צריך לשלוח שוב או לעדכן את האורח ידנית — המפה לבדה לא מעדכנת הודעה שכבר התקבלה.",
       },
+    ],
+    related: [
+      { href: "/seating-explained", label: "סידורי הושבה" },
+      { href: "/info/guides/seating-plan", label: "מדריך מפת הושבה" },
+      { href: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" },
+      { href: "/pricing", label: "חבילות ומחירים" },
+      { href: "/try/dashboard/seating", label: "דמו הושבה" },
     ],
   },
   {
+    // Dedicated UI: app/(marketing)/info/guides/event-day-checklist/
     slug: "event-day-checklist",
-    title: "מה בודקים לפני יום האירוע במערכת?",
-    description: "רשימת בדיקה מעשית: סטטוסי הגעה, הושבה, תזכורת, הודעת תודה וגבולות המערכת מול ליווי באולם.",
-    h1: "מה בודקים לפני יום האירוע?",
-    titleAccent: "רשימת בדיקה מעשית",
-    lede: "לפני יום האירוע בודקים שהרשימה מעודכנת, שסבבי האישור הסתיימו ככל האפשר, שההושבה מוכנה אם נרכשה, ושהתזכורת והודעת התודה מוגדרות. המערכת לא מחליפה מפיק באולם אלא אם סוכם ליווי.",
-    benefits: [
-      {
-        title: "רשימה מעודכנת",
-        text: "כולל תשובות שהגיעו בטלפון ועודכנו ידנית.",
-      },
-      {
-        title: "הושבה ותזכורת",
-        text: "אם נרכשו — מוודאים שיבוץ והודעות מוכנים.",
-      },
-      {
-        title: "בלי להחליף מפיק",
-        text: "ליווי באולם רק אם סוכם בנפרד.",
-      },
-    ],
-    steps: [
-      { title: "סוגרים פתוחים", text: "סבב שני או שיחות." },
-      { title: "מעבירים מספר לאולם", text: "לפי המועד שלו." },
-      { title: "סוגרים הושבה", text: "אם יש תוספת." },
-      { title: "בודקים תזכורת ותודה", text: "מועדים ותוכן." },
-    ],
-    showEventTypes: true,
-    sections: [
-      {
-        heading: "רשימה ואישורים",
-        paragraphs: [
-          "עוברים על מי עדיין בלי תשובה. משתמשים בסבב וואטסאפ שני או בחבילת שיחות אם היא נרכשה. מעדכנים ידנית תשובות שהגיעו בטלפון כדי שהמספר לאולם יהיה אחד.",
-          "מייצאים או מעבירים לאולם את מספר המגיעים לפי המועד שהאולם קבע. המערכת לא שולחת את המספר לאולם אוטומטית.",
-        ],
-      },
-      {
-        heading: "הושבה, תזכורת ותודה",
-        paragraphs: [
-          "אם יש תוספת הושבה, סוגרים שיבוץ ושולחים מספר שולחן למי שצריך. בודקים שהתזכורת ב־SMS מוגדרת למועד הנכון, ושהודעת התודה מוכנה אחרי האירוע.",
-          "ניהול משימות, ספקים ותקציב נמצא במסך ניהול האירוע. ליווי וניהול באולם הם שירות נפרד, רק אם סוכם.",
-        ],
-      },
-    ],
-    faqs: [
-      {
-        q: "האם יש צ׳ק־אין אוטומטי באולם?",
-        a: "יש מסכי צ׳ק־אין במערכת לשימוש ביום האירוע כשהם מופעלים לאירוע. זה לא מחליף את סבבי אישור ההגעה מראש.",
-      },
-      {
-        q: "מה ההבדל בין המדריך הזה לעמוד ניהול האירוע?",
-        a: "המדריך הוא רשימת בדיקה לפני היום. עמוד ניהול האירוע מתאר את מסך המוצר עצמו.",
-      },
+    title: "מה בודקים לפני יום האירוע? הצ'קליסט המלא לחתונה",
+    description:
+      "מה צריך לסגור לפני החתונה? צ'קליסט מלא לחודש, לשבוע וליום שלפני האירוע: ספקים, תשלומים, אישורי הגעה, הושבה, לו\"ז, ציוד וטיפים מעשיים.",
+    h1: "מה בודקים לפני יום האירוע? הצ'קליסט המלא לחתונה בלי הפתעות",
+    titleAccent: "תוכנית עבודה לפני האירוע",
+    lede: "לפני יום החתונה חשוב לוודא שכל הספקים אישרו את פרטי ההגעה וההסכמים, שהתשלומים והמקדמות מעודכנים, שלוח הזמנים סופי, שרשימת המוזמנים ואישורי ההגעה מעודכנים, שמפת ההושבה מוכנה ושהאולם קיבל את מספר האורחים לפי המועד שסוכם. בנוסף, יש להכין אנשי קשר, ציוד אישי, פתרונות למקרים בלתי צפויים וחלוקת אחריות ברורה ליום האירוע.",
+    sections: [],
+    faqs: [],
+    related: [
+      { href: "/info/guides/wedding-planning", label: "תכנון חתונה מלא" },
+      { href: "/info/guides/wedding-vendors-contracts", label: "ספקים וחוזים" },
+      { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
+      { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
+      { href: "/info/guides/wedding-seating-arrangements", label: "סידורי הושבה" },
+      { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
+      { href: "/event-management", label: "ניהול אירוע" },
+      { href: "/rsvp", label: "אישורי הגעה" },
+      { href: "/seating-explained", label: "הושבה דיגיטלית" },
+      { href: "/pricing", label: "חבילות ומחירים" },
+      { href: "/try", label: "דמו" },
+      { href: "/info/guides", label: "מרכז המדריכים" },
     ],
   },
 ];

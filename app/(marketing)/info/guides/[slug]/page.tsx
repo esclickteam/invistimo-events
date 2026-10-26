@@ -13,11 +13,17 @@ export function generateStaticParams() {
     "guests-who-dont-reply",
     "guest-list",
     "wedding-venue-guest-guarantee",
+    "wedding-seating-arrangements",
+    "seating-plan",
     "cost-rsvp-wedding",
     "whatsapp-vs-sms-rsvp",
+    "how-to-choose-rsvp-company",
     "wedding-alcohol-calculator",
     "wedding-planning",
     "wedding-vendors-contracts",
+    "event-day-checklist",
+    "table-number-message",
+    "bit-paybox-wedding-invitation",
     "save-the-date-vs-invitation",
   ]);
   return GUIDES.filter((guide) => !dedicated.has(guide.slug)).map((guide) => ({

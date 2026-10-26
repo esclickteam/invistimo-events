@@ -47,16 +47,38 @@ export default function InteractiveChecklist({ storageKey, title, items, id }: P
         <div>
           <h3 className="text-xl font-black text-[#2C241C] md:text-2xl">{title}</h3>
           <p className="mt-1 text-sm font-semibold text-[#7A6042]">
-            {done} מתוך {items.length} סומנו · נשמר במכשיר זה בלבד
+            {done} מתוך {items.length} סומנו · נשמר במכשיר זה בלבד · לא משנה נתוני אירוע
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => persist({})}
-          className="rounded-full border border-[#DCC7A6] bg-white px-4 py-2 text-xs font-bold text-[#5E4735] print:hidden"
-        >
-          איפוס
-        </button>
+        <div className="flex flex-wrap gap-2 print:hidden">
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="rounded-full border border-[#DCC7A6] bg-white px-4 py-2 text-xs font-bold text-[#5E4735]"
+          >
+            הדפסה
+          </button>
+          <button
+            type="button"
+            onClick={() => persist({})}
+            className="rounded-full border border-[#DCC7A6] bg-white px-4 py-2 text-xs font-bold text-[#5E4735]"
+          >
+            איפוס
+          </button>
+        </div>
+      </div>
+      <div
+        className="mt-4 h-2.5 overflow-hidden rounded-full bg-[#F0E4D2]"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={items.length}
+        aria-valuenow={done}
+        aria-label={`התקדמות הצ'קליסט: ${done} מתוך ${items.length}`}
+      >
+        <div
+          className="h-full rounded-full bg-gradient-to-l from-[#C9A45C] to-[#8A642E] transition-[width] duration-300"
+          style={{ width: `${items.length ? (done / items.length) * 100 : 0}%` }}
+        />
       </div>
       <ul className="mt-5 space-y-2.5">
         {items.map((item, index) => {

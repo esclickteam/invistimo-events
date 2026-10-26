@@ -1,8 +1,8 @@
-import AnswerFirst from "@/components/seo/AnswerFirst";
 import PricingMarketingExtras, { PRICING_PAGE_FAQS } from "@/components/marketing/PricingMarketingExtras";
 import JsonLd from "@/components/seo/JsonLd";
 import { breadcrumbNode, faqNode, graph, organizationNode, serviceNode, softwareNode } from "@/lib/seo/jsonld";
 import { findCoreRoute, pageMetadata } from "@/lib/seo/site";
+import "./pricing-luxury.css";
 
 const route = findCoreRoute("/pricing")!;
 
@@ -34,7 +34,6 @@ export default function PricingLayout({ children }: { children: React.ReactNode 
           faqNode(PRICING_PAGE_FAQS),
         ])}
       />
-      <AnswerFirst path="/pricing" />
       {children}
       <PricingMarketingExtras />
     </>

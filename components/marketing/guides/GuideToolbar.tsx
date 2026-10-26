@@ -11,12 +11,13 @@ type Props = {
 export default function GuideToolbar({ title, path, readingMinutes }: Props) {
   const [copied, setCopied] = useState(false);
   const [canShare, setCanShare] = useState(false);
-  // Keep SSR and first client paint identical (absolute marketing URL).
-  const url = `https://www.invistimo.com${path.startsWith("/") ? path : `/${path}`}`;
+  // Keep SSR/client first paint identical; resolve absolute URL after mount.
+  const [url, setUrl] = useState(path);
 
   useEffect(() => {
+    setUrl(`${window.location.origin}${path}`);
     setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
-  }, []);
+  }, [path]);
 
   const copyLink = useCallback(async () => {
     try {

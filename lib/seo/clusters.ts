@@ -30,6 +30,7 @@ export const PILLARS: ContentPillar[] = [
       { path: "/info/guides/cost-rsvp-wedding", label: "איך מחושב המחיר" },
       { path: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
       { path: "/info/guides/whatsapp-vs-sms-rsvp", label: "WhatsApp או SMS" },
+      { path: "/info/guides/how-to-choose-rsvp-company", label: "איך בוחרים חברת אישורי הגעה" },
       { path: "/info/guides/guest-list", label: "רשימת מוזמנים" },
       { path: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים כדאי להתחייב לאולם?" },
     ],
@@ -41,7 +42,9 @@ export const PILLARS: ContentPillar[] = [
     summary: "ההזמנה שהאורח פותח מהקישור, ו־Save the Date כהודעה מוקדמת נפרדת.",
     clusters: [
       { path: "/rsvp/save-the-date", label: "Save the Date" },
+      { path: "/credit-gifts", label: "מתנות באשראי, bit ו־PayBox" },
       { path: "/info/guides/send-digital-invitation", label: "איך שולחים הזמנה" },
+      { path: "/info/guides/bit-paybox-wedding-invitation", label: "bit ו־PayBox בהזמנה" },
       { path: "/info/guides/save-the-date-vs-invitation", label: "Save the Date מול הזמנה" },
     ],
   },
@@ -51,7 +54,11 @@ export const PILLARS: ContentPillar[] = [
     path: "/seating-explained",
     summary: "סקיצת אולם, שיבוץ ידני או לפי קבוצות, והודעה עם מספר שולחן.",
     clusters: [
-      { path: "/info/guides/seating-plan", label: "איך מכינים הושבה" },
+      {
+        path: "/info/guides/wedding-seating-arrangements",
+        label: "סידורי הושבה לחתונה — המדריך המלא",
+      },
+      { path: "/info/guides/seating-plan", label: "איך מכינים הושבה במערכת" },
       { path: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },
     ],
   },

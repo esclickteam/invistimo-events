@@ -178,9 +178,9 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
   },
   {
     path: "/pricing",
-    title: "חבילות ומחירים לאישורי הגעה | Invistimo",
+    title: "מחירון אישורי הגעה לחתונה | חבילות ומחירים – Invistimo",
     description:
-      "מחיר Invistimo מחושב לפי מספר רשומות והחבילה: הודעות, שיחות מוקלטות, שיחות אנושיות או משולבות, ותוספות שמופיעות במחשבון.",
+      "כמה עולים אישורי הגעה לחתונה? השוו חבילות Invistimo, בחרו מספר רשומות וראו מחירים לאישורי הגעה, שיחות, הזמנות דיגיטליות וסידורי הושבה.",
     changeFrequency: "monthly",
     priority: 0.9,
   },
@@ -210,19 +210,19 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
   },
   {
     path: "/contact",
-    title: "יצירת קשר | Invistimo",
+    title: "יצירת קשר עם Invistimo | שירות לקוחות ותמיכה",
     description:
-      "דברו עם Invistimo בטופס, בוואטסאפ או בדוא״ל support@invistimo.com על חבילה, אישורי הגעה או ניהול האירוע.",
+      "צריכים עזרה עם Invistimo? צרו קשר ב־WhatsApp, בדוא״ל או באמצעות טופס הפנייה. מידע על חבילות, הזמנות דיגיטליות, אישורי הגעה וסידורי הושבה.",
     changeFrequency: "yearly",
     priority: 0.5,
   },
   {
     path: "/credit-gifts",
-    title: "מתנות באשראי לאירוע | Invistimo",
+    title: "מתנות לחתונה באשראי, bit ו־PayBox | Invistimo",
     description:
-      "מתנות באשראי דרך ספק סליקה חיצוני. האורח משלם, כולל עמלת סליקה של 2.5% מגובה המתנה, כפי שמפורט בעמוד השירות.",
-    changeFrequency: "yearly",
-    priority: 0.4,
+      "מתנות לחתונה באשראי דרך RSVP, קישור PayBox ומספר bit להעתקה. הכירו את שלוש אפשרויות המתנה הדיגיטליות ב־Invistimo ואיך משלבים אותן בהזמנה ובאישורי ההגעה.",
+    changeFrequency: "monthly",
+    priority: 0.72,
   },
   {
     path: "/wedding-website",

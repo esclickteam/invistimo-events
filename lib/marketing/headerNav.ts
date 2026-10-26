@@ -92,8 +92,8 @@ export const SERVICE_COLUMNS: HeaderNavColumn[] = [
       },
       {
         href: "/credit-gifts",
-        label: "מתנות באשראי",
-        description: "מתנה דיגיטלית דרך סליקה חיצונית",
+        label: "מתנות באשראי, bit ו־PayBox",
+        description: "אשראי דרך RSVP, PayBox ומספר bit בהזמנה",
       },
     ],
   },
@@ -129,6 +129,10 @@ export const GUIDE_COLUMNS: HeaderNavColumn[] = [
         label: "איך שולחים הזמנה דיגיטלית",
       },
       {
+        href: "/info/guides/bit-paybox-wedding-invitation",
+        label: "bit ו־PayBox בהזמנה",
+      },
+      {
         href: "/info/guides/save-the-date-vs-invitation",
         label: "Save the Date מול הזמנה",
       },
@@ -154,6 +158,10 @@ export const GUIDE_COLUMNS: HeaderNavColumn[] = [
     links: [
       { href: "/info/guides/guest-list", label: "ניהול רשימת מוזמנים" },
       {
+        href: "/info/guides/how-to-choose-rsvp-company",
+        label: "איך בוחרים חברת אישורי הגעה",
+      },
+      {
         href: "/info/guides/when-to-send-rsvp",
         label: "מתי שולחים אישורי הגעה",
       },
@@ -171,10 +179,17 @@ export const GUIDE_COLUMNS: HeaderNavColumn[] = [
     id: "venues-seating",
     title: "אולמות וסידורי הושבה",
     links: [
-      { href: "/info/guides/seating-plan", label: "איך מכינים סידורי הושבה" },
+      {
+        href: "/info/guides/wedding-seating-arrangements",
+        label: "סידורי הושבה לחתונה — המדריך המלא",
+      },
+      {
+        href: "/info/guides/seating-plan",
+        label: "איך מכינים סידורי הושבה — צעד אחר צעד",
+      },
       {
         href: "/info/guides/table-number-message",
-        label: "הודעת מספר שולחן",
+        label: "הודעת מספר שולחן לאורחים",
       },
       {
         href: "/info/guides/wedding-venue-guest-guarantee",

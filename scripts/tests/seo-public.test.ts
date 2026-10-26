@@ -263,7 +263,7 @@ test("marketing pages no longer point the RSVP call to action at a missing short
   assert.ok(fs.existsSync(path.join(root, "public/answers.json")));
   assert.ok(fs.existsSync(path.join(root, "public/homep1.webp")));
   assert.ok(fs.existsSync(path.join(root, "public/og-invistimo.jpg")));
-  assert.equal(GUIDES.length, 14);
+  assert.equal(GUIDES.length, 17);
   assert.equal(SERVICE_PAGES.length, 5);
   assert.match(read("app/components/Footer.tsx"), /href="\/pricing"/);
   assert.match(read("app/components/Footer.tsx"), /href="\/rsvp"/);
@@ -324,19 +324,21 @@ test("pillar clusters do not assign one URL to two topics and answer-first cover
   assert.match(page, /<h1/);
   assert.match(page, /<h2/);
   assert.match(page, /<h3/);
-  assert.match(page, /התשובה הקצרה/);
-  assert.match(read("components/seo/AnswerFirst.tsx"), /התשובה הקצרה/);
+  // Artificial SEO/AEO chrome boxes must not appear in public UI.
+  assert.doesNotMatch(page, /התשובה הקצרה/);
+  assert.doesNotMatch(read("components/seo/AnswerFirst.tsx"), /התשובה הקצרה/);
+  assert.match(read("components/seo/AnswerFirst.tsx"), /return null/);
   assert.doesNotMatch(read("app/(marketing)/rsvp/page.tsx"), /AnswerFirst|התשובה הקצרה/);
   assert.match(read("app/(marketing)/rsvp/page.tsx"), /videoNode|FAQPage|BreadcrumbList|faqNode/);
   assert.doesNotMatch(read("app/seating-explained/layout.tsx"), /AnswerFirst|התשובה הקצרה/);
   assert.match(read("app/seating-explained/layout.tsx"), /FAQPage|faqNode|BreadcrumbList|WebPage/);
-  assert.match(read("app/event-management/page.jsx"), /AnswerFirst/);
-  assert.match(read("app/pricing/layout.tsx"), /AnswerFirst/);
+  assert.doesNotMatch(read("app/event-management/page.jsx"), /AnswerFirst/);
+  assert.doesNotMatch(read("app/pricing/layout.tsx"), /AnswerFirst/);
+  assert.doesNotMatch(read("app/faq/page.jsx"), /AnswerFirst/);
   // Homepage ships marketing sections + FAQ schema (not AnswerFirst chrome).
   assert.match(read("app/HomePageClient.tsx"), /HomeMarketingSections/);
   assert.doesNotMatch(read("app/HomePageClient.tsx"), /AnswerFirst/);
   assert.doesNotMatch(read("app/page.tsx"), /AnswerFirst/);
-  assert.match(read("app/faq/page.jsx"), /AnswerFirst/);
   assert.doesNotMatch(read("lib/seo/jsonld.ts"), /AggregateRating|Review/);
   assert.match(read("public/llms.txt"), /not a ranking factor/);
   assert.equal(contentGroup("/rsvp/chatuna"), "rsvp_invitations");

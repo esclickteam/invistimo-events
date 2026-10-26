@@ -42,6 +42,7 @@ export function contentGroup(pathname: string) {
   if (pathname.startsWith("/event-management")) return "event_management";
   if (pathname === "/pricing") return "pricing";
   if (pathname.startsWith("/wedding-website")) return "wedding_website";
+  if (pathname === "/credit-gifts") return "credit_gifts";
   if (pathname === "/faq" || pathname.startsWith("/info/") || pathname === "/contact") return "trust";
   return "other";
 }

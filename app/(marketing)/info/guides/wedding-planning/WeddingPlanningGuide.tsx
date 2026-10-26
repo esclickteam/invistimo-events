@@ -261,14 +261,13 @@ export default function WeddingPlanningGuide() {
         <StickyToc items={TOC} />
         <div className="min-w-0 space-y-16 md:space-y-20">
           <section id="start" className="scroll-mt-24" aria-labelledby="start-h">
-            <Eyebrow>פרק 1</Eyebrow>
             <h2 id="start-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מה עושים קודם — סוגרים אולם, בונים רשימת מוזמנים או קובעים תקציב?
             </h2>
             <Prose>
               <p>
-                <strong className="font-black text-[#2C241C]">התשובה הקצרה:</strong> מתחילים משלושה
-                דברים שמשפיעים זה על זה — מסגרת תקציב, הערכת מספר מוזמנים והעדפות לגבי אופי האירוע.
+                מתחילים משלושה דברים שמשפיעים זה על זה — מסגרת תקציב, הערכת מספר מוזמנים והעדפות לגבי
+                אופי האירוע.
               </p>
               <p>
                 אין סדר קשיח שמתאים לכל זוג. אבל לא כדאי לחתום על אולם לפני שמבינים את סדר הגודל של
@@ -289,7 +288,6 @@ export default function WeddingPlanningGuide() {
           </section>
 
           <section id="budget" className="scroll-mt-24" aria-labelledby="budget-h">
-            <Eyebrow>פרק 2</Eyebrow>
             <h2 id="budget-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               איך בונים תקציב חתונה בלי לגלות הוצאות מפתיעות בהמשך?
             </h2>
@@ -314,7 +312,6 @@ export default function WeddingPlanningGuide() {
           </section>
 
           <section id="guests" className="scroll-mt-24" aria-labelledby="guests-h">
-            <Eyebrow>פרק 3</Eyebrow>
             <h2 id="guests-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               כמה מוזמנים להזמין ואיך מארגנים את הרשימה?
             </h2>
@@ -343,7 +340,6 @@ export default function WeddingPlanningGuide() {
           </section>
 
           <section id="venue" className="scroll-mt-24" aria-labelledby="venue-h">
-            <Eyebrow>פרק 4</Eyebrow>
             <h2 id="venue-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               איך בוחרים אולם חתונה שמתאים לכם באמת?
             </h2>
@@ -388,7 +384,6 @@ export default function WeddingPlanningGuide() {
           </section>
 
           <section id="vendor-timeline" className="scroll-mt-24" aria-labelledby="vendor-timeline-h">
-            <Eyebrow>פרק 5</Eyebrow>
             <h2 id="vendor-timeline-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               באיזה סדר כדאי לסגור ספקים ושירותים לחתונה?
             </h2>
@@ -533,7 +528,6 @@ export default function WeddingPlanningGuide() {
           </section>
 
           <section id="choosing-vendors" className="scroll-mt-24" aria-labelledby="choosing-vendors-h">
-            <Eyebrow>פרק 6</Eyebrow>
             <h2 id="choosing-vendors-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               איך בוחרים ספקים מקצועיים שאפשר לסמוך עליהם?
             </h2>
@@ -548,7 +542,6 @@ export default function WeddingPlanningGuide() {
           </section>
 
           <section id="attire" className="scroll-mt-24" aria-labelledby="attire-h">
-            <Eyebrow>פרק 7</Eyebrow>
             <h2 id="attire-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מתי מתחילים לבחור שמלת כלה, חליפה, איפור ושיער?
             </h2>
@@ -570,7 +563,6 @@ export default function WeddingPlanningGuide() {
           </section>
 
           <section id="atmosphere" className="scroll-mt-24" aria-labelledby="atmosphere-h">
-            <Eyebrow>פרק 8</Eyebrow>
             <h2 id="atmosphere-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               איך יוצרים חתונה שמרגישה אישית ולא כמו העתק של אירוע אחר?
             </h2>
@@ -607,7 +599,6 @@ export default function WeddingPlanningGuide() {
           </section>
 
           <section id="invites-rsvp" className="scroll-mt-24" aria-labelledby="invites-rsvp-h">
-            <Eyebrow>פרק 9</Eyebrow>
             <h2 id="invites-rsvp-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מתי שולחים הזמנות ומתי מתחילים אישורי הגעה?
             </h2>
@@ -641,7 +632,6 @@ export default function WeddingPlanningGuide() {
           </section>
 
           <section id="seating" className="scroll-mt-24" aria-labelledby="seating-h">
-            <Eyebrow>פרק 10</Eyebrow>
             <h2 id="seating-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               איך מתכננים סידורי הושבה בלי להסתבך?
             </h2>
@@ -656,12 +646,16 @@ export default function WeddingPlanningGuide() {
                 שונים.
               </p>
               <p>
+                <Link href="/info/guides/wedding-seating-arrangements" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                  מדריך סידורי הושבה לחתונה
+                </Link>
+                {" · "}
                 <Link href="/seating-explained" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
                   סידורי הושבה ב־Invistimo
                 </Link>
                 {" · "}
                 <Link href="/info/guides/seating-plan" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
-                  איך מכינים הושבה
+                  איך מכינים הושבה במערכת
                 </Link>
                 .
               </p>
@@ -673,7 +667,6 @@ export default function WeddingPlanningGuide() {
           </section>
 
           <section id="event-day-mgmt" className="scroll-mt-24" aria-labelledby="event-day-mgmt-h">
-            <Eyebrow>פרק 11</Eyebrow>
             <h2 id="event-day-mgmt-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מי דואג שכל מה שתכננתם באמת יקרה?
             </h2>
@@ -699,7 +692,6 @@ export default function WeddingPlanningGuide() {
           </section>
 
           <section id="month-before" className="scroll-mt-24" aria-labelledby="month-before-h">
-            <Eyebrow>פרק 12</Eyebrow>
             <h2 id="month-before-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מה חשוב לסגור בחודש האחרון?
             </h2>
@@ -720,7 +712,6 @@ export default function WeddingPlanningGuide() {
           </section>
 
           <section id="week-before" className="scroll-mt-24" aria-labelledby="week-before-h">
-            <Eyebrow>פרק 13</Eyebrow>
             <h2 id="week-before-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מה עושים בשבוע האחרון?
             </h2>
@@ -744,7 +735,6 @@ export default function WeddingPlanningGuide() {
           </section>
 
           <section id="wedding-day" className="scroll-mt-24" aria-labelledby="wedding-day-h">
-            <Eyebrow>פרק 14</Eyebrow>
             <h2 id="wedding-day-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               איך מגיעים ליום החתונה מוכנים ורגועים יותר?
             </h2>
@@ -762,7 +752,6 @@ export default function WeddingPlanningGuide() {
           </section>
 
           <section id="after" className="scroll-mt-24" aria-labelledby="after-h">
-            <Eyebrow>פרק 15</Eyebrow>
             <h2 id="after-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מה נשאר לעשות אחרי שהאירוע נגמר?
             </h2>
