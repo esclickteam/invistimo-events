@@ -114,14 +114,14 @@ export default function WeddingWebsiteMarketingPage() {
               <span>אתר חתונה</span>
             </nav>
 
-            <p className="font-[family-name:var(--font-ww-display)] text-3xl font-semibold tracking-tight text-[#2A2118] md:text-4xl">
+            <p className="font-['Cormorant_Garamond'] text-3xl font-semibold tracking-tight text-[#2A2118] md:text-4xl">
               Invistimo
             </p>
             <p className="mt-3 text-sm font-black tracking-[0.16em] text-[#7A5530]">
               אתר חתונה אישי
             </p>
 
-            <h1 className="mt-4 max-w-xl font-[family-name:var(--font-ww-display)] text-[2.05rem] font-semibold leading-[1.12] text-[#2A2118] md:text-[2.75rem]">
+            <h1 className="mt-4 max-w-xl font-['Cormorant_Garamond'] text-[2.05rem] font-semibold leading-[1.12] text-[#2A2118] md:text-[2.75rem]">
               הסיפור שלכם. האתר שלכם. החתונה שלכם.
             </h1>
 
@@ -160,6 +160,7 @@ export default function WeddingWebsiteMarketingPage() {
               <DevicePreviewPair
                 templateId={heroTemplate.id}
                 name={heroTemplate.name}
+                posterSrc={heroTemplate.heroImage || heroTemplate.previewImage}
                 eager
               />
             ) : (
@@ -171,6 +172,7 @@ export default function WeddingWebsiteMarketingPage() {
                 <DevicePreviewPair
                   templateId={heroTemplate.id}
                   name={heroTemplate.name}
+                  posterSrc={heroTemplate.heroImage || heroTemplate.previewImage}
                   eager
                 />
               </motion.div>
@@ -193,7 +195,7 @@ export default function WeddingWebsiteMarketingPage() {
             <Eyebrow>הרבה יותר מהזמנה</Eyebrow>
             <h2
               id="what-is-heading"
-              className="mt-3 font-[family-name:var(--font-ww-display)] text-3xl font-semibold leading-tight text-[#2A2118] md:text-5xl"
+              className="mt-3 font-['Cormorant_Garamond'] text-3xl font-semibold leading-tight text-[#2A2118] md:text-5xl"
             >
               הרבה יותר מהזמנה דיגיטלית
             </h2>
@@ -230,6 +232,7 @@ export default function WeddingWebsiteMarketingPage() {
               title="מבנה אתר חתונה מלא — תצוגה חיה"
               variant="desktop"
               frameHeight={620}
+              posterSrc={heroTemplate.heroImage || heroTemplate.previewImage}
               className="[--ww-preview-scale:0.55] md:[--ww-preview-scale:0.64]"
             />
           </FadeIn>
@@ -247,7 +250,7 @@ export default function WeddingWebsiteMarketingPage() {
             <Eyebrow onDark>הבחנה חשובה</Eyebrow>
             <h2
               id="compare-heading"
-              className="mt-3 max-w-3xl font-[family-name:var(--font-ww-display)] text-3xl font-semibold leading-tight text-[#FFF8EF] md:text-5xl"
+              className="mt-3 max-w-3xl font-['Cormorant_Garamond'] text-3xl font-semibold leading-tight text-[#FFF8EF] md:text-5xl"
             >
               אתר חתונה, הזמנה דיגיטלית ואישור הגעה — מה ההבדל?
             </h2>
@@ -274,7 +277,7 @@ export default function WeddingWebsiteMarketingPage() {
             ].map((col, i) => (
               <FadeIn key={col.title} delay={i * 0.06}>
                 <div className="h-full border-t border-[#C9A962]/35 pt-6">
-                  <h3 className="font-[family-name:var(--font-ww-display)] text-2xl font-semibold text-[#E8D5A8]">
+                  <h3 className="font-['Cormorant_Garamond'] text-2xl font-semibold text-[#E8D5A8]">
                     {col.title}
                   </h3>
                   <p className="mt-4 text-[15px] leading-7 text-[#D8CBB8]">{col.text}</p>
@@ -349,7 +352,7 @@ export default function WeddingWebsiteMarketingPage() {
             <Eyebrow>גלריית עיצובים</Eyebrow>
             <h2
               id="gallery-heading"
-              className="mt-3 font-[family-name:var(--font-ww-display)] text-3xl font-semibold leading-tight text-[#2A2118] md:text-5xl"
+              className="mt-3 font-['Cormorant_Garamond'] text-3xl font-semibold leading-tight text-[#2A2118] md:text-5xl"
             >
               כל סיפור אהבה ראוי לאתר משלו
             </h2>
@@ -376,7 +379,7 @@ export default function WeddingWebsiteMarketingPage() {
             <Eyebrow>חוויית גלילה</Eyebrow>
             <h2
               id="video-heading"
-              className="mt-3 font-[family-name:var(--font-ww-display)] text-3xl font-semibold text-[#2A2118] md:text-5xl"
+              className="mt-3 font-['Cormorant_Garamond'] text-3xl font-semibold text-[#2A2118] md:text-5xl"
             >
               תראו איך האתר שלכם יכול להרגיש
             </h2>
@@ -425,7 +428,7 @@ export default function WeddingWebsiteMarketingPage() {
             <Eyebrow onDark>עיצוב אישי</Eyebrow>
             <h2
               id="custom-heading"
-              className="mt-3 font-[family-name:var(--font-ww-display)] text-3xl font-semibold leading-tight text-[#FFF8EF] md:text-5xl"
+              className="mt-3 font-['Cormorant_Garamond'] text-3xl font-semibold leading-tight text-[#FFF8EF] md:text-5xl"
             >
               לא חייבים לבחור אתר שנראה כמו של כולם
             </h2>
@@ -475,7 +478,7 @@ export default function WeddingWebsiteMarketingPage() {
             <Eyebrow>מה אפשר להציג</Eyebrow>
             <h2
               id="features-heading"
-              className="mt-3 font-[family-name:var(--font-ww-display)] text-3xl font-semibold text-[#2A2118] md:text-5xl"
+              className="mt-3 font-['Cormorant_Garamond'] text-3xl font-semibold text-[#2A2118] md:text-5xl"
             >
               כל הפרטים החשובים, במקום אחד
             </h2>
@@ -499,7 +502,7 @@ export default function WeddingWebsiteMarketingPage() {
               {VERIFIED_CAPABILITIES.map((cap, i) => (
                 <FadeIn key={cap.id} delay={i * 0.04}>
                   <div className="border-b border-[#D4C0A0]/70 pb-6">
-                    <h3 className="font-[family-name:var(--font-ww-display)] text-2xl font-semibold text-[#2A2118]">
+                    <h3 className="font-['Cormorant_Garamond'] text-2xl font-semibold text-[#2A2118]">
                       {cap.title}
                     </h3>
                     <p className="mt-2 text-[15px] leading-7 text-[#5C4A3A]">{cap.text}</p>
@@ -522,7 +525,7 @@ export default function WeddingWebsiteMarketingPage() {
             <Eyebrow>חוויית מובייל</Eyebrow>
             <h2
               id="mobile-heading"
-              className="mt-3 font-[family-name:var(--font-ww-display)] text-3xl font-semibold text-[#2A2118] md:text-5xl"
+              className="mt-3 font-['Cormorant_Garamond'] text-3xl font-semibold text-[#2A2118] md:text-5xl"
             >
               אתר חתונה שנראה נפלא גם בטלפון
             </h2>
@@ -546,6 +549,7 @@ export default function WeddingWebsiteMarketingPage() {
                 title="תצוגת מובייל גדולה של אתר חתונה"
                 variant="mobile"
                 frameHeight={640}
+                posterSrc={heroTemplate.previewImage || heroTemplate.heroImage}
                 className="[--ww-preview-scale:0.78]"
               />
             </div>
@@ -567,7 +571,7 @@ export default function WeddingWebsiteMarketingPage() {
             <Eyebrow>התהליך</Eyebrow>
             <h2
               id="how-heading"
-              className="mt-3 font-[family-name:var(--font-ww-display)] text-3xl font-semibold text-[#2A2118] md:text-5xl"
+              className="mt-3 font-['Cormorant_Garamond'] text-3xl font-semibold text-[#2A2118] md:text-5xl"
             >
               מהרעיון שלכם לאתר חתונה אישי
             </h2>
@@ -576,7 +580,7 @@ export default function WeddingWebsiteMarketingPage() {
             {STEPS.map((step, i) => (
               <FadeIn key={step.title} delay={i * 0.05}>
                 <li className="relative pr-2">
-                  <p className="font-[family-name:var(--font-ww-display)] text-5xl font-semibold text-[#C9A962]/55">
+                  <p className="font-['Cormorant_Garamond'] text-5xl font-semibold text-[#C9A962]/55">
                     {String(i + 1).padStart(2, "0")}
                   </p>
                   <h3 className="mt-2 text-xl font-black text-[#2A2118]">{step.title}</h3>
@@ -598,7 +602,7 @@ export default function WeddingWebsiteMarketingPage() {
           <Eyebrow>תזמון</Eyebrow>
           <h2
             id="when-heading"
-            className="mt-3 font-[family-name:var(--font-ww-display)] text-3xl font-semibold text-[#2A2118] md:text-4xl"
+            className="mt-3 font-['Cormorant_Garamond'] text-3xl font-semibold text-[#2A2118] md:text-4xl"
           >
             מתי הזמן המתאים ליצור אתר חתונה?
           </h2>
@@ -628,7 +632,7 @@ export default function WeddingWebsiteMarketingPage() {
             <Eyebrow onDark>למה אתר חתונה</Eyebrow>
             <h2
               id="why-heading"
-              className="mt-3 max-w-3xl font-[family-name:var(--font-ww-display)] text-3xl font-semibold text-[#FFF8EF] md:text-5xl"
+              className="mt-3 max-w-3xl font-['Cormorant_Garamond'] text-3xl font-semibold text-[#FFF8EF] md:text-5xl"
             >
               חוויה אישית שמתחילה הרבה לפני החופה
             </h2>
@@ -656,7 +660,7 @@ export default function WeddingWebsiteMarketingPage() {
             <Eyebrow>שאלות נפוצות בקצרה</Eyebrow>
             <h2
               id="geo-heading"
-              className="mt-3 font-[family-name:var(--font-ww-display)] text-3xl font-semibold text-[#2A2118] md:text-4xl"
+              className="mt-3 font-['Cormorant_Garamond'] text-3xl font-semibold text-[#2A2118] md:text-4xl"
             >
               תשובות ברורות לשאלות שזוגות שואלים
             </h2>
@@ -706,7 +710,7 @@ export default function WeddingWebsiteMarketingPage() {
             <Eyebrow>שאלות נפוצות</Eyebrow>
             <h2
               id="faq-heading"
-              className="mt-3 font-[family-name:var(--font-ww-display)] text-3xl font-semibold text-[#2A2118] md:text-4xl"
+              className="mt-3 font-['Cormorant_Garamond'] text-3xl font-semibold text-[#2A2118] md:text-4xl"
             >
               שאלות על אתר חתונה אישי
             </h2>
@@ -741,7 +745,7 @@ export default function WeddingWebsiteMarketingPage() {
         <div className="mx-auto max-w-3xl text-center">
           <h2
             id="cta-heading"
-            className="font-[family-name:var(--font-ww-display)] text-3xl font-semibold text-[#FFF8EF] md:text-5xl"
+            className="font-['Cormorant_Garamond'] text-3xl font-semibold text-[#FFF8EF] md:text-5xl"
           >
             החתונה שלכם ראויה לאתר שמרגיש בדיוק כמוכם
           </h2>

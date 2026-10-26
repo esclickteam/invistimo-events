@@ -48,6 +48,7 @@ export default function FeaturedTemplateShowcase({ styles }: Props) {
                     title={`${style.styleName} — תצוגה חיה`}
                     variant="desktop"
                     frameHeight={560}
+                    posterSrc={style.template.heroImage || style.template.previewImage}
                     className="[--ww-preview-scale:0.52] md:[--ww-preview-scale:0.62]"
                   />
                 </div>
@@ -59,6 +60,7 @@ export default function FeaturedTemplateShowcase({ styles }: Props) {
                     title={`${style.styleName} — מובייל`}
                     variant="mobile"
                     frameHeight={360}
+                    posterSrc={style.template.previewImage || style.template.heroImage}
                     className="[--ww-preview-scale:0.58]"
                   />
                 </div>
@@ -68,7 +70,7 @@ export default function FeaturedTemplateShowcase({ styles }: Props) {
                 <p className="text-sm font-black tracking-[0.16em] text-[#7A5530]">
                   {style.styleName}
                 </p>
-                <h3 className="mt-2 font-[family-name:var(--font-ww-display)] text-3xl font-semibold leading-tight text-[#2A2118] md:text-4xl">
+                <h3 className="mt-2 font-['Cormorant_Garamond'] text-3xl font-semibold leading-tight text-[#2A2118] md:text-4xl">
                   {style.hebrewLabel}
                 </h3>
                 <p className="mt-2 text-sm font-semibold text-[#8A7560]">
@@ -78,7 +80,7 @@ export default function FeaturedTemplateShowcase({ styles }: Props) {
                   {style.blurb}
                 </p>
                 <p className="mt-3 text-sm leading-7 text-[#6B5746]">
-                  {style.template.description}
+                  {style.template.tagline}
                 </p>
                 <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <Link

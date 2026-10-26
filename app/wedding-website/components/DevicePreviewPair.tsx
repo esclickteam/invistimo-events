@@ -5,6 +5,7 @@ import LiveSiteFrame from "./LiveSiteFrame";
 type Props = {
   templateId: string;
   name: string;
+  posterSrc?: string;
   eager?: boolean;
   className?: string;
 };
@@ -13,6 +14,7 @@ type Props = {
 export default function DevicePreviewPair({
   templateId,
   name,
+  posterSrc,
   eager = false,
   className = "",
 }: Props) {
@@ -33,6 +35,7 @@ export default function DevicePreviewPair({
           variant="desktop"
           frameHeight={480}
           eager={eager}
+          posterSrc={posterSrc}
           className="[--ww-preview-scale:0.48] md:[--ww-preview-scale:0.58]"
         />
       </div>
@@ -46,6 +49,7 @@ export default function DevicePreviewPair({
             variant="mobile"
             frameHeight={340}
             eager={eager}
+            posterSrc={posterSrc}
             className="[--ww-preview-scale:0.55]"
           />
         </div>
