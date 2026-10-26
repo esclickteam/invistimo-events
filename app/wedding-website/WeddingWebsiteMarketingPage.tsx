@@ -78,11 +78,6 @@ export default function WeddingWebsiteMarketingPage() {
     <article
       dir="rtl"
       className="ww-marketing min-h-screen overflow-x-clip bg-[#F7F1E8] text-[#3F3025]"
-      style={
-        {
-          "--font-ww-display": "'Cormorant Garamond', 'Playfair Display', serif",
-        } as React.CSSProperties
-      }
     >
       {/* HERO */}
       <header className="relative isolate overflow-hidden">
