@@ -41,12 +41,31 @@ const page = await browser.newPage({
   deviceScaleFactor: 1,
 });
 
+await page.addInitScript(() => {
+  const style = document.createElement("style");
+  style.textContent = `
+    nextjs-portal, [data-nextjs-toast], [data-nextjs-dialog],
+    #__next-build-watcher, [data-next-badge], [data-nextjs-dev-overlay] {
+      display: none !important; visibility: hidden !important;
+    }
+  `;
+  document.documentElement.appendChild(style);
+});
+
 await page.goto(`${baseUrl}/wedding-website/eternal-gold`, {
   waitUntil: "domcontentloaded",
   timeout: 90_000,
 });
 await page.waitForSelector(".wedding-website-root, .ww-site, main, body", {
   timeout: 60_000,
+});
+await page.addStyleTag({
+  content: `
+    nextjs-portal, [data-nextjs-toast], [data-nextjs-dialog],
+    #__next-build-watcher, [data-next-badge], [data-nextjs-dev-overlay] {
+      display: none !important; visibility: hidden !important;
+    }
+  `,
 });
 await page.waitForTimeout(2500);
 
