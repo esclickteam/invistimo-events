@@ -673,7 +673,7 @@ export default function EventDayChecklistGuide() {
               </p>
             </Prose>
             <SectionImage
-              src="/images/guides/guest-list/dashboard-guests.jpg"
+              src="/images/marketing-captures/demo/event-day-checkin.webp"
               alt="מסך רשימת מוזמנים במערכת Invistimo עם סטטוסי הגעה"
             />
           </motion.section>
@@ -716,7 +716,7 @@ export default function EventDayChecklistGuide() {
               </p>
             </Prose>
             <SectionImage
-              src="/images/seating/seating-map.png"
+              src="/images/marketing-captures/demo/event-day-seating.webp"
               alt="צילום מסך של מפת הושבה דיגיטלית ב־Invistimo עם שולחנות ושיבוץ אורחים"
             />
           </motion.section>
@@ -1046,7 +1046,7 @@ export default function EventDayChecklistGuide() {
               ))}
             </div>
             <SectionImage
-              src="/images/guides/guest-list/seating-map.png"
+              src="/images/marketing-captures/demo/event-day-seating-mobile.webp"
               alt="תצוגת הושבה ושיבוץ אורחים בממשק Invistimo"
             />
             <div className="mt-8 flex flex-wrap gap-3">

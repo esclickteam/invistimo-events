@@ -98,7 +98,7 @@ export default function CostRsvpGuide() {
           <div>
             <figure className="overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-white shadow-[0_28px_70px_rgba(58,39,20,0.12)]">
               <Image
-                src="/images/rsvp/chatuna/dashboard-guests.jpg"
+                src="/images/marketing-captures/demo/cost-rsvp-hero.webp"
                 alt="המחשת רשימת מוזמנים במערכת Invistimo עם סטטוסי אישור הגעה"
                 width={1400}
                 height={1000}

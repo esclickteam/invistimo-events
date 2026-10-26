@@ -343,7 +343,7 @@ export default function VenueGuaranteeGuide() {
           <figure>
             <div className="overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-white shadow-[0_24px_60px_rgba(58,39,20,0.1)]">
               <Image
-                src="/images/rsvp/chatuna/dashboard-guests.jpg"
+                src="/images/marketing-captures/demo/venue-guarantee-dashboard.webp"
                 alt="צילום אמיתי של נתוני אישורי הגעה ב־Invistimo: מאשרים, לא מגיעים וממתינים"
                 width={1400}
                 height={1000}

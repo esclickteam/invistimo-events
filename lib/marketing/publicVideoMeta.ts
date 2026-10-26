@@ -47,6 +47,9 @@ export const PUBLIC_VIDEO_META: Record<string, PublicVideoMeta> = {
   "/videos/event-management/tasks-flow.webm": meta(1280, 800, true),
   "/videos/event-management/budget-flow.webm": meta(1280, 800, true),
   "/videos/event-management/event-day.webm": meta(1280, 800, true),
+  "/videos/marketing-captures/demo-guests-dashboard.webm": meta(1280, 800, true),
+  "/videos/marketing-captures/demo-seating-map.webm": meta(1280, 800, true),
+  "/videos/marketing-captures/demo-check-in.webm": meta(1280, 800, true),
 };
 
 export function getPublicVideoMeta(src: string): PublicVideoMeta | null {

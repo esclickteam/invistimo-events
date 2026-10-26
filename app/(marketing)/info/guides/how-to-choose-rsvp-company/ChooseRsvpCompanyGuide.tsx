@@ -652,7 +652,7 @@ export default function ChooseRsvpCompanyGuide() {
               </p>
             </Prose>
             <ProductShot
-              src="/images/guides/guest-list/dashboard-guests.jpg"
+              src="/images/marketing-captures/demo/choose-company-dashboard.webp"
               alt="דשבורד Invistimo עם סטטוסי אישורי הגעה: אישרו, לא מגיעים וממתינים לתשובה — נתוני הדגמה"
               caption="צילום מסך אמיתי מהמערכת · נתוני דמו בלבד · אין פרטי לקוחות אמיתיים"
             />
@@ -766,7 +766,7 @@ export default function ChooseRsvpCompanyGuide() {
               ))}
             </ul>
             <ProductShot
-              src="/images/guides/guest-list/seating-map.png"
+              src="/images/marketing-captures/demo/choose-company-seating.webp"
               alt="מפת סידורי הושבה דיגיטלית ב־Invistimo עם שולחנות וקיבולת"
               caption="צילום מסך אמיתי של מפת ההושבה במערכת · הושבה דיגיטלית היא תוספת במחשבון"
             />

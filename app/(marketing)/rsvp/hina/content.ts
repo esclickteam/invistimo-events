@@ -41,7 +41,7 @@ export const MEDIA = {
   phoneWhatsapp: "/images/rsvp/chatuna/phone-whatsapp.jpg",
   phoneRsvp: "/images/rsvp/chatuna/phone-rsvp-form.jpg",
   phoneThanks: "/images/rsvp/chatuna/phone-thanks.jpg",
-  dashboardGuests: "/images/rsvp/chatuna/dashboard-guests.jpg",
+  dashboardGuests: "/images/marketing-captures/demo/hina-dashboard.webp",
   dashboardSeating: "/images/rsvp/chatuna/dashboard-seating.jpg",
   seatingVideoPoster: "/images/rsvp/chatuna/video-seating-poster.jpg",
   rsvpDashboardPoster: "/images/rsvp/rsvp-steps-live-poster.jpg",

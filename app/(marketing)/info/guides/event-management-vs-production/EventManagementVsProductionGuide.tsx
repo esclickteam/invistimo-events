@@ -374,7 +374,7 @@ export default function EventManagementVsProductionGuide() {
               </p>
             </Prose>
             <SectionImage
-              src="/images/rsvp/guides/wedding-planning/hall-tables.jpg"
+              src="/images/marketing-captures/demo/event-mgmt-vs-prod-seating.webp"
               alt="שולחנות ערוכים באולם לפני קבלת האורחים"
               caption="יום האירוע מתחיל הרבה לפני שהאורחים נכנסים — בהיערכות, הקמות ותיאומים"
             />
@@ -619,7 +619,7 @@ export default function EventManagementVsProductionGuide() {
               </TrackedCtaLink>
             </div>
             <SectionImage
-              src="/images/rsvp/chatuna/dashboard-guests.jpg"
+              src="/images/marketing-captures/demo/event-mgmt-vs-prod-hero.webp"
               alt="מסך רשימת מוזמנים במערכת Invistimo"
               caption="ריכוז מידע במערכת עוזר גם כשיש מנהל אולם, מנהל חיצוני או תכנון עצמאי"
             />

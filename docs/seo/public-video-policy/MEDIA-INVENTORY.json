@@ -1,0 +1,1639 @@
+{
+  "generatedAt": "2026-10-26T22:36:32.889Z",
+  "scannedFiles": 185,
+  "uniqueAssets": 123,
+  "missingOnDisk": [
+    "/marketing/wedding-website/previews/${templateId}-desktop.jpg",
+    "/marketing/wedding-website/previews/${templateId}-mobile.jpg"
+  ],
+  "duplicates": [
+    {
+      "asset": "/marketing/invites/invite-wedding-mia-alon.webp",
+      "files": [
+        "app/(marketing)/info/guides/save-the-date-vs-invitation/JourneyDemo.tsx",
+        "app/(marketing)/info/guides/save-the-date-vs-invitation/SaveTheDateVsInvitationGuide.tsx",
+        "app/(marketing)/info/guides/send-digital-invitation/SendDigitalInvitationGuide.tsx",
+        "app/(marketing)/info/guides/send-digital-invitation/page.tsx",
+        "app/(marketing)/info/guides/when-to-send-rsvp/WhenToSendGuide.tsx",
+        "app/(marketing)/invitations/chatuna/page.tsx",
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/(marketing)/rsvp/whatsapp/WhatsappRsvpMarketingPage.tsx",
+        "app/HomePageClient.tsx",
+        "components/marketing/HomeMarketingSections.tsx",
+        "components/marketing/invitations/designs.ts",
+        "lib/seo/guides.ts",
+        "lib/seo/services.ts"
+      ],
+      "count": 13
+    },
+    {
+      "asset": "/images/marketing-captures/demo/desktop-seating.webp",
+      "files": [
+        "app/(marketing)/info/guides/event-day-checklist/EventDayChecklistGuide.tsx",
+        "app/(marketing)/info/guides/event-management-vs-production/EventManagementVsProductionGuide.tsx",
+        "app/(marketing)/info/guides/guest-list/GuestListGuide.tsx",
+        "app/(marketing)/info/guides/how-to-choose-rsvp-company/ChooseRsvpCompanyGuide.tsx",
+        "app/(marketing)/info/guides/seating-plan/SeatingPlanGuide.tsx",
+        "app/(marketing)/info/guides/table-number-message/TableNumberGuide.tsx",
+        "app/(marketing)/info/guides/wedding-seating-arrangements/WeddingSeatingGuide.tsx"
+      ],
+      "count": 7
+    },
+    {
+      "asset": "/images/marketing-captures/demo/desktop-dashboard-guests.webp",
+      "files": [
+        "app/(marketing)/info/guides/cost-rsvp-wedding/CostRsvpGuide.tsx",
+        "app/(marketing)/info/guides/guests-who-dont-reply/GuestsNoReplyGuide.tsx",
+        "app/(marketing)/info/guides/how-to-choose-rsvp-company/ChooseRsvpCompanyGuide.tsx",
+        "app/(marketing)/info/guides/send-digital-invitation/SendDigitalInvitationGuide.tsx",
+        "app/(marketing)/info/guides/wedding-venue-guest-guarantee/VenueGuaranteeGuide.tsx",
+        "app/(marketing)/rsvp/hina/content.ts"
+      ],
+      "count": 6
+    },
+    {
+      "asset": "/videos/rsvp-steps-wa.mp4",
+      "files": [
+        "app/(marketing)/info/guides/send-digital-invitation/PhoneInviteDemo.tsx",
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/(marketing)/rsvp/content.ts",
+        "app/(marketing)/rsvp/whatsapp/WhatsappRsvpMarketingPage.tsx",
+        "app/(marketing)/rsvp/whatsapp/page.tsx",
+        "lib/seo/services.ts"
+      ],
+      "count": 6
+    },
+    {
+      "asset": "/images/rsvp/chatuna/phone-rsvp-form.jpg",
+      "files": [
+        "app/(marketing)/info/guides/how-to-choose-rsvp-company/ChooseRsvpCompanyGuide.tsx",
+        "app/(marketing)/info/guides/send-digital-invitation/PhoneInviteDemo.tsx",
+        "app/(marketing)/info/guides/send-digital-invitation/SendDigitalInvitationGuide.tsx",
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/(marketing)/rsvp/hina/content.ts"
+      ],
+      "count": 5
+    },
+    {
+      "asset": "/images/rsvp/guides/wedding-planning/hall-tables.jpg",
+      "files": [
+        "app/(marketing)/info/guides/seating-plan/SeatingPlanGuide.tsx",
+        "app/(marketing)/info/guides/seating-plan/page.tsx",
+        "app/(marketing)/info/guides/table-number-message/TableNumberGuide.tsx",
+        "app/(marketing)/info/guides/table-number-message/page.tsx",
+        "app/(marketing)/info/guides/wedding-planning/WeddingPlanningGuide.tsx"
+      ],
+      "count": 5
+    },
+    {
+      "asset": "/marketing/videos/hero-guest-journey-poster.jpg",
+      "files": [
+        "app/(marketing)/info/guides/send-digital-invitation/PhoneInviteDemo.tsx",
+        "app/(marketing)/info/guides/when-to-send-rsvp/WhenToSendGuide.tsx",
+        "app/(marketing)/invitations/chatuna/page.tsx",
+        "app/HomePageClient.tsx",
+        "components/marketing/invitations/ChatunaInvitationsPage.tsx"
+      ],
+      "count": 5
+    },
+    {
+      "asset": "/images/rsvp/chatuna/phone-thanks.jpg",
+      "files": [
+        "app/(marketing)/info/guides/send-digital-invitation/PhoneInviteDemo.tsx",
+        "app/(marketing)/info/guides/send-digital-invitation/SendDigitalInvitationGuide.tsx",
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/(marketing)/rsvp/hina/content.ts",
+        "app/credit-gifts/content.ts"
+      ],
+      "count": 5
+    },
+    {
+      "asset": "/images/rsvp/guides/wedding-planning/hero-reception.jpg",
+      "files": [
+        "app/(marketing)/info/guides/event-day-checklist/EventDayChecklistGuide.tsx",
+        "app/(marketing)/info/guides/event-management-vs-production/EventManagementVsProductionGuide.tsx",
+        "app/(marketing)/info/guides/how-to-choose-rsvp-company/ChooseRsvpCompanyGuide.tsx",
+        "app/(marketing)/info/guides/wedding-planning/WeddingPlanningGuide.tsx"
+      ],
+      "count": 4
+    },
+    {
+      "asset": "/marketing/videos/hero-guest-journey.webm",
+      "files": [
+        "app/(marketing)/info/guides/send-digital-invitation/PhoneInviteDemo.tsx",
+        "app/(marketing)/invitations/chatuna/page.tsx",
+        "app/HomePageClient.tsx",
+        "components/marketing/invitations/ChatunaInvitationsPage.tsx"
+      ],
+      "count": 4
+    },
+    {
+      "asset": "/images/rsvp/rsvp-steps-wa-poster.jpg",
+      "files": [
+        "app/(marketing)/info/guides/send-digital-invitation/PhoneInviteDemo.tsx",
+        "app/(marketing)/rsvp/content.ts",
+        "app/(marketing)/rsvp/whatsapp/WhatsappRsvpMarketingPage.tsx",
+        "app/(marketing)/rsvp/whatsapp/page.tsx"
+      ],
+      "count": 4
+    },
+    {
+      "asset": "/images/rsvp/chatuna/phone-whatsapp.jpg",
+      "files": [
+        "app/(marketing)/info/guides/send-digital-invitation/PhoneInviteDemo.tsx",
+        "app/(marketing)/info/guides/send-digital-invitation/SendDigitalInvitationGuide.tsx",
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/(marketing)/rsvp/hina/content.ts"
+      ],
+      "count": 4
+    },
+    {
+      "asset": "/images/rsvp/chatuna/phone-invite.jpg",
+      "files": [
+        "app/(marketing)/info/guides/send-digital-invitation/PhoneInviteDemo.tsx",
+        "app/(marketing)/info/guides/send-digital-invitation/SendDigitalInvitationGuide.tsx",
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/credit-gifts/content.ts"
+      ],
+      "count": 4
+    },
+    {
+      "asset": "/marketing/invites/invite-save-the-date-maya-itai.webp",
+      "files": [
+        "app/(marketing)/info/guides/when-to-send-rsvp/WhenToSendGuide.tsx",
+        "app/(marketing)/rsvp/save-the-date/SaveTheDateMarketingPage.tsx",
+        "app/HomePageClient.tsx",
+        "lib/seo/services.ts"
+      ],
+      "count": 4
+    },
+    {
+      "asset": "/marketing/credit-gifts/hero-envelope.jpg",
+      "files": [
+        "app/(marketing)/info/guides/bit-paybox-wedding-invitation/BitPayboxGuide.tsx",
+        "app/credit-gifts/content.ts",
+        "app/credit-gifts/layout.tsx"
+      ],
+      "count": 3
+    },
+    {
+      "asset": "/images/rsvp/guides/wedding-planning/venue.jpg",
+      "files": [
+        "app/(marketing)/info/guides/event-day-checklist/EventDayChecklistGuide.tsx",
+        "app/(marketing)/info/guides/event-management-vs-production/EventManagementVsProductionGuide.tsx",
+        "app/(marketing)/info/guides/wedding-planning/WeddingPlanningGuide.tsx"
+      ],
+      "count": 3
+    },
+    {
+      "asset": "/marketing/videos/home-save-the-date.webm",
+      "files": [
+        "app/(marketing)/info/guides/save-the-date-vs-invitation/SaveTheDateVsInvitationGuide.tsx",
+        "app/(marketing)/rsvp/save-the-date/SaveTheDateMarketingPage.tsx",
+        "components/marketing/HomeMarketingSections.tsx"
+      ],
+      "count": 3
+    },
+    {
+      "asset": "/marketing/videos/home-save-the-date-poster.jpg",
+      "files": [
+        "app/(marketing)/info/guides/save-the-date-vs-invitation/SaveTheDateVsInvitationGuide.tsx",
+        "app/(marketing)/rsvp/save-the-date/SaveTheDateMarketingPage.tsx",
+        "components/marketing/HomeMarketingSections.tsx"
+      ],
+      "count": 3
+    },
+    {
+      "asset": "/images/rsvp/guides/venue-guarantee-hall.jpg",
+      "files": [
+        "app/(marketing)/info/guides/wedding-seating-arrangements/WeddingSeatingGuide.tsx",
+        "app/(marketing)/info/guides/wedding-venue-guest-guarantee/VenueGuaranteeGuide.tsx",
+        "app/seating-explained/content.ts"
+      ],
+      "count": 3
+    },
+    {
+      "asset": "/videos/smartsit.mp4",
+      "files": [
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/(marketing)/rsvp/hina/content.ts",
+        "app/seating-explained/content.ts"
+      ],
+      "count": 3
+    },
+    {
+      "asset": "/images/rsvp/chatuna/video-seating-poster.jpg",
+      "files": [
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/(marketing)/rsvp/hina/content.ts",
+        "app/seating-explained/content.ts"
+      ],
+      "count": 3
+    },
+    {
+      "asset": "/images/rsvp/chatuna/dashboard-seating.jpg",
+      "files": [
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/(marketing)/rsvp/hina/content.ts",
+        "components/marketing/PricingMarketingExtras.tsx"
+      ],
+      "count": 3
+    },
+    {
+      "asset": "/images/rsvp/guides/wedding-planning/toast.jpg",
+      "files": [
+        "app/(marketing)/info/guides/event-management-vs-production/EventManagementVsProductionGuide.tsx",
+        "app/(marketing)/info/guides/wedding-planning/WeddingPlanningGuide.tsx"
+      ],
+      "count": 2
+    },
+    {
+      "asset": "/images/guides/guest-list/guest-list-table.png",
+      "files": [
+        "app/(marketing)/info/guides/guest-list/GuestListGuide.tsx",
+        "app/(marketing)/info/guides/how-to-choose-rsvp-company/ChooseRsvpCompanyGuide.tsx"
+      ],
+      "count": 2
+    },
+    {
+      "asset": "/images/seating/seating-assign.png",
+      "files": [
+        "app/(marketing)/info/guides/wedding-seating-arrangements/WeddingSeatingGuide.tsx",
+        "app/seating-explained/content.ts"
+      ],
+      "count": 2
+    },
+    {
+      "asset": "/marketing/invites/invite-bar-mitzvah.webp",
+      "files": [
+        "app/(marketing)/rsvp/bar-bat-mitzvah/content.ts",
+        "components/marketing/HomeMarketingSections.tsx"
+      ],
+      "count": 2
+    },
+    {
+      "asset": "/marketing/invites/invite-brit.webp",
+      "files": [
+        "app/(marketing)/rsvp/brit-brita/content.ts",
+        "components/marketing/HomeMarketingSections.tsx"
+      ],
+      "count": 2
+    },
+    {
+      "asset": "/images/rsvp/chatuna/dashboard-guests.jpg",
+      "files": [
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/credit-gifts/content.ts"
+      ],
+      "count": 2
+    },
+    {
+      "asset": "/marketing/invites/invite-henna.webp",
+      "files": [
+        "app/(marketing)/rsvp/hina/content.ts",
+        "components/marketing/HomeMarketingSections.tsx"
+      ],
+      "count": 2
+    },
+    {
+      "asset": "/marketing/product/webp/desktop-try-seating.webp",
+      "files": [
+        "app/seating-explained/content.ts",
+        "components/marketing/HomeMarketingSections.tsx"
+      ],
+      "count": 2
+    },
+    {
+      "asset": "/images/event-management/product/hero-dashboard.webp",
+      "files": [
+        "app/components/event/EventManagementPage.jsx",
+        "app/event-management/page.jsx"
+      ],
+      "count": 2
+    }
+  ],
+  "crossPageDupes": [
+    {
+      "asset": "/marketing/invites/invite-wedding-mia-alon.webp",
+      "files": [
+        "app/(marketing)/info/guides/save-the-date-vs-invitation/JourneyDemo.tsx",
+        "app/(marketing)/info/guides/save-the-date-vs-invitation/SaveTheDateVsInvitationGuide.tsx",
+        "app/(marketing)/info/guides/send-digital-invitation/SendDigitalInvitationGuide.tsx",
+        "app/(marketing)/info/guides/send-digital-invitation/page.tsx",
+        "app/(marketing)/info/guides/when-to-send-rsvp/WhenToSendGuide.tsx",
+        "app/(marketing)/invitations/chatuna/page.tsx",
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/(marketing)/rsvp/whatsapp/WhatsappRsvpMarketingPage.tsx",
+        "app/HomePageClient.tsx",
+        "components/marketing/HomeMarketingSections.tsx",
+        "components/marketing/invitations/designs.ts",
+        "lib/seo/guides.ts",
+        "lib/seo/services.ts"
+      ],
+      "count": 13
+    },
+    {
+      "asset": "/images/marketing-captures/demo/desktop-seating.webp",
+      "files": [
+        "app/(marketing)/info/guides/event-day-checklist/EventDayChecklistGuide.tsx",
+        "app/(marketing)/info/guides/event-management-vs-production/EventManagementVsProductionGuide.tsx",
+        "app/(marketing)/info/guides/guest-list/GuestListGuide.tsx",
+        "app/(marketing)/info/guides/how-to-choose-rsvp-company/ChooseRsvpCompanyGuide.tsx",
+        "app/(marketing)/info/guides/seating-plan/SeatingPlanGuide.tsx",
+        "app/(marketing)/info/guides/table-number-message/TableNumberGuide.tsx",
+        "app/(marketing)/info/guides/wedding-seating-arrangements/WeddingSeatingGuide.tsx"
+      ],
+      "count": 7
+    },
+    {
+      "asset": "/images/marketing-captures/demo/desktop-dashboard-guests.webp",
+      "files": [
+        "app/(marketing)/info/guides/cost-rsvp-wedding/CostRsvpGuide.tsx",
+        "app/(marketing)/info/guides/guests-who-dont-reply/GuestsNoReplyGuide.tsx",
+        "app/(marketing)/info/guides/how-to-choose-rsvp-company/ChooseRsvpCompanyGuide.tsx",
+        "app/(marketing)/info/guides/send-digital-invitation/SendDigitalInvitationGuide.tsx",
+        "app/(marketing)/info/guides/wedding-venue-guest-guarantee/VenueGuaranteeGuide.tsx",
+        "app/(marketing)/rsvp/hina/content.ts"
+      ],
+      "count": 6
+    },
+    {
+      "asset": "/videos/rsvp-steps-wa.mp4",
+      "files": [
+        "app/(marketing)/info/guides/send-digital-invitation/PhoneInviteDemo.tsx",
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/(marketing)/rsvp/content.ts",
+        "app/(marketing)/rsvp/whatsapp/WhatsappRsvpMarketingPage.tsx",
+        "app/(marketing)/rsvp/whatsapp/page.tsx",
+        "lib/seo/services.ts"
+      ],
+      "count": 6
+    },
+    {
+      "asset": "/images/rsvp/chatuna/phone-rsvp-form.jpg",
+      "files": [
+        "app/(marketing)/info/guides/how-to-choose-rsvp-company/ChooseRsvpCompanyGuide.tsx",
+        "app/(marketing)/info/guides/send-digital-invitation/PhoneInviteDemo.tsx",
+        "app/(marketing)/info/guides/send-digital-invitation/SendDigitalInvitationGuide.tsx",
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/(marketing)/rsvp/hina/content.ts"
+      ],
+      "count": 5
+    },
+    {
+      "asset": "/images/rsvp/guides/wedding-planning/hall-tables.jpg",
+      "files": [
+        "app/(marketing)/info/guides/seating-plan/SeatingPlanGuide.tsx",
+        "app/(marketing)/info/guides/seating-plan/page.tsx",
+        "app/(marketing)/info/guides/table-number-message/TableNumberGuide.tsx",
+        "app/(marketing)/info/guides/table-number-message/page.tsx",
+        "app/(marketing)/info/guides/wedding-planning/WeddingPlanningGuide.tsx"
+      ],
+      "count": 5
+    },
+    {
+      "asset": "/marketing/videos/hero-guest-journey-poster.jpg",
+      "files": [
+        "app/(marketing)/info/guides/send-digital-invitation/PhoneInviteDemo.tsx",
+        "app/(marketing)/info/guides/when-to-send-rsvp/WhenToSendGuide.tsx",
+        "app/(marketing)/invitations/chatuna/page.tsx",
+        "app/HomePageClient.tsx",
+        "components/marketing/invitations/ChatunaInvitationsPage.tsx"
+      ],
+      "count": 5
+    },
+    {
+      "asset": "/images/rsvp/chatuna/phone-thanks.jpg",
+      "files": [
+        "app/(marketing)/info/guides/send-digital-invitation/PhoneInviteDemo.tsx",
+        "app/(marketing)/info/guides/send-digital-invitation/SendDigitalInvitationGuide.tsx",
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/(marketing)/rsvp/hina/content.ts",
+        "app/credit-gifts/content.ts"
+      ],
+      "count": 5
+    },
+    {
+      "asset": "/images/rsvp/guides/wedding-planning/hero-reception.jpg",
+      "files": [
+        "app/(marketing)/info/guides/event-day-checklist/EventDayChecklistGuide.tsx",
+        "app/(marketing)/info/guides/event-management-vs-production/EventManagementVsProductionGuide.tsx",
+        "app/(marketing)/info/guides/how-to-choose-rsvp-company/ChooseRsvpCompanyGuide.tsx",
+        "app/(marketing)/info/guides/wedding-planning/WeddingPlanningGuide.tsx"
+      ],
+      "count": 4
+    },
+    {
+      "asset": "/marketing/videos/hero-guest-journey.webm",
+      "files": [
+        "app/(marketing)/info/guides/send-digital-invitation/PhoneInviteDemo.tsx",
+        "app/(marketing)/invitations/chatuna/page.tsx",
+        "app/HomePageClient.tsx",
+        "components/marketing/invitations/ChatunaInvitationsPage.tsx"
+      ],
+      "count": 4
+    },
+    {
+      "asset": "/images/rsvp/rsvp-steps-wa-poster.jpg",
+      "files": [
+        "app/(marketing)/info/guides/send-digital-invitation/PhoneInviteDemo.tsx",
+        "app/(marketing)/rsvp/content.ts",
+        "app/(marketing)/rsvp/whatsapp/WhatsappRsvpMarketingPage.tsx",
+        "app/(marketing)/rsvp/whatsapp/page.tsx"
+      ],
+      "count": 4
+    },
+    {
+      "asset": "/images/rsvp/chatuna/phone-whatsapp.jpg",
+      "files": [
+        "app/(marketing)/info/guides/send-digital-invitation/PhoneInviteDemo.tsx",
+        "app/(marketing)/info/guides/send-digital-invitation/SendDigitalInvitationGuide.tsx",
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/(marketing)/rsvp/hina/content.ts"
+      ],
+      "count": 4
+    },
+    {
+      "asset": "/images/rsvp/chatuna/phone-invite.jpg",
+      "files": [
+        "app/(marketing)/info/guides/send-digital-invitation/PhoneInviteDemo.tsx",
+        "app/(marketing)/info/guides/send-digital-invitation/SendDigitalInvitationGuide.tsx",
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/credit-gifts/content.ts"
+      ],
+      "count": 4
+    },
+    {
+      "asset": "/marketing/invites/invite-save-the-date-maya-itai.webp",
+      "files": [
+        "app/(marketing)/info/guides/when-to-send-rsvp/WhenToSendGuide.tsx",
+        "app/(marketing)/rsvp/save-the-date/SaveTheDateMarketingPage.tsx",
+        "app/HomePageClient.tsx",
+        "lib/seo/services.ts"
+      ],
+      "count": 4
+    },
+    {
+      "asset": "/marketing/credit-gifts/hero-envelope.jpg",
+      "files": [
+        "app/(marketing)/info/guides/bit-paybox-wedding-invitation/BitPayboxGuide.tsx",
+        "app/credit-gifts/content.ts",
+        "app/credit-gifts/layout.tsx"
+      ],
+      "count": 3
+    },
+    {
+      "asset": "/images/rsvp/guides/wedding-planning/venue.jpg",
+      "files": [
+        "app/(marketing)/info/guides/event-day-checklist/EventDayChecklistGuide.tsx",
+        "app/(marketing)/info/guides/event-management-vs-production/EventManagementVsProductionGuide.tsx",
+        "app/(marketing)/info/guides/wedding-planning/WeddingPlanningGuide.tsx"
+      ],
+      "count": 3
+    },
+    {
+      "asset": "/marketing/videos/home-save-the-date.webm",
+      "files": [
+        "app/(marketing)/info/guides/save-the-date-vs-invitation/SaveTheDateVsInvitationGuide.tsx",
+        "app/(marketing)/rsvp/save-the-date/SaveTheDateMarketingPage.tsx",
+        "components/marketing/HomeMarketingSections.tsx"
+      ],
+      "count": 3
+    },
+    {
+      "asset": "/marketing/videos/home-save-the-date-poster.jpg",
+      "files": [
+        "app/(marketing)/info/guides/save-the-date-vs-invitation/SaveTheDateVsInvitationGuide.tsx",
+        "app/(marketing)/rsvp/save-the-date/SaveTheDateMarketingPage.tsx",
+        "components/marketing/HomeMarketingSections.tsx"
+      ],
+      "count": 3
+    },
+    {
+      "asset": "/images/rsvp/guides/venue-guarantee-hall.jpg",
+      "files": [
+        "app/(marketing)/info/guides/wedding-seating-arrangements/WeddingSeatingGuide.tsx",
+        "app/(marketing)/info/guides/wedding-venue-guest-guarantee/VenueGuaranteeGuide.tsx",
+        "app/seating-explained/content.ts"
+      ],
+      "count": 3
+    },
+    {
+      "asset": "/videos/smartsit.mp4",
+      "files": [
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/(marketing)/rsvp/hina/content.ts",
+        "app/seating-explained/content.ts"
+      ],
+      "count": 3
+    },
+    {
+      "asset": "/images/rsvp/chatuna/video-seating-poster.jpg",
+      "files": [
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/(marketing)/rsvp/hina/content.ts",
+        "app/seating-explained/content.ts"
+      ],
+      "count": 3
+    },
+    {
+      "asset": "/images/rsvp/chatuna/dashboard-seating.jpg",
+      "files": [
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/(marketing)/rsvp/hina/content.ts",
+        "components/marketing/PricingMarketingExtras.tsx"
+      ],
+      "count": 3
+    },
+    {
+      "asset": "/images/rsvp/guides/wedding-planning/toast.jpg",
+      "files": [
+        "app/(marketing)/info/guides/event-management-vs-production/EventManagementVsProductionGuide.tsx",
+        "app/(marketing)/info/guides/wedding-planning/WeddingPlanningGuide.tsx"
+      ],
+      "count": 2
+    },
+    {
+      "asset": "/images/guides/guest-list/guest-list-table.png",
+      "files": [
+        "app/(marketing)/info/guides/guest-list/GuestListGuide.tsx",
+        "app/(marketing)/info/guides/how-to-choose-rsvp-company/ChooseRsvpCompanyGuide.tsx"
+      ],
+      "count": 2
+    },
+    {
+      "asset": "/images/seating/seating-assign.png",
+      "files": [
+        "app/(marketing)/info/guides/wedding-seating-arrangements/WeddingSeatingGuide.tsx",
+        "app/seating-explained/content.ts"
+      ],
+      "count": 2
+    },
+    {
+      "asset": "/marketing/invites/invite-bar-mitzvah.webp",
+      "files": [
+        "app/(marketing)/rsvp/bar-bat-mitzvah/content.ts",
+        "components/marketing/HomeMarketingSections.tsx"
+      ],
+      "count": 2
+    },
+    {
+      "asset": "/marketing/invites/invite-brit.webp",
+      "files": [
+        "app/(marketing)/rsvp/brit-brita/content.ts",
+        "components/marketing/HomeMarketingSections.tsx"
+      ],
+      "count": 2
+    },
+    {
+      "asset": "/images/rsvp/chatuna/dashboard-guests.jpg",
+      "files": [
+        "app/(marketing)/rsvp/chatuna/content.ts",
+        "app/credit-gifts/content.ts"
+      ],
+      "count": 2
+    },
+    {
+      "asset": "/marketing/invites/invite-henna.webp",
+      "files": [
+        "app/(marketing)/rsvp/hina/content.ts",
+        "components/marketing/HomeMarketingSections.tsx"
+      ],
+      "count": 2
+    },
+    {
+      "asset": "/marketing/product/webp/desktop-try-seating.webp",
+      "files": [
+        "app/seating-explained/content.ts",
+        "components/marketing/HomeMarketingSections.tsx"
+      ],
+      "count": 2
+    },
+    {
+      "asset": "/images/event-management/product/hero-dashboard.webp",
+      "files": [
+        "app/components/event/EventManagementPage.jsx",
+        "app/event-management/page.jsx"
+      ],
+      "count": 2
+    }
+  ],
+  "byFile": {
+    "app/(marketing)/info/about/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/[slug]/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/bit-paybox-wedding-invitation/BitPayboxGuide.tsx": {
+      "images": [
+        "/marketing/credit-gifts/hero-envelope.jpg"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/bit-paybox-wedding-invitation/GuestGiftDemo.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/bit-paybox-wedding-invitation/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/bit-paybox-wedding-invitation/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/cost-rsvp-wedding/CostRsvpGuide.tsx": {
+      "images": [
+        "/images/marketing-captures/demo/desktop-dashboard-guests.webp"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/cost-rsvp-wedding/RecordsCalculator.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/cost-rsvp-wedding/calcLogic.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/cost-rsvp-wedding/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/cost-rsvp-wedding/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/event-day-checklist/CopyableMessage.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/event-day-checklist/EventDayChecklistGuide.tsx": {
+      "images": [
+        "/images/marketing-captures/demo/desktop-check-in.webp",
+        "/images/marketing-captures/demo/desktop-seating.webp",
+        "/images/marketing-captures/demo/mobile-seating.webp",
+        "/images/rsvp/guides/wedding-planning/hero-reception.jpg",
+        "/images/rsvp/guides/wedding-planning/venue.jpg"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/event-day-checklist/EventDayFullChecklist.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/event-day-checklist/SimpleMarkChecklist.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/event-day-checklist/TimelineAccordion.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/event-day-checklist/checklistData.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/event-day-checklist/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/event-day-checklist/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/event-management-vs-production/DecisionQuiz.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/event-management-vs-production/EventManagementVsProductionGuide.tsx": {
+      "images": [
+        "/images/marketing-captures/demo/desktop-event-management.webp",
+        "/images/marketing-captures/demo/desktop-seating.webp",
+        "/images/rsvp/guides/wedding-planning/hero-reception.jpg",
+        "/images/rsvp/guides/wedding-planning/toast.jpg",
+        "/images/rsvp/guides/wedding-planning/venue.jpg"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/event-management-vs-production/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/event-management-vs-production/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/guest-list/GuestListGuide.tsx": {
+      "images": [
+        "/images/guides/guest-list/guest-list-table.png",
+        "/images/guides/guest-list/import-excel-modal.png",
+        "/images/guides/guest-list/phone-duplicate-warning.png",
+        "/images/guides/guest-list/phone-invalid-warning.png",
+        "/images/marketing-captures/demo/desktop-seating.webp"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/guest-list/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/guest-list/page.tsx": {
+      "images": [
+        "/images/guides/guest-list/dashboard-guests.jpg"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/guests-who-dont-reply/GuestsNoReplyGuide.tsx": {
+      "images": [
+        "/images/marketing-captures/demo/desktop-dashboard-guests.webp",
+        "/videos/marketing-captures/demo-guests-dashboard-poster.jpg"
+      ],
+      "videos": [
+        "/videos/marketing-captures/demo-guests-dashboard.webm"
+      ]
+    },
+    "app/(marketing)/info/guides/guests-who-dont-reply/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/guests-who-dont-reply/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/how-to-choose-rsvp-company/ChooseRsvpCompanyGuide.tsx": {
+      "images": [
+        "/images/guides/guest-list/guest-list-table.png",
+        "/images/marketing-captures/demo/desktop-dashboard-guests.webp",
+        "/images/marketing-captures/demo/desktop-seating.webp",
+        "/images/rsvp/chatuna/phone-rsvp-form.jpg",
+        "/images/rsvp/guides/wedding-planning/hero-reception.jpg"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/how-to-choose-rsvp-company/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/how-to-choose-rsvp-company/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/save-the-date-vs-invitation/CopyExamples.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/save-the-date-vs-invitation/JourneyDemo.tsx": {
+      "images": [
+        "/marketing/invites/invite-wedding-mia-alon.webp"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/save-the-date-vs-invitation/PlanningCalculator.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/save-the-date-vs-invitation/SaveTheDateVsInvitationGuide.tsx": {
+      "images": [
+        "/marketing/invites/invite-wedding-mia-alon.webp",
+        "/marketing/videos/home-save-the-date-poster.jpg"
+      ],
+      "videos": [
+        "/marketing/videos/home-save-the-date.webm"
+      ]
+    },
+    "app/(marketing)/info/guides/save-the-date-vs-invitation/SendChecklist.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/save-the-date-vs-invitation/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/save-the-date-vs-invitation/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/seating-plan/CopyableMessage.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/seating-plan/SeatingMapDemo.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/seating-plan/SeatingPlanChecklist.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/seating-plan/SeatingPlanGuide.tsx": {
+      "images": [
+        "/images/marketing-captures/demo/desktop-seating.webp",
+        "/images/rsvp/guides/wedding-planning/hall-tables.jpg",
+        "/videos/marketing-captures/demo-seating-map-poster.jpg"
+      ],
+      "videos": [
+        "/videos/marketing-captures/demo-seating-map.webm"
+      ]
+    },
+    "app/(marketing)/info/guides/seating-plan/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/seating-plan/page.tsx": {
+      "images": [
+        "/images/rsvp/guides/wedding-planning/hall-tables.jpg"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/send-digital-invitation/MessageTemplates.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/send-digital-invitation/PhoneInviteDemo.tsx": {
+      "images": [
+        "/images/rsvp/chatuna/phone-invite.jpg",
+        "/images/rsvp/chatuna/phone-rsvp-form.jpg",
+        "/images/rsvp/chatuna/phone-thanks.jpg",
+        "/images/rsvp/chatuna/phone-whatsapp.jpg",
+        "/images/rsvp/rsvp-steps-wa-poster.jpg",
+        "/marketing/videos/hero-guest-journey-poster.jpg"
+      ],
+      "videos": [
+        "/marketing/videos/hero-guest-journey.webm",
+        "/videos/rsvp-steps-wa.mp4"
+      ]
+    },
+    "app/(marketing)/info/guides/send-digital-invitation/SendDigitalInvitationGuide.tsx": {
+      "images": [
+        "/images/marketing-captures/demo/desktop-dashboard-guests.webp",
+        "/images/rsvp/chatuna/phone-invite.jpg",
+        "/images/rsvp/chatuna/phone-rsvp-form.jpg",
+        "/images/rsvp/chatuna/phone-thanks.jpg",
+        "/images/rsvp/chatuna/phone-whatsapp.jpg",
+        "/marketing/invites/invite-wedding-mia-alon.webp"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/send-digital-invitation/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/send-digital-invitation/page.tsx": {
+      "images": [
+        "/marketing/invites/invite-wedding-mia-alon.webp"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/table-number-message/TableChangeDemo.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/table-number-message/TableNumberGuide.tsx": {
+      "images": [
+        "/images/marketing-captures/demo/desktop-seating.webp",
+        "/images/rsvp/guides/wedding-planning/hall-tables.jpg",
+        "/images/seating/seating-assign.webp",
+        "/images/seating/seating-map.webp"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/table-number-message/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/table-number-message/page.tsx": {
+      "images": [
+        "/images/rsvp/guides/wedding-planning/hall-tables.jpg"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-alcohol-calculator/AlcoholCalculator.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-alcohol-calculator/DrinkResults.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-alcohol-calculator/WeddingAlcoholGuide.tsx": {
+      "images": [
+        "/images/rsvp/guides/alcohol/champagne-glasses.jpg",
+        "/images/rsvp/guides/alcohol/wedding-bar-hero.jpg"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-alcohol-calculator/bottleCatalog.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-alcohol-calculator/calcLogic.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-alcohol-calculator/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-alcohol-calculator/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-planning/WeddingPlanningGuide.tsx": {
+      "images": [
+        "/images/rsvp/guides/wedding-planning/bar.jpg",
+        "/images/rsvp/guides/wedding-planning/bridal.jpg",
+        "/images/rsvp/guides/wedding-planning/couple.jpg",
+        "/images/rsvp/guides/wedding-planning/flowers.jpg",
+        "/images/rsvp/guides/wedding-planning/hall-tables.jpg",
+        "/images/rsvp/guides/wedding-planning/hero-reception.jpg",
+        "/images/rsvp/guides/wedding-planning/toast.jpg",
+        "/images/rsvp/guides/wedding-planning/venue.jpg"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-planning/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-planning/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-seating-arrangements/SeatingCalculator.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-seating-arrangements/TableVisuals.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-seating-arrangements/WeddingSeatingGuide.tsx": {
+      "images": [
+        "/images/marketing-captures/demo/desktop-seating.webp",
+        "/images/rsvp/guides/venue-guarantee-hall.jpg",
+        "/images/seating/seating-assign.png"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-seating-arrangements/calcLogic.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-seating-arrangements/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-seating-arrangements/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-vendors-contracts/WeddingVendorsGuide.tsx": {
+      "images": [
+        "/images/rsvp/guides/wedding-vendors/contract.jpg",
+        "/images/rsvp/guides/wedding-vendors/dj.jpg",
+        "/images/rsvp/guides/wedding-vendors/handshake.jpg",
+        "/images/rsvp/guides/wedding-vendors/meeting.jpg",
+        "/images/rsvp/guides/wedding-vendors/photographer.jpg"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-vendors-contracts/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-vendors-contracts/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-venue-guest-guarantee/VenueGuaranteeCalculator.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-venue-guest-guarantee/VenueGuaranteeGuide.tsx": {
+      "images": [
+        "/images/marketing-captures/demo/desktop-dashboard-guests.webp",
+        "/images/rsvp/guides/venue-guarantee-hall.jpg"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-venue-guest-guarantee/calcLogic.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-venue-guest-guarantee/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/wedding-venue-guest-guarantee/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/whatsapp-vs-sms-rsvp/WhatsappVsSmsGuide.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/whatsapp-vs-sms-rsvp/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/whatsapp-vs-sms-rsvp/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/when-to-send-rsvp/TimingCalculator.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/when-to-send-rsvp/WhenToSendGuide.tsx": {
+      "images": [
+        "/marketing/invites/invite-save-the-date-maya-itai.webp",
+        "/marketing/invites/invite-wedding-mia-alon.webp",
+        "/marketing/videos/hero-guest-journey-poster.jpg"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/when-to-send-rsvp/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/info/guides/when-to-send-rsvp/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/invitations/chatuna/page.tsx": {
+      "images": [
+        "/marketing/invites/invite-wedding-mia-alon.webp",
+        "/marketing/videos/hero-guest-journey-poster.jpg"
+      ],
+      "videos": [
+        "/marketing/videos/hero-guest-journey.webm"
+      ]
+    },
+    "app/(marketing)/rsvp/RsvpMarketingPage.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/bar-bat-mitzvah/BarBatMitzvahMarketingPage.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/bar-bat-mitzvah/content.ts": {
+      "images": [
+        "/images/rsvp/bar-mitzvah/classmates-tables.jpg",
+        "/images/rsvp/bar-mitzvah/dashboard-guests.jpg",
+        "/images/rsvp/bar-mitzvah/dashboard-seating.jpg",
+        "/images/rsvp/bar-mitzvah/hero-atmosphere.jpg",
+        "/images/rsvp/bar-mitzvah/og-cover.jpg",
+        "/images/rsvp/bar-mitzvah/phone-rsvp-form.jpg",
+        "/images/rsvp/bar-mitzvah/phone-thanks.jpg",
+        "/images/rsvp/bar-mitzvah/phone-whatsapp.jpg",
+        "/images/rsvp/bat-mitzvah/classmates-tables.jpg",
+        "/images/rsvp/bat-mitzvah/hero-atmosphere.jpg",
+        "/marketing/invites/invite-bar-mitzvah.webp",
+        "/marketing/invites/invite-bat-mitzvah.webp"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/bar-bat-mitzvah/mitzvahFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/bar-bat-mitzvah/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/brit-brita/BritBritaMarketingPage.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/brit-brita/britFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/brit-brita/content.ts": {
+      "images": [
+        "/images/rsvp/brit-brita/dashboard-guests.jpg",
+        "/images/rsvp/brit-brita/dashboard-seating.jpg",
+        "/images/rsvp/brit-brita/og-cover.webp",
+        "/images/rsvp/brit-brita/phone-rsvp-form.jpg",
+        "/images/rsvp/brit-brita/phone-whatsapp.jpg",
+        "/marketing/invites/invite-brit.webp"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/brit-brita/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/calls/CallsMarketingPage.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/calls/callsFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/calls/components/CallDemoPlayer.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/calls/components/CallsHeroVisual.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/calls/content.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/calls/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/chatuna/ChatunaMarketingPage.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/chatuna/chatunaFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/chatuna/components/ChatunaVideo.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/chatuna/content.ts": {
+      "images": [
+        "/images/rsvp/chatuna/dashboard-guests.jpg",
+        "/images/rsvp/chatuna/dashboard-seating.jpg",
+        "/images/rsvp/chatuna/og-chatuna.jpg",
+        "/images/rsvp/chatuna/phone-invite.jpg",
+        "/images/rsvp/chatuna/phone-rsvp-form.jpg",
+        "/images/rsvp/chatuna/phone-thanks.jpg",
+        "/images/rsvp/chatuna/phone-whatsapp.jpg",
+        "/images/rsvp/chatuna/season-abroad.jpg",
+        "/images/rsvp/chatuna/season-holidays.jpg",
+        "/images/rsvp/chatuna/season-summer.jpg",
+        "/images/rsvp/chatuna/video-guests-poster.jpg",
+        "/images/rsvp/chatuna/video-journey-poster.jpg",
+        "/images/rsvp/chatuna/video-seating-poster.jpg",
+        "/images/rsvp/chatuna/video-timing-poster.jpg",
+        "/marketing/invites/invite-wedding-mia-alon.webp"
+      ],
+      "videos": [
+        "/videos/chatuna-guests.mp4",
+        "/videos/chatuna-timing-v.mp4",
+        "/videos/rsvp-steps-wa.mp4",
+        "/videos/smartsit.mp4"
+      ]
+    },
+    "app/(marketing)/rsvp/chatuna/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/components/DashboardDemo.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/components/JourneyDemo.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/components/MarketingVideo.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/components/RsvpIcons.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/content.ts": {
+      "images": [
+        "/images/rsvp/rsvp-hero-wa-poster.jpg",
+        "/images/rsvp/rsvp-steps-wa-poster.jpg"
+      ],
+      "videos": [
+        "/videos/rsvp-hero-wa.mp4",
+        "/videos/rsvp-steps-wa.mp4"
+      ]
+    },
+    "app/(marketing)/rsvp/hina/HinaMarketingPage.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/hina/content.ts": {
+      "images": [
+        "/images/marketing-captures/demo/desktop-dashboard-guests.webp",
+        "/images/rsvp/chatuna/dashboard-seating.jpg",
+        "/images/rsvp/chatuna/phone-rsvp-form.jpg",
+        "/images/rsvp/chatuna/phone-thanks.jpg",
+        "/images/rsvp/chatuna/phone-whatsapp.jpg",
+        "/images/rsvp/chatuna/video-seating-poster.jpg",
+        "/images/rsvp/hina/hero-atmosphere.jpg",
+        "/images/rsvp/hina/og-hina.jpg",
+        "/images/rsvp/hina/reception-atmosphere.jpg",
+        "/images/rsvp/hina/tip-ceremony.jpg",
+        "/images/rsvp/hina/tip-guests.jpg",
+        "/images/rsvp/hina/tip-seating.jpg",
+        "/images/rsvp/hina/tip-venue.jpg",
+        "/images/rsvp/rsvp-steps-live-poster.jpg",
+        "/marketing/invites/invite-henna.webp"
+      ],
+      "videos": [
+        "/videos/smartsit.mp4"
+      ]
+    },
+    "app/(marketing)/rsvp/hina/hinaFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/hina/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/save-the-date/SaveTheDateMarketingPage.tsx": {
+      "images": [
+        "/marketing/invites/invite-save-the-date-maya-itai.webp",
+        "/marketing/videos/home-save-the-date-poster.jpg"
+      ],
+      "videos": [
+        "/marketing/videos/home-save-the-date.webm"
+      ]
+    },
+    "app/(marketing)/rsvp/save-the-date/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/save-the-date/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/rsvp/whatsapp/WhatsappRsvpMarketingPage.tsx": {
+      "images": [
+        "/images/rsvp/rsvp-steps-wa-poster.jpg",
+        "/marketing/invites/invite-wedding-mia-alon.webp"
+      ],
+      "videos": [
+        "/videos/rsvp-steps-wa.mp4"
+      ]
+    },
+    "app/(marketing)/rsvp/whatsapp/page.tsx": {
+      "images": [
+        "/images/rsvp/rsvp-steps-wa-poster.jpg"
+      ],
+      "videos": [
+        "/videos/rsvp-steps-wa.mp4"
+      ]
+    },
+    "app/(marketing)/rsvp/whatsapp/whatsappFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/services/alcohol-management/AlcoholManagementService.tsx": {
+      "images": [
+        "/images/rsvp/guides/alcohol/service/bottles-stock.jpg",
+        "/images/rsvp/guides/alcohol/service/hero-event-bar.jpg"
+      ],
+      "videos": []
+    },
+    "app/(marketing)/services/alcohol-management/QuoteForm.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/services/alcohol-management/guideFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/(marketing)/services/alcohol-management/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/HomePageClient.tsx": {
+      "images": [
+        "/marketing/invites/invite-save-the-date-maya-itai.webp",
+        "/marketing/invites/invite-wedding-mia-alon.webp",
+        "/marketing/videos/hero-guest-journey-poster.jpg"
+      ],
+      "videos": [
+        "/marketing/videos/hero-guest-journey.webm"
+      ]
+    },
+    "components/marketing/HomeMarketingSections.tsx": {
+      "images": [
+        "/marketing/invites/invite-bar-mitzvah.webp",
+        "/marketing/invites/invite-brit.webp",
+        "/marketing/invites/invite-henna.webp",
+        "/marketing/invites/invite-wedding-mia-alon.webp",
+        "/marketing/product/webp/desktop-try-seating.webp",
+        "/marketing/videos/home-save-the-date-poster.jpg"
+      ],
+      "videos": [
+        "/marketing/videos/home-save-the-date.webm"
+      ]
+    },
+    "components/marketing/PricingMarketingExtras.tsx": {
+      "images": [
+        "/images/rsvp/chatuna/dashboard-seating.jpg"
+      ],
+      "videos": []
+    },
+    "components/marketing/PublicAutoplayVideo.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "components/marketing/PublicContentPage.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "components/marketing/ServiceLinks.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "components/marketing/ServiceView.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "components/marketing/guides/BudgetPlanner.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "components/marketing/guides/GuideToolbar.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "components/marketing/guides/InteractiveChecklist.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "components/marketing/guides/StickyToc.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "components/marketing/guides/VendorCompareTable.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "components/marketing/invitations/ChatunaInvitationsPage.tsx": {
+      "images": [
+        "/marketing/videos/hero-guest-journey-poster.jpg"
+      ],
+      "videos": [
+        "/marketing/videos/hero-guest-journey.webm"
+      ]
+    },
+    "components/marketing/invitations/InvitationArt.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "components/marketing/invitations/designs.ts": {
+      "images": [
+        "/marketing/invites/invite-wedding-mia-alon.webp"
+      ],
+      "videos": []
+    },
+    "components/marketing/pricingFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/seating-explained/SeatingMarketingPage.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/seating-explained/components/SeatReleaseScenario.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/seating-explained/components/SeatingDemoVideo.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/seating-explained/content.ts": {
+      "images": [
+        "/images/rsvp/chatuna/video-seating-poster.jpg",
+        "/images/rsvp/guides/venue-guarantee-hall.jpg",
+        "/images/seating/seating-assign.png",
+        "/images/seating/seating-map.png",
+        "/marketing/product/webp/desktop-try-seating.webp"
+      ],
+      "videos": [
+        "/videos/eventsit.mp4",
+        "/videos/smartsit.mp4",
+        "/videos/tablesit.mp4"
+      ]
+    },
+    "app/seating-explained/layout.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/seating-explained/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/seating-explained/seatingFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/wedding-website/WeddingWebsiteMarketingPage.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/wedding-website/[templateId]/layout.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/wedding-website/[templateId]/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/wedding-website/components/DevicePreviewPair.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/wedding-website/components/FeaturedTemplateShowcase.tsx": {
+      "images": [
+        "/marketing/wedding-website/previews/${templateId}-desktop.jpg",
+        "/marketing/wedding-website/previews/${templateId}-mobile.jpg"
+      ],
+      "videos": []
+    },
+    "app/wedding-website/components/MobileShowcasePreview.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/wedding-website/components/SiteAnatomyPreview.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/wedding-website/content.ts": {
+      "images": [
+        "/marketing/videos/wedding-website-scroll-poster.jpg",
+        "/marketing/wedding-website/previews/anatomy-desktop.jpg",
+        "/marketing/wedding-website/previews/hero-desktop.jpg",
+        "/marketing/wedding-website/previews/hero-mobile.jpg",
+        "/marketing/wedding-website/previews/mobile-showcase.jpg",
+        "/marketing/wedding-website/previews/section-gallery.jpg",
+        "/marketing/wedding-website/previews/section-story.jpg"
+      ],
+      "videos": [
+        "/marketing/videos/wedding-website-scroll.webm"
+      ]
+    },
+    "app/wedding-website/layout.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/wedding-website/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/wedding-website/weddingFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/components/event/EventManagementPage.jsx": {
+      "images": [
+        "/images/event-management/product/calendar-schedule.webp",
+        "/images/event-management/product/guests-dashboard.webp",
+        "/images/event-management/product/hero-dashboard.webp",
+        "/images/event-management/product/logistics-timeline.webp",
+        "/images/event-management/product/overview-dashboard.webp",
+        "/images/event-management/product/planning-concept.webp",
+        "/images/event-management/product/seating-map.webp",
+        "/images/event-management/product/suppliers-budget.webp",
+        "/videos/event-management/budget-flow-poster.jpg",
+        "/videos/event-management/event-day-poster.jpg",
+        "/videos/event-management/system-overview-poster.jpg",
+        "/videos/event-management/tasks-flow-poster.jpg"
+      ],
+      "videos": [
+        "/videos/event-management/budget-flow.webm",
+        "/videos/event-management/event-day.webm",
+        "/videos/event-management/system-overview.webm",
+        "/videos/event-management/tasks-flow.webm"
+      ]
+    },
+    "app/event-management/page.jsx": {
+      "images": [
+        "/images/event-management/product/hero-dashboard.webp"
+      ],
+      "videos": []
+    },
+    "app/pricing/GuestRecordSlider.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/pricing/components/AnimatedPrice.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/pricing/components/InfoTooltip.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/pricing/components/PackageComparison.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/pricing/components/PackageQuiz.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/pricing/components/PricingIcons.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/pricing/components/ProcessTimeline.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/pricing/components/RevealOnScroll.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/pricing/layout.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/pricing/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/contact/contactContent.ts": {
+      "images": [
+        "/images/contact/hero-rings.jpg",
+        "/images/contact/hero-rings.webp"
+      ],
+      "videos": []
+    },
+    "app/contact/layout.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/contact/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/faq/page.jsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/credit-gifts/CreditGiftsMarketingPage.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/credit-gifts/components/GiftOptionsDemo.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "app/credit-gifts/content.ts": {
+      "images": [
+        "/images/rsvp/chatuna/dashboard-guests.jpg",
+        "/images/rsvp/chatuna/phone-invite.jpg",
+        "/images/rsvp/chatuna/phone-thanks.jpg",
+        "/marketing/credit-gifts/hero-envelope.jpg"
+      ],
+      "videos": []
+    },
+    "app/credit-gifts/creditGiftsFaqs.ts": {
+      "images": [],
+      "videos": []
+    },
+    "app/credit-gifts/layout.tsx": {
+      "images": [
+        "/marketing/credit-gifts/hero-envelope.jpg"
+      ],
+      "videos": []
+    },
+    "app/credit-gifts/page.tsx": {
+      "images": [],
+      "videos": []
+    },
+    "lib/seo/guides.ts": {
+      "images": [
+        "/marketing/invites/invite-wedding-mia-alon.webp"
+      ],
+      "videos": []
+    },
+    "lib/seo/services.ts": {
+      "images": [
+        "/marketing/invites/invite-save-the-date-maya-itai.webp",
+        "/marketing/invites/invite-wedding-mia-alon.webp"
+      ],
+      "videos": [
+        "/videos/rsvp-steps-wa.mp4",
+        "/videos/rsvp2.mp4"
+      ]
+    }
+  }
+}

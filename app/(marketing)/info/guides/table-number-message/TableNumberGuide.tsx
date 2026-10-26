@@ -595,7 +595,7 @@ export default function TableNumberGuide() {
               <FadeIn delay={0.06}>
                 <figure className="overflow-hidden rounded-[24px] border border-[#E6D2AA] bg-[#FFFDF8]">
                   <Image
-                    src="/marketing/product/webp/desktop-try-seating.webp"
+                    src="/images/marketing-captures/demo/table-number-seating.webp"
                     alt="תצוגת דמו של מפת הושבה במחשב ב־Invistimo"
                     width={1200}
                     height={800}

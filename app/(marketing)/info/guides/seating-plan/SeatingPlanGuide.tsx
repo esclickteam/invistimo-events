@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import StickyToc, { type TocItem } from "@/components/marketing/guides/StickyToc";
+import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import CopyableMessage from "./CopyableMessage";
 import SeatingMapDemo from "./SeatingMapDemo";
@@ -529,16 +530,27 @@ export default function SeatingPlanGuide() {
             </Prose>
             <div className="mt-8 overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-white shadow-[0_16px_36px_rgba(58,39,20,0.08)]">
               <Image
-                src="/images/seating/seating-map.png"
+                src="/images/marketing-captures/demo/seating-plan-map.webp"
                 alt="צילום מסך של מפת סידורי הושבה ב־Invistimo עם שולחנות וקיבולת"
                 width={1400}
                 height={900}
-                className="h-auto w-full object-cover object-top"
+                className="h-auto w-full object-contain object-top"
                 sizes="(max-width:1024px) 100vw, 720px"
               />
               <p className="border-t border-[#EFE2CC] px-5 py-3 text-sm font-semibold text-[#7A6042]">
-                מפת הושבה ב־Invistimo — המחשה מהמוצר
+                מפת הושבה ב־Invistimo — המחשה מהמוצר (דמו מבודד)
               </p>
+            </div>
+            <div className="mt-6 overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#1E1814]">
+              <PublicAutoplayVideo
+                src="/videos/marketing-captures/demo-seating-map.webm"
+                poster="/videos/marketing-captures/demo-seating-map-poster.jpg"
+                title="סרטון הדגמה — מפת הושבה עם שולחנות משובצים"
+                shellClassName="w-full"
+                className="aspect-[8/5] w-full"
+                expandable
+                frameBg="#1E1814"
+              />
             </div>
           </section>
 
