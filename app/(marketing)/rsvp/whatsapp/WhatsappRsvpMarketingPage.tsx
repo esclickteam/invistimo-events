@@ -444,7 +444,7 @@ export default function WhatsappRsvpMarketingPage() {
                 <QuietVideo
                   src={JOURNEY_VIDEO.src}
                   poster={JOURNEY_VIDEO.poster}
-                  className="h-full w-full object-cover object-top"
+                  className="aspect-[9/16] h-full w-full"
                 />
               </PhoneFrame>
             </div>
