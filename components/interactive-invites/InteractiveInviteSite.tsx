@@ -94,9 +94,10 @@ export default function InteractiveInviteSite({
         href="/preview/interactive-invites"
         className="fixed top-4 end-4 z-[90] rounded-full border px-3 py-1.5 text-xs backdrop-blur-md"
         style={{
-          background: "color-mix(in srgb, var(--ii-paper) 88%, transparent)",
+          background: "color-mix(in srgb, var(--ii-paper) 92%, white)",
           borderColor: "color-mix(in srgb, var(--ii-accent) 40%, transparent)",
           color: "var(--ii-ink)",
+          pointerEvents: "auto",
         }}
       >
         ← לגלריה

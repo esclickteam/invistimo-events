@@ -33,6 +33,8 @@
   width: min(100%, 440px);
   margin-inline: auto;
   position: relative;
+  background: var(--ii-paper);
+  color: var(--ii-ink);
 }
 
 .ii-desktop-frame {
@@ -54,7 +56,6 @@
   .ii-stage {
     box-shadow: var(--ii-shadow);
     min-height: 100svh;
-    background: var(--ii-bg);
   }
 }
 

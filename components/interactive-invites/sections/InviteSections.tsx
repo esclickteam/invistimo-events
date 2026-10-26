@@ -117,23 +117,31 @@ export function HeroSection({
           ))}
         </div>
       )}
-      <div className="relative z-[2] flex min-h-[100svh] flex-col items-center justify-end px-5 pb-16 text-center">
-        <p className="ii-kicker" data-ii-reveal>
+      <div
+        className="relative z-[2] flex min-h-[100svh] flex-col items-center justify-end px-5 pb-16 text-center"
+        style={{ color: "var(--ii-paper)", textShadow: "0 2px 18px rgba(0,0,0,0.35)" }}
+      >
+        <p className="ii-kicker" data-ii-reveal style={{ color: "color-mix(in srgb, var(--ii-paper) 80%, transparent)" }}>
           {event.headline}
         </p>
         <h1 className="ii-script mb-3 text-5xl leading-none sm:text-6xl" data-ii-reveal>
           {event.coupleNames}
         </h1>
-        <p className="ii-lede" data-ii-reveal>
+        <p className="ii-lede" data-ii-reveal style={{ color: "color-mix(in srgb, var(--ii-paper) 88%, transparent)" }}>
           {event.subheadline}
         </p>
         <p className="ii-display text-xl" data-ii-reveal>
           {event.weddingDateLabel}
         </p>
-        <a href="#rsvp" className="ii-btn ii-btn-primary mt-8" data-ii-reveal>
+        <a
+          href="#rsvp"
+          className="ii-btn mt-8"
+          data-ii-reveal
+          style={{ background: "var(--ii-paper)", color: "var(--ii-ink)" }}
+        >
           אישור הגעה
         </a>
-        <div className="mt-10 animate-bounce text-sm opacity-60" aria-hidden>
+        <div className="mt-10 animate-bounce text-sm opacity-80" aria-hidden>
           גללו להמשך
           <div>⌄</div>
         </div>

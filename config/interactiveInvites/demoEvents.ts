@@ -323,7 +323,7 @@ export const DEMO_EVENTS: Record<InteractiveInviteTemplateId, InteractiveInviteE
       "https://images.unsplash.com/photo-1507504031003-b41795c01189?w=900&q=80",
     ],
     heroImage:
-      "https://images.unsplash.com/photo-1507504031003-b41795c01189?w=1600&q=85",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=1600&q=85",
     dressCode: "ספיה וקרם וינטג׳",
     faq: FAQ_BASE,
     contactWhatsapp: "https://wa.me/972500000000",

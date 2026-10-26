@@ -106,9 +106,10 @@ export default function MusicController({
       <audio ref={audioRef} preload="metadata" playsInline />
       {open && (
         <div
+          id="ii-music-panel"
           className="w-[min(86vw,280px)] rounded-2xl border p-3 shadow-xl backdrop-blur-md"
           style={{
-            background: `${paper}f2`,
+            background: paper,
             borderColor: `${accent}55`,
             color: ink,
           }}
@@ -202,8 +203,9 @@ export default function MusicController({
           className="rounded-full border px-3 py-2 text-xs font-medium shadow-md backdrop-blur-md"
           style={{ background: paper, borderColor: `${accent}66`, color: ink }}
           aria-expanded={open}
+          aria-controls="ii-music-panel"
         >
-          מוזיקה
+          {open ? "סגירה" : "בחירת מנגינה"}
         </button>
       </div>
     </div>

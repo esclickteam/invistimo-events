@@ -172,7 +172,7 @@ export const INTERACTIVE_INVITE_TEMPLATES: InteractiveInviteTemplateMeta[] = [
     description:
       "מעטפה עם חוט וחותם שעווה, גלריית סקראפבוק, טיפוגרפיית מכונת כתיבה וחום ספיה.",
     previewImage:
-      "https://images.unsplash.com/photo-1507504031003-b41795c01189?w=900&q=80",
+      "https://images.unsplash.com/photo-1519741497674-611481863552?w=900&q=80",
     envelope: "wax-twine",
     motion: "scrapbook-stack",
     defaultMusicId: "warm-ember",
