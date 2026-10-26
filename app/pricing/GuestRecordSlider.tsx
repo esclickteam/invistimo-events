@@ -22,6 +22,7 @@ export default function GuestRecordSlider({
 }: GuestRecordSliderProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
+  const draggingRef = useRef(false);
   const [tick, setTick] = useState(false);
   const lastTier = useRef(Math.floor(clampRecords(value) / TIER_STEP));
   const safeValue = clampRecords(value);
@@ -54,23 +55,37 @@ export default function GuestRecordSlider({
     onChange(valueFromClientX(clientX));
   }
 
-  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
-    event.currentTarget.setPointerCapture(event.pointerId);
+  function beginDrag(clientX: number, target?: HTMLDivElement, pointerId?: number) {
+    if (target && typeof pointerId === "number") {
+      try {
+        target.setPointerCapture(pointerId);
+      } catch {
+        // Some environments reject capture; mouse fallbacks still work.
+      }
+    }
+    draggingRef.current = true;
     setDragging(true);
-    moveTo(event.clientX);
+    moveTo(clientX);
+  }
+
+  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    beginDrag(event.clientX, event.currentTarget, event.pointerId);
   }
 
   function onPointerMove(event: PointerEvent<HTMLDivElement>) {
-    if (!event.currentTarget.hasPointerCapture(event.pointerId)) return;
+    if (!draggingRef.current && !event.currentTarget.hasPointerCapture(event.pointerId)) return;
     moveTo(event.clientX);
   }
 
-  function endDrag(event: PointerEvent<HTMLDivElement>) {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+  function endDrag(event?: PointerEvent<HTMLDivElement>) {
+    if (event?.currentTarget.hasPointerCapture(event.pointerId)) {
       event.currentTarget.releasePointerCapture(event.pointerId);
     }
-    if (dragging) onDragEnd?.();
+    const wasDragging = draggingRef.current;
+    draggingRef.current = false;
     setDragging(false);
+    if (wasDragging) onDragEnd?.();
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
@@ -151,6 +166,17 @@ export default function GuestRecordSlider({
         onPointerUp={endDrag}
         onPointerCancel={endDrag}
         onLostPointerCapture={() => setDragging(false)}
+        onMouseDown={(event) => {
+          // Fallback when PointerEvent capture is unavailable.
+          if (event.button !== 0) return;
+          beginDrag(event.clientX);
+        }}
+        onMouseMove={(event) => {
+          if (!draggingRef.current) return;
+          if ((event.buttons & 1) === 0) return;
+          moveTo(event.clientX);
+        }}
+        onMouseUp={() => endDrag()}
         onKeyDown={onKeyDown}
         className="relative h-20 cursor-grab touch-none select-none outline-none focus-visible:ring-4 focus-visible:ring-[#D8B16A]/30 active:cursor-grabbing sm:h-16"
       >

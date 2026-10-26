@@ -526,6 +526,14 @@ export default function PricingPage() {
               </span>
             </div>
 
+            <p className="mb-4 flex flex-wrap items-center gap-2 text-sm leading-6 text-[#7B6754]">
+              שירותי LIVE ואתגרים ביום האירוע הם מוצרים נפרדים ולא מסומנים כאן אוטומטית.
+              <InfoTooltip label="שירות LIVE">
+                LIVE / Wedding Challenges נמכרים בנפרד מחבילות אישורי ההגעה. אפשר לברר בעמוד יצירת
+                הקשר או באזור השירותים הנוספים למטה.
+              </InfoTooltip>
+            </p>
+
             <div className="space-y-3">
               {ADDON_ORDER.map((key) => {
                 const selected = addons[key];
@@ -562,15 +570,6 @@ export default function PricingPage() {
                       <span className="min-w-0">
                         <span className="block text-sm font-semibold leading-5 text-[#5A3E25]">
                           {ADDON_LABELS[key]}
-                          {key === "system" ? (
-                            <>
-                              {" "}
-                              <InfoTooltip label="שירות LIVE">
-                                שירותי LIVE ואתגרים ביום האירוע הם מוצרים נפרדים — לא מסומנים אוטומטית
-                                כתוספת בחבילות אישורי ההגעה.
-                              </InfoTooltip>
-                            </>
-                          ) : null}
                         </span>
                         <span className="mt-1 block text-xs leading-5 text-[#7B6754]">{blurb}</span>
                         {external ? (
