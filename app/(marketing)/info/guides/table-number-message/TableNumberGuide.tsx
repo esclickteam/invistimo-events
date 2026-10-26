@@ -29,7 +29,7 @@ const TOC: TocItem[] = [
   { id: "mistakes", label: "טעויות נפוצות" },
   { id: "reception", label: "הושבה וצוות קבלה" },
   { id: "vs-reminder", label: "שולחן מול תזכורת" },
-  { id: "aeo-blocks", label: "תשובות מהירות" },
+  { id: "quick-answers", label: "תשובות מהירות" },
   { id: "faq", label: "שאלות נפוצות" },
 ];
 
@@ -364,10 +364,10 @@ export default function TableNumberGuide() {
         <StickyToc items={TOC} />
 
         <div className="min-w-0 space-y-16 md:space-y-20">
-          {/* Short answer AEO */}
+          {/* Short answer */}
           <section id="short-answer" className="scroll-mt-24" aria-labelledby="short-answer-h">
             <FadeIn>
-              <Eyebrow>AEO · תשובה מהירה</Eyebrow>
+              <Eyebrow>בקצרה</Eyebrow>
               <h2 id="short-answer-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
                 מתי כדאי לשלוח מספרי שולחנות לאורחים?
               </h2>
@@ -683,7 +683,7 @@ export default function TableNumberGuide() {
           {/* After change scenarios */}
           <section id="after-change" className="scroll-mt-24" aria-labelledby="after-change-h">
             <FadeIn>
-              <Eyebrow>פרק מרכזי</Eyebrow>
+              <Eyebrow>שינוי אחרי שליחה</Eyebrow>
               <h2 id="after-change-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
                 שלחנו מספר שולחן — ואז ההושבה השתנתה. מה עושים?
               </h2>
@@ -989,15 +989,16 @@ export default function TableNumberGuide() {
             </FadeIn>
           </section>
 
-          {/* AEO blocks */}
-          <section id="aeo-blocks" className="scroll-mt-24" aria-labelledby="aeo-blocks-h">
+          <section id="quick-answers" className="scroll-mt-24" aria-labelledby="quick-answers-h">
             <FadeIn>
-              <Eyebrow>GEO / AEO</Eyebrow>
-              <h2 id="aeo-blocks-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              <Eyebrow>תשובות מהירות</Eyebrow>
+              <h2 id="quick-answers-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
                 תשובות מהירות לשאלות נפוצות
               </h2>
               <Prose>
-                <p>כל בלוק בנוי מתשובה ישירה, פירוט, דוגמה והמלצה — כדי שאפשר יהיה להבין גם במקטע בודד.</p>
+                <p>
+                  להלן שאלות שחוזרות הרבה לפני האירוע — עם תשובה קצרה, הסבר, דוגמה והמלצה מעשית.
+                </p>
               </Prose>
             </FadeIn>
             <div className="mt-8 grid gap-4">
@@ -1052,7 +1053,7 @@ export default function TableNumberGuide() {
           {/* FAQ */}
           <section id="faq" className="scroll-mt-24" aria-labelledby="faq-h">
             <FadeIn>
-              <Eyebrow>FAQ</Eyebrow>
+              <Eyebrow>שאלות נפוצות</Eyebrow>
               <h2 id="faq-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
                 שאלות נפוצות על הודעת מספר שולחן
               </h2>

@@ -252,7 +252,6 @@ export default function WeddingVendorsGuide() {
         <StickyToc items={TOC} />
         <div className="min-w-0 space-y-16 md:space-y-20">
           <section id="which-first" className="scroll-mt-24">
-            <Eyebrow>פרק 1</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               איזה ספקים כדאי לסגור קודם לחתונה?
             </h2>
@@ -277,7 +276,6 @@ export default function WeddingVendorsGuide() {
           </section>
 
           <section id="seven-checks" className="scroll-mt-24">
-            <Eyebrow>פרק 2</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               שבע בדיקות שכדאי לבצע לפני שסוגרים ספק לחתונה
             </h2>
@@ -301,7 +299,6 @@ export default function WeddingVendorsGuide() {
           </section>
 
           <section id="compare-quotes" className="scroll-mt-24">
-            <Eyebrow>פרק 3</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               למה לא כדאי לבחור ספק רק לפי המחיר?
             </h2>
@@ -325,7 +322,6 @@ export default function WeddingVendorsGuide() {
           </section>
 
           <section id="read-contract" className="scroll-mt-24">
-            <Eyebrow>פרק 4</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               למה חייבים לקרוא את החוזה לפני שמשלמים מקדמה?
             </h2>
@@ -350,7 +346,6 @@ export default function WeddingVendorsGuide() {
           </section>
 
           <section id="deposit-vs-hold" className="scroll-mt-24">
-            <Eyebrow>פרק 5</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מה ההבדל בין מקדמה לדמי שריון תאריך?
             </h2>
@@ -398,7 +393,6 @@ export default function WeddingVendorsGuide() {
           </section>
 
           <section id="why-hold-fee" className="scroll-mt-24">
-            <Eyebrow>פרק 6</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               למה ספק חתונות מבקש תשלום כדי לשמור תאריך?
             </h2>
@@ -420,7 +414,6 @@ export default function WeddingVendorsGuide() {
           </section>
 
           <section id="refunds" className="scroll-mt-24">
-            <Eyebrow>פרק 7</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               האם דמי שריון או מקדמה חייבים להיות מוחזרים אם מבטלים חתונה?
             </h2>
@@ -429,7 +422,7 @@ export default function WeddingVendorsGuide() {
             </div>
             <Prose>
               <p>
-                <strong className="font-black text-[#2C241C]">תשובה ישירה:</strong> לא תמיד. הזכאות
+                לא תמיד. הזכאות
                 להחזר תלויה בסוג העסקה, בדרך שבה בוצעה, במועד הביטול, בתנאי ההסכם ובדין החל.
               </p>
               <p>
@@ -448,7 +441,6 @@ export default function WeddingVendorsGuide() {
           </section>
 
           <section id="cancel-policy" className="scroll-mt-24">
-            <Eyebrow>פרק 8</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מה חייב להופיע במדיניות ביטול של ספק לחתונה?
             </h2>
@@ -472,7 +464,6 @@ export default function WeddingVendorsGuide() {
           </section>
 
           <section id="fourteen-days" className="scroll-mt-24">
-            <Eyebrow>פרק 9</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               האם אפשר לבטל ספק חתונה בתוך 14 ימים מהחתימה?
             </h2>
@@ -511,7 +502,6 @@ export default function WeddingVendorsGuide() {
           </section>
 
           <section id="vendor-cancels" className="scroll-mt-24">
-            <Eyebrow>פרק 10</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מה עושים אם צלם, DJ או ספק אחר מבטל לפני החתונה?
             </h2>
@@ -530,7 +520,6 @@ export default function WeddingVendorsGuide() {
           </section>
 
           <section id="postpone-vs-cancel" className="scroll-mt-24">
-            <Eyebrow>פרק 11</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מה ההבדל בין ביטול חתונה לדחיית תאריך?
             </h2>
@@ -544,7 +533,6 @@ export default function WeddingVendorsGuide() {
           </section>
 
           <section id="force-majeure" className="scroll-mt-24">
-            <Eyebrow>פרק 12</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מה קורה לחוזים עם ספקים במקרה של מלחמה, הנחיות חירום או אירוע חריג?
             </h2>
@@ -561,7 +549,6 @@ export default function WeddingVendorsGuide() {
           </section>
 
           <section id="by-vendor-type" className="scroll-mt-24">
-            <Eyebrow>פרק 13</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               סעיפים מיוחדים לפי סוג ספק
             </h2>
@@ -585,7 +572,6 @@ export default function WeddingVendorsGuide() {
           </section>
 
           <section id="questions-before-pay" className="scroll-mt-24">
-            <Eyebrow>פרק 14</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               שאלות שצריך לשאול לפני שמשלמים
             </h2>
@@ -600,7 +586,6 @@ export default function WeddingVendorsGuide() {
           </section>
 
           <section id="keep-documents" className="scroll-mt-24">
-            <Eyebrow>פרק 15</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               למה חשוב לשמור חוזים, קבלות והתכתבויות?
             </h2>
@@ -614,7 +599,6 @@ export default function WeddingVendorsGuide() {
           </section>
 
           <section id="pre-sign-checklist" className="scroll-mt-24">
-            <Eyebrow>פרק 16</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               צ׳קליסט לפני חתימה
             </h2>

@@ -7,7 +7,7 @@ export const CREDIT_GIFTS_META = {
     "מתנות לחתונה באשראי דרך RSVP, קישור PayBox ומספר bit להעתקה. הכירו את שלוש אפשרויות המתנה הדיגיטליות ב־Invistimo ואיך משלבים אותן בהזמנה ובאישורי ההגעה.",
 };
 
-/** Direct answer for AEO — visible on page, not hidden. */
+/** Short direct answer shown near the top of the page. */
 export const PAGE_ANSWER =
   "ב־Invistimo יש שלוש אפשרויות מתנה דיגיטליות לאורחים: קישור מתנה באשראי שמתקבל אחרי פתיחת משתמש אצל ספק הסליקה החיצוני RSVP, קישור PayBox אישי שבעלי האירוע מזינים, ומספר טלפון להעתקה להעברה ב־bit. האורח בוחר מבין מה שהופעל באירוע; הסליקה באשראי אצל RSVP, ו־PayBox ו־bit מוצגים בלבד — בלי סליקה של Invistimo.";
 

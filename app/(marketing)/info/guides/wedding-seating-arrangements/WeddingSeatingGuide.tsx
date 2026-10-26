@@ -132,7 +132,6 @@ function Prose({ children }: { children: React.ReactNode }) {
 function DirectAnswer({ children }: { children: React.ReactNode }) {
   return (
     <div className="mt-5 rounded-[22px] border border-[#E7D3B0] bg-[#FFF8EA] px-5 py-4 text-[15px] font-semibold leading-7 text-[#3F3025] md:text-base">
-      <span className="font-black text-[#2C241C]">תשובה ישירה: </span>
       {children}
     </div>
   );
