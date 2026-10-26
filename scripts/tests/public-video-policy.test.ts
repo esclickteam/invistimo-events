@@ -75,14 +75,14 @@ test("public video metadata covers product clips with real aspect ratios", () =>
 test("home hero phone uses contain (no crop) for guest journey video", () => {
   const home = read("app/HomePageClient.tsx");
   assert.match(home, /hero-guest-journey\.webm/);
-  const heroBlock = home.slice(
-    home.indexOf("function HeroPhone3D"),
-    home.indexOf("</motion.div>", home.indexOf("function HeroPhone3D")) + 20
-  );
+  const heroStart = home.indexOf("function HeroPhone3D");
+  const heroBlock = home.slice(heroStart, heroStart + 9000);
   assert.match(heroBlock, /object-contain object-center/);
   assert.doesNotMatch(heroBlock, /object-cover object-top/);
   assert.match(heroBlock, /autoPlay/);
   assert.match(heroBlock, /\bmuted\b/);
   assert.match(heroBlock, /\bloop\b/);
   assert.match(heroBlock, /playsInline/);
+  assert.match(heroBlock, /השהיה/);
+  assert.match(heroBlock, /togglePlay/);
 });

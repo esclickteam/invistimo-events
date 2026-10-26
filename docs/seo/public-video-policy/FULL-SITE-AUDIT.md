@@ -10,11 +10,26 @@
 | --- | --- |
 | מדיניות סרטונים אחידה (PublicAutoplayVideo) | הושלם |
 | Visual QA דסקטופ לסרטונים | PASS |
-| Visual QA מובייל/טאבלט | בתהליך / חלקית — NOT VERIFIED מלא |
+| Visual QA מובייל (~390) | PARTIAL — `/` ו־`/rsvp` נבדקו; טאבלט לא הושלם |
 | צילומי מערכת חדשים מדמו מבודד | 10 צילומים + 3 סרטוני webm |
 | החלפת תמונות ממוחזרות במדריכים | 16 החלפות ראשוניות |
 | סרטונים ייעודיים לכל מדריך | חלקי — נוספו ל־seating-plan ול־guests-who-dont-reply |
 | Before/After gallery | צילומים ב־`/opt/cursor/artifacts/screenshots/public-audit` + `public/images/marketing-captures/demo` |
+
+### ממצאי Visual QA מובייל (עדכון)
+
+| עמוד | מובייל | הערה |
+| --- | --- | --- |
+| `/` | PARTIAL→תוקן | חסר היה פקד השהיה ליד Hero — נוסף כפתור «השהיה/ניגון» מחוץ למסגרת הטלפון |
+| `/rsvp` | PASS | השהיה נראית, ללא overflow/חיתוך |
+| `/seating-explained`, `/event-management` | PASS בדסקטופ | מובייל מלא לכל העמודים — עדיין פתוח |
+| טאבלט 768 | NOT VERIFIED | לא הושלם |
+
+### מלאי מדיה (הצלבה)
+
+נותרו פערי וידאו ידועים: bar/bat, brit, calls, credit-gifts, alcohol, whatsapp-vs-sms, bit-paybox, ורוב המדריכים בלי סרטון.  
+`hina` עדיין שואל חלק מצילומי טלפון מ־chatuna — דורש צילומי חינה ייעודיים.  
+אין תוויות SEO/AEO/GEO גלויות (רק הערות קוד).
 
 ## מקורות צילום חדשים (דמו מבודד)
 
