@@ -1,0 +1,379 @@
+/* Interactive invitation preview — shared motion helpers */
+
+.ii-root {
+  --ii-bg: #f4f1ea;
+  --ii-bg-deep: #e8e0d4;
+  --ii-paper: #fffdf8;
+  --ii-ink: #2a2118;
+  --ii-muted: #7a6a5a;
+  --ii-accent: #c9a962;
+  --ii-accent-soft: #e8d5a8;
+  --ii-seal: #8b5a3c;
+  --ii-ribbon: #6b7f4a;
+  --ii-envelope: #e8e0d4;
+  --ii-envelope-flap: #ddd4c4;
+  --ii-grain: 0.1;
+  --ii-font-display: "Cormorant Garamond", "Noto Serif Hebrew", serif;
+  --ii-font-body: "Heebo", sans-serif;
+  --ii-font-script: "Great Vibes", cursive;
+  --ii-radius: 18px;
+  --ii-shadow: 0 24px 80px rgba(40, 30, 20, 0.2);
+  color: var(--ii-ink);
+  background: var(--ii-bg);
+  font-family: var(--ii-font-body);
+  overflow-x: hidden;
+  min-height: 100svh;
+}
+
+.ii-root * {
+  box-sizing: border-box;
+}
+
+.ii-stage {
+  width: min(100%, 440px);
+  margin-inline: auto;
+  position: relative;
+}
+
+.ii-desktop-frame {
+  min-height: 100svh;
+  background:
+    radial-gradient(ellipse at 50% 20%, color-mix(in srgb, var(--ii-bg-deep) 70%, transparent), transparent 55%),
+    var(--ii-bg-deep);
+}
+
+@media (min-width: 900px) {
+  .ii-desktop-frame {
+    display: flex;
+    justify-content: center;
+    background:
+      linear-gradient(90deg, color-mix(in srgb, var(--ii-bg-deep) 85%, #000 8%), transparent 18%, transparent 82%, color-mix(in srgb, var(--ii-bg-deep) 85%, #000 8%)),
+      var(--ii-bg-deep);
+  }
+
+  .ii-stage {
+    box-shadow: var(--ii-shadow);
+    min-height: 100svh;
+    background: var(--ii-bg);
+  }
+}
+
+.ii-grain::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  opacity: var(--ii-grain);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+  z-index: 1;
+}
+
+.ii-display {
+  font-family: var(--ii-font-display);
+}
+
+.ii-script {
+  font-family: var(--ii-font-script);
+}
+
+.ii-eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+}
+
+.ii-eq i {
+  display: block;
+  width: 2px;
+  background: currentColor;
+  border-radius: 1px;
+  animation: ii-eq 0.85s ease-in-out infinite;
+}
+
+.ii-eq i:nth-child(1) {
+  height: 6px;
+}
+.ii-eq i:nth-child(2) {
+  height: 12px;
+  animation-delay: 0.15s;
+}
+.ii-eq i:nth-child(3) {
+  height: 8px;
+  animation-delay: 0.3s;
+}
+
+@keyframes ii-eq {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.ii-envelope-scene {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  background: var(--ii-bg-deep);
+  overflow: hidden;
+}
+
+.ii-envelope-wrap {
+  position: relative;
+  width: min(86vw, 340px);
+  aspect-ratio: 5 / 3.4;
+  perspective: 1200px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ii-envelope-body,
+.ii-envelope-flap,
+.ii-invite-card {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+}
+
+.ii-envelope-body {
+  border-radius: 10px 10px 14px 14px;
+  background:
+    linear-gradient(160deg, color-mix(in srgb, var(--ii-envelope) 92%, white), var(--ii-envelope));
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.ii-envelope-flap {
+  height: 58%;
+  border-radius: 10px 10px 0 0;
+  background:
+    linear-gradient(180deg, var(--ii-envelope-flap), color-mix(in srgb, var(--ii-envelope-flap) 85%, #000 8%));
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  transform-origin: top center;
+  z-index: 4;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.12);
+}
+
+.ii-invite-card {
+  inset: 10% 8% 14%;
+  border-radius: 8px;
+  background: var(--ii-paper);
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  text-align: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(18%);
+}
+
+.ii-seal {
+  position: absolute;
+  left: 50%;
+  top: 48%;
+  z-index: 6;
+  width: 58px;
+  height: 58px;
+  margin-left: -29px;
+  margin-top: -29px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--ii-seal) 70%, white), var(--ii-seal) 55%, color-mix(in srgb, var(--ii-seal) 70%, #000));
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.28), inset 0 1px 2px rgba(255, 255, 255, 0.25);
+  display: grid;
+  place-items: center;
+  color: #fff8ef;
+  font-family: var(--ii-font-display);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.ii-ribbon {
+  position: absolute;
+  left: 8%;
+  right: 8%;
+  top: 46%;
+  height: 14px;
+  z-index: 5;
+  background: linear-gradient(90deg, transparent, var(--ii-ribbon), transparent);
+  opacity: 0.9;
+}
+
+.ii-open-hint {
+  position: absolute;
+  bottom: 8%;
+  inset-inline: 0;
+  text-align: center;
+  color: color-mix(in srgb, var(--ii-ink) 70%, transparent);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+}
+
+.ii-skip {
+  position: fixed;
+  top: 1rem;
+  inset-inline-start: 1rem;
+  z-index: 70;
+  border: 1px solid color-mix(in srgb, var(--ii-accent) 45%, transparent);
+  background: color-mix(in srgb, var(--ii-paper) 88%, transparent);
+  color: var(--ii-ink);
+  border-radius: 999px;
+  padding: 0.45rem 0.9rem;
+  font-size: 0.75rem;
+  backdrop-filter: blur(8px);
+}
+
+.ii-section {
+  position: relative;
+  padding: 4.5rem 1.35rem;
+  z-index: 2;
+}
+
+.ii-section + .ii-section {
+  padding-top: 2.5rem;
+}
+
+.ii-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--ii-muted);
+  margin-bottom: 0.75rem;
+}
+
+.ii-title {
+  font-family: var(--ii-font-display);
+  font-size: clamp(1.8rem, 6vw, 2.6rem);
+  font-weight: 500;
+  line-height: 1.15;
+  margin: 0 0 0.75rem;
+}
+
+.ii-lede {
+  color: var(--ii-muted);
+  line-height: 1.7;
+  font-size: 0.98rem;
+  margin: 0 auto 1.5rem;
+  max-width: 28rem;
+}
+
+.ii-nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding: 0.65rem 0.8rem;
+  background: color-mix(in srgb, var(--ii-paper) 92%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--ii-accent) 25%, transparent);
+  backdrop-filter: blur(10px);
+  scrollbar-width: none;
+}
+
+.ii-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.ii-nav a {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  text-decoration: none;
+  color: var(--ii-muted);
+  font-size: 0.78rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+}
+
+.ii-nav a:hover,
+.ii-nav a[aria-current="true"] {
+  color: var(--ii-ink);
+  background: color-mix(in srgb, var(--ii-accent) 18%, transparent);
+}
+
+.ii-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.ii-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  border-radius: calc(var(--ii-radius) - 4px);
+  padding: 0.85rem 1.25rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.ii-btn:hover {
+  transform: translateY(-1px);
+}
+
+.ii-btn-primary {
+  background: var(--ii-ink);
+  color: var(--ii-paper);
+}
+
+.ii-btn-ghost {
+  background: transparent;
+  color: var(--ii-ink);
+  border: 1px solid color-mix(in srgb, var(--ii-ink) 25%, transparent);
+}
+
+.ii-field {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, var(--ii-ink) 15%, transparent);
+  background: color-mix(in srgb, var(--ii-paper) 96%, white);
+  border-radius: 12px;
+  padding: 0.8rem 0.9rem;
+  font: inherit;
+  color: inherit;
+}
+
+.ii-field:focus {
+  outline: 2px solid color-mix(in srgb, var(--ii-accent) 55%, transparent);
+  outline-offset: 1px;
+}
+
+.ii-choice {
+  flex: 1;
+  border: 1px solid color-mix(in srgb, var(--ii-ink) 15%, transparent);
+  background: transparent;
+  border-radius: 12px;
+  padding: 0.75rem;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.ii-choice[aria-pressed="true"] {
+  background: color-mix(in srgb, var(--ii-accent) 22%, transparent);
+  border-color: var(--ii-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ii-eq i,
+  .ii-envelope-flap,
+  .ii-invite-card,
+  .ii-seal,
+  .ii-parallax-layer {
+    animation: none !important;
+    transition: none !important;
+  }
+}

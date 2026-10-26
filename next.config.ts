@@ -75,6 +75,8 @@ const nextConfig: NextConfig = {
       "/client-contracts/:path*",
       "/venue-client",
       "/venue-client/:path*",
+      "/preview",
+      "/preview/:path*",
     ];
 
     return [
