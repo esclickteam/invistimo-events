@@ -13,7 +13,6 @@ import ExportSeatingPdf from "./ExportSeatingPdf";
 import ZonesToolbar from "@/app/components/zones/ZonesToolbar";
 
 import { useAuth } from "@/context/AuthContext";
-import CustomerNotificationBell from "@/app/dashboard/components/CustomerNotificationBell";
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
 
@@ -1194,10 +1193,6 @@ function SeatingPageInner() {
         >
           {/* RIGHT TITLE */}
           <div className="flex min-w-0 shrink-0 items-center gap-3">
-            <CustomerNotificationBell
-              enabled={!isDemo && !isVenueTemplateMode}
-              panelAlign="right"
-            />
             <div className="hidden shrink-0 items-center gap-4 md:flex">
             <div
               className="

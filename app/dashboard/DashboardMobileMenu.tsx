@@ -18,7 +18,6 @@ import {
   WandSparkles,
   Phone,
   Contact,
-  Bell,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { hasGuestMessagesFeature, hasWeddingWebsiteFeature } from "@/lib/features/entitlements";
@@ -317,14 +316,6 @@ export default function DashboardMobileMenu({
         }
         go("/dashboard/recorded-calls");
       },
-    },
-    {
-      title: "העדפות התראות",
-      subtitle: "בחירת התראות Push וניהול המכשירים",
-      icon: Bell,
-      badge: "התראות",
-      hidden: isDemo,
-      onClick: () => go("/dashboard/notifications"),
     },
   ];
 
