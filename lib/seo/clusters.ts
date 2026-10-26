@@ -30,6 +30,7 @@ export const PILLARS: ContentPillar[] = [
       { path: "/info/guides/cost-rsvp-wedding", label: "איך מחושב המחיר" },
       { path: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
       { path: "/info/guides/whatsapp-vs-sms-rsvp", label: "WhatsApp או SMS" },
+      { path: "/info/guides/how-to-choose-rsvp-company", label: "איך בוחרים חברת אישורי הגעה" },
       { path: "/info/guides/guest-list", label: "רשימת מוזמנים" },
       { path: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים כדאי להתחייב לאולם?" },
     ],
