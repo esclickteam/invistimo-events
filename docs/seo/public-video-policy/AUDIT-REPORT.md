@@ -81,3 +81,19 @@
 - `scripts/tests/public-video-policy.test.ts`
 - עדכון `scripts/tests/seo-public.test.ts`
 - נכלל ב־`npm run test:seo`
+
+## QA ידני (localhost, דסקטופ ~1280)
+
+תוצאה: **PASS** בכל העמודים שנבדקו — אין Play גדול, יש «השהיה»/«הגדלה» ברכיב המשותף, אין חיתוך UI, אין גלילה אופקית.
+
+| עמוד | תוצאה |
+| --- | --- |
+| `/` | PASS — השהיה + הגדלה |
+| `/rsvp` | PASS |
+| `/rsvp/whatsapp` | PASS |
+| `/rsvp/chatuna` | PASS |
+| `/seating-explained` | PASS — השהיה + הגדלה |
+| `/event-management` | PASS — השהיה + הפעלת קול + הגדלה |
+| מדריך send-digital-invitation | PASS |
+
+מובייל ~390: חלקי בלבד — מומלץ לאשר ב־preview לפני merge.
