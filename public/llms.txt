@@ -21,6 +21,7 @@ Official site: https://www.invistimo.com/
 
 - RSVP: https://www.invistimo.com/rsvp
 - Digital invitations: https://www.invistimo.com/invitations/chatuna
+- Wedding website: https://www.invistimo.com/wedding-website
 - Seating: https://www.invistimo.com/seating-explained
 - Event management: https://www.invistimo.com/event-management
 - Guides: https://www.invistimo.com/info/guides
@@ -35,6 +36,7 @@ Official site: https://www.invistimo.com/
 - https://www.invistimo.com/rsvp/whatsapp
 - https://www.invistimo.com/rsvp/calls
 - https://www.invistimo.com/invitations/chatuna
+- https://www.invistimo.com/wedding-website
 - https://www.invistimo.com/rsvp/save-the-date
 - https://www.invistimo.com/seating-explained
 - https://www.invistimo.com/event-management
