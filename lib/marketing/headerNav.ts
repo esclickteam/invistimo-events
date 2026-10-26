@@ -175,6 +175,10 @@ export const GUIDE_COLUMNS: HeaderNavColumn[] = [
     id: "venues-seating",
     title: "אולמות וסידורי הושבה",
     links: [
+      {
+        href: "/info/guides/wedding-seating-arrangements",
+        label: "סידורי הושבה לחתונה — המדריך המלא",
+      },
       { href: "/info/guides/seating-plan", label: "איך מכינים סידורי הושבה" },
       {
         href: "/info/guides/table-number-message",
