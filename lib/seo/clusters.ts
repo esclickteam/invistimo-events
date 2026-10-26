@@ -69,6 +69,10 @@ export const PILLARS: ContentPillar[] = [
     summary: "משימות, ספקים, תקציב, תשלומים ולוח זמנים, לצד האישורים וההושבה.",
     clusters: [
       { path: "/info/guides/wedding-planning", label: "המדריך המלא לתכנון חתונה" },
+      {
+        path: "/info/guides/event-management-vs-production",
+        label: "ניהול אירוע או הפקת אירוע",
+      },
       { path: "/info/guides/wedding-vendors-contracts", label: "בחירת ספקים, חוזים וביטולים" },
       { path: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" },
       { path: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },

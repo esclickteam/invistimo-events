@@ -493,10 +493,34 @@ export const GUIDES: Guide[] = [
       },
       { href: "/info/guides/seating-plan", label: "איך מכינים הושבה במערכת" },
       { href: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" },
+      {
+        href: "/info/guides/event-management-vs-production",
+        label: "ניהול אירוע או הפקת אירוע",
+      },
       { href: "/event-management", label: "ניהול אירוע" },
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { href: "/seating-explained", label: "הושבה דיגיטלית" },
       { href: "/pricing", label: "חבילות ומחירים" },
+    ],
+  },
+  {
+    // Dedicated UI: app/(marketing)/info/guides/event-management-vs-production/
+    slug: "event-management-vs-production",
+    title: "ניהול אירוע או הפקת אירוע? ההבדלים ומה צריך",
+    description:
+      "מה ההבדל בין מנהל אירוע למפיק אירועים? השוואת תפקידים, אחריות, מחירים ומנהל מטעם האולם, עם שאלון שיעזור לכם לבחור מה מתאים לחתונה.",
+    h1: "ניהול אירוע או הפקת אירוע? ההבדלים, המחירים ואיך בוחרים מה באמת צריך",
+    lede:
+      "מפיק, מנהל חיצוני ומנהל אולם אינם בהכרח אותו שירות. המדריך משווה אחריות, עוזר להחליט מה צריך, ומסביר איך Invistimo משתלבת.",
+    sections: [],
+    faqs: [],
+    related: [
+      { href: "/event-management", label: "שירותי ניהול האירוע" },
+      { href: "/info/guides/wedding-planning", label: "תכנון חתונה מלא" },
+      { href: "/info/guides/wedding-vendors-contracts", label: "ספקים וחוזים" },
+      { href: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" },
+      { href: "/pricing", label: "חבילות ומחירים" },
+      { href: "/info/guides", label: "כל המדריכים" },
     ],
   },
   {
