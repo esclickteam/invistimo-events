@@ -12,7 +12,6 @@ import TableChangeDemo from "./TableChangeDemo";
 import { TABLE_NUMBER_FAQS } from "./guideFaqs";
 
 const PATH = "/info/guides/table-number-message";
-const UPDATED_AT = "26 באוקטובר 2026";
 
 const ctaPrimary =
   "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3.5 text-base font-black text-white shadow-[0_18px_40px_rgba(58,39,20,0.22)] transition hover:-translate-y-0.5";
@@ -334,7 +333,6 @@ export default function TableNumberGuide() {
               לצ&apos;קליסט לפני שליחה
             </TrackedCtaLink>
           </div>
-          <p className="mt-4 text-sm text-[#7A6042]">עודכן לאחרונה: {UPDATED_AT}</p>
         </div>
 
         {reduce ? (
