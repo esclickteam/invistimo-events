@@ -1,21 +1,181 @@
 "use client";
 
 import Link from "next/link";
-import {
-  MessageCircle,
-  Clock3,
-  Mail,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { useId, useState } from "react";
+import { ChevronDown, Clock3 } from "lucide-react";
 import { usePathname } from "next/navigation";
+import {
+  FOOTER_COLUMNS,
+  FOOTER_HOURS,
+  FOOTER_LEGAL_LINKS,
+  type FooterColumn,
+  type FooterLink,
+} from "@/lib/marketing/footerNav";
+
+function FooterAnchor({
+  link,
+  className,
+}: {
+  link: FooterLink;
+  className: string;
+}) {
+  if (link.external) {
+    return (
+      <a
+        href={link.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={className}
+      >
+        {link.label}
+      </a>
+    );
+  }
+
+  return (
+    <Link href={link.href} className={className}>
+      {link.label}
+    </Link>
+  );
+}
+
+function HoursBlock({ compact }: { compact?: boolean }) {
+  return (
+    <div
+      className={
+        compact
+          ? "border-t border-[#EFE3CF] px-4 py-3 text-[13px] font-semibold text-[#6B5A49]"
+          : "mt-5 rounded-2xl border border-[#E7D8BD] bg-[#FFFDF8]/90 p-4"
+      }
+    >
+      <p
+        className={
+          compact
+            ? "mb-1.5 flex items-center gap-2 font-black text-[#9A6E24]"
+            : "flex items-center gap-2 text-[#9A6E24]"
+        }
+      >
+        <Clock3 size={compact ? 15 : 16} aria-hidden />
+        <span className={compact ? undefined : "text-[12px] font-black tracking-[0.04em]"}>
+          שעות פעילות
+        </span>
+      </p>
+      <ul className={compact ? "space-y-0.5" : "mt-2 space-y-1 text-[13px] font-semibold text-[#6B5A49]"}>
+        {FOOTER_HOURS.map((row) => (
+          <li key={row.label}>
+            {row.label}: {row.value}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function FooterColumns() {
+  const [openId, setOpenId] = useState<string | null>(null);
+  const baseId = useId();
+
+  const toggle = (column: FooterColumn) => {
+    setOpenId((prev) => (prev === column.id ? null : column.id));
+  };
+
+  return (
+    <div className="overflow-hidden rounded-[18px] border border-[#E4D2AF] bg-[#FFFDF8]/85 md:overflow-visible md:rounded-none md:border-0 md:bg-transparent md:grid md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+      {FOOTER_COLUMNS.map((column, index) => {
+        const isOpen = openId === column.id;
+        const panelId = `${baseId}-${column.id}-panel`;
+        const buttonId = `${baseId}-${column.id}-button`;
+
+        return (
+          <nav
+            key={column.id}
+            aria-label={column.title}
+            className={
+              index < FOOTER_COLUMNS.length - 1
+                ? "border-b border-[#E7D8BD] md:border-b-0"
+                : undefined
+            }
+          >
+            {/* Mobile accordion trigger */}
+            <h3 className="m-0 md:hidden">
+              <button
+                id={buttonId}
+                type="button"
+                className="
+                  flex min-h-[54px] w-full items-center justify-between
+                  px-4 py-3.5 text-right
+                  text-[15px] font-extrabold text-[#2F261E]
+                  transition hover:bg-[#FAF3E7]
+                "
+                aria-expanded={isOpen}
+                aria-controls={panelId}
+                onClick={() => toggle(column)}
+              >
+                <span>{column.title}</span>
+                <ChevronDown
+                  size={18}
+                  aria-hidden
+                  className={`shrink-0 text-[#B8862D] transition duration-200 ${
+                    isOpen ? "rotate-180" : ""
+                  }`}
+                />
+              </button>
+            </h3>
+
+            {/* Desktop column title */}
+            <h3 className="mb-4 hidden text-[13px] font-black tracking-[0.06em] text-[#9A6E24] md:block">
+              {column.title}
+            </h3>
+
+            {/* Single link list — always in DOM; CSS-collapsed on mobile when closed */}
+            <div
+              id={panelId}
+              role="region"
+              aria-labelledby={buttonId}
+              className={`
+                border-t border-[#EFE3CF] bg-[#FBF6EE]/70
+                md:block md:border-0 md:bg-transparent
+                ${isOpen ? "block" : "hidden"}
+              `}
+            >
+              <ul className="space-y-1 px-4 py-3 md:mt-0 md:space-y-2.5 md:px-0 md:py-0">
+                {column.links.map((link) => (
+                  <li key={`${column.id}-${link.href}`}>
+                    <FooterAnchor
+                      link={link}
+                      className="
+                        block rounded-xl px-2 py-2.5
+                        text-[14px] font-bold text-[#4A3A2A]
+                        transition hover:bg-white hover:text-[#B8862D]
+                        md:rounded-none md:px-0 md:py-0 md:hover:bg-transparent
+                      "
+                    />
+                  </li>
+                ))}
+              </ul>
+              {column.id === "help" ? (
+                <>
+                  <div className="md:hidden">
+                    <HoursBlock compact />
+                  </div>
+                  <div className="hidden md:block">
+                    <HoursBlock />
+                  </div>
+                </>
+              ) : null}
+            </div>
+          </nav>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function Footer() {
   const pathname = usePathname();
 
   const isStaffPage =
-    pathname === "/staff" ||
-    pathname.startsWith("/staff/");
+    pathname === "/staff" || pathname.startsWith("/staff/");
 
   // Hide only on live demo / published wedding sites — not the marketing hub.
   const isWeddingWebsite =
@@ -27,266 +187,92 @@ export default function Footer() {
     return null;
   }
 
+  const year = new Date().getFullYear();
+
   return (
     <footer
       dir="rtl"
       className="
-        relative overflow-hidden
+        relative
         border-t border-[#E4D2AF]
         bg-[#F7F1E8]
         text-[#4A3A2A]
+        print:hidden
       "
     >
       <div
+        aria-hidden
         className="
           pointer-events-none absolute inset-0
-          bg-[radial-gradient(circle_at_18%_18%,rgba(201,164,92,0.14),transparent_28%),radial-gradient(circle_at_86%_74%,rgba(255,255,255,0.72),transparent_34%)]
+          bg-[radial-gradient(circle_at_12%_0%,rgba(201,164,92,0.12),transparent_32%)]
         "
       />
 
-      <div className="relative z-10 mx-auto max-w-7xl px-6 py-16">
-        <div
-          className="
-            grid gap-10
-            rounded-[34px]
-            border border-[#E4D2AF]
-            bg-white/58
-            p-6
-            shadow-[0_24px_70px_rgba(95,68,34,0.08)]
-            backdrop-blur-xl
-            md:p-10
-            lg:grid-cols-[1.1fr_0.9fr]
-          "
-        >
-          <div className="text-center lg:text-right">
-            <div className="mb-5 inline-flex items-center gap-3 rounded-full border border-[#E3D1AE] bg-[#FFF9EF]/80 px-5 py-2.5 text-[#B8862D]">
-              <Sparkles size={18} />
-              <span className="text-[13px] font-black tracking-[0.12em]">
-                INVISTIMO
-              </span>
-            </div>
-
-            <h2
-              className="
-                text-[30px]
-                font-black
-                leading-[1.2]
-                tracking-[-0.03em]
-                text-[#3A3028]
-                md:text-[40px]
-              "
-            >
-              ניהול אירוע חכם,
-              <br />
-              מסודר ואלגנטי.
-            </h2>
-
-            <p className="mx-auto mt-4 max-w-[620px] text-[16px] font-semibold leading-[1.9] text-[#6B5A49] lg:mx-0">
-              Invistimo מרכזת הזמנות דיגיטליות, אישורי הגעה, הושבה והודעות
-              לאורחים — כדי שתנהלו את האירוע בראש שקט ובסטייל.
-            </p>
-
-            <div className="mt-7 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-              {["אישורי הגעה", "הושבה חכמה", "הודעות לאורחים"].map(
-                (item) => (
-                  <span
-                    key={item}
-                    className="
-                      rounded-full
-                      border border-[#E5D5B6]
-                      bg-[#FFFDF8]/80
-                      px-4 py-2
-                      text-[13px]
-                      font-bold
-                      text-[#735B3C]
-                      shadow-[0_8px_22px_rgba(95,68,34,0.04)]
-                    "
-                  >
-                    {item}
-                  </span>
-                )
-              )}
-            </div>
-          </div>
-
-          <div
-            className="
-              rounded-[28px]
-              border border-[#E3D1AE]
-              bg-[#FFFDF8]/78
-              p-6
-              shadow-[0_18px_44px_rgba(95,68,34,0.08)]
-              backdrop-blur-xl
-            "
+      <div className="relative z-10 mx-auto max-w-7xl px-5 pb-28 pt-10 md:px-8 md:pb-14 md:pt-16">
+        <div className="mb-12 hidden max-w-2xl md:block">
+          <Link
+            href="/"
+            aria-label="Invistimo — חזרה לדף הבית"
+            className="inline-flex transition hover:opacity-90"
+            dir="ltr"
           >
-            <div className="mb-5 flex items-center justify-center gap-3 lg:justify-start">
-              <div
-                className="
-                  flex h-12 w-12 items-center justify-center
-                  rounded-2xl
-                  bg-gradient-to-br from-[#FFF5E3] to-[#F3E1B9]
-                  text-[#B8862D]
-                  shadow-[0_12px_28px_rgba(184,134,45,0.14)]
-                "
+            <img
+              src="/invistimo-logo.png"
+              alt="Invistimo"
+              width={168}
+              height={56}
+              decoding="async"
+              className="h-12 w-auto select-none"
+              draggable={false}
+            />
+          </Link>
+          <p className="mt-5 text-[28px] font-black leading-snug tracking-[-0.02em] text-[#2F261E]">
+            ניהול אירוע חכם, מסודר ואלגנטי.
+          </p>
+          <p className="mt-3 max-w-xl text-[15px] font-semibold leading-7 text-[#6B5A49]">
+            הזמנות דיגיטליות, אישורי הגעה, סידורי הושבה וניהול אירוע — במקום אחד,
+            בעיצוב שמרגיש פרימיום.
+          </p>
+        </div>
+
+        <FooterColumns />
+
+        <div className="mt-8 border-t border-[#E4D2AF] pt-7 md:mt-12 md:pt-8">
+          <div className="flex flex-col items-start gap-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col gap-3">
+              <Link
+                href="/"
+                className="inline-flex w-fit transition hover:opacity-90 md:hidden"
+                dir="ltr"
+                aria-label="Invistimo — חזרה לדף הבית"
               >
-                <MessageCircle size={24} />
-              </div>
-
-              <div>
-                <h3 className="text-[20px] font-black text-[#3D3127]">
-                  צריכים עזרה?
-                </h3>
-                <p className="text-sm font-semibold text-[#7A6A58]">
-                  אנחנו כאן בשבילכם
-                </p>
-              </div>
-            </div>
-
-            <div className="space-y-3 text-center lg:text-right">
-              <div className="flex items-center justify-center gap-2 text-[#6B5A49] lg:justify-start">
-                <Clock3 size={18} className="text-[#B8862D]" />
-                <span className="text-sm font-bold">שעות הפעילות שלנו</span>
-              </div>
-
-              <p className="text-sm leading-relaxed text-[#6B5A49]">
-                ימים א׳–ה׳: 09:00–18:00
-                <br />
-                שישי וערבי חג: 09:00–12:00
+                <img
+                  src="/invistimo-logo.png"
+                  alt="Invistimo"
+                  width={120}
+                  height={40}
+                  decoding="async"
+                  className="h-9 w-auto select-none"
+                  draggable={false}
+                />
+              </Link>
+              <p className="text-[13px] font-semibold text-[#7A6A58]">
+                © {year} Invistimo · כל הזכויות שמורות
               </p>
             </div>
 
-            <a
-              href="https://wa.me/972555039072"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="
-                mt-6 inline-flex w-full items-center justify-center gap-3
-                rounded-full
-                bg-[#3F3A34]
-                px-6 py-4
-                text-[15px]
-                font-extrabold
-                text-white
-                shadow-[0_16px_34px_rgba(63,58,52,0.18)]
-                transition
-                hover:-translate-y-0.5
-                hover:bg-[#2F2B27]
-              "
+            <nav
+              aria-label="קישורים משפטיים"
+              className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] font-bold text-[#6B5A49]"
             >
-              <span>צ׳אט עם נציג ב־WhatsApp</span>
-
-              <img
-                src="/icons/whatsapp.png"
-                alt="WhatsApp"
-                className="h-5 w-5"
-              />
-            </a>
-
-            <Link
-              href="/contact"
-              className="
-                mt-3 inline-flex w-full items-center justify-center gap-2
-                rounded-full
-                border border-[#8B6A3E]/35
-                bg-white/70
-                px-6 py-3.5
-                text-[14px]
-                font-extrabold
-                text-[#4A3A2A]
-                transition
-                hover:bg-white
-                hover:text-[#B8862D]
-              "
-            >
-              <Mail size={17} />
-              יצירת קשר
-            </Link>
-          </div>
-        </div>
-
-        <div
-          className="
-            mt-10 flex flex-col items-center justify-between gap-7
-            border-t border-[#E4D2AF]
-            pt-8
-            lg:flex-row
-          "
-        >
-          <nav className="flex flex-wrap items-center justify-center gap-x-7 gap-y-3 text-sm font-bold text-[#6B5A49]">
-            <Link href="/info/about" className="transition hover:text-[#B8862D]">
-              אודות
-            </Link>
-            <Link href="/info/guides" className="transition hover:text-[#B8862D]">
-              מדריכים
-            </Link>
-            <Link href="/rsvp" className="transition hover:text-[#B8862D]">
-              אישורי הגעה
-            </Link>
-            <Link href="/pricing" className="transition hover:text-[#B8862D]">
-              חבילות ומחירים
-            </Link>
-            <Link href="/rsvp/chatuna" className="transition hover:text-[#B8862D]">
-              אישורי הגעה לחתונה
-            </Link>
-            <Link href="/rsvp/hina" className="transition hover:text-[#B8862D]">
-              אישורי הגעה לחינה
-            </Link>
-            <Link href="/rsvp/whatsapp" className="transition hover:text-[#B8862D]">
-              אישורי הגעה בוואטסאפ
-            </Link>
-            <Link href="/invitations/chatuna" className="transition hover:text-[#B8862D]">
-              הזמנות דיגיטליות
-            </Link>
-            <Link href="/wedding-website" className="transition hover:text-[#B8862D]">
-              אתר חתונה אישי
-            </Link>
-            <Link href="/seating-explained" className="transition hover:text-[#B8862D]">
-              סידורי הושבה
-            </Link>
-            <Link
-              href="/info/guides/wedding-seating-arrangements"
-              className="transition hover:text-[#B8862D]"
-            >
-              מדריך סידורי הושבה
-            </Link>
-            <Link href="/event-management" className="transition hover:text-[#B8862D]">
-              ניהול אירוע
-            </Link>
-            <Link href="/info/demo" className="transition hover:text-[#B8862D]">
-              דמו אינטראקטיבי
-            </Link>
-            <Link href="/for/bar-mitzvah" className="transition hover:text-[#B8862D]">
-              בר מצווה
-            </Link>
-            <Link href="/faq" className="transition hover:text-[#B8862D]">
-              שאלות ותשובות
-            </Link>
-
-            <Link href="/terms" className="transition hover:text-[#B8862D]">
-              תקנון שימוש
-            </Link>
-
-            <Link href="/privacy" className="transition hover:text-[#B8862D]">
-              מדיניות פרטיות
-            </Link>
-
-            <Link
-              href="/accessibility"
-              className="transition hover:text-[#B8862D]"
-            >
-              הצהרת נגישות
-            </Link>
-
-            <Link href="/contact" className="transition hover:text-[#B8862D]">
-              יצירת קשר
-            </Link>
-          </nav>
-
-          <div className="flex items-center gap-2 text-sm font-semibold text-[#7A6A58]">
-            <ShieldCheck size={17} className="text-[#B8862D]" />
-            <span>
-              © {new Date().getFullYear()} Invistimo · כל הזכויות שמורות
-            </span>
+              {FOOTER_LEGAL_LINKS.map((link) => (
+                <FooterAnchor
+                  key={link.href}
+                  link={link}
+                  className="transition hover:text-[#B8862D]"
+                />
+              ))}
+            </nav>
           </div>
         </div>
       </div>

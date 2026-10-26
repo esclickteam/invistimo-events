@@ -175,17 +175,85 @@ export default function Header() {
           "
           dir="rtl"
         >
+          {/* Mobile: RTL right→left = hamburger | demo | space | logo (logo on left) */}
+          <div
+            className="flex h-[78px] items-center justify-between gap-3 px-4 xl:hidden"
+            dir="rtl"
+          >
+            <div className="flex shrink-0 items-center gap-2">
+              {!isDashboard && (
+                <>
+                  <button
+                    onClick={() => setMobileOpen(true)}
+                    className="
+                      flex h-11 w-11 items-center justify-center
+                      rounded-full
+                      border border-[#D7BE88]
+                      bg-white
+                      text-[#3F3328]
+                      shadow-sm
+                    "
+                    aria-label="פתח תפריט"
+                    aria-expanded={mobileOpen}
+                    aria-controls="mobile-main-nav"
+                  >
+                    <Menu size={25} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={openDemoChoice}
+                    className="
+                      inline-flex items-center gap-1.5
+                      rounded-[12px]
+                      bg-[#2F261E]
+                      px-3.5 py-2
+                      text-[13px] font-extrabold
+                      text-[#FFFDF8]
+                    "
+                    title="דמו – צפייה בלבד"
+                  >
+                    <Sparkles size={14} className="text-[#D8B15E]" />
+                    דמו
+                  </button>
+                </>
+              )}
+            </div>
+
+            <Link
+              href={logoHref}
+              aria-label="Invistimo — חזרה לדף הבית"
+              className="flex shrink-0 items-center justify-center transition hover:scale-[1.03]"
+              dir="ltr"
+            >
+              <img
+                src="/invistimo-logo.png"
+                alt="Invistimo Logo"
+                width={180}
+                height={60}
+                decoding="async"
+                fetchPriority="low"
+                className="
+                  h-[48px] w-auto select-none
+                  drop-shadow-[0_6px_14px_rgba(158,116,42,0.14)]
+                "
+                draggable={false}
+              />
+            </Link>
+          </div>
+
+          {/* Desktop: unchanged layout */}
           <div
             className="
-              grid h-[78px] grid-cols-[auto_1fr_auto]
+              hidden h-[78px] grid-cols-[auto_minmax(0,1fr)_auto]
               items-center
               gap-3
               overflow-visible
               px-4 md:px-7
-              xl:grid-cols-[auto_minmax(0,1fr)_auto]
+              xl:grid
             "
+            dir="rtl"
           >
-            {/* RTL start: logo */}
             <div className="flex items-center justify-start" dir="ltr">
               <Link
                 href={logoHref}
@@ -205,96 +273,54 @@ export default function Header() {
                   decoding="async"
                   fetchPriority="low"
                   className="
-                    h-[48px] w-auto select-none
+                    h-[56px] w-auto select-none
                     drop-shadow-[0_6px_14px_rgba(158,116,42,0.14)]
-                    md:h-[56px]
                   "
                   draggable={false}
                 />
               </Link>
             </div>
 
-            {/* Center / grow: desktop nav */}
-            <div className="relative z-[60] hidden min-w-0 items-center justify-center overflow-visible xl:flex">
+            <div className="relative z-[60] flex min-w-0 items-center justify-center overflow-visible">
               <DesktopMarketingNav pathname={pathname} />
             </div>
 
-            {/* RTL end: CTAs + mobile controls */}
             <div className="flex items-center justify-end gap-2.5">
-              <div className="hidden items-center gap-2.5 xl:flex">
-                <button
-                  type="button"
-                  onClick={openDemoChoice}
-                  className="
-                    group inline-flex items-center gap-2
-                    whitespace-nowrap
-                    rounded-[13px]
-                    bg-[#2F261E]
-                    px-5 py-2.5
-                    text-[14px] font-extrabold
-                    text-[#FFFDF8]
-                    shadow-[0_10px_24px_rgba(47,38,30,0.16)]
-                    transition
-                    hover:-translate-y-0.5
-                    hover:bg-[#3F3328]
-                    hover:shadow-[0_14px_28px_rgba(47,38,30,0.2)]
-                  "
-                  title="דמו – צפייה בלבד"
-                >
-                  <Sparkles
-                    size={16}
-                    className="text-[#D8B15E] transition group-hover:rotate-12"
-                  />
-                  נסו דמו עכשיו
-                </button>
+              <button
+                type="button"
+                onClick={openDemoChoice}
+                className="
+                  group inline-flex items-center gap-2
+                  whitespace-nowrap
+                  rounded-[13px]
+                  bg-[#2F261E]
+                  px-5 py-2.5
+                  text-[14px] font-extrabold
+                  text-[#FFFDF8]
+                  shadow-[0_10px_24px_rgba(47,38,30,0.16)]
+                  transition
+                  hover:-translate-y-0.5
+                  hover:bg-[#3F3328]
+                  hover:shadow-[0_14px_28px_rgba(47,38,30,0.2)]
+                "
+                title="דמו – צפייה בלבד"
+              >
+                <Sparkles
+                  size={16}
+                  className="text-[#D8B15E] transition group-hover:rotate-12"
+                />
+                נסו דמו עכשיו
+              </button>
 
-                {!loading &&
-                  (user ? (
-                    <>
-                      <Link
-                        href={dashboardHref}
-                        className="
-                          whitespace-nowrap
-                          rounded-[13px]
-                          border border-[#C9A45C]/70
-                          bg-white
-                          px-5 py-2.5
-                          text-[14px] font-bold
-                          text-[#4A3A2A]
-                          transition
-                          hover:bg-[#F8EEDB]
-                          hover:text-[#B88A2D]
-                        "
-                      >
-                        לוח בקרה
-                      </Link>
-
-                      <button
-                        onClick={logout}
-                        className="
-                          whitespace-nowrap
-                          rounded-[13px]
-                          border border-[#D8C5A7]
-                          bg-white
-                          px-5 py-2.5
-                          text-[14px] font-bold
-                          text-[#4A3A2A]
-                          transition
-                          hover:bg-red-50
-                          hover:text-red-600
-                        "
-                      >
-                        התנתקות
-                      </button>
-                    </>
-                  ) : (
+              {!loading &&
+                (user ? (
+                  <>
                     <Link
-                      href="/login"
+                      href={dashboardHref}
                       className="
-                        inline-flex items-center gap-2
                         whitespace-nowrap
                         rounded-[13px]
-                        border border-[#C9A45C]/75
+                        border border-[#C9A45C]/70
                         bg-white
                         px-5 py-2.5
                         text-[14px] font-bold
@@ -304,53 +330,51 @@ export default function Header() {
                         hover:text-[#B88A2D]
                       "
                     >
-                      התחברות
-                      <UserRound size={17} className="text-[#B88A2D]" />
+                      לוח בקרה
                     </Link>
-                  ))}
-              </div>
 
-              {!isDashboard && (
-                <>
-                  <button
-                    type="button"
-                    onClick={openDemoChoice}
+                    <button
+                      onClick={logout}
+                      className="
+                        whitespace-nowrap
+                        rounded-[13px]
+                        border border-[#D8C5A7]
+                        bg-white
+                        px-5 py-2.5
+                        text-[14px] font-bold
+                        text-[#4A3A2A]
+                        transition
+                        hover:bg-red-50
+                        hover:text-red-600
+                      "
+                    >
+                      התנתקות
+                    </button>
+                  </>
+                ) : (
+                  <Link
+                    href="/login"
                     className="
-                      inline-flex items-center gap-1.5
-                      rounded-[12px]
-                      bg-[#2F261E]
-                      px-3.5 py-2
-                      text-[13px] font-extrabold
-                      text-[#FFFDF8]
-                      xl:hidden
-                    "
-                    title="דמו – צפייה בלבד"
-                  >
-                    <Sparkles size={14} className="text-[#D8B15E]" />
-                    דמו
-                  </button>
-
-                  <button
-                    onClick={() => setMobileOpen(true)}
-                    className="
-                      flex h-11 w-11 items-center justify-center
-                      rounded-full
-                      border border-[#D7BE88]
+                      inline-flex items-center gap-2
+                      whitespace-nowrap
+                      rounded-[13px]
+                      border border-[#C9A45C]/75
                       bg-white
-                      text-[#3F3328]
-                      shadow-sm
-                      xl:hidden
+                      px-5 py-2.5
+                      text-[14px] font-bold
+                      text-[#4A3A2A]
+                      transition
+                      hover:bg-[#F8EEDB]
+                      hover:text-[#B88A2D]
                     "
-                    aria-label="פתח תפריט"
-                    aria-expanded={mobileOpen}
-                    aria-controls="mobile-main-nav"
                   >
-                    <Menu size={25} />
-                  </button>
-                </>
-              )}
+                    התחברות
+                    <UserRound size={17} className="text-[#B88A2D]" />
+                  </Link>
+                ))}
             </div>
-          </div>        </div>
+          </div>
+        </div>
       </header>
 
       {!isDashboard && mobileOpen && (
