@@ -52,7 +52,11 @@ export const PILLARS: ContentPillar[] = [
     path: "/seating-explained",
     summary: "סקיצת אולם, שיבוץ ידני או לפי קבוצות, והודעה עם מספר שולחן.",
     clusters: [
-      { path: "/info/guides/seating-plan", label: "איך מכינים הושבה" },
+      {
+        path: "/info/guides/wedding-seating-arrangements",
+        label: "סידורי הושבה לחתונה — המדריך המלא",
+      },
+      { path: "/info/guides/seating-plan", label: "איך מכינים הושבה במערכת" },
       { path: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },
     ],
   },

@@ -756,8 +756,11 @@ export default function SeatingMarketingPage() {
             <Link href={LINKS.venueGuarantee} className="hover:underline">
               התחייבות לאולם
             </Link>
+            <Link href={LINKS.weddingSeatingGuide} className="hover:underline">
+              מדריך סידורי הושבה לחתונה
+            </Link>
             <Link href={LINKS.seatingPlan} className="hover:underline">
-              מדריך הכנת הושבה
+              מדריך הכנת הושבה במערכת
             </Link>
           </div>
         </div>

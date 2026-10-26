@@ -27,6 +27,7 @@ export const LINKS = {
   venueGuarantee: "/info/guides/wedding-venue-guest-guarantee",
   costGuide: "/info/guides/cost-rsvp-wedding",
   seatingPlan: "/info/guides/seating-plan",
+  weddingSeatingGuide: "/info/guides/wedding-seating-arrangements",
   tableMessage: "/info/guides/table-number-message",
   contact: "/contact",
   trySeating: "/try/dashboard/seating",
