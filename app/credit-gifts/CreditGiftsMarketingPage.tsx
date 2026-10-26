@@ -215,6 +215,7 @@ export default function CreditGiftsMarketingPage() {
         </div>
       </section>
 
+
       <Section tone="cream" id="intro">
         <Eyebrow>למה כמה דרכים?</Eyebrow>
         <h2 className={`${display.className} mt-3 text-3xl font-bold md:text-4xl`}>

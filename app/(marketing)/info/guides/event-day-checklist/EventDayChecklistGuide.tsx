@@ -45,7 +45,7 @@ const ctaSecondary =
   "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
 
 const TOC: TocItem[] = [
-  { id: "short-answer", label: "מבוא" },
+  { id: "what-to-check", label: "מה חובה לבדוק" },
   { id: "checklist", label: "הצ׳קליסט" },
   { id: "timeline", label: "לוח זמנים" },
   { id: "venue", label: "בדיקת האולם" },
@@ -374,9 +374,9 @@ export default function EventDayChecklistGuide() {
       <div className="mx-auto grid max-w-6xl gap-10 px-5 pb-24 md:px-8 lg:grid-cols-[240px_minmax(0,1fr)]">
         <StickyToc items={TOC} />
         <div className="min-w-0 space-y-20">
-          <motion.section id="short-answer" className="scroll-mt-24" aria-labelledby="short-answer-h" {...fade}>
-            <Eyebrow>מבוא</Eyebrow>
-            <h2 id="short-answer-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+          <motion.section id="what-to-check" className="scroll-mt-24" aria-labelledby="what-to-check-h" {...fade}>
+            <Eyebrow>לפני הכול</Eyebrow>
+            <h2 id="what-to-check-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מה חובה לבדוק לפני יום החתונה?
             </h2>
             <Prose>
@@ -1066,7 +1066,7 @@ export default function EventDayChecklistGuide() {
           </motion.section>
 
           <motion.section id="faq" className="scroll-mt-24" aria-labelledby="faq-h" {...fade}>
-            <Eyebrow>FAQ</Eyebrow>
+            <Eyebrow>שאלות נפוצות</Eyebrow>
             <h2 id="faq-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               שאלות נפוצות לפני יום האירוע
             </h2>

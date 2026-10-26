@@ -18,7 +18,7 @@ const ctaSecondary =
   "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
 
 const TOC: TocItem[] = [
-  { id: "short-answer", label: "מבוא" },
+  { id: "when-to-send-answer", label: "מתי שולחים מספר שולחן" },
   { id: "venue-sketch", label: "אישור סקיצת האולם" },
   { id: "checklist", label: "צ'קליסט לפני שליחה" },
   { id: "timing", label: "מתי שולחים" },
@@ -29,7 +29,7 @@ const TOC: TocItem[] = [
   { id: "mistakes", label: "טעויות נפוצות" },
   { id: "reception", label: "הושבה וצוות קבלה" },
   { id: "vs-reminder", label: "שולחן מול תזכורת" },
-  { id: "aeo-blocks", label: "תשובות מהירות" },
+  { id: "quick-answers", label: "תשובות לשאלות נפוצות" },
   { id: "faq", label: "שאלות נפוצות" },
 ];
 
@@ -364,10 +364,10 @@ export default function TableNumberGuide() {
         <StickyToc items={TOC} />
 
         <div className="min-w-0 space-y-16 md:space-y-20">
-          <section id="short-answer" className="scroll-mt-24" aria-labelledby="short-answer-h">
+          <section id="when-to-send-answer" className="scroll-mt-24" aria-labelledby="when-to-send-answer-h">
             <FadeIn>
-              <Eyebrow>מבוא</Eyebrow>
-              <h2 id="short-answer-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              <Eyebrow>לפני הכול</Eyebrow>
+              <h2 id="when-to-send-answer-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
                 מתי כדאי לשלוח מספרי שולחנות לאורחים?
               </h2>
               <Prose>
@@ -682,7 +682,7 @@ export default function TableNumberGuide() {
           {/* After change scenarios */}
           <section id="after-change" className="scroll-mt-24" aria-labelledby="after-change-h">
             <FadeIn>
-              <Eyebrow>פרק מרכזי</Eyebrow>
+              <Eyebrow>שינוי אחרי שליחה</Eyebrow>
               <h2 id="after-change-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
                 שלחנו מספר שולחן — ואז ההושבה השתנתה. מה עושים?
               </h2>
@@ -988,14 +988,16 @@ export default function TableNumberGuide() {
             </FadeIn>
           </section>
 
-          <section id="aeo-blocks" className="scroll-mt-24" aria-labelledby="aeo-blocks-h">
+          <section id="quick-answers" className="scroll-mt-24" aria-labelledby="quick-answers-h">
             <FadeIn>
-              <Eyebrow>בקצרה</Eyebrow>
-              <h2 id="aeo-blocks-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
-                תשובות מהירות לשאלות נפוצות
+              <Eyebrow>סיכום מעשי</Eyebrow>
+              <h2 id="quick-answers-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+                תשובות לשאלות נפוצות על מספר שולחן
               </h2>
               <Prose>
-                <p>כל בלוק כולל סיכום, פירוט, דוגמה והמלצה — כדי שאפשר יהיה להבין גם במקטע בודד.</p>
+                <p>
+                  ריכזנו כאן את השאלות שחוזרות הכי הרבה — עם תשובה קצרה, הסבר, דוגמה וטיפ מעשי לכל אחת.
+                </p>
               </Prose>
             </FadeIn>
             <div className="mt-8 grid gap-4">
@@ -1050,7 +1052,7 @@ export default function TableNumberGuide() {
           {/* FAQ */}
           <section id="faq" className="scroll-mt-24" aria-labelledby="faq-h">
             <FadeIn>
-              <Eyebrow>FAQ</Eyebrow>
+              <Eyebrow>שאלות נפוצות</Eyebrow>
               <h2 id="faq-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
                 שאלות נפוצות על הודעת מספר שולחן
               </h2>
