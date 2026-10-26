@@ -1,5 +1,6 @@
 # FAQ knowledge center — deliverables
 
+PR: https://github.com/esclickteam/invistimo-events/pull/455  
 Preview branch: `cursor/faq-knowledge-center-aafc`  
 Local: `http://localhost:3000/faq`  
 Production URL (unchanged path): `https://www.invistimo.com/faq`  
