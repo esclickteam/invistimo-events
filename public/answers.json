@@ -22,6 +22,7 @@
     "/info/guides/cost-rsvp-wedding": "מחיר אישורי הגעה לחתונה נקבע לפי הרשומות המחויבות בחבילה — בעיקר רשומות עם מספר טלפון — ולא בהכרח לפי מספר האנשים. רשומה יכולה לייצג יחיד, זוג או משפחה. רשומות ללא טלפון נשארות ברשימה ואינן נגרעות מהמכסה. Save the Date והזמנה מוקדמת מחושבים בנפרד מסבבי האישור. הסכום העדכני מופיע רק במחשבון החבילות.",
     "/info/guides/when-to-send-rsvp": "לחתונות רבות אפשר לשקול אישורי הגעה כשבועיים עד שבועיים וחצי לפני, אחרי Save the Date והזמנה במועדים מוקדמים יותר — ובתנאי שנשאר זמן לסבב נוסף לפני סגירת המנות מול האולם. אין יום קסם קבוע במערכת.",
     "/info/guides/send-digital-invitation": "מעלים הזמנה או משתמשים בהזמנה שבמערכת, בודקים את פרטי האירוע, ושולחים קישור אישי. בחבילת ההודעות השליחה לאישור ההגעה היא שני סבבי וואטסאפ.",
+    "/info/guides/wedding-seating-arrangements": "סידורי הושבה לחתונה: משבצים את כל מאשרי ההגעה שצריכים מקום, בלי להסתמך על אי־הגעה משוערת כדי לחרוג מהקיבולת. לא חובה למלא כל שולחן עד הסוף — תלוי באולם, בקבוצות וברזרבות שאושרו. אומדן של כ־10% אי־הגעה הוא תרחיש תכנון בלבד, לא שיעור מוכח. הושבה ומנות רזרבה אינם אותו דבר. ב־Invistimo ההושבה משולבת ברשימת המוזמנים; LIVE לפי החבילה.",
     "/info/guides/seating-plan": "מעלים סקיצה, ממקמים שולחנות, ומשבצים ידנית או לפי קבוצות. אחר כך אפשר לשלוח לכל אורח את מספר השולחן. ההושבה היא תוספת במחשבון.",
     "/info/guides/save-the-date-vs-invitation": "Save the Date מודיע שהתאריך נשמר ואינו אוסף תשובה. ההזמנה והקישור האישי הם השלב שבו האורח רואה פרטים ומאשר כמה מגיעים.",
     "/info/guides/guest-list": "רשומה היא יחידת הזמנה — זוג או משפחה יכולים להיות ברשומה אחת עם מספר מוזמנים. Invistimo מתריעה על מספר ישראלי שמתחיל ב־05 ואינו בן 10 ספרות, ומונעת מספר טלפון כפול באותו אירוע. רק רשומות עם טלפון נספרות במכסת החבילה; רשומות בלי טלפון נשארות ברשימה ובהושבה.",
@@ -456,6 +457,7 @@
       "intent": "commercial",
       "primaryPath": "/seating-explained",
       "supportingPaths": [
+        "/info/guides/wedding-seating-arrangements",
         "/info/guides/seating-plan",
         "/info/guides/table-number-message"
       ],
@@ -464,10 +466,34 @@
       "observation": "מתחרים מציגים הושבה בעמודי החתונה שלהם. אין כאן נתון על מיקום Invistimo."
     },
     {
+      "query": "חלוקת שולחנות לחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/wedding-seating-arrangements",
+      "supportingPaths": [
+        "/seating-explained",
+        "/info/guides/seating-plan"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מדריך תכנון הושבה נפרד מעמוד השירות המסחרי."
+    },
+    {
+      "query": "האם כדאי למלא שולחנות בחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/wedding-seating-arrangements",
+      "supportingPaths": [
+        "/info/guides/wedding-venue-guest-guarantee"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "שאלה תכנונית — לא הבטחת אחוז אי־הגעה."
+    },
+    {
       "query": "סידורי הושבה דיגיטליים",
       "intent": "commercial",
       "primaryPath": "/seating-explained",
       "supportingPaths": [
+        "/info/guides/wedding-seating-arrangements",
         "/info/guides/seating-plan",
         "/pricing"
       ],

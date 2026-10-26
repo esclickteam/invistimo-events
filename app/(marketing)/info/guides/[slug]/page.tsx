@@ -13,6 +13,7 @@ export function generateStaticParams() {
     "guests-who-dont-reply",
     "guest-list",
     "wedding-venue-guest-guarantee",
+    "wedding-seating-arrangements",
     "cost-rsvp-wedding",
     "whatsapp-vs-sms-rsvp",
     "wedding-alcohol-calculator",

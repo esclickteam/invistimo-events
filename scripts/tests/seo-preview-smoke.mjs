@@ -32,6 +32,7 @@ const MARKETING = [
   "/info/guides/event-day-checklist",
   "/info/guides/guest-list",
   "/info/guides/wedding-venue-guest-guarantee",
+  "/info/guides/wedding-seating-arrangements",
   "/contact",
 ];
 

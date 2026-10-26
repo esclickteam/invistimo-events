@@ -99,7 +99,9 @@ export default function GuidesPage() {
                       >
                         {guide.slug === "wedding-alcohol-calculator"
                           ? "למחשבון האלכוהול ←"
-                          : "לקריאת המדריך ←"}
+                          : guide.slug === "wedding-seating-arrangements"
+                            ? "למדריך ולמחשבון ההושבה ←"
+                            : "לקריאת המדריך ←"}
                       </Link>
                     </li>
                   ))}
