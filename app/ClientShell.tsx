@@ -19,10 +19,10 @@ export default function ClientShell({ children }: { children: ReactNode }) {
 
   const isVenues = pathname.startsWith("/venues");
 
+  // Live demos + published sites only — marketing hub `/wedding-website` keeps public chrome.
   const isWeddingWebsite =
     pathname === "/w" ||
     pathname.startsWith("/w/") ||
-    pathname === "/wedding-website" ||
     pathname.startsWith("/wedding-website/");
 
   /* =====================================================

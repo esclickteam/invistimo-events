@@ -44,17 +44,23 @@ export const HERO_TEMPLATE_ID = "eternal-gold";
 export const SCROLL_VIDEO_TEMPLATE_ID = "eternal-gold";
 
 export const WW_MEDIA = {
-  og: "/images/rsvp/guides/wedding-planning/couple.jpg",
+  og: "/marketing/wedding-website/previews/hero-desktop.jpg",
   video: {
     src: "/marketing/videos/wedding-website-scroll.webm",
     poster: "/marketing/videos/wedding-website-scroll-poster.jpg",
     title: "גלילה באתר חתונה לדוגמה — Invistimo",
     description:
-      "הקלטת מסך אמיתית של תבנית אתר חתונה פעילה במערכת Invistimo, עם נתוני דמו.",
+      "הקלטת מסך של אתר חתונה לדוגמה ב־Invistimo: שמות, תמונה, סיפור, גלריה ופרטי אירוע.",
     uploadDate: "2026-10-26",
   },
-  mobileDemo: "/images/rsvp/guides/wedding-planning/couple.jpg",
-  anatomy: "/images/rsvp/guides/wedding-planning/hero-reception.jpg",
+  /** Distinct real captures — never reuse the same stock poster across sections. */
+  heroDesktop: "/marketing/wedding-website/previews/hero-desktop.jpg",
+  heroMobile: "/marketing/wedding-website/previews/hero-mobile.jpg",
+  anatomyPrimary: "/marketing/wedding-website/previews/anatomy-desktop.jpg",
+  anatomyStory: "/marketing/wedding-website/previews/section-story.jpg",
+  anatomyGallery: "/marketing/wedding-website/previews/section-gallery.jpg",
+  mobileShowcase: "/marketing/wedding-website/previews/mobile-showcase.jpg",
+  mobileDemoTemplateId: "garden-bloom",
 } as const;
 
 export const WW_LINKS = {

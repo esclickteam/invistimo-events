@@ -53,10 +53,10 @@ function isLiveRoute(pathname: string | null) {
   return path === "/live" || path.startsWith("/live/");
 }
 
+/** Live demo / published wedding sites — no public chrome. Marketing hub keeps chrome. */
 function isWeddingWebsiteRoute(pathname: string | null) {
   const path = String(pathname || "");
   return (
-    path === "/wedding-website" ||
     path.startsWith("/wedding-website/") ||
     path === "/w" ||
     path.startsWith("/w/")

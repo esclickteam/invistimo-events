@@ -124,7 +124,7 @@ export default function FeaturedTemplateShowcase({ styles }: Props) {
                   {style.hebrewLabel}
                 </h3>
                 <p className="mt-2 text-sm font-semibold text-[#8A7560]">
-                  תבנית במערכת: {style.template.name}
+                  תבנית {style.template.name}
                 </p>
                 <p className="mt-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
                   {style.blurb}
