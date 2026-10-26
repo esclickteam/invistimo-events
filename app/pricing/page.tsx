@@ -305,19 +305,19 @@ export default function PricingPage() {
 
       <div
         id="pricing-calculator"
-        className="relative z-10 mx-auto flex w-full max-w-6xl scroll-mt-24 flex-col gap-5 px-4 pb-8 pt-3 sm:gap-6 sm:px-8 sm:pt-4"
+        className="relative z-10 mx-auto flex w-full max-w-6xl scroll-mt-24 flex-col gap-4 px-4 pb-8 pt-2 sm:gap-5 sm:px-8 sm:pt-3"
       >
         <RevealOnScroll>
-          <section className="rounded-[32px] border border-[#D9C0A0] bg-[#FFFDF9]/92 p-5 shadow-[0_22px_55px_rgba(91,64,35,0.1)] sm:p-8">
-            <div className="mb-2 flex flex-wrap items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
+          <section className="rounded-[28px] border border-[#D9C0A0] bg-[#FFFDF9]/92 p-4 shadow-[0_18px_44px_rgba(91,64,35,0.1)] sm:p-5">
+            <div className="mb-1 flex flex-wrap items-center gap-2.5">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
                 1
               </span>
-              <h2 className={`${display.className} text-xl font-bold leading-snug text-[#3E2D20] sm:text-3xl`}>
+              <h2 className={`${display.className} text-lg font-bold leading-snug text-[#3E2D20] sm:text-2xl`}>
                 כמה רשומות מוזמנים יש לכם?
               </h2>
             </div>
-            <p className="mb-4 mr-0 text-sm leading-6 text-[#7B6754] sm:mr-12">
+            <p className="mb-3 mr-0 text-sm leading-6 text-[#7B6754] sm:mr-10">
               מספר הרשומות אינו בהכרח מספר האורחים.{" "}
               <span className="inline-flex items-center gap-1 font-bold text-[#8A5A25]">
                 רשומה
@@ -335,9 +335,9 @@ export default function PricingPage() {
               onDragEnd={flashPrices}
             />
 
-            <label className="mx-auto mt-6 block max-w-xs">
-              <span className="mb-2 flex items-center justify-center gap-2 text-sm font-black text-[#5A3E25]">
-                <Users size={16} className="text-[#B88945]" aria-hidden="true" />
+            <label className="mx-auto mt-3 block max-w-[14rem]">
+              <span className="mb-1.5 flex items-center justify-center gap-2 text-xs font-black text-[#5A3E25]">
+                <Users size={14} className="text-[#B88945]" aria-hidden="true" />
                 הזנת מספר מדויק
                 <InfoTooltip label="סבב אישורי הגעה">
                   סבב הוא פנייה מסודרת לרשימה — למשל סבב וואטסאפ או סבב שיחות — לפי מה שכלול בחבילה.
@@ -356,7 +356,7 @@ export default function PricingPage() {
                   if (event.key === "Enter") event.currentTarget.blur();
                 }}
                 dir="ltr"
-                className="w-full rounded-[20px] border border-[#DDCBB3] bg-white px-4 py-4 text-center text-2xl font-black tabular-nums text-[#3E2D20] outline-none transition focus:border-[#C9A46A] focus:ring-4 focus:ring-[#D8B16A]/15"
+                className="w-full rounded-[16px] border border-[#DDCBB3] bg-white px-3 py-2.5 text-center text-xl font-black tabular-nums text-[#3E2D20] outline-none transition focus:border-[#C9A46A] focus:ring-4 focus:ring-[#D8B16A]/15"
               />
             </label>
           </section>
