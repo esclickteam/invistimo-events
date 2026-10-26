@@ -7,7 +7,6 @@ import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import GuideToolbar from "@/components/marketing/guides/GuideToolbar";
 import InteractiveChecklist from "@/components/marketing/guides/InteractiveChecklist";
 import StickyToc, { type TocItem } from "@/components/marketing/guides/StickyToc";
-import CopyableMessage from "./CopyableMessage";
 import TableChangeDemo from "./TableChangeDemo";
 import { TABLE_NUMBER_FAQS } from "./guideFaqs";
 
@@ -73,8 +72,14 @@ const CHECKLIST_ITEMS = [
 const TIMING_ROWS = [
   { when: "שבוע לפני", what: "להשלים אישורי הגעה ולהכין סקיצה מול האולם" },
   { when: "3–4 ימים לפני", what: "לבדוק שיבוצים, קיבולת ומספרי שולחנות במפה" },
-  { when: "1–2 ימים לפני", what: "לקבל אישור סופי מהאולם ולשלוח, אם הכול יציב" },
-  { when: "ביום האירוע", what: "לטפל בשינויים נקודתיים ולתאם עם צוות הקבלה" },
+  {
+    when: "1–2 ימים לפני",
+    what: "לקבל אישור סופי מהאולם ולשלוח הודעת מספר שולחן, אם הכול יציב",
+  },
+  {
+    when: "יום לפני / ביום האירוע",
+    what: "לשלוח תזכורת SMS — עם מספר שולחן למי שמשובץ, ובלי מספר למי שלא משובץ; ולטפל בשינויים נקודתיים מול צוות הקבלה",
+  },
 ] as const;
 
 const SEND_STEPS = [
@@ -89,23 +94,11 @@ const SEND_STEPS = [
   "בודקים את סטטוס השליחה בדוחות הזמינים במערכת",
 ] as const;
 
-const INVISTIMO_SMS_TEMPLATE =
+const TEMPLATE_WITH_TABLE =
   "תזכורת לאירוע {{invitationTitle}}.\n\nמספר השולחן שלך:\n{{tableName}}\n\nלכל פרטי האירוע והניווט:\n{{navigationLink}}\n\nנשמח לראותכם ❤️";
 
-const EXAMPLE_CLASSIC =
-  "שלום [שם האורח],\nאנחנו מחכים לכם בשמחה באירוע שלנו ❤️\n\nהשולחן שלכם: [מספר שולחן]\n\nנתראה בקרוב!";
-
-const EXAMPLE_SHORT =
-  "שמחים שאתם מגיעים!\nמספר השולחן שלכם באירוע: [מספר].\nמחכים לראותכם ❤️";
-
-const EXAMPLE_NAV =
-  "תזכורת לאירוע [שם האירוע] בתאריך [תאריך].\n\nלניווט: [קישור]\n\nמספר השולחן שלכם: [מספר]\n\nנשמח לראותכם ❤️";
-
-const EXAMPLE_CORRECTION =
-  "שלום [שם],\nשימו לב לעדכון קטן בסידורי ההושבה לקראת האירוע ❤️\n\nמספר השולחן המעודכן שלכם הוא [מספר חדש].\n\nאנא הסתמכו על הודעה זו במקום על מספר השולחן שנשלח קודם.\n\nמחכים לראותכם!";
-
-const EXAMPLE_SKETCH_UPDATE =
-  "שלום [שם],\nבעקבות עדכון בסידור השולחנות באולם, מספר השולחן שלכם השתנה.\n\nמספר השולחן החדש: [מספר]\n\nנא להתייחס למספר המעודכן. תודה על ההבנה ❤️";
+const TEMPLATE_WITHOUT_TABLE =
+  "תזכורת לאירוע {{invitationTitle}}.\n\nלכל פרטי האירוע והניווט:\n{{navigationLink}}\n\nנשמח לראותכם ❤️";
 
 const MISTAKES = [
   {
@@ -184,8 +177,12 @@ const CAPABILITY_FACTS = [
     text: "זמינה במסך ההודעות לאורחים עם שולחן — ב־SMS וגם ב־WhatsApp (תבנית מערכת).",
   },
   {
-    title: "תזכורת SMS עם מספר שולחן",
-    text: "בחבילת ההודעות אפשר לכלול מספר שולחן בתזכורת כשיש הושבה והאורח משובץ.",
+    title: "תזכורת לפי שיבוץ",
+    text: "אורח משובץ לשולחן מקבל תזכורת SMS עם מספר השולחן. אורח שלא משובץ מקבל תזכורת בלי מספר שולחן.",
+  },
+  {
+    title: "מתי שולחים תזכורת",
+    text: "תזכורת עם מספר שולחן נשלחת בדרך כלל ביום שלפני האירוע או ביום האירוע.",
   },
   {
     title: "שליחה חוזרת",
@@ -198,10 +195,6 @@ const CAPABILITY_FACTS = [
   {
     title: "עדכון אוטומטי להודעה שכבר התקבלה",
     text: "לא קיים. שינוי במפה משפיע על הנתונים במערכת ועל שליחות עתידיות בלבד.",
-  },
-  {
-    title: "תוספת הושבה",
-    text: "הושבה דיגיטלית היא תוספת במחשבון החבילות. בלי התוספת אין להניח שהמפה פתוחה.",
   },
 ] as const;
 
@@ -504,8 +497,12 @@ export default function TableNumberGuide() {
               <Prose>
                 <p>
                   המועדים בטבלה הם דוגמאות נפוצות לתכנון — לא כללים מחייבים. יש להתאים אותם למועדי
-                  סגירת ההושבה מול האולם, לקצב אישורי ההגעה ולמדיניות האולם. אין לשלוח אוטומטית במועד
-                  שאינו תואם את מנגנון המערכת או את יציבות הנתונים.
+                  סגירת ההושבה מול האולם, לקצב אישורי ההגעה ולמדיניות האולם.
+                </p>
+                <p>
+                  חשוב להבחין: הודעת מספר שולחן ייעודית נשלחת כשההושבה יציבה. תזכורת SMS נשלחת בדרך כלל
+                  ביום שלפני האירוע או ביום האירוע — ואז אורח משובץ מקבל גם את מספר השולחן, ואורח שלא
+                  משובץ מקבל תזכורת בלי מספר.
                 </p>
               </Prose>
             </FadeIn>
@@ -561,8 +558,8 @@ export default function TableNumberGuide() {
               </h2>
               <Prose>
                 <p>
-                  השלבים הבאים מבוססים על הממשק הקיים ב־Invistimo. שירות ההושבה עשוי להיות תוספת
-                  בתשלום בהתאם לחבילה — בדקו במחשבון לפני שמתכננים את תהליך השליחה.
+                  השלבים הבאים מבוססים על הממשק הקיים ב־Invistimo. מפת ההושבה ושיוך שולחנות דורשים את
+                  תוספת ההושבה הדיגיטלית במחשבון — בלי התוספת אין להניח שהמפה פתוחה.
                 </p>
               </Prose>
             </FadeIn>
@@ -626,75 +623,60 @@ export default function TableNumberGuide() {
             </FadeIn>
           </section>
 
-          {/* Message examples */}
+          {/* Message templates */}
           <section id="message-examples" className="scroll-mt-24" aria-labelledby="message-examples-h">
             <FadeIn>
-              <Eyebrow>נוסחים</Eyebrow>
+              <Eyebrow>תבניות במערכת</Eyebrow>
               <h2 id="message-examples-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
-                מה כותבים בהודעת מספר שולחן?
+                מה נשלח בפועל בהודעת שולחן ובתזכורת?
               </h2>
               <Prose>
                 <p>
-                  הנוסחים שלמטה הם דוגמאות להמחשה בלבד. ב־Invistimo הודעת מספר השולחן נשלחת לפי תבניות
-                  המערכת — אין להבטיח עריכה חופשית מלאה כמו הודעה אישית חופשית.
+                  ב־Invistimo נשלחות תבניות מערכת — לא נוסחים חופשיים לעריכה מלאה. בתזכורת SMS המערכת
+                  בוחרת לפי מצב האורח בזמן השליחה: משובץ לשולחן → עם מספר שולחן; לא משובץ → תזכורת בלי
+                  מספר.
                 </p>
               </Prose>
             </FadeIn>
 
-            <FadeIn className="mt-8">
-              <div className="rounded-[24px] border border-[#C9A45C]/50 bg-[#FFF8EA] p-5 md:p-6">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <h3 className="text-lg font-black text-[#2C241C]">הנוסח האמיתי בתבנית SMS של Invistimo</h3>
-                  <span className="rounded-full border border-[#E6D2AA] bg-white px-3 py-1 text-xs font-bold text-[#8A642E]">
-                    תבנית מערכת
-                  </span>
-                </div>
-                <pre className="mt-4 whitespace-pre-wrap rounded-2xl border border-[#EADDC8] bg-white px-4 py-4 text-sm leading-7 text-[#3F3025]">
-                  {INVISTIMO_SMS_TEMPLATE}
-                </pre>
-                <p className="mt-3 text-sm leading-7 text-[#7A6042]">
-                  ב־WhatsApp נשלחת תבנית מאושרת נפרדת (שם האורח, מספר/שם השולחן, סוג האירוע וקישור
-                  לפרטים) — גם היא אינה נוסח חופשי לעריכה מלאה.
-                </p>
-              </div>
-            </FadeIn>
-
-            <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            <div className="mt-8 grid gap-4 lg:grid-cols-2">
               <FadeIn>
-                <CopyableMessage
-                  title="נוסח קלאסי (המחשה)"
-                  body={EXAMPLE_CLASSIC}
-                  note="דוגמה להמחשה — לא תבנית ברירת מחדל במערכת."
-                />
+                <div className="h-full rounded-[24px] border border-[#C9A45C]/50 bg-[#FFF8EA] p-5 md:p-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="text-lg font-black text-[#2C241C]">עם מספר שולחן</h3>
+                    <span className="rounded-full border border-[#E6D2AA] bg-white px-3 py-1 text-xs font-bold text-[#8A642E]">
+                      אורח משובץ
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm leading-7 text-[#7A6042]">
+                    להודעת מספר שולחן ייעודית, ולתזכורת SMS כשהאורח משובץ לשולחן.
+                  </p>
+                  <pre className="mt-4 whitespace-pre-wrap rounded-2xl border border-[#EADDC8] bg-white px-4 py-4 text-sm leading-7 text-[#3F3025]">
+                    {TEMPLATE_WITH_TABLE}
+                  </pre>
+                </div>
               </FadeIn>
-              <FadeIn delay={0.04}>
-                <CopyableMessage
-                  title="נוסח קצר (המחשה)"
-                  body={EXAMPLE_SHORT}
-                  note="דוגמה להמחשה — לא תבנית ברירת מחדל במערכת."
-                />
-              </FadeIn>
-              <FadeIn delay={0.08}>
-                <CopyableMessage
-                  title="נוסח עם ניווט (המחשה)"
-                  body={EXAMPLE_NAV}
-                  note="קרובה לרעיון תבנית התזכורת/השולחן, אך עדיין דוגמה חופשית."
-                />
+              <FadeIn delay={0.05}>
+                <div className="h-full rounded-[24px] border border-[#E7D3B0] bg-[#FFFDF8] p-5 md:p-6">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="text-lg font-black text-[#2C241C]">תזכורת בלי מספר שולחן</h3>
+                    <span className="rounded-full border border-[#EADDC8] bg-white px-3 py-1 text-xs font-bold text-[#7A6042]">
+                      אורח לא משובץ
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm leading-7 text-[#7A6042]">
+                    לתזכורת SMS כשאין שיבוץ לשולחן בזמן השליחה.
+                  </p>
+                  <pre className="mt-4 whitespace-pre-wrap rounded-2xl border border-[#EADDC8] bg-[#FBF6EE] px-4 py-4 text-sm leading-7 text-[#3F3025]">
+                    {TEMPLATE_WITHOUT_TABLE}
+                  </pre>
+                </div>
               </FadeIn>
             </div>
 
-            <FadeIn className="mt-8">
-              <div className="mx-auto max-w-md rounded-[28px] border border-[#2C241C] bg-[#1C1612] p-5 text-[#FFF8EF] shadow-[0_24px_50px_rgba(28,22,18,0.28)]">
-                <p className="text-xs font-bold tracking-[0.14em] text-[#C9A45C]">הדמיית SMS</p>
-                <p className="mt-4 text-sm leading-7">תזכורת לאירוע החתונה של נועה ויואב.</p>
-                <p className="mt-3 text-sm leading-7">
-                  מספר השולחן שלך:
-                  <br />
-                  <span className="text-base font-black text-[#E8D6B0]">שולחן 12</span>
-                </p>
-                <p className="mt-3 text-sm leading-7">לכל פרטי האירוע והניווט: קישור אישי</p>
-                <p className="mt-3 text-sm leading-7">נשמח לראותכם ❤️</p>
-              </div>
+            <FadeIn className="mt-6 rounded-[24px] border border-[#E7D3B0] bg-[#FBF6EE] px-5 py-4 text-sm leading-7 text-[#5C4A3A] md:text-base">
+              ב־WhatsApp של הודעת מספר שולחן נשלחת תבנית מאושרת נפרדת (שם האורח, מספר/שם השולחן, סוג
+              האירוע וקישור לפרטים) — גם היא תבנית מערכת, לא נוסח חופשי.
             </FadeIn>
           </section>
 
@@ -834,31 +816,13 @@ export default function TableNumberGuide() {
               ))}
             </div>
 
-            <div className="mt-6 grid gap-4 lg:grid-cols-2">
-              <FadeIn>
-                <CopyableMessage
-                  title="דוגמה להודעת תיקון"
-                  body={EXAMPLE_CORRECTION}
-                  note="נוסח המחשה לעדכון ידני / תיאום — בדקו מה אפשר לשלוח מתוך המערכת."
-                />
-              </FadeIn>
-              <FadeIn delay={0.05}>
-                <CopyableMessage
-                  title="עדכון בעקבות שינוי בסקיצה"
-                  body={EXAMPLE_SKETCH_UPDATE}
-                  note="נוסח המחשה. לפני סבב גדול בדקו מגבלות שליחה ועלות לפי החבילה."
-                />
-              </FadeIn>
-            </div>
-
             <FadeIn className="mt-8 rounded-[24px] border border-[#E7D3B0] bg-[#FBF6EE] p-5 md:p-6">
-              <h3 className="text-xl font-black text-[#2C241C]">תנאי חשוב לפני שמציגים «סבב נוסף» כמובנה</h3>
+              <h3 className="text-xl font-black text-[#2C241C]">מה חשוב לדעת לפני סבב עדכון</h3>
               <ul className="mt-4 space-y-2 text-base leading-8 text-[#5C4A3A]">
                 <li>אפשר לשלוח הודעת מספר שולחן שוב ממסך ההודעות (אין נעילת סבב ייעודית כמו לתזכורת).</li>
                 <li>אין מסנן אוטומטי «רק למי שהמספר השתנה» — מזהים את האורחים שהושפעו ידנית.</li>
                 <li>ב־WhatsApp אפשר לבחור אורח ספציפי מתוך קהל עם שולחן.</li>
-                <li>תזכורת SMS עם מספר שולחן ננעלת אחרי שליחה; שליחה חוזרת דורשת פתיחת נעילה.</li>
-                <li>עלות סבב נוסף תלויה בחבילה ובערוץ — בדקו לפני שליחה רחבה.</li>
+                <li>תזכורת SMS ננעלת אחרי שליחה; שליחה חוזרת דורשת פתיחת נעילה.</li>
                 <li>אם אין מסלול מתאים במערכת לרגע מסוים — מעדכנים ידנית ומתאמים עם צוות הקבלה.</li>
               </ul>
             </FadeIn>
@@ -984,8 +948,17 @@ export default function TableNumberGuide() {
                     <th scope="row" className="px-4 py-4 font-black text-[#2C241C]">
                       מספר שולחן
                     </th>
-                    <td className="px-4 py-4 leading-7">חלק מרכזי מההודעה</td>
-                    <td className="px-4 py-4 leading-7">יכול להיכלל כשיש הושבה ושיבוץ</td>
+                    <td className="px-4 py-4 leading-7">חלק מרכזי מההודעה — רק לאורחים עם שולחן</td>
+                    <td className="px-4 py-4 leading-7">
+                      נכלל אוטומטית אם האורח משובץ; אם לא משובץ — נשלחת תזכורת בלי מספר שולחן
+                    </td>
+                  </tr>
+                  <tr className="border-t border-[#EADDC8]">
+                    <th scope="row" className="px-4 py-4 font-black text-[#2C241C]">
+                      מתי בדרך כלל שולחים
+                    </th>
+                    <td className="px-4 py-4 leading-7">כשההושבה יציבה והסקיצה אושרה</td>
+                    <td className="px-4 py-4 leading-7">יום לפני האירוע או ביום האירוע</td>
                   </tr>
                   <tr className="border-t border-[#EADDC8]">
                     <th scope="row" className="px-4 py-4 font-black text-[#2C241C]">
@@ -1010,7 +983,8 @@ export default function TableNumberGuide() {
             <FadeIn className="mt-6">
               <p className="text-base leading-8 text-[#5C4A3A]">
                 אם השיבוץ משתנה בין הודעת השולחן לתזכורת — האורח עלול לראות שני מספרים שונים. לכן
-                שולחים תזכורת עם מספר שולחן רק כשההושבה יציבה מספיק, או מתכננים עדכון אחרי שינוי.
+                חשוב שההושבה תהיה יציבה לפני שליחת תזכורת שכוללת מספר שולחן, או לעדכן את האורחים
+                שהושפעו אחרי שינוי.
               </p>
             </FadeIn>
           </section>
@@ -1039,8 +1013,8 @@ export default function TableNumberGuide() {
               <AnswerCard
                 question="מתי מומלץ לשלוח הודעת מספר שולחן?"
                 short="כשההושבה יציבה והאולם אישר סקיצה ומספור — לעיתים יום–יומיים לפני."
-                detail="המועדים הם דוגמאות. מתאימים אותם לסגירת האולם ולקצב האישורים."
-                example="שבוע לפני משלימים אישורים; 1–2 ימים לפני שולחים אם הכול יציב."
+                detail="תזכורת SMS עם מספר שולחן נשלחת בדרך כלל ביום שלפני האירוע או ביום האירוע, ורק למי שמשובץ."
+                example="1–2 ימים לפני: הודעת שולחן ייעודית אם הכול יציב. יום לפני / ביום האירוע: תזכורת."
                 tip="עדיף לא לשלוח כשיש עדיין שינויי מספור צפויים."
                 href="#timing"
                 hrefLabel="להעמקה: טבלת זמנים"
@@ -1057,9 +1031,9 @@ export default function TableNumberGuide() {
               <AnswerCard
                 question="האם מומלץ לשלוח סבב נוסף?"
                 short="כן, כשמספרים השתנו ואורחים עלולים להסתמך על הודעה ישנה."
-                detail="נקודתי מול רחב: היקף העדכון תלוי בכמה אורחים הושפעו."
+                detail="נקודתי מול רחב: היקף העדכון תלוי בכמה אורחים הושפעו. מזהים ידנית את מי שהושפע."
                 example="החלפת מספור בין שולחן 10 ל־14 דורשת עדכון רחב יותר."
-                tip="בדקו מגבלות שליחה ועלות לפני סבב גדול."
+                tip="מעדכנים גם את צוות הקבלה — לא רק את האורחים."
                 href="#second-round"
                 hrefLabel="להעמקה: סבב עדכון"
               />
@@ -1144,8 +1118,8 @@ export default function TableNumberGuide() {
           <p className="text-sm font-black tracking-[0.14em] text-[#C9A45C]">Invistimo</p>
           <h2 className="mt-3 text-3xl font-black md:text-4xl">מוכנים לסדר הושבה ולשלוח מספרי שולחנות?</h2>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-[#E8D6B0] md:text-lg">
-            בנו מפת הושבה על סקיצת האולם, שבצו אורחים, ושלחו הודעת מספר שולחן כשהכול יציב. ההושבה
-            עשויה להיות תוספת בתשלום — בדקו בחבילות.
+            בנו מפת הושבה על סקיצת האולם, שבצו אורחים, ושלחו הודעת מספר שולחן כשהכול יציב. מפת
+            ההושבה דורשת את תוספת ההושבה הדיגיטלית במחשבון.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <TrackedCtaLink
