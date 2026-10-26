@@ -3,7 +3,7 @@ import { resolveAppEnv } from "@/lib/env/appEnv";
 
 export const SITE_URL = "https://www.invistimo.com";
 export const SITE_NAME = "Invistimo";
-export const CONTENT_UPDATED = new Date("2026-10-26T14:00:00.000Z");
+export const CONTENT_UPDATED = new Date("2026-10-26T17:20:00.000Z");
 
 /** Preview/Staging must not claim indexability in HTML (align with Vercel x-robots-tag). */
 export function defaultPublicIndexable() {
@@ -218,11 +218,11 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
   },
   {
     path: "/credit-gifts",
-    title: "מתנות באשראי לאירוע | Invistimo",
+    title: "מתנות לחתונה באשראי, bit ו־PayBox | Invistimo",
     description:
-      "מתנות באשראי דרך ספק סליקה חיצוני. האורח משלם, כולל עמלת סליקה של 2.5% מגובה המתנה, כפי שמפורט בעמוד השירות.",
-    changeFrequency: "yearly",
-    priority: 0.4,
+      "מתנות לחתונה באשראי דרך RSVP, קישור PayBox ומספר bit להעתקה. הכירו את שלוש אפשרויות המתנה הדיגיטליות ב־Invistimo ואיך משלבים אותן בהזמנה ובאישורי ההגעה.",
+    changeFrequency: "monthly",
+    priority: 0.72,
   },
   {
     path: "/wedding-website",
