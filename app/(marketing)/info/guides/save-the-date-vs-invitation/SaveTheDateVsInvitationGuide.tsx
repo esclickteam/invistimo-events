@@ -119,7 +119,7 @@ const TIMELINE = [
 ] as const;
 
 const SCENARIO_STEPS = [
-  { when: "חודש 0", title: "סוגרים תאריך", text: "מיה ואלון מאשרים את ה־17.06.2027." },
+  { when: "חודש 0", title: "סוגרים תאריך", text: "מיה ואלון מאשרים את ה־24.06.2027." },
   { when: "שבוע אחרי", title: "בודקים פרטים", text: "מוודאים שהמועד יציב ומתחילים רשימת מוזמנים." },
   { when: "~8 חודשים לפני", title: "שולחים Save the Date", text: "הודעה מוקדמת, כולל לאורחים מחו״ל." },
   { when: "חודשים 2–5", title: "ממשיכים בתכנון", text: "סוגרים אולם, שעות ועיצוב הזמנה." },
@@ -139,22 +139,18 @@ function MiniInvite({
 }) {
   if (kind === "std") {
     return (
-      <figure className="overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#FFFDF8] shadow-[0_22px_50px_rgba(58,39,20,0.1)]">
-        <div className="relative aspect-[3/4] w-full bg-[#F7EBD9]">
-          <Image
-            src="/marketing/invites/invite-save-the-date-maya-itai.webp"
-            alt="דוגמת Save the Date מעוצבת — מיה ואלון, 17 ביוני 2027"
-            fill
-            className="object-cover"
-            sizes="(max-width:768px) 80vw, 280px"
-            priority
-          />
+      <figure className="overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-gradient-to-b from-[#FFF8EA] via-[#F7EBD9] to-[#EFD9B0] shadow-[0_22px_50px_rgba(58,39,20,0.1)]">
+        <div className="flex aspect-[3/4] flex-col items-center justify-center px-5 text-center">
+          <p className="text-[10px] font-black tracking-[0.28em] text-[#A77A38]">SAVE THE DATE</p>
+          <div className="my-5 h-px w-16 bg-[#C9A45C]/70" aria-hidden />
+          <p className="text-2xl font-black leading-tight text-[#2C241C]">מיה ואלון</p>
+          <p className="mt-2 text-sm font-semibold text-[#5E4735]">מתחתנים!</p>
+          <p className="mt-6 text-3xl font-black text-[#8A642E]">24.06.2027</p>
+          <p className="mt-6 text-xs leading-5 text-[#7A6042]">נשמח שתשמרו את התאריך ❤️</p>
+          <p className="mt-1 text-[11px] text-[#A77A38]">פרטים נוספים בקרוב</p>
         </div>
-        <figcaption className="space-y-1 px-4 py-4 text-center">
-          <p className="text-[10px] font-black tracking-[0.22em] text-[#A77A38]">SAVE THE DATE</p>
-          <p className="text-lg font-black text-[#2C241C]">מיה ואלון מתחתנים!</p>
-          <p className="text-base font-bold text-[#8A642E]">17.06.2027</p>
-          <p className="text-xs leading-5 text-[#7A6042]">נשמח שתשמרו את התאריך · פרטים בקרוב</p>
+        <figcaption className="border-t border-[#E6D2AA]/80 bg-[#FFFDF8]/70 px-4 py-3 text-center text-xs font-semibold text-[#7A6042]">
+          Save the Date · דוגמה מעוצבת
         </figcaption>
       </figure>
     );
@@ -174,7 +170,7 @@ function MiniInvite({
       <figcaption className="space-y-1 px-4 py-4 text-center">
         <p className="text-[10px] font-black tracking-[0.22em] text-[#A77A38]">הזמנה לחתונה</p>
         <p className="text-lg font-black text-[#2C241C]">מיה ואלון</p>
-        <p className="text-xs leading-5 text-[#5C4A3A]">יום חמישי, 17 ביוני 2027 · 19:00 / 20:00</p>
+        <p className="text-xs leading-5 text-[#5C4A3A]">יום חמישי, 24 ביוני 2027 · 19:00 / 20:00</p>
         <p className="text-xs font-semibold text-[#7A6042]">אולם לדוגמה · נשמח לראותכם</p>
       </figcaption>
     </figure>
@@ -273,7 +269,7 @@ export default function SaveTheDateVsInvitationGuide() {
             <div className="mx-auto max-w-sm rounded-[28px] border border-[#E6D2AA] bg-gradient-to-b from-[#FFF8EA] to-[#F7EBD9] p-8 text-center shadow-[0_18px_40px_rgba(58,39,20,0.08)]">
               <p className="text-xs font-black tracking-[0.24em] text-[#A77A38]">SAVE THE DATE</p>
               <p className="mt-5 text-3xl font-black text-[#2C241C]">מיה ואלון מתחתנים!</p>
-              <p className="mt-4 text-2xl font-black text-[#8A642E]">17.06.2027</p>
+              <p className="mt-4 text-2xl font-black text-[#8A642E]">24.06.2027</p>
               <p className="mt-5 text-base leading-7 text-[#5C4A3A]">נשמח שתשמרו את התאריך ❤️</p>
               <p className="mt-2 text-sm text-[#7A6042]">פרטים נוספים בקרוב.</p>
             </div>
@@ -298,7 +294,7 @@ export default function SaveTheDateVsInvitationGuide() {
               <div className="space-y-1.5 px-5 py-5 text-center">
                 <p className="text-xl font-black text-[#2C241C]">מיה ואלון</p>
                 <p className="text-sm leading-6 text-[#5C4A3A]">שמחים להזמינכם לחגוג עמנו את יום נישואינו</p>
-                <p className="pt-2 text-sm font-bold text-[#2C241C]">יום חמישי, 17 ביוני 2027</p>
+                <p className="pt-2 text-sm font-bold text-[#2C241C]">יום חמישי, 24 ביוני 2027</p>
                 <p className="text-sm text-[#5C4A3A]">קבלת פנים: 19:00 · חופה: 20:00</p>
                 <p className="text-sm font-semibold text-[#8A642E]">אולם הגפן לדוגמה</p>
                 <p className="pt-1 text-sm text-[#7A6042]">נשמח לראותכם!</p>
@@ -548,7 +544,7 @@ export default function SaveTheDateVsInvitationGuide() {
             <div className="rounded-[22px] border border-[#E6D2AA] bg-[#FFFDF8] px-5 py-5 text-center">
               <p className="text-xs font-black tracking-[0.2em] text-[#A77A38]">דוגמה</p>
               <p className="mt-3 whitespace-pre-line text-sm leading-7 text-[#3F3025]">
-                {`מיה ואלון מתחתנים!\n17.06.2027\nנשמח שתשמרו את התאריך\nפרטים נוספים בקרוב ❤️`}
+                {`מיה ואלון מתחתנים!\n24.06.2027\nנשמח שתשמרו את התאריך\nפרטים נוספים בקרוב ❤️`}
               </p>
             </div>
           </div>
@@ -874,7 +870,7 @@ export default function SaveTheDateVsInvitationGuide() {
             מיה ואלון מתחתנים בעוד שמונה חודשים
           </h2>
           <p className="mt-4 max-w-3xl text-base leading-8 text-[#5C4A3A]">
-            תרחיש לדוגמה: כ־280 אורחים מתוכננים, חלקם מחו״ל. התאריך: 17 ביוני 2027. הציר שלמטה מדגים תהליך
+            תרחיש לדוגמה: כ־280 אורחים מתוכננים, חלקם מחו״ל. התאריך: 24 ביוני 2027. הציר שלמטה מדגים תהליך
             אפשרי — לא תוכנית חובה.
           </p>
           <ol className="mt-10 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

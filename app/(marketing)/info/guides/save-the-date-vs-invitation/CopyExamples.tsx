@@ -18,7 +18,7 @@ const EXAMPLES: Example[] = [
     note: "נוסח ידני להעתקה · לא תבנית WhatsApp API",
     text: `Save the Date
 מיה ואלון מתחתנים!
-17.06.2027
+24.06.2027
 נשמח שתשמרו את התאריך ❤️
 פרטים נוספים בקרוב.`,
   },
@@ -29,7 +29,7 @@ const EXAMPLES: Example[] = [
     note: "נוסח ידני להעתקה",
     text: `משפחה וחברים יקרים,
 יש לנו בשורה מרגשת: מיה ואלון מתחתנים!
-שמרו לנו את ה־17.06.2027 ביומן.
+שמרו לנו את ה־24.06.2027 ביומן.
 ההזמנה המלאה תגיע בהמשך 🤍`,
   },
   {
@@ -37,7 +37,7 @@ const EXAMPLES: Example[] = [
     title: "Save the Date קצר",
     tone: "קצר",
     text: `מיה ואלון · Save the Date
-17.06.2027
+24.06.2027
 פרטים בקרוב ❤️`,
   },
   {
@@ -45,7 +45,7 @@ const EXAMPLES: Example[] = [
     title: "Save the Date קליל",
     tone: "קליל",
     text: `היי!
-אנחנו מתחתנים ב־17.06.2027 ✨
+אנחנו מתחתנים ב־24.06.2027 ✨
 שמרו את התאריך — פרטים מדויקים נשלח בהמשך.`,
   },
   {
@@ -53,7 +53,7 @@ const EXAMPLES: Example[] = [
     title: "Save the Date רשמי",
     tone: "רשמי",
     text: `Save the Date
-בשמחה מבשרים כי מיה ואלון נישאים ביום חמישי, 17 ביוני 2027.
+בשמחה מבשרים כי מיה ואלון נישאים ביום חמישי, 24 ביוני 2027.
 הזמנה רשמית תישלח בהמשך.`,
   },
   {
@@ -63,7 +63,7 @@ const EXAMPLES: Example[] = [
     note: "נוסח ידני לאורחים מחו״ל",
     text: `Save the Date
 Maya & Alon are getting married!
-June 17, 2027
+June 24, 2027
 Please save the date — formal invitation to follow.`,
   },
   {
@@ -73,7 +73,7 @@ Please save the date — formal invitation to follow.`,
     note: "נוסח ידני · בהזמנה דיגיטלית הפרטים מופיעים גם בעמוד האישי",
     text: `מיה ואלון
 שמחים להזמינכם לחגוג עמנו את יום נישואינו.
-יום חמישי, 17 ביוני 2027
+יום חמישי, 24 ביוני 2027
 קבלת פנים: 19:00
 חופה: 20:00
 אולם הגפן, רחוב הדוגמה 12, תל אביב
@@ -84,7 +84,7 @@ Please save the date — formal invitation to follow.`,
     title: "הזמנה מלאה מרגשת",
     tone: "הזמנה",
     text: `משפחה וחברים אהובים,
-ב־17 ביוני 2027 אנחנו מתחתנים — ואין לנו יותר מרגש מלחגוג אתכם.
+ב־24 ביוני 2027 אנחנו מתחתנים — ואין לנו יותר מרגש מלחגוג אתכם.
 קבלת פנים ב־19:00, חופה ב־20:00
 באולם הגפן, תל אביב.
 מחכים לכם בלב שלם 🤍`,
@@ -95,7 +95,7 @@ Please save the date — formal invitation to follow.`,
     tone: "WhatsApp",
     note: "נוסח ידני · תבניות API מאושרות במערכת אינן ניתנות לעריכה חופשית מלאה",
     text: `מיה ואלון מזמינים אתכם לחתונה
-17.06.2027 · קבלת פנים 19:00
+24.06.2027 · קבלת פנים 19:00
 פרטים ואישור הגעה בקישור האישי.`,
   },
   {
@@ -104,7 +104,7 @@ Please save the date — formal invitation to follow.`,
     tone: "עדכון",
     text: `משפחה וחברים יקרים ❤️
 רצינו לעדכן שתאריך החתונה שלנו השתנה.
-התאריך החדש הוא 17.06.2027.
+התאריך החדש הוא 24.06.2027.
 נשמח שתעדכנו את היומן, ופרטים נוספים יישלחו בהמשך.`,
   },
   {
@@ -112,7 +112,7 @@ Please save the date — formal invitation to follow.`,
     title: "הודעת תזכורת להזמנה",
     tone: "תזכורת",
     text: `היי,
-רצינו להזכיר את ההזמנה לחתונה של מיה ואלון ב־17.06.2027.
+רצינו להזכיר את ההזמנה לחתונה של מיה ואלון ב־24.06.2027.
 אם עוד לא הספקתם לאשר הגעה — נשמח לעדכון בקישור האישי.`,
   },
   {
@@ -120,7 +120,7 @@ Please save the date — formal invitation to follow.`,
     title: "הודעה לאורחים מחו״ל",
     tone: "English",
     text: `Dear family & friends,
-We're getting married on June 17, 2027 in Tel Aviv.
+We're getting married on June 24, 2027 in Tel Aviv.
 Please save the date — a full invitation with venue details will follow.
 We can't wait to celebrate with you!`,
   },
@@ -152,7 +152,7 @@ function CopyButton({ text }: { text: string }) {
 
 export default function CopyExamples() {
   const [names, setNames] = useState("מיה ואלון");
-  const [date, setDate] = useState("17.06.2027");
+  const [date, setDate] = useState("24.06.2027");
 
   const personalized = EXAMPLES.map((ex) => ({
     ...ex,
@@ -160,9 +160,9 @@ export default function CopyExamples() {
       .replaceAll("מיה ואלון", names.trim() || "מיה ואלון")
       .replaceAll("Maya & Alon", names.includes("ו") ? "Maya & Alon" : names.trim() || "Maya & Alon")
       .replaceAll("We're getting married", names.trim() ? `${names.trim()} are getting married` : "We're getting married")
-      .replaceAll("17.06.2027", date.trim() || "17.06.2027")
-      .replaceAll("June 17, 2027", date.trim() || "June 17, 2027")
-      .replaceAll("17 ביוני 2027", date.includes(".") ? "17 ביוני 2027" : date.trim() || "17 ביוני 2027"),
+      .replaceAll("24.06.2027", date.trim() || "24.06.2027")
+      .replaceAll("June 24, 2027", date.trim() || "June 24, 2027")
+      .replaceAll("24 ביוני 2027", date.includes(".") ? "24 ביוני 2027" : date.trim() || "24 ביוני 2027"),
   }));
 
   return (

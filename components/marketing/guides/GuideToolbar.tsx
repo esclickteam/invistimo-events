@@ -11,7 +11,8 @@ type Props = {
 export default function GuideToolbar({ title, path, readingMinutes }: Props) {
   const [copied, setCopied] = useState(false);
   const [canShare, setCanShare] = useState(false);
-  const url = typeof window !== "undefined" ? `${window.location.origin}${path}` : path;
+  // Keep SSR and first client paint identical (absolute marketing URL).
+  const url = `https://www.invistimo.com${path.startsWith("/") ? path : `/${path}`}`;
 
   useEffect(() => {
     setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function");

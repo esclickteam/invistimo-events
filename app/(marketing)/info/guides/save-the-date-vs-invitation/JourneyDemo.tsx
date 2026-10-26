@@ -60,7 +60,7 @@ function CardFace({
         <>
           <p className="mt-2 text-sm opacity-90">מתחתנים!</p>
           <p className="mt-4 text-2xl font-black" style={{ color: style.accent }}>
-            17.06.2027
+            24.06.2027
           </p>
           <p className="mt-3 text-xs leading-5 opacity-80">נשמח שתשמרו את התאריך · פרטים בקרוב</p>
         </>
@@ -68,7 +68,7 @@ function CardFace({
       {stage === "invite" ? (
         <>
           <p className="mt-2 text-xs leading-5 opacity-90">שמחים להזמינכם ליום נישואינו</p>
-          <p className="mt-3 text-sm font-bold">יום חמישי, 17 ביוני 2027</p>
+          <p className="mt-3 text-sm font-bold">יום חמישי, 24 ביוני 2027</p>
           <p className="mt-2 text-xs opacity-85">קבלת פנים 19:00 · חופה 20:00</p>
           <p className="mt-2 text-xs font-semibold">אולם הגפן, תל אביב</p>
         </>
@@ -176,34 +176,24 @@ export default function JourneyDemo() {
               transition={{ duration: 0.28 }}
               className="overflow-hidden rounded-2xl rounded-tr-sm bg-[#1F2C34]"
             >
-              {stage === "std" || stage === "invite" ? (
+              {stage === "invite" ? (
                 <>
                   <div className="relative aspect-[3/4] w-full">
                     <Image
-                      src={
-                        stage === "std"
-                          ? "/marketing/invites/invite-save-the-date-maya-itai.webp"
-                          : "/marketing/invites/invite-wedding-mia-alon.webp"
-                      }
-                      alt={
-                        stage === "std"
-                          ? "כרטיס Save the Date לדוגמה — מיה ואלון"
-                          : "הזמנה לחתונה לדוגמה — מיה ואלון"
-                      }
+                      src="/marketing/invites/invite-wedding-mia-alon.webp"
+                      alt="הזמנה לחתונה לדוגמה — מיה ואלון"
                       fill
                       className="object-cover"
                       sizes="260px"
                     />
                   </div>
                   <pre className="whitespace-pre-wrap px-3 py-2.5 font-sans text-[12px] leading-5 text-[#E9EDEF]">
-                    {stage === "std"
-                      ? `Save The Date\nמיה ואלון\n\nאנחנו מתרגשים להזמין אתכם לשריין את התאריך\n17.06.2027\n\nפרטים נוספים יישלחו בקרוב 🤍`
-                      : `מיה ואלון\nשמחים להזמינכם לחתונה\n17.06.2027\nקבלת פנים 19:00 · חופה 20:00\nאולם הגפן, תל אביב`}
+                    {`מיה ואלון\nשמחים להזמינכם לחתונה\n24.06.2027\nקבלת פנים 19:00 · חופה 20:00\nאולם הגפן, תל אביב`}
                   </pre>
                 </>
               ) : (
                 <div className="p-2">
-                  <CardFace style={style} stage="rsvp" />
+                  <CardFace style={style} stage={stage} />
                 </div>
               )}
             </motion.div>
