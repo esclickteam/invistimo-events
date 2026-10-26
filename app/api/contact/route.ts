@@ -2,7 +2,14 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { assertExternalSendAllowed } from "@/lib/env/externalSends";
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+/** Lazy client — module-level `new Resend()` throws during build when the key is unset. */
+function getResend() {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) {
+    throw new Error("Missing RESEND_API_KEY");
+  }
+  return new Resend(key);
+}
 
 export async function POST(req: Request) {
   try {
@@ -50,6 +57,8 @@ export async function POST(req: Request) {
         });
       }
     }
+
+    const resend = getResend();
 
     await resend.emails.send({
       // ✅ שולח מדומיין מאומת
