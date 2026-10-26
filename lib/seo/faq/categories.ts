@@ -1,0 +1,112 @@
+import type { FaqCategory } from "./types";
+
+export const FAQ_CATEGORIES: FaqCategory[] = [
+  {
+    id: "getting-started",
+    title: "מתחילים עם Invistimo",
+    shortTitle: "מתחילים",
+    description: "מהי המערכת, למי היא מתאימה ואיך מתחילים.",
+    relatedHref: "/info/about",
+    relatedLabel: "אודות Invistimo",
+  },
+  {
+    id: "pricing",
+    title: "חבילות, מחירים ותשלומים",
+    shortTitle: "מחירים",
+    description: "רשומות, חבילות, תוספות ותנאי תשלום.",
+    relatedHref: "/pricing",
+    relatedLabel: "מחשבון החבילות",
+  },
+  {
+    id: "guest-list",
+    title: "רשימת מוזמנים",
+    shortTitle: "מוזמנים",
+    description: "ייבוא, עריכה, קבוצות ומעקב אחרי הרשימה.",
+    relatedHref: "/info/guides/guest-list",
+    relatedLabel: "מדריך רשימת מוזמנים",
+  },
+  {
+    id: "rsvp",
+    title: "אישורי הגעה",
+    shortTitle: "אישורי הגעה",
+    description: "סבבים, תשובות, מעקב ומספר מגיעים.",
+    relatedHref: "/rsvp",
+    relatedLabel: "עמוד אישורי הגעה",
+  },
+  {
+    id: "messaging",
+    title: "WhatsApp, SMS ושיחות",
+    shortTitle: "הודעות",
+    description: "ערוצי שליחה, תזכורות, כשרות וסטטוסים.",
+    relatedHref: "/rsvp/whatsapp",
+    relatedLabel: "אישורי הגעה בוואטסאפ",
+  },
+  {
+    id: "invitations",
+    title: "הזמנות דיגיטליות",
+    shortTitle: "הזמנות",
+    description: "יצירה, עיצוב, קישור אישי ושילובים.",
+    relatedHref: "/invitations/chatuna",
+    relatedLabel: "הזמנות דיגיטליות",
+  },
+  {
+    id: "save-the-date",
+    title: "Save the Date",
+    shortTitle: "Save the Date",
+    description: "שמירת תאריך מול הזמנה ואישורי הגעה.",
+    relatedHref: "/rsvp/save-the-date",
+    relatedLabel: "עמוד Save the Date",
+  },
+  {
+    id: "seating",
+    title: "סידורי הושבה",
+    shortTitle: "הושבה",
+    description: "שולחנות, שיבוץ, רזרבות ומספר שולחן.",
+    relatedHref: "/seating-explained",
+    relatedLabel: "סידורי הושבה",
+  },
+  {
+    id: "staff-qr",
+    title: "צוות הושבה ו־QR",
+    shortTitle: "צוות ו־QR",
+    description: "קבלת פנים, איתור אורח וסריקה כשהמודול פתוח.",
+    relatedHref: "/seating-explained",
+    relatedLabel: "הושבה ויום האירוע",
+  },
+  {
+    id: "event-management",
+    title: "ניהול והפקת אירוע",
+    shortTitle: "ניהול אירוע",
+    description: "מערכת עצמאית, ליווי ושירות באולם.",
+    relatedHref: "/event-management",
+    relatedLabel: "ניהול והפקת אירוע",
+  },
+  {
+    id: "wedding-website",
+    title: "אתר חתונה אישי",
+    shortTitle: "אתר חתונה",
+    description: "תבניות, תוכן, ניווט ושיתוף עם האורחים.",
+    relatedHref: "/wedding-website",
+    relatedLabel: "אתרי חתונה",
+  },
+  {
+    id: "privacy",
+    title: "אבטחה, פרטיות ומחיקת נתונים",
+    shortTitle: "פרטיות",
+    description: "גישה לחשבון, שמירת מידע ובקשות מחיקה.",
+    relatedHref: "/privacy",
+    relatedLabel: "מדיניות פרטיות",
+  },
+  {
+    id: "support",
+    title: "תקלות ותמיכה",
+    shortTitle: "תמיכה",
+    description: "פתרון בעיות נפוצות ויצירת קשר.",
+    relatedHref: "/contact",
+    relatedLabel: "יצירת קשר",
+  },
+];
+
+export function getFaqCategory(id: string) {
+  return FAQ_CATEGORIES.find((c) => c.id === id);
+}

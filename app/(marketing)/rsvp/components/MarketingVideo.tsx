@@ -40,6 +40,20 @@ export default function MarketingVideo({
   const reducedMotion = usePrefersReducedMotion();
   const [pausedByUser, setPausedByUser] = useState(false);
 
+  const [inView, setInView] = useState(true);
+
+  useEffect(() => {
+    const el = (videoRef?.current ?? localRef.current) as HTMLVideoElement | null;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setInView(Boolean(entry?.isIntersecting)),
+      { rootMargin: "80px", threshold: 0.15 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [videoRef, src]);
+
   useEffect(() => {
     const el = (videoRef?.current ?? localRef.current) as HTMLVideoElement | null;
     if (!el) return;
@@ -50,11 +64,16 @@ export default function MarketingVideo({
       return;
     }
 
+    if (!inView) {
+      el.pause();
+      return;
+    }
+
     if (!pausedByUser) {
       const play = el.play();
       if (play && typeof play.catch === "function") play.catch(() => undefined);
     }
-  }, [reducedMotion, pausedByUser, videoRef, src]);
+  }, [reducedMotion, pausedByUser, videoRef, src, inView]);
 
   return (
     <div className={`relative overflow-hidden bg-[#17120E] ${className}`}>
