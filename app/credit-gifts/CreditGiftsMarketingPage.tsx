@@ -98,7 +98,6 @@ function StatusPill({ label, tone }: { label: string; tone: string }) {
     active: "bg-[#EAF3E4] text-[#3F5C34]",
     display_only: "bg-[#EEF3F8] text-[#3A4F66]",
     informational: "bg-[#F4EEE4] text-[#6B5B4A]",
-    requires_dev: "bg-[#F8ECE8] text-[#7A4538]",
   };
   return (
     <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-black ${styles[tone] || styles.informational}`}>
@@ -112,7 +111,6 @@ function MethodIcon({ id }: { id: string }) {
     credit: MEDIA.paymentIcon,
     paybox: MEDIA.giftPageIcon,
     bit: MEDIA.summaryIcon,
-    bank: MEDIA.transferIcon,
     cash: MEDIA.scheduleIcon,
     blessing: MEDIA.installmentsIcon,
   };
@@ -228,14 +226,14 @@ export default function CreditGiftsMarketingPage() {
           לא כל אורח מעדיף לתת מתנה באותה דרך
         </h2>
         <p className="mt-4 max-w-3xl text-[17px] leading-8 text-[#5C4A3A]">
-          יש מי שנוח לו לשלם בכרטיס אשראי, אחרים מעדיפים bit או PayBox, ויש אורחים
-          שמעדיפים העברה בנקאית או מעטפה ביום האירוע. עם Invistimo תוכלו להציג
-          לאורחים את אפשרויות המתנה שהפעלתם, ולשלב אותן בחוויה הדיגיטלית לצד
-          ההזמנה ואישורי ההגעה — בהתאם ליכולות ולשירותים שהופעלו.
+          יש מי שנוח לו לשלם בכרטיס אשראי, אחרים מעדיפים PayBox או bit, ויש
+          אורחים שמעדיפים מעטפה ביום האירוע. ב־Invistimo שלוש אפשרויות דיגיטליות:
+          קישור אשראי מ־RSVP, קישור PayBox, ומספר bit להעתקה — ואפשר לשלב אותן
+          לצד ההזמנה ואישורי ההגעה לפי מה שהפעלתם.
         </p>
         <p className="mt-4 max-w-3xl text-[15px] leading-7 text-[#6B5B4A]">
-          חשוב להבחין: סליקת אשראי מתבצעת אצל ספק חיצוני; PayBox ו־bit הם קישורים
-          או פרטים שהמערכת מציגה בלבד.
+          חשוב להבחין: סליקת אשראי אצל ספק חיצוני; PayBox הוא קישור שאתם מזינים;
+          bit הוא מספר להעתקה בלבד — בלי קישור bit ובלי QR bit בעורך.
         </p>
       </Section>
 
@@ -246,8 +244,8 @@ export default function CreditGiftsMarketingPage() {
           איך האורחים יכולים לתת מתנה לחתונה?
         </h2>
         <p className="mt-3 max-w-3xl text-[16px] leading-7 text-[#5C4A3A]">
-          שישה מסלולים — עם סימון ברור מה פעיל במוצר ומה דורש פיתוח או נשאר
-          הסבר כללי.
+          שלוש אפשרויות דיגיטליות פעילות במוצר — אשראי, PayBox ו־bit — ועוד
+          הסברים על מזומן/צ&apos;ק וברכה.
         </p>
 
         <div className="mt-10 grid gap-5 md:grid-cols-2">
@@ -308,9 +306,9 @@ export default function CreditGiftsMarketingPage() {
               «התשלום התקבל» אחרי לחיצה על קישור חיצוני.
             </p>
             <ul className="mt-5 space-y-2 text-sm leading-6 text-[#5C4A3A]">
-              <li>• כרטיס אשראי, PayBox ו־bit — לפי מה שפעיל במוצר.</li>
-              <li>• העברה בנקאית אינה חלק מתצוגת האורח כיום.</li>
-              <li>• חזרה נוחה להקשר אישור ההגעה.</li>
+              <li>• אשראי — קישור לספק RSVP.</li>
+              <li>• PayBox — קישור חיצוני.</li>
+              <li>• bit — מספר להעתקה בלבד.</li>
             </ul>
           </div>
           <GiftOptionsDemo />
@@ -324,9 +322,9 @@ export default function CreditGiftsMarketingPage() {
           אתם מחליטים איך האורחים יוכלו להעניק מתנה
         </h2>
         <p className="mt-3 max-w-3xl text-[16px] leading-7 text-[#5C4A3A]">
-          בפרטי האירוע קיימת הגדרה מרכזית למתנות: הפעלה או כיבוי לכל אפשרות,
-          הזנת קישור אשראי / PayBox או מספר bit, שמירה, והצגה אוטומטית בקישור
-          האישי. רק בעלי האירוע או בעלי הרשאה מתאימה יכולים לערוך.
+          בפרטי האירוע מגדירים את שלוש האפשרויות: קישור אשראי מ־RSVP (אחרי
+          פתיחת משתמש אצל הספק), קישור PayBox, ומספר bit להעתקה. רק בעלי האירוע
+          או בעלי הרשאה מתאימה יכולים לערוך.
         </p>
         <ol className="mt-8 grid gap-4 md:grid-cols-2">
           {HOST_STEPS.map((step, i) => (
@@ -340,14 +338,13 @@ export default function CreditGiftsMarketingPage() {
             </li>
           ))}
         </ol>
-        <div className="mt-8 rounded-[24px] border border-dashed border-[#C9A45C] bg-[#FFFDF8] p-5">
-          <h3 className="text-base font-black text-[#2C241C]">מה דורש פיתוח נפרד?</h3>
-          <p className="mt-2 text-sm leading-6 text-[#5C4A3A]">
-            הצגת פרטי העברה בנקאית לאורח (שם בעל חשבון, בנק, סניף, חשבון), קישור
-            או QR bit רשמי מאומת, והודעת מזומן/צ&apos;ק ייעודית כמתג נפרד — אלה
-            אינם חלק ממסך המתנות הפעיל כיום. תוכנית הפיתוח מופרדת משדרוג עמוד
-            השיווק וממתינה לאישור היקף.
-          </p>
+        <div className="mt-8 rounded-[24px] border border-[#E6D2AA] bg-[#FBF6EE] p-5">
+          <h3 className="text-base font-black text-[#2C241C]">מה מגדירים בפועל?</h3>
+          <ul className="mt-3 space-y-2 text-sm leading-6 text-[#5C4A3A]">
+            <li>• אשראי — קישור שקיבלתם אחרי פתיחת משתמש במערכת RSVP.</li>
+            <li>• PayBox — קישור PayBox תקף שיצרתם באפליקציה.</li>
+            <li>• bit — מספר טלפון להעתקה בלבד (בלי קישור bit ובלי QR בעורך).</li>
+          </ul>
         </div>
       </Section>
 
@@ -434,7 +431,7 @@ export default function CreditGiftsMarketingPage() {
         <div className="mt-8 overflow-x-auto rounded-[24px] border border-[#E6D2AA] bg-white">
           <table className="min-w-[720px] w-full text-right text-sm">
             <caption className="sr-only">
-              השוואה בין אמצעי מתנה: אשראי, PayBox, bit, העברה בנקאית ומזומן
+              השוואה בין אמצעי מתנה: אשראי, PayBox, bit ומזומן או צ׳ק
             </caption>
             <thead className="bg-[#F7EDDF] text-[#2C241C]">
               <tr>

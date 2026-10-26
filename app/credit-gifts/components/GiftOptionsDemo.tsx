@@ -122,9 +122,7 @@ export default function GiftOptionsDemo() {
               </div>
 
               <p className="mt-5 text-center text-xs leading-5 text-[#8A7A68]">
-                מוצגות רק אפשרויות שהוגדרו על ידי בעלי האירוע.
-                <br />
-                העברה בנקאית אינה חלק מתצוגת האורח כיום.
+                מוצגות רק אפשרויות שהוגדרו: אשראי, PayBox או מספר bit להעתקה.
               </p>
 
               <a

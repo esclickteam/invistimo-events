@@ -220,7 +220,7 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
     path: "/credit-gifts",
     title: "מתנות לחתונה באשראי, bit ו־PayBox | Invistimo",
     description:
-      "מתנות לחתונה באשראי, PayBox, bit והעברה בנקאית. הכירו את אפשרויות המתנה הדיגיטליות של Invistimo ואיך משלבים אותן בהזמנה ובאישורי ההגעה.",
+      "מתנות לחתונה באשראי דרך RSVP, קישור PayBox ומספר bit להעתקה. הכירו את שלוש אפשרויות המתנה הדיגיטליות ב־Invistimo ואיך משלבים אותן בהזמנה ובאישורי ההגעה.",
     changeFrequency: "monthly",
     priority: 0.72,
   },

@@ -674,7 +674,8 @@ export const KEYWORD_MAP: KeywordRow[] = [
     supportingPaths: ["/info/guides/bit-paybox-wedding-invitation"],
     volume: null,
     competition: null,
-    observation: "מוסבר כמסלול כללי; תצוגת פרטי בנק לאורח עדיין דורשת פיתוח.",
+    observation:
+      "מובהר ש־Invistimo מציגה אשראי/PayBox/bit; העברה בנקאית אינה מסלול במסך המתנות.",
   },
   {
     query: "תשלום מתנה לחתונה",
