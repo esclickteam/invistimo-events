@@ -24,13 +24,14 @@ export default function LayoutShell({
   // עמודי שיווק תחת `/rsvp` ו־`/rsvp/*` (חתונה, וואטסאפ, Save the Date וכו')
   // מציגים את ה־Header וה־Footer הראשיים לפני התחברות.
   // זרימות אורח נשארות תחת `/invite/` בלי Chrome שיווקי.
+  // Live demos + published wedding sites stay chrome-free.
+  // Marketing hub `/wedding-website` keeps the shared public Header/Footer.
   const hideHeaderAndFooter =
     pathname === "/thank-you" ||
     pathname.startsWith("/invite/") ||
     pathname.startsWith("/invitation/") ||
     pathname === "/w" ||
     pathname.startsWith("/w/") ||
-    pathname === "/wedding-website" ||
     pathname.startsWith("/wedding-website/") ||
     pathname === "/set-password" ||
     pathname.startsWith("/set-password/") ||

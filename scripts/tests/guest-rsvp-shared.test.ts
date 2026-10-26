@@ -114,7 +114,7 @@ test("wedding website chrome is hidden on public and demo routes", () => {
   const wLayout = read("app/w/layout.tsx");
   const demoLayout = read("app/wedding-website/[templateId]/layout.tsx");
 
-  assert.match(header, /isWeddingWebsiteChromeFree|\/w\//);
+  assert.match(header, /isWeddingWebsite/);
   assert.match(footer, /isWeddingWebsite/);
   assert.match(shell, /isWeddingWebsite/);
   assert.match(publicShell, /isWeddingWebsiteRoute/);

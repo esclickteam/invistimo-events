@@ -7,7 +7,8 @@ import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import MarketingVideo from "@/app/(marketing)/rsvp/components/MarketingVideo";
 import DevicePreviewPair from "./components/DevicePreviewPair";
 import FeaturedTemplateShowcase from "./components/FeaturedTemplateShowcase";
-import LiveSiteFrame from "./components/LiveSiteFrame";
+import MobileShowcasePreview from "./components/MobileShowcasePreview";
+import SiteAnatomyPreview from "./components/SiteAnatomyPreview";
 import { WEDDING_WEBSITE_FAQS } from "./weddingFaqs";
 import {
   COMPARE_ROWS,
@@ -22,6 +23,7 @@ import {
   resolveFeaturedStyles,
   resolveHeroTemplate,
 } from "./content";
+import { getWeddingTemplate } from "@/config/weddingWebsite/templates";
 
 const ctaPrimary =
   "inline-flex min-h-12 items-center justify-center rounded-full bg-[#2A2118] px-8 py-3.5 text-base font-black text-[#F7F1E8] shadow-[0_18px_40px_rgba(42,33,24,0.22)] transition hover:-translate-y-0.5 hover:bg-[#3D2E22]";
@@ -73,6 +75,8 @@ export default function WeddingWebsiteMarketingPage() {
   const heroTemplate = resolveHeroTemplate();
   const featured = resolveFeaturedStyles();
   const videoExistsHint = WW_MEDIA.video.src;
+  const mobileTemplate =
+    getWeddingTemplate(WW_MEDIA.mobileDemoTemplateId) || heroTemplate;
 
   return (
     <article
@@ -99,16 +103,8 @@ export default function WeddingWebsiteMarketingPage() {
           }}
         />
 
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-20 pt-6 md:gap-14 md:px-8 md:pb-24 md:pt-8 lg:grid-cols-[1.02fr_0.98fr]">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-4 md:gap-14 md:px-8 md:pb-24 md:pt-6 lg:grid-cols-[1.02fr_0.98fr]">
           <div>
-            <nav aria-label="מיקום בעמוד" className="mb-5 text-sm font-semibold text-[#7A6042]">
-              <Link href="/" className="hover:text-[#8A642E]">
-                ראשי
-              </Link>
-              <span className="px-1.5 text-[#C7A56B]">/</span>
-              <span>אתר חתונה</span>
-            </nav>
-
             <p className="font-['Cormorant_Garamond'] text-3xl font-semibold tracking-tight text-[#2A2118] md:text-4xl">
               Invistimo
             </p>
@@ -150,13 +146,14 @@ export default function WeddingWebsiteMarketingPage() {
             </div>
           </div>
 
-          <div className="relative pb-10 sm:pb-12">
+          <div className="relative">
             {reduce ? (
               <DevicePreviewPair
                 templateId={heroTemplate.id}
                 name={heroTemplate.name}
-                posterSrc={heroTemplate.heroImage || heroTemplate.previewImage}
-                eager
+                desktopSrc={WW_MEDIA.heroDesktop}
+                mobileSrc={WW_MEDIA.heroMobile}
+                priority
               />
             ) : (
               <motion.div
@@ -167,13 +164,14 @@ export default function WeddingWebsiteMarketingPage() {
                 <DevicePreviewPair
                   templateId={heroTemplate.id}
                   name={heroTemplate.name}
-                  posterSrc={heroTemplate.heroImage || heroTemplate.previewImage}
-                  eager
+                  desktopSrc={WW_MEDIA.heroDesktop}
+                  mobileSrc={WW_MEDIA.heroMobile}
+                  priority
                 />
               </motion.div>
             )}
-            <p className="mt-10 text-center text-xs font-semibold text-[#7A6042] sm:mt-12 sm:text-right">
-              תצוגה חיה מתבנית {heroTemplate.name} · נתוני דמו · לא לקוח אמיתי
+            <p className="mt-5 text-center text-sm font-semibold text-[#7A6042] sm:text-right">
+              תבנית {heroTemplate.name} · אתר לדוגמה
             </p>
           </div>
         </div>
@@ -221,14 +219,26 @@ export default function WeddingWebsiteMarketingPage() {
             </ul>
           </FadeIn>
 
-          <FadeIn delay={0.08} className="overflow-hidden rounded-[24px] border border-[#D9C7A8]/70 bg-[#16120E] shadow-[0_30px_80px_rgba(42,30,18,0.16)]">
-            <LiveSiteFrame
-              templateId={heroTemplate.id}
-              title="מבנה אתר חתונה מלא — תצוגה חיה"
-              variant="desktop"
-              frameHeight={620}
-              posterSrc={heroTemplate.heroImage || heroTemplate.previewImage}
-              className="[--ww-preview-scale:0.55] md:[--ww-preview-scale:0.64]"
+          <FadeIn delay={0.08}>
+            <SiteAnatomyPreview
+              templateId={WW_MEDIA.mobileDemoTemplateId}
+              shots={[
+                {
+                  src: WW_MEDIA.anatomyPrimary,
+                  alt: "אתר חתונה לדוגמה — תצוגת מחשב עם שמות, תמונה ותאריך",
+                  label: "Garden Bloom · אתר לדוגמה",
+                },
+                {
+                  src: WW_MEDIA.anatomyStory,
+                  alt: "מקטע הסיפור הזוגי באתר חתונה לדוגמה",
+                  label: "הסיפור שלנו",
+                },
+                {
+                  src: WW_MEDIA.anatomyGallery,
+                  alt: "גלריית תמונות באתר חתונה לדוגמה",
+                  label: "גלריה",
+                },
+              ]}
             />
           </FadeIn>
         </div>
@@ -353,7 +363,7 @@ export default function WeddingWebsiteMarketingPage() {
             </h2>
             <p className="mt-5 text-lg leading-8 text-[#5C4A3A]">
               הכירו מבחר עיצובים לאתרי חתונה — מסגנון קלאסי ורומנטי ועד מראה מודרני
-              ומינימליסטי. כל תצוגה היא תבנית אמיתית ועובדת במערכת, עם נתוני דמו.
+              ומינימליסטי. כל תצוגה היא אתר לדוגמה אמיתי שניתן לפתוח ולגלול.
             </p>
           </FadeIn>
 
@@ -379,8 +389,8 @@ export default function WeddingWebsiteMarketingPage() {
               תראו איך האתר שלכם יכול להרגיש
             </h2>
             <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-[#5C4A3A] md:text-lg">
-              סרטון הדגמה מהקלטת מסך של אתר דמו אמיתי: כניסה, Hero עם שמות ותמונה, סיפור
-              אישי, גלריה, פרטי אירוע, מיקום וסיום. ללא קול אוטומטי.
+              צפו בגלילה באתר לדוגמה — משמות ותמונה, דרך הסיפור והגלריה, ועד פרטי האירוע
+              והמיקום.
             </p>
           </FadeIn>
 
@@ -392,8 +402,8 @@ export default function WeddingWebsiteMarketingPage() {
               className="aspect-[16/10] w-full"
             />
           </FadeIn>
-          <p className="mt-4 text-center text-xs font-semibold text-[#7A6042]">
-            הקלטה מתבנית {heroTemplate.name} · נתוני דמו · מושתק כברירת מחדל
+          <p className="mt-4 text-center text-sm font-semibold text-[#7A6042]">
+            תבנית {heroTemplate.name} · אתר לדוגמה
           </p>
           <p className="mt-3 text-center text-sm">
             <Link
@@ -402,7 +412,7 @@ export default function WeddingWebsiteMarketingPage() {
               rel="noopener noreferrer"
               className="font-bold text-[#7A5530] underline-offset-4 hover:underline"
             >
-              או פתחו את האתר המלא לגלילה חיה
+              פתחו את האתר המלא
             </Link>
           </p>
         </div>
@@ -456,7 +466,7 @@ export default function WeddingWebsiteMarketingPage() {
               </TrackedCtaLink>
             </div>
             <p className="mt-4 text-sm text-[#C4AFA3]">
-              הפרטים וההיקף נקבעים בתיאום. לא כל בקשת עיצוב אפשרית בכל מסגרת.
+              הפרטים וההיקף נקבעים בתיאום אישי.
             </p>
           </FadeIn>
         </div>
@@ -478,18 +488,20 @@ export default function WeddingWebsiteMarketingPage() {
               כל הפרטים החשובים, במקום אחד
             </h2>
             <p className="mt-5 text-lg leading-8 text-[#5C4A3A]">
-              הרכיבים למטה מבוססים על מקטעים שקיימים בפועל בתבניות הדמו — לא הבטחות
-              שיווקיות בלי כיסוי במוצר.
+              אלה חלק מהמקטעים שאפשר לכלול באתר החתונה שלכם — סיפור, תמונות, פרטי אירוע
+              ומידע שימושי לאורחים.
             </p>
           </FadeIn>
 
           <div className="mt-12 grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
-            <FadeIn className="relative aspect-[4/5] overflow-hidden rounded-[24px]">
+            <FadeIn className="overflow-hidden rounded-[24px] border border-[#D9C7A8]/60 bg-[#FFFDF8] shadow-[0_20px_50px_rgba(42,30,18,0.10)]">
               <Image
-                src={WW_MEDIA.anatomy}
-                alt="אווירת קבלת פנים בחתונה — המחשה ויזואלית לאתר חתונה אישי"
-                fill
-                className="object-cover"
+                src={WW_MEDIA.anatomyGallery}
+                alt="גלריה באתר חתונה לדוגמה"
+                width={1280}
+                height={900}
+                unoptimized
+                className="block h-auto w-full"
                 sizes="(max-width: 1024px) 100vw, 40vw"
               />
             </FadeIn>
@@ -536,21 +548,12 @@ export default function WeddingWebsiteMarketingPage() {
             </div>
           </FadeIn>
 
-          <FadeIn className="mx-auto w-full max-w-[320px]">
-            <div className="overflow-hidden rounded-[2rem] border-[10px] border-[#1C1612] bg-[#0D0A08] shadow-[0_36px_80px_rgba(28,22,18,0.28)]">
-              <div className="mx-auto mt-2 h-1.5 w-16 rounded-full bg-white/20" aria-hidden />
-              <LiveSiteFrame
-                templateId={heroTemplate.id}
-                title="תצוגת מובייל גדולה של אתר חתונה"
-                variant="mobile"
-                frameHeight={640}
-                posterSrc={heroTemplate.previewImage || heroTemplate.heroImage}
-                className="[--ww-preview-scale:0.78]"
-              />
-            </div>
-            <p className="mt-4 text-center text-xs font-semibold text-[#7A6042]">
-              תצוגה חיה · מסגרת עדינה בלי להקטין את התוכן לקריאות בלתי אפשרית
-            </p>
+          <FadeIn>
+            <MobileShowcasePreview
+              templateId={mobileTemplate.id}
+              name={mobileTemplate.name}
+              src={WW_MEDIA.mobileShowcase}
+            />
           </FadeIn>
         </div>
       </section>

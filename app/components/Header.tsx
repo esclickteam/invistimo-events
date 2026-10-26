@@ -20,15 +20,13 @@ export default function Header() {
   const isStaffPage =
     pathname === "/staff" || pathname.startsWith("/staff/");
 
-  // Marketing `/wedding-website` keeps the site Header; template demos and
-  // live guest sites (`/w/*`, `/wedding-website/[id]`) stay chrome-free.
-  const isWeddingWebsiteChromeFree =
+  // Hide only on live demo / published wedding sites — not the marketing hub.
+  const isWeddingWebsite =
     pathname === "/w" ||
     pathname.startsWith("/w/") ||
-    (pathname.startsWith("/wedding-website/") &&
-      pathname !== "/wedding-website");
+    pathname.startsWith("/wedding-website/");
 
-  const shouldHideHeader = isStaffPage || isWeddingWebsiteChromeFree;
+  const shouldHideHeader = isStaffPage || isWeddingWebsite;
 
   const dashboardHref = user ? getUserRedirectPath(user) : "/dashboard";
   const logoHref = "/";

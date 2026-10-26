@@ -17,11 +17,11 @@ export default function Footer() {
     pathname === "/staff" ||
     pathname.startsWith("/staff/");
 
+  // Hide only on live demo / published wedding sites — not the marketing hub.
   const isWeddingWebsite =
     pathname === "/w" ||
     pathname.startsWith("/w/") ||
-    (pathname.startsWith("/wedding-website/") &&
-      pathname !== "/wedding-website");
+    pathname.startsWith("/wedding-website/");
 
   if (isStaffPage || isWeddingWebsite) {
     return null;

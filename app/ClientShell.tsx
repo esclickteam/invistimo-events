@@ -19,13 +19,11 @@ export default function ClientShell({ children }: { children: ReactNode }) {
 
   const isVenues = pathname.startsWith("/venues");
 
-  // Keep site Header/Footer on the marketing page `/wedding-website`.
-  // Template demos and live guest sites stay chrome-free.
+  // Live demos + published sites only — marketing hub `/wedding-website` keeps public chrome.
   const isWeddingWebsite =
     pathname === "/w" ||
     pathname.startsWith("/w/") ||
-    (pathname.startsWith("/wedding-website/") &&
-      pathname !== "/wedding-website");
+    pathname.startsWith("/wedding-website/");
 
   /* =====================================================
      ❌ דפי הצעת מחיר / הסכם – בלי Header / Footer / SupportBot

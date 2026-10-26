@@ -111,10 +111,16 @@ test("marketing Header still hides chrome on live wedding sites", () => {
     "utf8"
   );
   const shell = readFileSync(path.join(ROOT, "app/ClientShell.tsx"), "utf8");
-  assert.match(header, /isWeddingWebsiteChromeFree/);
+  assert.match(header, /isWeddingWebsite/);
   assert.match(header, /\/w\//);
   assert.match(shell, /wedding-website\//);
-  assert.match(shell, /pathname !== "\/wedding-website"/);
+  // Exact `/wedding-website` keeps chrome; only `/wedding-website/*` hides it.
+  assert.match(shell, /startsWith\("\/wedding-website\/"\)/);
+  assert.doesNotMatch(
+    shell,
+    /pathname === "\/wedding-website"/,
+    "marketing hub must keep public chrome"
+  );
 });
 
 test("app tree still has the marketing pages directory", () => {
