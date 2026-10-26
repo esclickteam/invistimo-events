@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { Frank_Ruhl_Libre } from "next/font/google";
 import { motion, useReducedMotion } from "framer-motion";
-import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import { MITZVAH_FAQS } from "./mitzvahFaqs";
 import {
   CHECKLIST_ITEMS,
@@ -416,21 +415,7 @@ export default function BarBatMitzvahMarketingPage() {
             height={800}
             className="h-auto w-full"
           />
-          <DemoCaption>דשבורד מוזמנים — המחשת דמו לבר/בת מצווה (לא תוכן חתונה)</DemoCaption>
-        </div>
-        <div className="mt-8 overflow-hidden rounded-[24px] border border-[#D4C4A4] bg-[#1E1814]">
-          <PublicAutoplayVideo
-            src="/videos/marketing-captures/guide-bar-bat-mitzvah.webm"
-            poster="/videos/marketing-captures/guide-bar-bat-mitzvah-poster.jpg"
-            title="המחשה ויזואלית — אווירת בר ובת מצווה"
-            shellClassName="w-full"
-            className="aspect-video w-full"
-            expandable
-            frameBg="#1E1814"
-          />
-          <DemoCaption>
-            המחשה ייעודית לבר ובת מצווה — לא תוכן חתונה. צילומי המסך למעלה הם המחשות דמו לסוג האירוע.
-          </DemoCaption>
+          <DemoCaption>דשבורד מוזמנים — נתוני הדגמה מהמערכת</DemoCaption>
         </div>
       </SectionShell>
 
@@ -459,7 +444,7 @@ export default function BarBatMitzvahMarketingPage() {
             height={800}
             className="h-auto w-full"
           />
-          <DemoCaption>מפת הושבה — המחשת דמו לבר/בת מצווה; זמינות בהתאם לחבילה</DemoCaption>
+          <DemoCaption>מפת הושבה — נתוני הדגמה; זמינות בהתאם לחבילה</DemoCaption>
         </div>
         <div className="mt-8">
           <CtaLink href={LINKS.seating} variant="primary">

@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import StickyToc, { type TocItem } from "@/components/marketing/guides/StickyToc";
-import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import CopyableMessage from "./CopyableMessage";
 import SeatingMapDemo from "./SeatingMapDemo";
@@ -280,7 +279,7 @@ export default function SeatingPlanGuide() {
               className="overflow-hidden border-y border-[#E6D2AA]"
             >
               <Image
-                src="/images/rsvp/guides/unique-atmosphere/seating-plan-hall.jpg"
+                src="/images/rsvp/guides/wedding-planning/hall-tables.jpg"
                 alt="שולחנות חתונה ערוכים באולם עם מפות שמנת — הכנת סידורי הושבה"
                 width={1920}
                 height={800}
@@ -292,7 +291,7 @@ export default function SeatingPlanGuide() {
           ) : (
             <div className="overflow-hidden border-y border-[#E6D2AA]">
               <Image
-                src="/images/rsvp/guides/unique-atmosphere/seating-plan-hall.jpg"
+                src="/images/rsvp/guides/wedding-planning/hall-tables.jpg"
                 alt="שולחנות חתונה ערוכים באולם עם מפות שמנת — הכנת סידורי הושבה"
                 width={1920}
                 height={800}
@@ -530,27 +529,16 @@ export default function SeatingPlanGuide() {
             </Prose>
             <div className="mt-8 overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-white shadow-[0_16px_36px_rgba(58,39,20,0.08)]">
               <Image
-                src="/images/marketing-captures/unique/module-seating-full.webp"
+                src="/images/seating/seating-map.png"
                 alt="צילום מסך של מפת סידורי הושבה ב־Invistimo עם שולחנות וקיבולת"
                 width={1400}
                 height={900}
-                className="h-auto w-full object-contain object-top"
+                className="h-auto w-full object-cover object-top"
                 sizes="(max-width:1024px) 100vw, 720px"
               />
               <p className="border-t border-[#EFE2CC] px-5 py-3 text-sm font-semibold text-[#7A6042]">
-                מפת הושבה ב־Invistimo — המחשה מהמוצר (דמו מבודד)
+                מפת הושבה ב־Invistimo — המחשה מהמוצר
               </p>
-            </div>
-            <div className="mt-6 overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#1E1814]">
-              <PublicAutoplayVideo
-                src="/videos/marketing-captures/product-seating-map.webm"
-                poster="/videos/marketing-captures/product-seating-map-poster.jpg"
-                title="סרטון הדגמה — מפת הושבה עם שולחנות משובצים"
-                shellClassName="w-full"
-                className="aspect-[8/5] w-full"
-                expandable
-                frameBg="#1E1814"
-              />
             </div>
           </section>
 

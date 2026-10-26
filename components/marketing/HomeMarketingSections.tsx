@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import {
   Armchair,
   CalendarHeart,
@@ -14,7 +15,6 @@ import {
 } from "lucide-react";
 import { EVENT_INVITATION_BODY } from "@/lib/whatsapp/approvedTemplates";
 import { HOME_FAQS } from "@/lib/seo/homeIntentMap";
-import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 
 function LazyInViewVideo({
   src,
@@ -25,16 +25,48 @@ function LazyInViewVideo({
   poster: string;
   ariaLabel: string;
 }) {
+  const ref = useRef<HTMLDivElement | null>(null);
+  const [active, setActive] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || active) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setActive(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "220px 0px", threshold: 0.01 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [active]);
+
   return (
-    <div className="overflow-hidden rounded-[28px] bg-[#1C1612]">
-      <PublicAutoplayVideo
-        src={src}
-        poster={poster}
-        title={ariaLabel}
-        shellClassName="w-full"
-        className="aspect-video w-full"
-        frameBg="#1C1612"
-      />
+    <div ref={ref} className="aspect-video w-full overflow-hidden rounded-[28px] bg-[#1C1612]">
+      {active ? (
+        <video
+          src={src}
+          poster={poster}
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="none"
+          aria-label={ariaLabel}
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        <img
+          src={poster}
+          alt={ariaLabel}
+          className="h-full w-full object-cover"
+          loading="lazy"
+          decoding="async"
+        />
+      )}
     </div>
   );
 }
@@ -687,7 +719,7 @@ export default function HomeMarketingSections() {
           </div>
           <div className="overflow-hidden rounded-[28px] border border-[#C9A45C]/25 bg-[#111] shadow-[0_30px_70px_rgba(0,0,0,0.35)]">
             <img
-              src="/videos/marketing-captures/demo-seating-map-poster.jpg"
+              src="/marketing/product/webp/desktop-try-seating.webp"
               alt="מפת סידורי הושבה במערכת Invistimo עם שולחנות ושיבוצי אורחים"
               className="aspect-[16/10] w-full object-cover object-top"
               loading="lazy"

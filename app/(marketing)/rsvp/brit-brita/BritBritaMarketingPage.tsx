@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { Frank_Ruhl_Libre } from "next/font/google";
 import { motion, useReducedMotion } from "framer-motion";
-import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import { BRIT_FAQS } from "./britFaqs";
 import {
   BRIT_H1,
@@ -363,21 +362,7 @@ export default function BritBritaMarketingPage() {
             height={800}
             className="h-auto w-full"
           />
-          <DemoCaption>דשבורד מוזמנים — המחשת דמו לברית/בריתה (לא תוכן חתונה)</DemoCaption>
-        </div>
-        <div className="mt-8 overflow-hidden rounded-[24px] border border-[#D8C9AE] bg-[#1E1814]">
-          <PublicAutoplayVideo
-            src="/videos/marketing-captures/guide-brit-brita.webm"
-            poster="/videos/marketing-captures/guide-brit-brita-poster.jpg"
-            title="המחשה ויזואלית — אווירת ברית ובריתה"
-            shellClassName="w-full"
-            className="aspect-video w-full"
-            expandable
-            frameBg="#1E1814"
-          />
-          <DemoCaption>
-            המחשה ייעודית לברית/בריתה — לא תוכן חתונה. צילומי המסך למעלה הם המחשות דמו לסוג האירוע.
-          </DemoCaption>
+          <DemoCaption>דשבורד מוזמנים — נתוני הדגמה מהמערכת</DemoCaption>
         </div>
         <div className="mt-8">
           <CtaLink href={LINKS.seating} variant="secondary">
@@ -445,7 +430,7 @@ export default function BritBritaMarketingPage() {
             height={800}
             className="h-auto w-full"
           />
-          <DemoCaption>הושבה — המחשת דמו לברית/בריתה; זמינה בהתאם לחבילה</DemoCaption>
+          <DemoCaption>הושבה — נתוני הדגמה; זמינה בהתאם לחבילה</DemoCaption>
         </div>
       </SectionShell>
 

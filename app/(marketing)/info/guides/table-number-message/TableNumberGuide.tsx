@@ -331,7 +331,7 @@ export default function TableNumberGuide() {
         {reduce ? (
           <div className="overflow-hidden border-y border-[#E6D2AA]">
             <Image
-              src="/images/rsvp/guides/unique-atmosphere/table-number-hall.jpg"
+              src="/images/rsvp/guides/wedding-planning/hall-tables.jpg"
               alt="שולחנות ערוכים באולם אירועים — אווירת הושבה לחתונה"
               width={1280}
               height={720}
@@ -348,7 +348,7 @@ export default function TableNumberGuide() {
             className="overflow-hidden border-y border-[#E6D2AA]"
           >
             <Image
-              src="/images/rsvp/guides/unique-atmosphere/table-number-hall.jpg"
+              src="/images/rsvp/guides/wedding-planning/hall-tables.jpg"
               alt="שולחנות ערוכים באולם אירועים — אווירת הושבה לחתונה"
               width={1280}
               height={720}
@@ -595,7 +595,7 @@ export default function TableNumberGuide() {
               <FadeIn delay={0.06}>
                 <figure className="overflow-hidden rounded-[24px] border border-[#E6D2AA] bg-[#FFFDF8]">
                   <Image
-                    src="/images/marketing-captures/unique/module-seating-mobile.webp"
+                    src="/marketing/product/webp/desktop-try-seating.webp"
                     alt="תצוגת דמו של מפת הושבה במחשב ב־Invistimo"
                     width={1200}
                     height={800}

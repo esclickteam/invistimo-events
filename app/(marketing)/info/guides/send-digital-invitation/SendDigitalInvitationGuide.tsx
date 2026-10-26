@@ -556,7 +556,7 @@ export default function SendDigitalInvitationGuide() {
             </div>
             <FadeIn className="mt-8 overflow-hidden rounded-[24px] border border-[#E6D2AA] bg-[#FFFDF8]">
               <Image
-                src="/images/marketing-captures/unique/module-messages-compose.webp"
+                src="/images/rsvp/chatuna/dashboard-guests.jpg"
                 alt="מסך רשימת מוזמנים ב־Invistimo — ללא פרטים אישיים אמיתיים"
                 width={1400}
                 height={900}

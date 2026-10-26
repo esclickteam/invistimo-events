@@ -44,7 +44,7 @@ export const metadata = {
     type: "website",
     images: [
       {
-        url: absoluteUrl("/marketing/credit-gifts/hero-envelope-unique.jpg"),
+        url: absoluteUrl("/marketing/credit-gifts/hero-envelope.jpg"),
         width: 1376,
         height: 768,
         alt: "מעטפה אלגנטית למתנות דיגיטליות לחתונה — Invistimo",
