@@ -55,11 +55,12 @@ function isLiveRoute(pathname: string | null) {
 
 function isWeddingWebsiteRoute(pathname: string | null) {
   const path = String(pathname || "");
+  // Marketing hub `/wedding-website` uses the public shell chrome.
+  // Live guest sites and template demos stay chrome-free.
   return (
-    path === "/wedding-website" ||
-    path.startsWith("/wedding-website/") ||
     path === "/w" ||
-    path.startsWith("/w/")
+    path.startsWith("/w/") ||
+    (path.startsWith("/wedding-website/") && path !== "/wedding-website")
   );
 }
 

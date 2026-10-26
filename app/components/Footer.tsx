@@ -20,8 +20,8 @@ export default function Footer() {
   const isWeddingWebsite =
     pathname === "/w" ||
     pathname.startsWith("/w/") ||
-    pathname === "/wedding-website" ||
-    pathname.startsWith("/wedding-website/");
+    (pathname.startsWith("/wedding-website/") &&
+      pathname !== "/wedding-website");
 
   if (isStaffPage || isWeddingWebsite) {
     return null;

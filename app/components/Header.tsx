@@ -1,10 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Menu, X, UserRound, Sparkles, Home } from "lucide-react";
 import { useAuth, getUserRedirectPath } from "@/context/AuthContext";
 import { usePathname } from "next/navigation";
+import {
+  DesktopMarketingNav,
+  MobileMarketingNav,
+} from "@/app/components/header/MarketingHeaderNav";
 
 export default function Header() {
   const { user, logout, loading } = useAuth();
@@ -14,75 +18,47 @@ export default function Header() {
   const isDashboard = pathname.startsWith("/dashboard");
 
   const isStaffPage =
-    pathname === "/staff" ||
-    pathname.startsWith("/staff/");
+    pathname === "/staff" || pathname.startsWith("/staff/");
 
-  const isWeddingWebsite =
+  // Marketing `/wedding-website` keeps the site Header; template demos and
+  // live guest sites (`/w/*`, `/wedding-website/[id]`) stay chrome-free.
+  const isWeddingWebsiteChromeFree =
     pathname === "/w" ||
     pathname.startsWith("/w/") ||
-    pathname === "/wedding-website" ||
-    pathname.startsWith("/wedding-website/");
+    (pathname.startsWith("/wedding-website/") &&
+      pathname !== "/wedding-website");
 
-  const shouldHideHeader = isStaffPage || isWeddingWebsite;
+  const shouldHideHeader = isStaffPage || isWeddingWebsiteChromeFree;
 
   const dashboardHref = user ? getUserRedirectPath(user) : "/dashboard";
-  const logoHref = dashboardHref;
+  const logoHref = "/";
 
   const isProducer =
     pathname.startsWith("/producer") ||
     pathname.startsWith("/events/production");
 
-  const navItems = [
-    { label: "ראשי", href: "/" },
-    { label: "אישורי הגעה", href: "/rsvp" },
-    { label: "הזמנות ואתר חתונה", href: "/wedding-website" },
-    { label: "סידורי הושבה", href: "/seating-explained" },
-    { label: "חבילות ומחירים", href: "/pricing" },
-    { label: "ניהול אירוע", href: "/event-management" },
-    { label: "צור קשר", href: "/contact" },
-  ];
-
-  const isActive = (href: string) => {
-    if (href === "/") return pathname === "/";
-    return pathname.startsWith(href);
-  };
-
-  const NavLinks = ({ onClick }: { onClick?: () => void }) => (
-    <>
-      {navItems.map((item) => (
-        <Link
-          key={item.href}
-          href={item.href}
-          onClick={onClick}
-          className={`
-            relative px-1 py-2 text-[15px] font-semibold transition
-            ${
-              isActive(item.href)
-                ? "text-[#2F261E]"
-                : "text-[#5A4A3C] hover:text-[#B88A2D]"
-            }
-          `}
-        >
-          {item.label}
-
-          {isActive(item.href) && (
-            <span
-              className="
-                absolute -bottom-1 right-1/2 h-[2px] w-8 translate-x-1/2
-                rounded-full
-                bg-gradient-to-l from-[#D8B15E] via-[#B88A2D] to-[#8B6220]
-              "
-            />
-          )}
-        </Link>
-      ))}
-    </>
-  );
-
   const openDemoChoice = () => {
     setMobileOpen(false);
     setDemoChoiceOpen(true);
   };
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = prev;
+    };
+  }, [mobileOpen]);
 
   if (shouldHideHeader) {
     return null;
@@ -132,14 +108,9 @@ export default function Header() {
 
           <div className="flex justify-center" dir="ltr">
             <Link
-              href={logoHref}
+              href="/producer/dashboard"
               aria-label="Invistimo Home"
-              className="
-                block
-                cursor-pointer
-                transition
-                hover:scale-[1.03]
-              "
+              className="block cursor-pointer transition hover:scale-[1.03]"
             >
               <img
                 src="/invistimo-logo.png"
@@ -182,8 +153,7 @@ export default function Header() {
 
   // Homepage: no bottom padding under the nav chrome — that cream band
   // read as an empty strip between Header and Hero. Other pages keep py-3.
-  const headerPad =
-    pathname === "/" ? "px-3 pt-3 pb-0" : "px-3 py-3";
+  const headerPad = pathname === "/" ? "px-3 pt-3 pb-0" : "px-3 py-3";
 
   return (
     <>
@@ -210,46 +180,16 @@ export default function Header() {
             className="
               grid h-[78px] grid-cols-[auto_1fr_auto]
               items-center
-              gap-4
-              px-4 xl:grid-cols-[1fr_auto_1fr]
-              md:px-8
+              gap-3
+              px-4 md:px-7
+              xl:grid-cols-[auto_minmax(0,1fr)_auto]
             "
           >
-            <div className="flex items-center justify-start">
-              <nav
-                aria-label="ניווט ראשי"
-                className="
-                  hidden items-center gap-6
-                  whitespace-nowrap
-                  xl:flex
-                "
-              >
-                <NavLinks />
-              </nav>
-
-              {!isDashboard && (
-                <button
-                  onClick={() => setMobileOpen(true)}
-                  className="
-                    flex h-11 w-11 items-center justify-center
-                    rounded-full
-                    border border-[#D7BE88]
-                    bg-white
-                    text-[#3F3328]
-                    shadow-sm
-                    xl:hidden
-                  "
-                  aria-label="פתח תפריט"
-                >
-                  <Menu size={25} />
-                </button>
-              )}
-            </div>
-
-            <div className="flex justify-center" dir="ltr">
+            {/* RTL start: logo */}
+            <div className="flex items-center justify-start" dir="ltr">
               <Link
                 href={logoHref}
-                aria-label="Invistimo Home"
+                aria-label="Invistimo — חזרה לדף הבית"
                 className="
                   flex items-center justify-center
                   cursor-pointer
@@ -265,108 +205,159 @@ export default function Header() {
                   decoding="async"
                   fetchPriority="low"
                   className="
-                    h-[52px] w-auto select-none
+                    h-[48px] w-auto select-none
                     drop-shadow-[0_6px_14px_rgba(158,116,42,0.14)]
-                    md:h-[60px]
+                    md:h-[56px]
                   "
                   draggable={false}
                 />
               </Link>
             </div>
 
-            <div className="hidden items-center justify-end gap-3 xl:flex">
-              <button
-                type="button"
-                onClick={openDemoChoice}
-                className="
-                  group inline-flex items-center gap-2
-                  whitespace-nowrap
-                  rounded-[13px]
-                  bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
-                  px-6 py-3
-                  text-[15px] font-extrabold
-                  text-white
-                  shadow-[0_12px_28px_rgba(184,134,45,0.22)]
-                  transition
-                  hover:-translate-y-0.5
-                  hover:shadow-[0_16px_34px_rgba(184,134,45,0.30)]
-                "
-                title="דמו – צפייה בלבד"
-              >
-                <Sparkles
-                  size={17}
-                  className="transition group-hover:rotate-12"
-                />
-                נסו דמו עכשיו
-              </button>
+            {/* Center / grow: desktop nav */}
+            <div className="hidden min-w-0 items-center justify-center xl:flex">
+              <DesktopMarketingNav pathname={pathname} />
+            </div>
 
-              {!loading &&
-                (user ? (
-                  <>
+            {/* RTL end: CTAs + mobile controls */}
+            <div className="flex items-center justify-end gap-2.5">
+              <div className="hidden items-center gap-2.5 xl:flex">
+                <button
+                  type="button"
+                  onClick={openDemoChoice}
+                  className="
+                    group inline-flex items-center gap-2
+                    whitespace-nowrap
+                    rounded-[13px]
+                    bg-[#2F261E]
+                    px-5 py-2.5
+                    text-[14px] font-extrabold
+                    text-[#FFFDF8]
+                    shadow-[0_10px_24px_rgba(47,38,30,0.16)]
+                    transition
+                    hover:-translate-y-0.5
+                    hover:bg-[#3F3328]
+                    hover:shadow-[0_14px_28px_rgba(47,38,30,0.2)]
+                  "
+                  title="דמו – צפייה בלבד"
+                >
+                  <Sparkles
+                    size={16}
+                    className="text-[#D8B15E] transition group-hover:rotate-12"
+                  />
+                  נסו דמו עכשיו
+                </button>
+
+                {!loading &&
+                  (user ? (
+                    <>
+                      <Link
+                        href={dashboardHref}
+                        className="
+                          whitespace-nowrap
+                          rounded-[13px]
+                          border border-[#C9A45C]/70
+                          bg-white
+                          px-5 py-2.5
+                          text-[14px] font-bold
+                          text-[#4A3A2A]
+                          transition
+                          hover:bg-[#F8EEDB]
+                          hover:text-[#B88A2D]
+                        "
+                      >
+                        לוח בקרה
+                      </Link>
+
+                      <button
+                        onClick={logout}
+                        className="
+                          whitespace-nowrap
+                          rounded-[13px]
+                          border border-[#D8C5A7]
+                          bg-white
+                          px-5 py-2.5
+                          text-[14px] font-bold
+                          text-[#4A3A2A]
+                          transition
+                          hover:bg-red-50
+                          hover:text-red-600
+                        "
+                      >
+                        התנתקות
+                      </button>
+                    </>
+                  ) : (
                     <Link
-                      href={dashboardHref}
+                      href="/login"
                       className="
+                        inline-flex items-center gap-2
                         whitespace-nowrap
                         rounded-[13px]
-                        border border-[#C9A45C]/70
+                        border border-[#C9A45C]/75
                         bg-white
-                        px-5 py-3
-                        text-[15px] font-bold
+                        px-5 py-2.5
+                        text-[14px] font-bold
                         text-[#4A3A2A]
                         transition
                         hover:bg-[#F8EEDB]
                         hover:text-[#B88A2D]
                       "
                     >
-                      לוח בקרה
+                      התחברות
+                      <UserRound size={17} className="text-[#B88A2D]" />
                     </Link>
+                  ))}
+              </div>
 
-                    <button
-                      onClick={logout}
-                      className="
-                        whitespace-nowrap
-                        rounded-[13px]
-                        border border-[#D8C5A7]
-                        bg-white
-                        px-5 py-3
-                        text-[15px] font-bold
-                        text-[#4A3A2A]
-                        transition
-                        hover:bg-red-50
-                        hover:text-red-600
-                      "
-                    >
-                      התנתקות
-                    </button>
-                  </>
-                ) : (
-                  <Link
-                    href="/login"
+              {!isDashboard && (
+                <>
+                  <button
+                    type="button"
+                    onClick={openDemoChoice}
                     className="
-                      inline-flex items-center gap-2
-                      whitespace-nowrap
-                      rounded-[13px]
-                      border border-[#C9A45C]/75
-                      bg-white
-                      px-6 py-3
-                      text-[15px] font-bold
-                      text-[#4A3A2A]
-                      transition
-                      hover:bg-[#F8EEDB]
-                      hover:text-[#B88A2D]
+                      inline-flex items-center gap-1.5
+                      rounded-[12px]
+                      bg-[#2F261E]
+                      px-3.5 py-2
+                      text-[13px] font-extrabold
+                      text-[#FFFDF8]
+                      xl:hidden
                     "
+                    title="דמו – צפייה בלבד"
                   >
-                    התחברות
-                    <UserRound size={18} className="text-[#B88A2D]" />
-                  </Link>
-                ))}
+                    <Sparkles size={14} className="text-[#D8B15E]" />
+                    דמו
+                  </button>
+
+                  <button
+                    onClick={() => setMobileOpen(true)}
+                    className="
+                      flex h-11 w-11 items-center justify-center
+                      rounded-full
+                      border border-[#D7BE88]
+                      bg-white
+                      text-[#3F3328]
+                      shadow-sm
+                      xl:hidden
+                    "
+                    aria-label="פתח תפריט"
+                    aria-expanded={mobileOpen}
+                    aria-controls="mobile-main-nav"
+                  >
+                    <Menu size={25} />
+                  </button>
+                </>
+              )}
             </div>
-          </div>
-        </div>
+          </div>        </div>
       </header>
 
       {!isDashboard && mobileOpen && (
-        <div className="fixed inset-0 z-[60] print:hidden xl:hidden">
+        <div
+          id="mobile-main-nav"
+          className="fixed inset-0 z-[60] print:hidden xl:hidden"
+        >
           <div
             className="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
             onClick={() => setMobileOpen(false)}
@@ -374,25 +365,25 @@ export default function Header() {
 
           <aside
             className="
-              absolute right-0 top-0 h-full w-[84%] max-w-sm
+              absolute right-0 top-0 h-full w-[88%] max-w-sm
+              overflow-y-auto
               border-l border-[#D9BE80]/70
               bg-[#FFFDF8]
               p-5
               shadow-[0_20px_70px_rgba(0,0,0,0.28)]
             "
             dir="rtl"
+            role="dialog"
+            aria-modal="true"
+            aria-label="תפריט ראשי"
           >
-            <div className="mb-7 flex items-center justify-between">
+            <div className="mb-6 flex items-center justify-between">
               <Link
                 href={logoHref}
                 onClick={() => setMobileOpen(false)}
-                className="
-                  flex items-center
-                  cursor-pointer
-                  transition
-                  hover:scale-[1.03]
-                "
+                className="flex items-center cursor-pointer transition hover:scale-[1.03]"
                 dir="ltr"
+                aria-label="Invistimo — חזרה לדף הבית"
               >
                 <img
                   src="/invistimo-logo.png"
@@ -421,28 +412,10 @@ export default function Header() {
               </button>
             </div>
 
-            <nav
-              aria-label="ניווט ראשי בנייד"
-              className="flex flex-col divide-y divide-[#E7D8BD] rounded-[22px] border border-[#E7D8BD] bg-white/70"
-            >
-              {navItems.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={() => setMobileOpen(false)}
-                  className={`
-                    px-5 py-4 text-[16px] font-bold transition
-                    ${
-                      isActive(item.href)
-                        ? "bg-[#F7EBD4] text-[#9A6E24]"
-                        : "text-[#4A3A2A] hover:bg-[#FAF3E7]"
-                    }
-                  `}
-                >
-                  {item.label}
-                </Link>
-              ))}
-            </nav>
+            <MobileMarketingNav
+              pathname={pathname}
+              onNavigate={() => setMobileOpen(false)}
+            />
 
             <div className="mt-6 flex flex-col gap-3">
               <button
@@ -451,15 +424,15 @@ export default function Header() {
                 className="
                   inline-flex w-full items-center justify-center gap-2
                   rounded-[16px]
-                  bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
+                  bg-[#2F261E]
                   px-6 py-4
                   text-[16px] font-extrabold
-                  text-white
-                  shadow-[0_12px_28px_rgba(184,134,45,0.28)]
+                  text-[#FFFDF8]
+                  shadow-[0_12px_28px_rgba(47,38,30,0.18)]
                 "
                 title="דמו – צפייה בלבד"
               >
-                <Sparkles size={18} />
+                <Sparkles size={18} className="text-[#D8B15E]" />
                 נסו דמו עכשיו
               </button>
 
@@ -545,6 +518,9 @@ export default function Header() {
               p-6
               shadow-[0_30px_90px_rgba(43,33,24,0.24)]
             "
+            role="dialog"
+            aria-modal="true"
+            aria-label="בחירת דמו"
           >
             <button
               type="button"
@@ -585,7 +561,8 @@ export default function Header() {
               </h2>
 
               <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-[#7A6A5E]">
-                אפשר לבחור בין מערכת אישורי הגעה והושבה לבין מערכת ניהול והפקת אירוע.
+                אפשר לבחור בין מערכת אישורי הגעה והושבה לבין מערכת ניהול והפקת
+                אירוע.
               </p>
             </div>
 
@@ -629,7 +606,7 @@ export default function Header() {
                 <div
                   className="
                     mt-5 inline-flex rounded-2xl
-                    bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
+                    bg-[#2F261E]
                     px-4 py-2
                     text-sm font-black text-white
                     transition
@@ -673,7 +650,8 @@ export default function Header() {
                 </h3>
 
                 <p className="mt-2 text-sm font-semibold leading-6 text-[#7A6A5E]">
-                  דמו לניהול ספקים, תקציב, יומן, לוגיסטיקה, אלכוהול ומתנות מהאירוע.
+                  דמו לניהול ספקים, תקציב, יומן, לוגיסטיקה, אלכוהול ומתנות
+                  מהאירוע.
                 </p>
 
                 <div
