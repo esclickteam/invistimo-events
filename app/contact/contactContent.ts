@@ -82,8 +82,8 @@ export const CONTACT_BREADCRUMBS = [
 ] as const;
 
 export const HERO_IMAGE = {
-  src: "/images/contact/hero-editorial.webp",
-  fallback: "/images/contact/hero-editorial.jpg",
+  src: "/images/contact/hero-rings.webp",
+  fallback: "/images/contact/hero-rings.jpg",
   alt: "ידיים של זוג עם טבעות על זר ורדים בגווני שמפניה — צילום editorial לחתונה",
   width: 720,
   height: 900,
