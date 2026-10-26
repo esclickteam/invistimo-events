@@ -1,247 +1,166 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
+import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import GuideToolbar from "@/components/marketing/guides/GuideToolbar";
 import InteractiveChecklist from "@/components/marketing/guides/InteractiveChecklist";
-import StickyToc from "@/components/marketing/guides/StickyToc";
+import StickyToc, { type TocItem } from "@/components/marketing/guides/StickyToc";
 import VendorCompareTable from "@/components/marketing/guides/VendorCompareTable";
-import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import { VENDOR_CONTRACT_FAQS } from "./guideFaqs";
 
 const PATH = "/info/guides/wedding-vendors-contracts";
-const H1 = "איך בוחרים ספקים לחתונה ומה חייבים לבדוק לפני שסוגרים?";
+const LEGAL_REVIEWED = "26 באוקטובר 2026";
 
 const ctaPrimary =
   "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3.5 text-base font-black text-white shadow-[0_18px_40px_rgba(58,39,20,0.22)] transition hover:-translate-y-0.5";
 const ctaSecondary =
   "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
 
-const TOC = [
-  { id: "which-first", label: "סדר סגירת ספקים" },
-  { id: "seven-checks", label: "7 בדיקות לפני סגירה" },
+const TOC: TocItem[] = [
+  { id: "which-first", label: "מאיזה ספק מתחילים" },
+  { id: "seven-checks", label: "שבע בדיקות" },
   { id: "compare-quotes", label: "השוואת הצעות" },
   { id: "read-contract", label: "קריאת החוזה" },
   { id: "deposit-vs-hold", label: "מקדמה מול שריון" },
   { id: "why-hold-fee", label: "למה גובים שריון" },
-  { id: "refunds", label: "החזרים" },
+  { id: "refunds", label: "החזרים וביטול" },
   { id: "cancel-policy", label: "מדיניות ביטול" },
-  { id: "fourteen-days", label: "14 יום — מתי כן" },
+  { id: "fourteen-days", label: "ביטול תוך 14 יום" },
   { id: "vendor-cancels", label: "כשהספק מבטל" },
   { id: "postpone-vs-cancel", label: "דחייה מול ביטול" },
-  { id: "force-majeure", label: "כוח עליון" },
+  { id: "force-majeure", label: "מצב חירום" },
   { id: "by-vendor-type", label: "לפי סוג ספק" },
-  { id: "questions-before-pay", label: "15 שאלות לפני תשלום" },
+  { id: "questions-before-pay", label: "שאלות לפני תשלום" },
   { id: "keep-documents", label: "שמירת מסמכים" },
-  { id: "pre-sign-checklist", label: "צ׳ק־ליסט לפני חתימה" },
+  { id: "pre-sign-checklist", label: "צ׳קליסט לפני חתימה" },
   { id: "faq", label: "שאלות נפוצות" },
-] as const;
+];
 
-const VENDOR_ORDER = [
-  { step: "01", title: "תאריך ומקום", text: "אולם, גן או מתחם — כי בלי תאריך קשה לסגור את שאר הספקים." },
-  { step: "02", title: "צילום ווידאו", text: "צלמים טובים נתפסים מוקדם; בדקו מי מגיע בפועל ומה נמסר אחרי האירוע." },
-  { step: "03", title: "מוזיקה / DJ / להקה", text: "סגנון, שעות, ציוד ותיאום מול הגבלות הרעש של המקום." },
-  { step: "04", title: "איפור, שיער ושמלת כלה", text: "ניסיון, מועדי מדידות/חזרות, ותנאי שינוי או ביטול." },
-  { step: "05", title: "עיצוב ופרחים", text: "היקף העיצוב, התקנה ופירוק, ותיאום לוחות זמנים מול האולם." },
-  { step: "06", title: "שירותים דיגיטליים", text: "הזמנות, אישורי הגעה וניהול אורחים — אחרי שיש תאריך ורשימה מתגבשת." },
-] as const;
+const ORDER = [
+  "תקציב, מספר מוזמנים ואופי האירוע",
+  "אולם ותאריך",
+  "ספקים מרכזיים עם זמינות מוגבלת, כמו צלם ו־DJ",
+  "איפור, שיער, שמלה וחליפה",
+  "עיצוב, בר, אטרקציות ותוספות",
+  "הזמנות, אישורי הגעה, הושבה וניהול יום האירוע",
+];
 
-const SEVEN_CHECKS = [
+const SEVEN = [
   {
-    title: "היקף השירות",
-    text: "מה בדיוק כלול במחיר — שעות, אנשי צוות, ציוד, עריכה, התקנה — ומה נחשב תוספת בתשלום.",
-    examples: "צלם: מספר שעות וצלמים. DJ: ציוד ומשך נגינה. אולם: מה כלול במנה ובחבילה.",
+    title: "זהות העסק ומי נותן את השירות בפועל",
+    text: "ודאו שם עוסק, פרטי קשר, ומי יגיע ביום האירוע — לא רק מי מנהל את השיחה.",
   },
   {
-    title: "מי מבצע בפועל",
-    text: "שם האדם או הצוות שמגיעים לאירוע, לא רק שם המותג בפרסום.",
-    examples: "צלם שני, מאפרת מחליפה, DJ מחליף — האם מותר, ובאיזה תיאום.",
+    title: "תיק עבודות רלוונטי ועדכני",
+    text: "בקשו לראות עבודות מאירועים מלאים, לא רק Highlights קצרים.",
   },
   {
-    title: "זמינות בתאריך",
-    text: "אישור בכתב שהתאריך שמור, כולל שעת התחלה וסיום אם רלוונטי.",
-    examples: "אולם: אולם/גן ספציפי. צלם: חפיפה עם אירוע אחר באותו יום.",
+    title: "ביקורות והמלצות אמינות",
+    text: "הצליבו מקורות שונים ושאלו זוגות על עמידה בזמנים ובחוזה.",
   },
   {
-    title: "תנאי תשלום",
-    text: "מקדמה או דמי שריון, יתרות, אמצעי תשלום ומועדים — בכתב.",
-    examples: "30% בחתימה? יתרה שבוע לפני? קיזוז מקדמה מהמחיר הכולל?",
+    title: "זמינות בתאריך ובשעות הנדרשות",
+    text: "אשרו בכתב את שעות ההגעה, ההתחלה והסיום.",
   },
   {
-    title: "ביטול ודחייה",
-    text: "מה קורה אם אתם מבטלים, אם הספק מבטל, או אם דוחים תאריך.",
-    examples: "החזר חלקי לפי מועד, העברת תשלום לתאריך חדש, או קיזוז לפי ההסכם.",
+    title: "מה כלול ומה לא כלול בהצעה",
+    text: "שעות, אנשי צוות, ציוד, עריכה, נסיעות, מע״מ ותוספות.",
   },
   {
-    title: "גיבוי ותוכנית חלופית",
-    text: "מה קורה במחלה, תקלה טכנית או מניעה של הספק.",
-    examples: "צלם מחליף, ציוד כפול, ספק גיבוי שאושר מראש.",
+    title: "תוכנית גיבוי למקרה של תקלה או היעדרות",
+    text: "ציוד חלופי, מחליף מוסכם, ומי מחליט על ההחלפה.",
   },
   {
-    title: "תוצרים ולוחות זמנים",
-    text: "מתי מקבלים טיוטות, גלריה, אלבום או התקנה — ומה נחשב סיום העסקה.",
-    examples: "מסירת תמונות תוך X שבועות; התקנת עיצוב בבוקר האירוע.",
+    title: "חוזה ברור ומדיניות ביטול",
+    text: "לפני מקדמה — קראו מה קורה אם אתם מבטלים או אם הספק מבטל.",
   },
-] as const;
+];
 
 const CONTRACT_CLAUSES = [
-  "זהות הצדדים ותיאור השירות המדויק",
-  "מחיר כולל, מה כלול ומה בתוספת",
-  "מועדי תשלום: מקדמה / דמי שריון / יתרות",
-  "מדיניות ביטול מצד הלקוח ומצד הספק",
-  "דחיית תאריך והעברת תשלומים",
-  "מי מגיע בפועל ותנאי החלפת צוות",
-  "אחריות, ביטוח וגיבוי (כשרלוונטי)",
-  "מועדי מסירת תוצרים וזכויות שימוש",
-  "אופן הודעות (מייל / וואטסאפ / דואר)",
-  "סמכות שיפוט / בוררות — אם מופיע בהסכם",
-] as const;
+  "שם ופרטי הצדדים",
+  "תאריך ומקום האירוע",
+  "תיאור השירות המדויק",
+  "מי נותן את השירות בפועל",
+  "שעות התחלה וסיום",
+  "מחיר סופי כולל מסים רלוונטיים",
+  "תוספות אפשריות",
+  "לוח תשלומים",
+  "דמי שריון ומקדמות",
+  "תנאי ביטול",
+  "תנאי דחיית תאריך",
+  "מה קורה אם הספק מבטל",
+  "מחלה או היעדרות",
+  "החלפת איש מקצוע",
+  "תקלות וציוד גיבוי",
+  "מועדי מסירת תוצרים",
+  "אחריות במקרה של הפרה",
+  "תנאים לאירועים חריגים",
+  "דרך מסירת הודעות ותיעוד שינויים",
+];
 
-const DEPOSIT_COMPARE = [
-  {
-    label: "מקדמה",
-    points: [
-      "בדרך כלל חלק ממחיר העסקה",
-      "לעיתים מתקזזת מהסכום הסופי",
-      "השם לבדו אינו קובע אם יש החזר",
-      "המשמעות בפועל — לפי ההסכם והדין",
-    ],
-  },
-  {
-    label: "דמי שריון / שמירת תאריך",
-    points: [
-      "לעיתים מתוארים כתשלום על שמירת זמינות",
-      "לא תמיד מוצגים כחלק ממחיר השירות",
-      "ייתכן קיזוז או אי־קיזוז — לפי הנוסח",
-      "אין להניח מראש «לא ניתן להחזר בכל מקרה»",
-    ],
-  },
-] as const;
-
-const CANCEL_TIERS_EXAMPLE = [
-  { window: "יותר מ־90 יום לפני", outcome: "החזר חלקי גבוה / קיזוז נמוך — לפי ההסכם" },
-  { window: "60–90 יום לפני", outcome: "החזר חלקי בינוני או קיזוז מקדמה" },
-  { window: "30–60 יום לפני", outcome: "החזר נמוך יותר / ייתכן קיזוז משמעותי" },
-  { window: "פחות מ־30 יום", outcome: "לעיתים ללא החזר לפי ההסכם — בכפוף לדין" },
-] as const;
-
-const QUESTIONS_BEFORE_PAY = [
-  "מה בדיוק כלול במחיר שצוין בהצעה?",
-  "מהן התוספות הנפוצות וכמה הן עולות?",
-  "מי מגיע בפועל לאירוע — שם מלא?",
-  "האם התאריך מאושר בכתב ורק אחרי תשלום?",
-  "התשלום הראשון הוא מקדמה או דמי שריון — ומה ההבדל אצלכם?",
-  "האם התשלום הראשון מתקזז מהמחיר הכולל?",
-  "מה קורה אם אנחנו מבטלים — לפי מועדים?",
-  "מה קורה אם אתם מבטלים או לא יכולים לספק?",
-  "האם אפשר לדחות תאריך, ובאילו תנאים?",
-  "יש גיבוי לציוד / צוות מחליף?",
+const BEFORE_PAY = [
+  "מה בדיוק כלול במחיר?",
+  "האם המחיר כולל מע״מ אם חל?",
+  "מי נותן את השירות בפועל?",
+  "האם התאריך שמור באופן מחייב?",
+  "האם המקדמה מתקזזת מהמחיר?",
+  "מה המשמעות של דמי השריון?",
+  "מה קורה אם אנחנו מבטלים?",
+  "מה קורה אם הספק מבטל?",
+  "האם אפשר לדחות תאריך?",
+  "האם יש דמי שינוי?",
+  "האם יש שעות נוספות?",
+  "האם יש עלויות נסיעה או ציוד?",
+  "האם יש תוכנית גיבוי?",
   "מתי משלמים את היתרה?",
-  "מתי מקבלים תוצרים (תמונות, עיצוב, וכו׳)?",
-  "איך מתעדים שינויים להסכם אחרי החתימה?",
-  "מה פרטי החשבונית / הקבלה?",
-  "למי פונים במחלוקת או בשאלה דחופה?",
-] as const;
+  "האם נקבל חוזה וקבלה או חשבונית לפי הדין?",
+];
 
-const PRE_SIGN_ITEMS = [
-  "קראתי את ההסכם המלא לפני תשלום ראשון",
-  "השוויתי לפחות שתי הצעות לפי היקף — לא רק מחיר",
-  "רשמתי מה כלול ומה בתוספת",
-  "וידאתי מי מגיע בפועל לאירוע",
-  "הבנתי אם התשלום הוא מקדמה או דמי שריון לפי הנוסח",
-  "בדקתי סעיפי ביטול, דחייה והחזר",
-  "בדקתי מה קורה אם הספק מבטל",
-  "יש לי עותק חתום / נספחים במייל או בתיקייה",
-  "שמרתי קבלה או אסמכתא לתשלום",
-  "לא הסתמכתי על הבטחה בעל פה שלא מופיעה בכתב",
-] as const;
-
-const VENDOR_TYPES = [
-  {
-    title: "אולם / גן",
-    items: [
-      "מינימום מנות, מחיר למנה, רזרבות",
-      "מה כלול בחבילה (בר, הגברה, עיצוב בסיסי)",
-      "מועד מסירת מספר סופי",
-      "ביטול/דחייה ותשלומים",
-    ],
-    href: "/info/guides/wedding-venue-guest-guarantee",
-    linkLabel: "מדריך התחייבות לאולם",
-  },
-  {
-    title: "צלם / וידאו",
-    items: ["שעות וצוות", "זכויות שימוש", "מועד מסירה", "גיבוי וצלם מחליף"],
-  },
-  {
-    title: "DJ / מוזיקה",
-    items: ["משך נגינה", "ציוד", "הגבלות אולם", "תוספת שעה"],
-  },
-  {
-    title: "איפור ושיער",
-    items: ["ניסיון / חזרה", "שעת הגעה", "צוות מחליף", "ביטול קרוב לאירוע"],
-  },
-  {
-    title: "שמלת כלה",
-    items: ["מדידות", "תיקונים", "מקדמה מול יתרה", "מדיניות החזרה/החלפה לפי החנות"],
-  },
-  {
-    title: "עיצוב ופרחים",
-    items: ["תוכנית עיצוב", "התקנה ופירוק", "שינויים במחיר", "תיאום מול אולם"],
-  },
-  {
-    title: "שירותים דיגיטליים",
-    items: [
-      "מה כלול בחבילה (הזמנות, RSVP, הושבה)",
-      "תנאי שימוש וביטול של אותו ספק",
-      "אל תניחו שתנאי ספק אחד = «סטנדרט השוק»",
-    ],
-  },
-] as const;
+const PRE_SIGN = [
+  "בדקנו המלצות",
+  "ראינו עבודות מלאות",
+  "קיבלנו הצעת מחיר בכתב",
+  "בדקנו מה כלול",
+  "בדקנו תוספות",
+  "ביררנו מי מגיע בפועל",
+  "קראנו את החוזה",
+  "הבנו את המקדמה",
+  "הבנו את דמי השריון",
+  "בדקנו ביטול",
+  "בדקנו דחייה",
+  "בדקנו ביטול מצד הספק",
+  "ביררנו תוכנית גיבוי",
+  "בדקנו מועדי תשלום",
+  "שמרנו עותק של כל המסמכים",
+];
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="text-sm font-black tracking-[0.14em] text-[#7A5530]">{children}</p>
-  );
+  return <p className="text-sm font-black tracking-[0.14em] text-[#7A5530]">{children}</p>;
 }
 
-function LegalNote({ className = "" }: { className?: string }) {
+function Prose({ children }: { children: React.ReactNode }) {
+  return <div className="mt-6 space-y-5 text-base leading-8 text-[#5C4A3A] md:text-lg">{children}</div>;
+}
+
+function LegalNote() {
   return (
-    <aside
-      role="note"
-      className={`rounded-[22px] border border-[#E7D3B0] bg-[#FFF8EA] px-5 py-4 text-sm leading-7 text-[#5C4A3A] ${className}`}
-    >
-      <p className="font-bold text-[#2C241C]">
+    <aside className="rounded-[24px] border border-[#E6D2AA] bg-[#FFF8EA] px-5 py-4 text-sm leading-7 text-[#5C4A3A]">
+      <p className="font-black text-[#2C241C]">הבהרה משפטית</p>
+      <p className="mt-2">
         המדריך הוא מידע כללי בלבד ואינו תחליף לייעוץ משפטי פרטני. הדין עשוי להשתנות; בדקו מקורות
-        רשמיים.
+        רשמיים. מועד בדיקת המידע המשפטי בעמוד זה: {LEGAL_REVIEWED} (Asia/Jerusalem).
       </p>
-      <p className="mt-2 text-[#7A6042]">תאריך סקירה משפטית־כללית: 26 באוקטובר 2026 (Asia/Jerusalem).</p>
     </aside>
   );
 }
 
-function SectionShell({
-  id,
-  eyebrow,
-  title,
-  children,
-  tone = "cream",
-}: {
-  id: string;
-  eyebrow: string;
-  title: string;
-  children: React.ReactNode;
-  tone?: "cream" | "paper";
-}) {
-  const bg = tone === "cream" ? "bg-[#FBF6EE]" : "bg-[#FFFDF8]";
+function SectionImage({ src, alt }: { src: string; alt: string }) {
   return (
-    <section id={id} aria-labelledby={`${id}-title`} className={`scroll-mt-28 ${bg} px-0 py-12 md:py-16`}>
-      <Eyebrow>{eyebrow}</Eyebrow>
-      <h2 id={`${id}-title`} className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
-        {title}
-      </h2>
-      <div className="mt-6 space-y-5 text-base leading-8 text-[#5C4A3A] md:text-lg">{children}</div>
-    </section>
+    <figure className="my-10 overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#FFFDF8] shadow-[0_20px_50px_rgba(58,39,20,0.08)]">
+      <Image src={src} alt={alt} width={1400} height={800} className="h-auto w-full object-cover" sizes="(max-width:1024px) 100vw, 720px" />
+    </figure>
   );
 }
 
@@ -255,699 +174,496 @@ export default function WeddingVendorsGuide() {
           className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_18%_12%,rgba(201,164,92,0.22),transparent_42%),radial-gradient(circle_at_88%_8%,rgba(232,214,180,0.55),transparent_40%),linear-gradient(180deg,#FFFDF8_0%,#F7EFE0_48%,#FBF6EE_100%)]"
           aria-hidden
         />
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-10 pt-6 md:gap-12 md:px-8 md:pb-14 md:pt-8 lg:grid-cols-[1.08fr_0.92fr]">
-          <div>
-            <p className="text-sm font-black tracking-[0.12em] text-[#7A5530]">מדריך · Invistimo</p>
-            <p className="mt-3 text-sm font-black tracking-[0.08em] text-[#8A642E]">
-              בוחרים נכון. חותמים בביטחון.
-            </p>
-            <h1 className="mt-3 max-w-2xl text-[1.85rem] font-black leading-[1.18] tracking-[-0.03em] text-[#2C241C] md:text-[2.55rem]">
-              {H1}
-            </h1>
-            <div className="mt-5 max-w-xl space-y-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
-              <p>
-                בחירת ספקים לחתונה היא לא רק «מי הכי יפה באינסטגרם» — זו סדרת החלטות על כסף, תאריך
-                והתחייבויות כתובות.
-              </p>
-              <p>
-                במדריך תמצאו סדר סגירה מומלץ, איך משווים הצעות בלי ליפול במחיר הנמוך בלבד, מה לבדוק
-                לפני מקדמה, ומה ההבדל בין מקדמה לדמי שריון — בשפה זהירה, בלי הבטחות משפטיות.
-              </p>
-              <p>
-                גם תנאי ביטול, דחייה והחזר משתנים בין ספקים. המטרה כאן: לעזור לכם לשאול שאלות נכונות
-                ולשמור מסמכים — לפני שסוגרים.
-              </p>
-            </div>
-            <div className="mt-6">
-              <GuideToolbar title={H1} path={PATH} readingMinutes={30} />
-            </div>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <TrackedCtaLink href="#compare-quotes" className={ctaPrimary} location={`hero_compare:${PATH}`}>
-                להשוואת הצעות מחיר
-              </TrackedCtaLink>
-              <TrackedCtaLink
-                href="#pre-sign-checklist"
-                className={ctaSecondary}
-                location={`hero_checklist:${PATH}`}
-              >
-                לצ׳ק־ליסט לפני חתימה
-              </TrackedCtaLink>
-            </div>
+        <div className="mx-auto max-w-6xl px-5 pb-8 pt-6 md:px-8 md:pt-8">
+          <p className="text-sm font-semibold text-[#7A6042]">
+            <Link href="/" className="hover:text-[#8A642E]">ראשי</Link>
+            <span className="px-1.5 text-[#C7A56B]">/</span>
+            <Link href="/info/guides" className="hover:text-[#8A642E]">מדריכים</Link>
+            <span className="px-1.5 text-[#C7A56B]">/</span>
+            ספקים וחוזים
+          </p>
+          <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+            <p className="text-sm font-black tracking-[0.12em] text-[#7A5530]">בוחרים נכון. חותמים בביטחון.</p>
+            <GuideToolbar title="מדריך ספקים וחוזים לחתונה | Invistimo" path={PATH} readingMinutes={30} />
           </div>
-
-          <div className="relative">
-            <figure className="overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#FFFDF8] shadow-[0_28px_70px_rgba(58,39,20,0.12)]">
+          <h1 className="mt-4 max-w-4xl text-[1.85rem] font-black leading-[1.18] tracking-[-0.03em] text-[#2C241C] md:text-[2.55rem]">
+            איך בוחרים ספקים לחתונה ומה חייבים לבדוק לפני שסוגרים?
+          </h1>
+          <div className="mt-5 max-w-3xl space-y-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
+            <p>
+              בחירת ספקים היא אחד השלבים המשמעותיים בתכנון חתונה. הצלם יתעד את הרגעים, התקליטן ילווה
+              את הרחבה, המאפרת תהיה חלק מההתארגנות והאולם יארח את האנשים החשובים לכם.
+            </p>
+            <p>
+              אבל מעבר לסגנון, למחיר ולכימיה האישית, יש עוד דבר שחשוב להבין: מה בדיוק אתם רוכשים, מה
+              כלול בשירות, מה קורה אם התוכניות משתנות ואילו התחייבויות נוצרות כשחותמים על הסכם.
+            </p>
+            <p>
+              המדריך הזה יעזור לכם להשוות הצעות, לשאול את השאלות הנכונות ולהבין חוזים, מקדמות, דמי
+              שריון ומדיניות ביטול לפני שמתחייבים.
+            </p>
+          </div>
+          <div className="mt-6 max-w-3xl">
+            <LegalNote />
+          </div>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <TrackedCtaLink href="#vendor-compare" className={ctaPrimary} location={`hero_compare:${PATH}`}>
+              לטבלת השוואת ספקים
+            </TrackedCtaLink>
+            <TrackedCtaLink
+              href="/info/guides/wedding-planning"
+              className={ctaSecondary}
+              location={`hero_planning:${PATH}`}
+            >
+              למדריך תכנון החתונה
+            </TrackedCtaLink>
+          </div>
+        </div>
+        <div className="relative mt-4 w-full">
+          {!reduce ? (
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden border-y border-[#E6D2AA]">
               <Image
                 src="/images/rsvp/guides/wedding-vendors/contract.jpg"
-                alt="מסמכים ועט על שולחן — המחשה לקריאת חוזה לפני חתימה עם ספק חתונה"
-                width={1280}
-                height={860}
-                className="h-auto w-full object-cover"
+                alt="מסמכים ועט על שולחן — המחשה לבדיקת חוזה לפני חתימה"
+                width={1920}
+                height={900}
                 priority
-                sizes="(max-width:1024px) 100vw, 46vw"
+                className="h-[38vw] max-h-[480px] min-h-[200px] w-full object-cover"
+                sizes="100vw"
               />
-            </figure>
-            {!reduce ? (
-              <motion.p
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="mt-4 text-center text-sm font-semibold text-[#7A6042]"
-              >
-                קוראים לפני שמקדמים — לא אחרי
-              </motion.p>
-            ) : (
-              <p className="mt-4 text-center text-sm font-semibold text-[#7A6042]">
-                קוראים לפני שמקדמים — לא אחרי
-              </p>
-            )}
-          </div>
+            </motion.div>
+          ) : (
+            <div className="overflow-hidden border-y border-[#E6D2AA]">
+              <Image
+                src="/images/rsvp/guides/wedding-vendors/contract.jpg"
+                alt="מסמכים ועט על שולחן — המחשה לבדיקת חוזה לפני חתימה"
+                width={1920}
+                height={900}
+                priority
+                className="h-[38vw] max-h-[480px] min-h-[200px] w-full object-cover"
+                sizes="100vw"
+              />
+            </div>
+          )}
         </div>
       </header>
 
-      <div className="mx-auto max-w-6xl px-5 md:px-8">
-        <LegalNote className="mb-4" />
-        <div className="grid gap-10 lg:grid-cols-[minmax(0,15.5rem)_minmax(0,1fr)] lg:items-start">
-          <StickyToc items={[...TOC]} title="במדריך" />
+      <div className="mx-auto grid max-w-6xl gap-10 px-5 py-12 md:px-8 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-12 lg:py-16">
+        <StickyToc items={TOC} />
+        <div className="min-w-0 space-y-16 md:space-y-20">
+          <section id="which-first" className="scroll-mt-24">
+            <Eyebrow>פרק 1</Eyebrow>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              איזה ספקים כדאי לסגור קודם לחתונה?
+            </h2>
+            <Prose>
+              <p>הסדר המומלץ גמיש, אך עוזר למנוע מצב שבו סוגרים תוספות לפני שיש תאריך ומסגרת תקציב.</p>
+            </Prose>
+            <ol className="mt-6 space-y-2">
+              {ORDER.map((item, i) => (
+                <li key={item} className="flex gap-3 rounded-2xl border border-[#EADDC8] bg-[#FFFDF8] px-4 py-3 text-sm font-semibold md:text-base">
+                  <span className="font-black text-[#C7A56B]">{i + 1}.</span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ol>
+            <p className="mt-5 text-base leading-8 text-[#5C4A3A] md:text-lg">
+              ספק שחשוב במיוחד לזוג עשוי לקבל קדימות. לרצף התכנון המלא ראו את{" "}
+              <Link href="/info/guides/wedding-planning" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                מדריך תכנון החתונה
+              </Link>
+              .
+            </p>
+          </section>
 
-          <div className="min-w-0">
-            {/* 1 which-first */}
-            <SectionShell id="which-first" eyebrow="סדר עבודה" title="באיזה סדר סוגרים ספקים?" tone="paper">
+          <section id="seven-checks" className="scroll-mt-24">
+            <Eyebrow>פרק 2</Eyebrow>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              שבע בדיקות שכדאי לבצע לפני שסוגרים ספק לחתונה
+            </h2>
+            <div className="mt-8 grid gap-4">
+              {SEVEN.map((item, i) => (
+                <div key={item.title} className="rounded-[24px] border border-[#E6D2AA] bg-[#FFFDF8] p-5">
+                  <p className="text-sm font-black text-[#8A642E]">בדיקה {i + 1}</p>
+                  <h3 className="mt-1 text-lg font-black text-[#2C241C]">{item.title}</h3>
+                  <p className="mt-2 text-base leading-7 text-[#5C4A3A]">{item.text}</p>
+                </div>
+              ))}
+            </div>
+            <Prose>
               <p>
-                רוב הזוגות מתחילים במקום ובתאריך — כי בלי נקודת עיגון קשה לסגור צילום, מוזיקה ועיצוב.
-                אחרי שהתאריך ברור, סוגרים את הספקים שהזמינות שלהם מוגבלת, ורק אז משלימים שירותים
-                דיגיטליים ותוספות.
+                <strong className="font-black text-[#2C241C]">דוגמאות לפי סוג:</strong> בצלם — מי
+                מצלם בפועל וכמה שעות. ב־DJ — האם התקליטן בהצעה הוא מי שמגיע. באולם — התחייבות מנות
+                ורזרבות. באיפור — האם הניסיון נעשה עם אותו איש מקצוע.
               </p>
-              <ol className="grid gap-3 sm:grid-cols-2">
-                {VENDOR_ORDER.map((item) => (
-                  <li
-                    key={item.step}
-                    className="rounded-[22px] border border-[#E7D3B0] bg-[#FBF6EE] px-5 py-5"
-                  >
-                    <p className="text-xs font-black tracking-[0.14em] text-[#8A642E]">{item.step}</p>
-                    <p className="mt-2 text-lg font-black text-[#2C241C]">{item.title}</p>
-                    <p className="mt-2 text-sm leading-7 text-[#5C4A3A]">{item.text}</p>
-                  </li>
-                ))}
-              </ol>
-              <p>
-                לפירוט לוחות זמנים ותכנון כללי ראו את{" "}
-                <Link
-                  href="/info/guides/wedding-planning"
-                  className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
-                >
-                  מדריך תכנון החתונה
-                </Link>
-                .
-              </p>
-              <div className="pt-2">
-                <TrackedCtaLink
-                  href="/info/guides/wedding-planning"
-                  className={ctaSecondary}
-                  location={`planning:${PATH}`}
-                >
-                  למדריך תכנון חתונה
-                </TrackedCtaLink>
-              </div>
-            </SectionShell>
+            </Prose>
+            <SectionImage src="/images/rsvp/guides/wedding-vendors/photographer.jpg" alt="צלם בעבודה באירוע" />
+          </section>
 
-            {/* 2 seven-checks */}
-            <SectionShell
-              id="seven-checks"
-              eyebrow="לפני שסוגרים"
-              title="7 בדיקות שחוסכות כאב ראש"
-              tone="cream"
-            >
+          <section id="compare-quotes" className="scroll-mt-24">
+            <Eyebrow>פרק 3</Eyebrow>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              למה לא כדאי לבחור ספק רק לפי המחיר?
+            </h2>
+            <Prose>
               <p>
-                לפני שמשווים מחירים — ודאו שאתם משווים את אותו דבר. שבע הבדיקות האלה מתאימות כמעט לכל
-                סוג ספק, עם דוגמאות לפי תחום.
+                צלם א׳ מציע מחיר נמוך יותר אך כולל פחות שעות, פחות אנשי צוות וללא אלבום. צלם ב׳ מציע
+                מחיר גבוה יותר אך כולל שעות נוספות, צלם שני ומוצרים נוספים. ההשוואה צריכה להתייחס
+                להיקף השירות, איכות העבודה, תנאי המסירה, האחריות והעלות הכוללת.
               </p>
-              <ol className="space-y-4">
-                {SEVEN_CHECKS.map((check, i) => (
-                  <li
-                    key={check.title}
-                    className="rounded-[24px] border border-[#E7D3B0] bg-[#FFFDF8] px-5 py-5"
-                  >
-                    <div className="flex gap-4">
-                      <span className="text-sm font-black tracking-[0.12em] text-[#8A642E]">
-                        {String(i + 1).padStart(2, "0")}
-                      </span>
-                      <div>
-                        <h3 className="text-lg font-black text-[#2C241C]">{check.title}</h3>
-                        <p className="mt-2 text-[15px] leading-7 text-[#5C4A3A]">{check.text}</p>
-                        <p className="mt-3 rounded-2xl bg-[#FBF6EE] px-4 py-3 text-sm leading-7 text-[#7A6042]">
-                          <span className="font-bold text-[#5E4735]">דוגמאות: </span>
-                          {check.examples}
-                        </p>
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-              <figure className="overflow-hidden rounded-[28px] border border-[#E6D2AA]">
-                <Image
-                  src="/images/rsvp/guides/wedding-vendors/meeting.jpg"
-                  alt="פגישת תכנון — שיחה על הצעות מחיר ותיאום ציפיות עם ספק"
-                  width={1400}
-                  height={900}
-                  className="h-auto w-full object-cover"
-                  sizes="(max-width:1024px) 100vw, 720px"
-                />
-              </figure>
-            </SectionShell>
-
-            {/* 3 compare-quotes */}
-            <SectionShell
-              id="compare-quotes"
-              eyebrow="השוואה"
-              title="למה לא בוחרים רק לפי המחיר הנמוך?"
-              tone="paper"
-            >
-              <p>
-                הצעה זולה יותר עלולה לכלול פחות שעות, צוות קטן יותר, בלי עריכה, בלי גיבוי או עם תנאי
-                ביטול מחמירים. הצעה יקרה יותר עשויה לכלול תוצרים שאתם בכלל לא צריכים.
-              </p>
-              <p>
-                השוו לפי היקף השירות, תנאי תשלום וביטול, זמינות ומי מגיע בפועל. השתמשו בטבלה למטה —
-                אפשר גם להוריד תבנית CSV ריקה או את הטבלה שמילאתם.
-              </p>
+            </Prose>
+            <div className="mt-8">
               <VendorCompareTable />
-            </SectionShell>
+            </div>
+            <p className="mt-4 text-sm text-[#7A6042]">
+              תבנית CSV להורדה זמינה גם ב־
+              <a href="/downloads/guides/wedding-vendor-comparison.csv" download className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                /downloads/guides/wedding-vendor-comparison.csv
+              </a>
+              .
+            </p>
+          </section>
 
-            {/* 4 read-contract */}
-            <SectionShell
-              id="read-contract"
-              eyebrow="הסכם"
-              title="למה קוראים את החוזה לפני המקדמה?"
-              tone="cream"
-            >
-              <LegalNote />
+          <section id="read-contract" className="scroll-mt-24">
+            <Eyebrow>פרק 4</Eyebrow>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              למה חייבים לקרוא את החוזה לפני שמשלמים מקדמה?
+            </h2>
+            <Prose>
               <p>
-                תשלום ראשון יוצר מחויבות מעשית — ולעיתים גם חוזית — עוד לפני שהספקתם «לסגור בראש». לכן
-                עדיף לקרוא את המסמך המלא לפני ההעברה, לא אחרי.
+                החוזה הוא המסמך שמגדיר את ההתחייבויות של שני הצדדים: מה הספק מתחייב לספק, מה הלקוח
+                מתחייב לשלם, מתי השירות יינתן ומה קורה אם אחד הצדדים אינו יכול לקיים את ההסכם.
               </p>
-              <p className="font-bold text-[#2C241C]">סעיפים שכדאי לחפש בהסכם:</p>
-              <ul className="grid gap-2 sm:grid-cols-2">
-                {CONTRACT_CLAUSES.map((clause) => (
-                  <li
-                    key={clause}
-                    className="rounded-[18px] border border-[#E7D3B0] bg-[#FFFDF8] px-4 py-3 text-[15px] font-semibold leading-7 text-[#2C241C]"
-                  >
-                    {clause}
-                  </li>
-                ))}
-              </ul>
-              <p className="text-sm leading-7 text-[#7A6042]">
-                אם סעיף לא ברור — בקשו הבהרה בכתב לפני החתימה. אל תסתמכו על «ככה זה אצל כולם».
+              <p>
+                גם כאשר השיחה הייתה נעימה, חשוב שכל פרט מהותי יופיע בכתב. הבטחות בעל פה — כמו שעות
+                נוספות ללא תשלום או איש צוות מסוים — עלולות ליצור מחלוקת אם אינן מופיעות בהסכם.
               </p>
-            </SectionShell>
+            </Prose>
+            <h3 className="mt-8 text-xl font-black text-[#2C241C]">סעיפים שחשוב לבדוק</h3>
+            <ul className="mt-4 grid gap-2 sm:grid-cols-2">
+              {CONTRACT_CLAUSES.map((c) => (
+                <li key={c} className="rounded-2xl border border-[#EADDC8] bg-white px-4 py-3 text-sm font-semibold text-[#3F3025]">
+                  {c}
+                </li>
+              ))}
+            </ul>
+          </section>
 
-            {/* 5 deposit-vs-hold */}
-            <SectionShell
-              id="deposit-vs-hold"
-              eyebrow="תשלום ראשון"
-              title="מקדמה מול דמי שריון — מה ההבדל?"
-              tone="paper"
-            >
-              <LegalNote />
+          <section id="deposit-vs-hold" className="scroll-mt-24">
+            <Eyebrow>פרק 5</Eyebrow>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              מה ההבדל בין מקדמה לדמי שריון תאריך?
+            </h2>
+            <LegalNote />
+            <Prose>
+              <h3 className="text-xl font-black text-[#2C241C]">מקדמה</h3>
               <p>
-                בשיחות יומיומיות הזוגות והספקים משתמשים לפעמים באותן מילים למשמעויות שונות. מה שקובע
-                אינו הכותרת במסרון — אלא מה כתוב בהסכם, מהות התשלום והדין החל.
+                מקדמה היא בדרך כלל תשלום ראשון על חשבון המחיר הכולל. לדוגמה: מחיר צילום 8,000 ₪,
+                מקדמה 2,000 ₪ בחתימה, יתרה 6,000 ₪ לפי מועדי התשלום. בדקו האם המקדמה מקוזזת מהמחיר
+                הסופי ומה יקרה אם העסקה תבוטל.
               </p>
-              <div className="grid gap-4 md:grid-cols-2">
-                {DEPOSIT_COMPARE.map((col) => (
-                  <div
-                    key={col.label}
-                    className="rounded-[24px] border border-[#E7D3B0] bg-[#FBF6EE] px-5 py-5"
-                  >
-                    <h3 className="text-xl font-black text-[#2C241C]">{col.label}</h3>
-                    <ul className="mt-4 space-y-2.5">
-                      {col.points.map((p) => (
-                        <li key={p} className="text-[15px] leading-7 text-[#5C4A3A]">
-                          {p}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
-              </div>
-              <div className="overflow-x-auto rounded-[24px] border border-[#E7D3B0] bg-[#FFFDF8]">
-                <table className="w-full min-w-[520px] text-right text-[15px]">
-                  <caption className="sr-only">השוואה כללית בין מקדמה לדמי שריון</caption>
-                  <thead className="bg-[#F7EFE0] text-sm font-black text-[#5E4735]">
-                    <tr>
-                      <th scope="col" className="px-5 py-3">
-                        שאלה
-                      </th>
-                      <th scope="col" className="px-5 py-3">
-                        מקדמה (בדרך כלל)
-                      </th>
-                      <th scope="col" className="px-5 py-3">
-                        דמי שריון (לעיתים)
-                      </th>
+              <h3 className="text-xl font-black text-[#2C241C]">דמי שריון</h3>
+              <p>
+                דמי שריון עשויים להיות קשורים להתחייבות של הספק לשמור תאריך ולהימנע מהזמנות
+                מתנגשות. עצם השימוש במונח אינו קובע אוטומטית שהתשלום אינו ניתן להחזר. צריך לבדוק מה
+                הוסכם, מה התמורה, והאם חלה זכות ביטול לפי דין.
+              </p>
+            </Prose>
+            <div className="mt-6 overflow-x-auto rounded-[24px] border border-[#E6D2AA] bg-white">
+              <table className="min-w-[560px] w-full border-collapse text-sm md:text-base">
+                <caption className="sr-only">השוואה בין מקדמה לדמי שריון</caption>
+                <thead>
+                  <tr className="border-b border-[#E6D2AA] bg-[#FFF8EA] text-right text-[#7A5530]">
+                    <th className="px-4 py-3 font-black" scope="col">נושא</th>
+                    <th className="px-4 py-3 font-black" scope="col">מקדמה</th>
+                    <th className="px-4 py-3 font-black" scope="col">דמי שריון</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[
+                    ["מטרה נפוצה", "תשלום על חשבון השירות", "שמירת תאריך או זמינות"],
+                    ["קיזוז מהמחיר", "לפי ההסכם", "לפי ההסכם"],
+                    ["החזר במקרה ביטול", "לפי הדין וההסכם", "לפי הדין וההסכם"],
+                    ["מה חשוב לבדוק", "מועדי תשלום ותנאי השבה", "מה בדיוק נשמר ומה קורה בביטול"],
+                  ].map((row) => (
+                    <tr key={row[0]} className="border-b border-[#F0E4D0]">
+                      <th scope="row" className="px-4 py-3 text-right font-bold text-[#2C241C]">{row[0]}</th>
+                      <td className="px-4 py-3 text-[#5C4A3A]">{row[1]}</td>
+                      <td className="px-4 py-3 text-[#5C4A3A]">{row[2]}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      ["קשר למחיר הכולל", "מתקזזת מהמחיר", "ייתכן שלא תוצג כקיזוז"],
-                      ["מטרה מדוברת", "פתיחת עסקה", "שמירת תאריך/זמינות"],
-                      ["החזר בביטול", "לפי הסכם ודין — לא אוטומטי", "לפי הסכם ודין — לא אוטומטי"],
-                      ["מה לבדוק", "אחוז, מועד, קיזוז", "הגדרה בכתב + קיזוז/אי־קיזוז"],
-                    ].map((row) => (
-                      <tr key={row[0]} className="border-t border-[#EFE2CC]">
-                        <th scope="row" className="px-5 py-3.5 font-bold text-[#2C241C]">
-                          {row[0]}
-                        </th>
-                        <td className="px-5 py-3.5 text-[#5C4A3A]">{row[1]}</td>
-                        <td className="px-5 py-3.5 text-[#5C4A3A]">{row[2]}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-              <p className="text-sm leading-7 text-[#7A6042]">
-                הטבלה היא כלי התמצאות בלבד. אין בה קביעה שכל מקדמה או כל דמי שריון ניתנים או אינם
-                ניתנים להחזר.
-              </p>
-            </SectionShell>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
 
-            {/* 6 why-hold-fee */}
-            <SectionShell
-              id="why-hold-fee"
-              eyebrow="מבט עסקי"
-              title="למה בכלל גובים דמי שריון?"
-              tone="cream"
-            >
+          <section id="why-hold-fee" className="scroll-mt-24">
+            <Eyebrow>פרק 6</Eyebrow>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              למה ספק חתונות מבקש תשלום כדי לשמור תאריך?
+            </h2>
+            <Prose>
               <p>
-                מצד הספק, שמירת תאריך פירושה לעיתים להפסיק לשווק אותו לאחרים, לתאם צוות, ולהיערך
-                להוצאות מוקדמות. תשלום ראשוני מפחית סיכון עסקי כשהלקוח משנה תאריך או מבטל ברגע האחרון.
+                ספקי חתונות פועלים בענף שבו חלק גדול מהעבודה מתרכז בתאריכים מוגדרים. התחייבות לתאריך
+                עשויה לדחות הזמנות אחרות, לתכנן צוות ולהקדיש זמן להכנות. לכן דמי שריון עשויים לשקף
+                התחייבות אמיתית.
               </p>
               <p>
-                מצד הזוג, חשוב להבין שההסבר העסקי אינו זהה לקביעה משפטית על זכות ההחזר. גם אם ברור
-                למה הספק מבקש שריון — עדיין שואלים בכתב: האם מתקזז? מה קורה בביטול? מה קורה בדחייה?
+                עם זאת, חשוב להבחין בין הסבר עסקי לגביית התשלום לבין השאלה המשפטית אם מותר לספק
+                לשמור אותו לאחר ביטול. אלה אינן אותה שאלה.
               </p>
-              <figure className="overflow-hidden rounded-[28px] border border-[#E6D2AA]">
-                <Image
-                  src="/images/rsvp/guides/wedding-vendors/handshake.jpg"
-                  alt="לחיצת יד עסקית — המחשה להסכמה הדדית אחרי הבנת תנאי התשלום"
-                  width={1400}
-                  height={900}
-                  className="h-auto w-full object-cover"
-                  sizes="(max-width:1024px) 100vw, 720px"
-                />
-              </figure>
-            </SectionShell>
+            </Prose>
+            <SectionImage
+              src="/images/rsvp/guides/wedding-vendors/handshake.jpg"
+              alt="לחיצת יד עסקית — המחשה להסכמה אחרי הבנת תנאי שריון ומקדמה"
+            />
+          </section>
 
-            {/* 7 refunds */}
-            <SectionShell
-              id="refunds"
-              eyebrow="החזרים"
-              title="החזר כספי — לא תמיד, ולא אוטומטית"
-              tone="paper"
-            >
+          <section id="refunds" className="scroll-mt-24">
+            <Eyebrow>פרק 7</Eyebrow>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              האם דמי שריון או מקדמה חייבים להיות מוחזרים אם מבטלים חתונה?
+            </h2>
+            <div className="mt-6">
               <LegalNote />
+            </div>
+            <Prose>
               <p>
-                אין כלל שאומר שכל תשלום ראשון חוזר במלואו, ואין גם כלל שאומר ששום תשלום לא חוזר לעולם.
-                התוצאה תלויה בגורמים כמו מועד הביטול, מה כבר בוצע, נוסח ההסכם, סיבת הביטול והדין החל.
-              </p>
-              <p className="rounded-[22px] border border-[#E7D3B0] bg-[#FBF6EE] px-5 py-4 font-bold text-[#2C241C]">
-                אין כאן «מנצח» קבוע מראש בין הזוג לספק — ואין במדריך הבטחת תוצאה משפטית.
+                <strong className="font-black text-[#2C241C]">תשובה ישירה:</strong> לא תמיד. הזכאות
+                להחזר תלויה בסוג העסקה, בדרך שבה בוצעה, במועד הביטול, בתנאי ההסכם ובדין החל.
               </p>
               <p>
-                <span className="font-bold text-[#2C241C]">דוגמה להמחשה בלבד: </span>
-                זוג ביטל 70 יום לפני האירוע אחרי מקדמה שמתקזזת מהמחיר. לפי הסכם מסוים ייתכן החזר
-                חלקי; לפי הסכם אחר — קיזוז מלא של המקדמה. אותה סיטואציה, תוצאות שונות — לכן קוראים את
-                הנוסח שלכם.
+                לעיתים הספק כבר ביצע עבודה או איבד הזדמנות להזמנה חלופית. במקרים אחרים עשויה לעמוד
+                לצרכן זכות ביטול על פי חוק, או שתנאי בחוזה עשוי להיות נתון לביקורת משפטית. אין כלל
+                גורף שלפיו כל תשלום שהוגדר «שריון» או «מקדמה» הוא אוטומטית בלתי ניתן להחזר.
               </p>
-            </SectionShell>
+              <p>
+                <strong className="font-black text-[#2C241C]">דוגמה:</strong> זוג סגר צלם ושילם 1,500
+                ₪. כעבור חודשיים מבטל. כדי להבין אם הסכום יוחזר יש לבדוק מתי ואיך נכרת ההסכם, מה
+                נכתב על ביטול, כמה זמן נותר, האם בוצעה עבודה, האם קיימת זכות ביטול חוקית, האם הספק
+                יכול היה למלא את התאריך, והאם מדובר בפיצוי מוסכם שסבירותו עשויה להיבדק. לא נקבע כאן
+                מראש שהספק זכאי לכל הסכום או שהזוג זכאי להחזר מלא.
+              </p>
+            </Prose>
+          </section>
 
-            {/* 8 cancel-policy */}
-            <SectionShell
-              id="cancel-policy"
-              eyebrow="ביטול"
-              title="מה כוללת מדיניות ביטול טובה?"
-              tone="cream"
-            >
+          <section id="cancel-policy" className="scroll-mt-24">
+            <Eyebrow>פרק 8</Eyebrow>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              מה חייב להופיע במדיניות ביטול של ספק לחתונה?
+            </h2>
+            <div className="mt-6">
               <LegalNote />
+            </div>
+            <Prose>
               <p>
-                מדיניות ברורה חוסכת ויכוחים: מועדים, אחוזים או סכומים, דחייה מול ביטול, ומה קורה אם
-                הספק הוא זה שמבטל. אם ההסכם מעורפל — בקשו ניסוח מדויק לפני התשלום.
+                מדיניות ביטול טובה צריכה להיות ברורה עוד לפני התשלום: איך מודיעים על ביטול, מהו מועד
+                הביטול הקובע, אילו סכומים יוחזרו או עשויים להישאר, האם הדמים משתנים ככל שמתקרבים
+                לאירוע, האם ניתן לדחות תאריך, מה קורה אם התאריך החדש אינו פנוי, מה קורה אם הספק מבטל,
+                ומה קורה באירוע חריג.
               </p>
-              <p className="text-sm font-bold leading-7 text-[#8A642E]">
-                הטבלה הבאה היא דוגמת המחשה בלבד — לא תקן חוק, לא «מקובל בשוק», ולא המלצה לנוסח.
+              <p>
+                <strong className="font-black text-[#2C241C]">דוגמה להמחשה בלבד</strong> (לא דין
+                מחייב ולא תנאים סטנדרטיים): יותר מ־120 יום לפני האירוע — תנאי ביטול מסוימים; בין 60
+                ל־120 יום — תנאים אחרים; פחות מ־60 יום — דמי ביטול גבוהים יותר עשויים להיקבע בהסכם.
+                אלה דוגמאות למבנה חוזי אפשרי בלבד.
               </p>
-              <div className="overflow-x-auto rounded-[24px] border border-dashed border-[#C9A45C] bg-[#FFFDF8]">
-                <table className="w-full min-w-[480px] text-right text-[15px]">
-                  <caption className="px-5 py-3 text-right text-xs font-black tracking-[0.12em] text-[#8A642E]">
-                    דוגמת מדרגות להמחשה בלבד — לא דין ולא סטנדרט מחייב
-                  </caption>
-                  <thead className="bg-[#F7EFE0] text-sm font-black text-[#5E4735]">
-                    <tr>
-                      <th scope="col" className="px-5 py-3">
-                        חלון זמן (המחשה)
-                      </th>
-                      <th scope="col" className="px-5 py-3">
-                        תוצאה אפשרית בהסכם (המחשה)
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {CANCEL_TIERS_EXAMPLE.map((row) => (
-                      <tr key={row.window} className="border-t border-[#EFE2CC]">
-                        <td className="px-5 py-3.5 font-semibold text-[#2C241C]">{row.window}</td>
-                        <td className="px-5 py-3.5 text-[#5C4A3A]">{row.outcome}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </SectionShell>
+            </Prose>
+          </section>
 
-            {/* 9 fourteen-days */}
-            <SectionShell
-              id="fourteen-days"
-              eyebrow="זכויות צרכן"
-              title="האם תמיד אפשר לבטל תוך 14 יום?"
-              tone="paper"
-            >
-              <LegalNote />
+          <section id="fourteen-days" className="scroll-mt-24">
+            <Eyebrow>פרק 9</Eyebrow>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              האם אפשר לבטל ספק חתונה בתוך 14 ימים מהחתימה?
+            </h2>
+            <LegalNote />
+            <Prose>
               <p>
-                <span className="font-bold text-[#2C241C]">לא. </span>
-                אין כלל אוניברסלי של «14 יום לכל ספקי החתונה». זכות ביטול בעסקאות מרחוק
-                (אינטרנט/טלפון) קיימת במצבים מסוימים לפי דיני הגנת הצרכן — אך אינה חלה אוטומטית על כל
-                התקשרות שנעשתה בפגישה באולם או אצל הספק.
+                אין תשובה אחת לכל סוגי ספקי החתונות. יש הבדל בין עסקה שנעשתה בטלפון או באינטרנט לבין
+                עסקה שנעשתה בבית העסק. גם סוג השירות ומועד האירוע עשויים להשפיע.
               </p>
               <p>
-                גם כשמדובר בעסקה מרחוק, יש חריגים ותנאים. לגבי חוזי אולמות אירועים, מועצת הצרכנים
-                ציינה בהקשרים כלליים כי תקנות הביטול לא בהכרח חלות באותו אופן כמו על קניות מרחוק —
-                זו הנחיה כללית בלבד, לא פסיקה על המקרה שלכם.
+                כאשר קיימת זכות ביטול צרכנית על פי חוק, עשויים לחול כללים מוגדרים לגבי מועדים ודמי
+                ביטול. כאשר לא קיימת זכות ביטול סטטוטורית מתאימה, יש לבחון את ההסכם ואת דיני החוזים.
+                לגבי אולמות אירועים, פרסומים של גורמי צרכנות מדגישים לעיתים שתקנות ביטול עסקה מסוימות
+                אינן חלות באותו אופן — ולכן חשוב לקרוא את החוזה לפני החתימה.
               </p>
-              <ul className="space-y-2 text-[15px] leading-7">
+              <p>לא נכתב כאן שכל ספק חייב לאפשר ביטול תוך 14 יום, וגם לא שכל ספק פטור מהחזר ברגע ששולמה מקדמה.</p>
+              <p className="font-semibold">מקורות רשמיים ומעודכנים לבדיקה:</p>
+              <ul className="list-disc pr-5">
                 <li>
-                  <a
-                    href="https://www.gov.il/he/pages/returns"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
-                  >
-                    gov.il — מידע על החזרות וביטולים
+                  <a className="text-[#8A642E] underline-offset-4 hover:underline" href="https://www.gov.il/he/pages/returns" target="_blank" rel="noopener noreferrer">
+                    הרשות להגנת הצרכן ולסחר הוגן — ביטול עסקה
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="https://www.kolzchut.org.il/he/%D7%91%D7%99%D7%98%D7%95%D7%9C_%D7%A2%D7%A1%D7%A7%D7%94_%D7%A9%D7%A0%D7%A2%D7%A9%D7%AA%D7%94_%D7%91%D7%90%D7%99%D7%A0%D7%98%D7%A8%D7%A0%D7%98_%D7%90%D7%95_%D7%91%D7%98%D7%9C%D7%A4%D7%95%D7%9F"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
-                  >
-                    כל־זכות — ביטול עסקה שנעשתה באינטרנט או בטלפון
+                  <a className="text-[#8A642E] underline-offset-4 hover:underline" href="https://www.kolzchut.org.il/he/%D7%91%D7%99%D7%98%D7%95%D7%9C_%D7%A2%D7%A1%D7%A7%D7%94_%D7%A9%D7%A0%D7%A2%D7%A9%D7%AA%D7%94_%D7%91%D7%90%D7%99%D7%A0%D7%98%D7%A8%D7%A0%D7%98_%D7%90%D7%95_%D7%91%D7%98%D7%9C%D7%A4%D7%95%D7%9F" target="_blank" rel="noopener noreferrer">
+                    כל־זכות — ביטול עסקה באינטרנט או בטלפון
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="https://www.consumers.org.il/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
-                  >
-                    מועצת הצרכנים — מידע כללי לצרכנים
+                  <a className="text-[#8A642E] underline-offset-4 hover:underline" href="https://www.consumers.org.il/" target="_blank" rel="noopener noreferrer">
+                    המועצה הישראלית לצרכנות
                   </a>
                 </li>
               </ul>
-            </SectionShell>
+            </Prose>
+          </section>
 
-            {/* 10 vendor-cancels */}
-            <SectionShell
-              id="vendor-cancels"
-              eyebrow="מצד הספק"
-              title="מה אם הספק מבטל?"
-              tone="cream"
-            >
+          <section id="vendor-cancels" className="scroll-mt-24">
+            <Eyebrow>פרק 10</Eyebrow>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              מה עושים אם צלם, DJ או ספק אחר מבטל לפני החתונה?
+            </h2>
+            <Prose>
               <p>
-                הסכם טוב מגדיר גם את המסלול ההפוך: הספק לא יכול לספק. האפשרויות הנפוצות בהסכמים כוללות
-                החזר תשלומים, הצעת ספק מחליף בתיאום, או שילוב של השניים — אך אין תוצאה אחידה לכל
-                המקרים.
+                פנו לספק בכתב, בדקו את ההסכם ואת סיבת הביטול, בדקו חלופה מוצעת, אל תסכימו אוטומטית
+                למחליף שלא מתאים, תעדו הוצאות ונזקים, ובררו זכאות להחזר או לסעד אחר. במחלוקת
+                משמעותית — ייעוץ משפטי.
               </p>
               <p>
-                בקשו הודעת ביטול בכתב, שמרו תיעוד, ואל תמהרו לשלם לספק מחליף לפני שברור מה קורה עם
-                התשלומים הקודמים. במחלוקת מהותית — ייעוץ פרטני עדיף על הנחות מהרשת.
+                שאלות להכניס מראש לחוזה: מי אחראי למצוא מחליף? האם נדרש אישור הזוג? מי נושא בהפרש
+                המחיר?
               </p>
-              <figure className="overflow-hidden rounded-[28px] border border-[#E6D2AA]">
-                <Image
-                  src="/images/rsvp/guides/wedding-vendors/photographer.jpg"
-                  alt="צלם בעבודה באירוע — המחשה לחשיבות גיבוי וצוות מחליף"
-                  width={1400}
-                  height={900}
-                  className="h-auto w-full object-cover"
-                  sizes="(max-width:1024px) 100vw, 720px"
-                />
-              </figure>
-            </SectionShell>
+            </Prose>
+            <SectionImage src="/images/rsvp/guides/wedding-vendors/dj.jpg" alt="אווירת מוזיקה ותקליטן באירוע" />
+          </section>
 
-            {/* 11 postpone-vs-cancel */}
-            <SectionShell
-              id="postpone-vs-cancel"
-              eyebrow="שינוי תאריך"
-              title="לדחות או לבטל — מה בודקים קודם?"
-              tone="paper"
-            >
+          <section id="postpone-vs-cancel" className="scroll-mt-24">
+            <Eyebrow>פרק 11</Eyebrow>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              מה ההבדל בין ביטול חתונה לדחיית תאריך?
+            </h2>
+            <Prose>
               <p>
-                דחייה שומרת לעיתים על חלק מהתשלומים ועל הקשר עם הספק — אם יש תאריך חלופי פנוי. ביטול
-                מפעיל את סעיפי ההחזר או הקיזוז. לפעמים דחייה יקרה פחות מביטול; לפעמים אין תאריך פנוי
-                והביטול הוא האפשרות היחידה.
+                דחיית אירוע אינה בהכרח ביטול, אך יכולה להשפיע על זמינות הספק, העלויות וההסכם. בדקו
+                האם אפשר לדחות ללא תשלום, כמה פעמים, עד מתי, האם יש תוספת מחיר, האם המקדמה עוברת
+                לתאריך החדש, ומה קורה אם הספק אינו פנוי.
               </p>
-              <ul className="grid gap-3 sm:grid-cols-2">
-                {[
-                  "האם יש תאריך חלופי אצל אותו ספק?",
-                  "האם המקדמה/שריון עוברים לתאריך החדש?",
-                  "האם המחיר משתנה בתאריך החדש?",
-                  "מה קורה אם הדחייה נכשלת אחר כך?",
-                ].map((q) => (
-                  <li
-                    key={q}
-                    className="rounded-[18px] border border-[#E7D3B0] bg-[#FBF6EE] px-4 py-3 text-[15px] font-semibold leading-7 text-[#2C241C]"
-                  >
-                    {q}
-                  </li>
-                ))}
-              </ul>
-            </SectionShell>
+            </Prose>
+          </section>
 
-            {/* 12 force-majeure */}
-            <SectionShell
-              id="force-majeure"
-              eyebrow="חירום"
-              title="כוח עליון ומצבי חירום — בלי הבטחת החזר אוטומטי"
-              tone="cream"
-            >
+          <section id="force-majeure" className="scroll-mt-24">
+            <Eyebrow>פרק 12</Eyebrow>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              מה קורה לחוזים עם ספקים במקרה של מלחמה, הנחיות חירום או אירוע חריג?
+            </h2>
+            <div className="mt-6">
               <LegalNote />
+            </div>
+            <Prose>
               <p>
-                סעיף כוח עליון (או ניסוחים דומים) עוסק במצבים חריגים שמקשים על קיום ההסכם. גם כשהוא
-                קיים, הוא לא תמיד מבטיח החזר מלא, ביטול ללא עלות, או דחייה אוטומטית ללא תנאים.
+                אין תשובה אוטומטית לכל מצב. יש לבחון הוראות חוק והנחיות רשמיות, תנאי ההסכם, אפשרות
+                ממשית לקיים את האירוע, סעיפי דחייה וביטול, נסיבות המקרה וזכויות שני הצדדים. לא
+                מבטיחים כאן החזר אוטומטי או פטור אוטומטי מתשלום.
               </p>
+            </Prose>
+          </section>
+
+          <section id="by-vendor-type" className="scroll-mt-24">
+            <Eyebrow>פרק 13</Eyebrow>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              סעיפים מיוחדים לפי סוג ספק
+            </h2>
+            <div className="mt-8 grid gap-4">
+              {[
+                ["אולם", "התחייבות למנות, רזרבות, תוספות, כוח אדם, בטיחות, שעות פעילות וביטול. בדקו גם רישיון עסק."],
+                ["צלם", "מספר צלמים, שעות, גיבוי, חומרי גלם, עריכה, זכויות שימוש ומועדי מסירה."],
+                ["DJ", "זהות התקליטן, שעות, ציוד גיבוי, הגברה, החלפה וביטול."],
+                ["איפור ושיער", "זהות נותן השירות, ניסיון, תוספות, שעת הגעה, ליווי, ביטול והחלפה."],
+                ["שמלת כלה", "רכישה מול השכרה, התאמות, מדידות, נזקים, מועדי מסירה והחזרה."],
+                ["עיצוב ופרחים", "כמויות, סוגי פרחים, תחליפים, הקמה, פירוק, ציוד והשכרות."],
+                ["שירותים דיגיטליים", "מה כלול בחבילה, מועד פתיחת השירות, מספר רשומות, חיובים נוספים, מועד האירוע, שינוי תאריך וביטול. תנאי ספק מסוים (כולל Invistimo) אינם מייצגים את כל השוק."],
+              ].map(([title, text]) => (
+                <div key={title} className="rounded-[24px] border border-[#E6D2AA] bg-[#FFFDF8] p-5">
+                  <h3 className="text-lg font-black text-[#2C241C]">{title}</h3>
+                  <p className="mt-2 text-base leading-7 text-[#5C4A3A]">{text}</p>
+                </div>
+              ))}
+            </div>
+            <SectionImage src="/images/rsvp/guides/wedding-vendors/meeting.jpg" alt="פגישת תכנון ועבודה משותפת סביב שולחן" />
+          </section>
+
+          <section id="questions-before-pay" className="scroll-mt-24">
+            <Eyebrow>פרק 14</Eyebrow>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              שאלות שצריך לשאול לפני שמשלמים
+            </h2>
+            <ol className="mt-6 space-y-2">
+              {BEFORE_PAY.map((q, i) => (
+                <li key={q} className="flex gap-3 rounded-2xl border border-[#EADDC8] bg-white px-4 py-3 text-sm font-semibold md:text-base">
+                  <span className="font-black text-[#C7A56B]">{i + 1}.</span>
+                  <span>{q}</span>
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <section id="keep-documents" className="scroll-mt-24">
+            <Eyebrow>פרק 15</Eyebrow>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              למה חשוב לשמור חוזים, קבלות והתכתבויות?
+            </h2>
+            <Prose>
               <p>
-                קראו מה מוגדר כאירוע מזכה, מי מודיע למי, ומה קורה לתשלומים. אין במדריך הבטחה ש«בחירום
-                תמיד מקבלים את הכסף בחזרה».
+                שמרו מסמך חתום, הצעת מחיר סופית, אישורי תשלום, שינויים לאחר החתימה, התכתבויות
+                מהותיות, אישור תאריך ושעות, והודעות ביטול או דחייה. תיקייה מסודרת לכל ספק חוסכת בירורים
+                מאוחרים.
               </p>
-            </SectionShell>
+            </Prose>
+          </section>
 
-            {/* 13 by-vendor-type */}
-            <SectionShell
-              id="by-vendor-type"
-              eyebrow="לפי תחום"
-              title="נקודות לבדיקה לפי סוג ספק"
-              tone="paper"
-            >
-              <p>
-                כל תחום מדגיש סעיפים אחרים. שימו לב: תנאי Invistimo חלים על שירותי Invistimo בלבד —
-                לא מציגים אותם כאן כ«תנאי השוק» לכל הספקים.
-              </p>
-              <div className="grid gap-4 md:grid-cols-2">
-                {VENDOR_TYPES.map((v) => (
-                  <div
-                    key={v.title}
-                    className="rounded-[24px] border border-[#E7D3B0] bg-[#FBF6EE] px-5 py-5"
-                  >
-                    <h3 className="text-lg font-black text-[#2C241C]">{v.title}</h3>
-                    <ul className="mt-3 space-y-2">
-                      {v.items.map((item) => (
-                        <li key={item} className="text-[15px] leading-7 text-[#5C4A3A]">
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                    {"href" in v && v.href ? (
-                      <Link
-                        href={v.href}
-                        className="mt-4 inline-flex text-sm font-black text-[#8A642E] underline-offset-4 hover:underline"
-                      >
-                        {v.linkLabel} ←
-                      </Link>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-              <figure className="overflow-hidden rounded-[28px] border border-[#E6D2AA]">
-                <Image
-                  src="/images/rsvp/guides/wedding-vendors/dj.jpg"
-                  alt="אווירת מוזיקה באירוע — המחשה לבדיקת חוזה DJ והגבלות אולם"
-                  width={1400}
-                  height={900}
-                  className="h-auto w-full object-cover"
-                  sizes="(max-width:1024px) 100vw, 720px"
-                />
-              </figure>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <TrackedCtaLink
-                  href="/event-management"
-                  className={ctaSecondary}
-                  location={`em:${PATH}`}
-                >
-                  לניהול אירוע
-                </TrackedCtaLink>
-                <TrackedCtaLink href="/pricing" className={ctaSecondary} location={`pricing:${PATH}`}>
-                  לחבילות ומחירים
-                </TrackedCtaLink>
-              </div>
-            </SectionShell>
-
-            {/* 14 questions-before-pay */}
-            <SectionShell
-              id="questions-before-pay"
-              eyebrow="לפני העברה"
-              title="15 שאלות לפני שמשלמים"
-              tone="cream"
-            >
-              <ol className="grid gap-3 md:grid-cols-2">
-                {QUESTIONS_BEFORE_PAY.map((q, i) => (
-                  <li
-                    key={q}
-                    className="flex gap-3 rounded-[20px] border border-[#E7D3B0] bg-[#FFFDF8] px-4 py-4"
-                  >
-                    <span className="text-sm font-black tracking-[0.1em] text-[#8A642E]">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <span className="text-[15px] font-bold leading-7 text-[#2C241C]">{q}</span>
-                  </li>
-                ))}
-              </ol>
-            </SectionShell>
-
-            {/* 15 keep-documents */}
-            <SectionShell
-              id="keep-documents"
-              eyebrow="תיעוד"
-              title="אילו מסמכים שומרים?"
-              tone="paper"
-            >
-              <p>
-                תיקייה אחת לכל ספק — דיגיטלית או מודפסת — חוסכת חיפושים ביום לחץ. שמרו גם התכתבויות
-                שבהן אושרו שינויים מהותיים.
-              </p>
-              <ul className="grid gap-3 sm:grid-cols-2">
-                {[
-                  "הצעת מחיר / מפרט",
-                  "חוזה ונספחים חתומים",
-                  "קבלות ואסמכתאות תשלום",
-                  "אישור תאריך בכתב",
-                  "שינויים שאושרו אחרי החתימה",
-                  "הודעות ביטול או דחייה",
-                ].map((item) => (
-                  <li
-                    key={item}
-                    className="rounded-[18px] border border-[#E7D3B0] bg-[#FBF6EE] px-4 py-3 text-[15px] font-semibold text-[#2C241C]"
-                  >
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </SectionShell>
-
-            {/* 16 pre-sign checklist */}
-            <SectionShell
-              id="pre-sign-checklist"
-              eyebrow="סיכום מעשי"
-              title="צ׳ק־ליסט לפני חתימה ותשלום"
-              tone="cream"
-            >
-              <p>סמנו את מה שכבר עשיתם. הסימונים נשמרים במכשיר זה בלבד.</p>
+          <section id="pre-sign-checklist" className="scroll-mt-24">
+            <Eyebrow>פרק 16</Eyebrow>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              צ׳קליסט לפני חתימה
+            </h2>
+            <div className="mt-6">
               <InteractiveChecklist
-                id="vendor-pre-sign-list"
-                storageKey="invistimo-vendor-contract-checklist-v1"
-                title="לפני שסוגרים עם ספק"
-                items={[...PRE_SIGN_ITEMS]}
+                storageKey="invistimo-vendor-presign-checklist"
+                title="לפני שחותמים ומשלמים"
+                items={PRE_SIGN}
               />
-            </SectionShell>
+            </div>
+          </section>
 
-            {/* 17 faq */}
-            <SectionShell id="faq" eyebrow="שאלות נפוצות" title="שאלות על ספקים, חוזים והחזרים" tone="paper">
-              <LegalNote />
-              <div className="space-y-3">
-                {VENDOR_CONTRACT_FAQS.map((item) => (
-                  <details
-                    key={item.q}
-                    className="group rounded-[22px] border border-[#E7D3B0] bg-[#FBF6EE] px-5 py-4 open:bg-white"
-                  >
-                    <summary className="cursor-pointer list-none text-base font-black text-[#2C241C] marker:content-none">
-                      <span className="flex items-start justify-between gap-4">
-                        {item.q}
-                        <span className="text-[#C9A45C] transition group-open:rotate-45" aria-hidden>
-                          +
-                        </span>
-                      </span>
-                    </summary>
-                    <p className="mt-3 text-[15px] leading-7 text-[#5C4A3A]">{item.a}</p>
-                  </details>
-                ))}
-              </div>
-            </SectionShell>
+          <section id="faq" className="scroll-mt-24">
+            <Eyebrow>שאלות נפוצות</Eyebrow>
+            <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              שאלות על ספקים, חוזים וביטולים
+            </h2>
+            <div className="mt-8 space-y-3">
+              {VENDOR_CONTRACT_FAQS.map((faq) => (
+                <details key={faq.q} className="group rounded-[24px] border border-[#E6D2AA] bg-[#FFFDF8] px-5 py-4 open:bg-white">
+                  <summary className="cursor-pointer list-none text-base font-black text-[#2C241C] [&::-webkit-details-marker]:hidden">
+                    <span className="flex items-start justify-between gap-3">
+                      {faq.q}
+                      <span className="text-[#C7A56B] transition group-open:rotate-45">+</span>
+                    </span>
+                  </summary>
+                  <p className="mt-3 text-base leading-8 text-[#5C4A3A]">{faq.a}</p>
+                </details>
+              ))}
+            </div>
+          </section>
 
-            <section className="mb-16 overflow-hidden rounded-[32px] border border-[#E3C990] bg-gradient-to-l from-[#FFF8EA] via-white to-[#F7E8CA] p-7 md:p-10">
-              <h2 className="text-3xl font-black text-[#35281F]">רוצים סדר גם בניהול האורחים?</h2>
-              <p className="mt-3 max-w-2xl leading-8 text-[#5C4A3A]">
-                אחרי שסוגרים ספקים — אישורי הגעה וניהול האירוע עוזרים לעדכן מספרים מול האולם בזמן.
-              </p>
-              <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-                <TrackedCtaLink
-                  href="/info/guides/wedding-planning"
-                  className={ctaPrimary}
-                  location={`footer_planning:${PATH}`}
-                >
-                  מדריך תכנון חתונה
-                </TrackedCtaLink>
-                <TrackedCtaLink
-                  href="/event-management"
-                  className={ctaSecondary}
-                  location={`footer_em:${PATH}`}
-                >
-                  ניהול אירוע
-                </TrackedCtaLink>
-                <TrackedCtaLink
-                  href="/pricing"
-                  className={ctaSecondary}
-                  location={`footer_pricing:${PATH}`}
-                >
-                  מחירים
-                </TrackedCtaLink>
-              </div>
-              <nav aria-label="מדריכים קשורים" className="mt-8 flex flex-wrap gap-3 text-sm">
-                {[
-                  { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות לאולם" },
-                  { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים RSVP" },
-                  { href: "/info/guides/cost-rsvp-wedding", label: "עלויות אישורי הגעה" },
-                  { href: "/info/guides", label: "כל המדריכים" },
-                ].map((l) => (
-                  <Link
-                    key={l.href}
-                    href={l.href}
-                    className="rounded-full border border-[#E6D2AA] bg-white/80 px-4 py-2 font-semibold text-[#5E4735] underline-offset-4 hover:underline"
-                  >
-                    {l.label}
-                  </Link>
-                ))}
-              </nav>
-            </section>
-          </div>
+          <section className="rounded-[32px] border border-[#E6D2AA] bg-gradient-to-l from-[#FFF8EA] via-[#FFFDF7] to-[#F7E8CA] p-6 md:p-10">
+            <h2 className="text-2xl font-black text-[#2C241C] md:text-3xl">המשך תכנון החתונה</h2>
+            <p className="mt-3 max-w-2xl text-base leading-8 text-[#5C4A3A]">
+              אחרי שמבינים איך סוגרים ספקים — חזרו ללוח התכנון המלא, לאישורי הגעה ולניהול המשימות.
+            </p>
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <TrackedCtaLink href="/info/guides/wedding-planning" className={ctaPrimary} location={`footer_planning:${PATH}`}>
+                מדריך תכנון חתונה
+              </TrackedCtaLink>
+              <TrackedCtaLink href="/event-management" className={ctaSecondary} location={`footer_events:${PATH}`}>
+                ניהול אירוע
+              </TrackedCtaLink>
+              <TrackedCtaLink href="/pricing" className={ctaSecondary} location={`footer_pricing:${PATH}`}>
+                חבילות Invistimo
+              </TrackedCtaLink>
+            </div>
+          </section>
         </div>
       </div>
     </article>
