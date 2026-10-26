@@ -328,9 +328,8 @@ export function DesktopMarketingNav({
               aria-controls={panelId}
               aria-haspopup="true"
               onMouseEnter={() => openMenu(item.id)}
-              onClick={() => (isOpen ? closeMenu() : openMenu(item.id))}
+              onClick={() => openMenu(item.id)}
               onKeyDown={(event) => onTriggerKeyDown(event, item.id)}
-              onFocus={() => openMenu(item.id)}
             >
               {item.label}
               <ChevronDown

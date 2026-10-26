@@ -168,7 +168,8 @@ export default function Header() {
       >
         <div
           className="
-            mx-auto max-w-[1500px]
+            relative z-50 mx-auto max-w-[1500px]
+            overflow-visible
             rounded-[24px]
             border border-[#D9BE80]/70
             bg-[#FFFDF8]
@@ -181,6 +182,7 @@ export default function Header() {
               grid h-[78px] grid-cols-[auto_1fr_auto]
               items-center
               gap-3
+              overflow-visible
               px-4 md:px-7
               xl:grid-cols-[auto_minmax(0,1fr)_auto]
             "
@@ -215,7 +217,7 @@ export default function Header() {
             </div>
 
             {/* Center / grow: desktop nav */}
-            <div className="hidden min-w-0 items-center justify-center xl:flex">
+            <div className="relative z-[60] hidden min-w-0 items-center justify-center overflow-visible xl:flex">
               <DesktopMarketingNav pathname={pathname} />
             </div>
 
