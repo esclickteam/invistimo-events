@@ -18,7 +18,7 @@ const DESCRIPTION =
 const H1 = "הודעת מספר שולחן לאורחים: מתי שולחים, מה בודקים ומה עושים כשיש שינויים?";
 
 const OG_SHARE = {
-  url: absoluteUrl("/images/rsvp/guides/wedding-planning/hall-tables.jpg"),
+  url: absoluteUrl("/images/rsvp/guides/unique-atmosphere/table-number-hall.jpg"),
   width: 1280,
   height: 720,
   alt: "שולחנות ערוכים באולם אירועים — מדריך הודעת מספר שולחן של Invistimo",

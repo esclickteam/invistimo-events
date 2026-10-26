@@ -280,7 +280,7 @@ export default function SeatingPlanGuide() {
               className="overflow-hidden border-y border-[#E6D2AA]"
             >
               <Image
-                src="/images/rsvp/guides/wedding-planning/hall-tables.jpg"
+                src="/images/rsvp/guides/unique-atmosphere/seating-plan-hall.jpg"
                 alt="שולחנות חתונה ערוכים באולם עם מפות שמנת — הכנת סידורי הושבה"
                 width={1920}
                 height={800}
@@ -292,7 +292,7 @@ export default function SeatingPlanGuide() {
           ) : (
             <div className="overflow-hidden border-y border-[#E6D2AA]">
               <Image
-                src="/images/rsvp/guides/wedding-planning/hall-tables.jpg"
+                src="/images/rsvp/guides/unique-atmosphere/seating-plan-hall.jpg"
                 alt="שולחנות חתונה ערוכים באולם עם מפות שמנת — הכנת סידורי הושבה"
                 width={1920}
                 height={800}
@@ -530,7 +530,7 @@ export default function SeatingPlanGuide() {
             </Prose>
             <div className="mt-8 overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-white shadow-[0_16px_36px_rgba(58,39,20,0.08)]">
               <Image
-                src="/images/marketing-captures/demo/seating-plan-map.webp"
+                src="/images/marketing-captures/unique/module-seating-full.webp"
                 alt="צילום מסך של מפת סידורי הושבה ב־Invistimo עם שולחנות וקיבולת"
                 width={1400}
                 height={900}
@@ -543,8 +543,8 @@ export default function SeatingPlanGuide() {
             </div>
             <div className="mt-6 overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#1E1814]">
               <PublicAutoplayVideo
-                src="/videos/marketing-captures/demo-seating-map.webm"
-                poster="/videos/marketing-captures/demo-seating-map-poster.jpg"
+                src="/videos/marketing-captures/product-seating-map.webm"
+                poster="/videos/marketing-captures/product-seating-map-poster.jpg"
                 title="סרטון הדגמה — מפת הושבה עם שולחנות משובצים"
                 shellClassName="w-full"
                 className="aspect-[8/5] w-full"

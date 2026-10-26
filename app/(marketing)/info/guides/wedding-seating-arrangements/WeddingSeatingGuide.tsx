@@ -208,7 +208,7 @@ export default function WeddingSeatingGuide() {
               className="overflow-hidden border-y border-[#E6D2AA]"
             >
               <Image
-                src="/images/rsvp/guides/venue-guarantee-hall.jpg"
+                src="/images/rsvp/guides/unique-atmosphere/event-day-morning.jpg"
                 alt="אולם חתונה ערוך עם שולחנות עגולים, מפות שמנת ומרכזי פרחים — המחשת סידורי הושבה"
                 width={1920}
                 height={900}
@@ -220,7 +220,7 @@ export default function WeddingSeatingGuide() {
           ) : (
             <div className="overflow-hidden border-y border-[#E6D2AA]">
               <Image
-                src="/images/rsvp/guides/venue-guarantee-hall.jpg"
+                src="/images/rsvp/guides/unique-atmosphere/event-day-morning.jpg"
                 alt="אולם חתונה ערוך עם שולחנות עגולים, מפות שמנת ומרכזי פרחים — המחשת סידורי הושבה"
                 width={1920}
                 height={900}
@@ -732,7 +732,7 @@ export default function WeddingSeatingGuide() {
             </Prose>
             <div className="mt-8 overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-white shadow-[0_18px_40px_rgba(58,39,20,0.08)]">
               <Image
-                src="/images/marketing-captures/demo/wedding-seating-map.webp"
+                src="/images/marketing-captures/unique/module-seating-panel-open.webp"
                 alt="צילום מסך של מפת סידורי הושבה ב־Invistimo עם שולחנות, קיבולת ומקומות פנויים"
                 width={1400}
                 height={900}
@@ -745,7 +745,7 @@ export default function WeddingSeatingGuide() {
             </div>
             <div className="mt-6 overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-white shadow-[0_18px_40px_rgba(58,39,20,0.08)]">
               <Image
-                src="/images/seating/seating-assign.png"
+                src="/videos/marketing-captures/product-seating-map-poster.jpg"
                 alt="צילום מסך של שיבוץ אורחים לשולחנות ב־Invistimo עם רשימת אורחים שטרם שובצו"
                 width={1200}
                 height={900}

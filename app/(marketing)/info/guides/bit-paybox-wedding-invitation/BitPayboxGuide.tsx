@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
+import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import GuideToolbar from "@/components/marketing/guides/GuideToolbar";
 import InteractiveChecklist from "@/components/marketing/guides/InteractiveChecklist";
 import StickyToc, { type TocItem } from "@/components/marketing/guides/StickyToc";
@@ -304,10 +305,10 @@ export default function BitPayboxGuide() {
                   transition={{ duration: 0.5 }}
                 >
                   <Image
-                    src="/marketing/credit-gifts/hero-envelope.jpg"
-                    alt="מעטפה והזמנה אלגנטית — המחשה להזמנה דיגיטלית עם אפשרויות מתנה"
-                    width={900}
-                    height={1100}
+                    src="/images/rsvp/guides/unique-atmosphere/bit-paybox-hero.jpg"
+                    alt="המחשה למתנה דיגיטלית עם bit ו־PayBox בהזמנה"
+                    width={1280}
+                    height={720}
                     priority
                     className="h-auto w-full rounded-[28px] border border-[#E6D2AA] object-cover shadow-[0_28px_70px_rgba(58,39,20,0.12)]"
                     sizes="(max-width:1024px) 100vw, 42vw"
@@ -315,16 +316,30 @@ export default function BitPayboxGuide() {
                 </motion.div>
               ) : (
                 <Image
-                  src="/marketing/credit-gifts/hero-envelope.jpg"
-                  alt="מעטפה והזמנה אלגנטית — המחשה להזמנה דיגיטלית עם אפשרויות מתנה"
-                  width={900}
-                  height={1100}
+                  src="/images/rsvp/guides/unique-atmosphere/bit-paybox-hero.jpg"
+                  alt="המחשה למתנה דיגיטלית עם bit ו־PayBox בהזמנה"
+                  width={1280}
+                  height={720}
                   priority
                   className="h-auto w-full rounded-[28px] border border-[#E6D2AA] object-cover shadow-[0_28px_70px_rgba(58,39,20,0.12)]"
                   sizes="(max-width:1024px) 100vw, 42vw"
                 />
               )}
             </div>
+          </div>
+          <div className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#1E1814]">
+            <PublicAutoplayVideo
+              src="/videos/marketing-captures/guide-bit-paybox.webm"
+              poster="/videos/marketing-captures/guide-bit-paybox-poster.jpg"
+              title="המחשה תכנונית — הוספת bit ו־PayBox להזמנה"
+              shellClassName="w-full"
+              className="aspect-video w-full"
+              expandable
+              frameBg="#1E1814"
+            />
+            <p className="border-t border-[#EFE2CC] bg-[#FFFDF8] px-5 py-3 text-sm font-semibold text-[#7A6042]">
+              המחשה ייעודית למדריך bit/PayBox — בלי להציג יכולות סליקה שאינן של Invistimo
+            </p>
           </div>
         </div>
       </header>

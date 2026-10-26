@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
+import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import GuideToolbar from "@/components/marketing/guides/GuideToolbar";
 import StickyToc, { type TocItem } from "@/components/marketing/guides/StickyToc";
 import DecisionQuiz from "./DecisionQuiz";
@@ -297,7 +298,7 @@ export default function EventManagementVsProductionGuide() {
               className="overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#FFFDF8] shadow-[0_24px_60px_rgba(58,39,20,0.12)]"
             >
               <Image
-                src="/images/rsvp/guides/wedding-planning/hero-reception.jpg"
+                src="/images/rsvp/guides/unique-atmosphere/event-mgmt-vs-prod-hero.jpg"
                 alt="קבלת פנים באירוע — המחשה לתכנון וניהול חתונה"
                 width={900}
                 height={1100}
@@ -337,7 +338,7 @@ export default function EventManagementVsProductionGuide() {
               </p>
             </Prose>
             <SectionImage
-              src="/images/rsvp/guides/wedding-planning/venue.jpg"
+              src="/images/rsvp/guides/unique-atmosphere/event-mgmt-vs-prod-venue.jpg"
               alt="אולם אירועים — בחירת מקום כחלק מתכנון והפקה"
               caption="בחירת אולם היא לעיתים חלק מהפקה מלאה — ולא בהכרח חלק מניהול יום האירוע בלבד"
             />
@@ -374,7 +375,7 @@ export default function EventManagementVsProductionGuide() {
               </p>
             </Prose>
             <SectionImage
-              src="/images/marketing-captures/demo/event-mgmt-vs-prod-seating.webp"
+              src="/images/marketing-captures/unique/module-seating-guest-panel.webp"
               alt="שולחנות ערוכים באולם לפני קבלת האורחים"
               caption="יום האירוע מתחיל הרבה לפני שהאורחים נכנסים — בהיערכות, הקמות ותיאומים"
             />
@@ -483,7 +484,7 @@ export default function EventManagementVsProductionGuide() {
               </p>
             </Prose>
             <SectionImage
-              src="/images/rsvp/guides/wedding-planning/toast.jpg"
+              src="/images/rsvp/guides/unique-atmosphere/event-mgmt-toast.jpg"
               alt="רגע חגיגי באירוע — אחרי תיאום מאחורי הקלעים"
               caption="כשהתיאום מאחורי הקלעים ברור, הזוג יכול להיות נוכח ברגעים עצמם"
             />
@@ -619,10 +620,21 @@ export default function EventManagementVsProductionGuide() {
               </TrackedCtaLink>
             </div>
             <SectionImage
-              src="/images/marketing-captures/demo/event-mgmt-vs-prod-hero.webp"
-              alt="מסך רשימת מוזמנים במערכת Invistimo"
+              src="/images/marketing-captures/unique/module-event-management.webp"
+              alt="מסך ניהול אירוע במערכת Invistimo — דמו מבודד"
               caption="ריכוז מידע במערכת עוזר גם כשיש מנהל אולם, מנהל חיצוני או תכנון עצמאי"
             />
+            <div className="mt-6 overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#1E1814]">
+              <PublicAutoplayVideo
+                src="/videos/marketing-captures/product-event-management.webm"
+                poster="/videos/marketing-captures/product-event-management-poster.jpg"
+                title="הקלטת מסך — ניהול אירוע בדמו מבודד"
+                shellClassName="w-full"
+                className="aspect-[8/5] w-full"
+                expandable
+                frameBg="#1E1814"
+              />
+            </div>
           </section>
 
           <section id="faq" className="scroll-mt-28">

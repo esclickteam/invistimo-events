@@ -355,7 +355,7 @@ export default function ChatunaInvitationsPage() {
   };
 
   return (
-    <div dir="rtl" className={`${display.variable} bg-[#FBF6EE] text-[#2C241C]`}>
+    <div dir="rtl" className={`${display.variable} overflow-x-hidden bg-[#FBF6EE] text-[#2C241C]`}>
       {/* HERO */}
       <section className="relative isolate px-5 pb-16 pt-14 md:px-8 md:pb-24 md:pt-20">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,#E9D4AF_0%,transparent_36%),radial-gradient(circle_at_top_left,#F5E8D3_0%,transparent_32%),linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_55%,#F1E4D2_100%)]" />

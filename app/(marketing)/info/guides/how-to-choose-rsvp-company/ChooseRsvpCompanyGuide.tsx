@@ -387,7 +387,7 @@ export default function ChooseRsvpCompanyGuide() {
               className="overflow-hidden border-y border-[#E6D2AA]"
             >
               <Image
-                src="/images/rsvp/guides/wedding-planning/hero-reception.jpg"
+                src="/images/rsvp/guides/unique-atmosphere/choose-company-hero.jpg"
                 alt="אורחים בחתונה באולם מואר — המחשה לבחירת שירות אישורי הגעה לאירוע"
                 width={1920}
                 height={900}
@@ -399,7 +399,7 @@ export default function ChooseRsvpCompanyGuide() {
           ) : (
             <div className="overflow-hidden border-y border-[#E6D2AA]">
               <Image
-                src="/images/rsvp/guides/wedding-planning/hero-reception.jpg"
+                src="/images/rsvp/guides/unique-atmosphere/choose-company-hero.jpg"
                 alt="אורחים בחתונה באולם מואר — המחשה לבחירת שירות אישורי הגעה לאירוע"
                 width={1920}
                 height={900}
@@ -652,7 +652,7 @@ export default function ChooseRsvpCompanyGuide() {
               </p>
             </Prose>
             <ProductShot
-              src="/images/marketing-captures/demo/choose-company-dashboard.webp"
+              src="/images/marketing-captures/unique/module-guests-tablet.webp"
               alt="דשבורד Invistimo עם סטטוסי אישורי הגעה: אישרו, לא מגיעים וממתינים לתשובה — נתוני הדגמה"
               caption="צילום מסך אמיתי מהמערכת · נתוני דמו בלבד · אין פרטי לקוחות אמיתיים"
             />
@@ -766,7 +766,7 @@ export default function ChooseRsvpCompanyGuide() {
               ))}
             </ul>
             <ProductShot
-              src="/images/marketing-captures/demo/choose-company-seating.webp"
+              src="/images/marketing-captures/unique/module-seating-tablet.webp"
               alt="מפת סידורי הושבה דיגיטלית ב־Invistimo עם שולחנות וקיבולת"
               caption="צילום מסך אמיתי של מפת ההושבה במערכת · הושבה דיגיטלית היא תוספת במחשבון"
             />
@@ -819,7 +819,7 @@ export default function ChooseRsvpCompanyGuide() {
               ))}
             </div>
             <ProductShot
-              src="/images/guides/guest-list/guest-list-table.png"
+              src="/images/marketing-captures/unique/module-guests-stats-strip.webp"
               alt="טבלת רשימת מוזמנים ב־Invistimo עם חיפוש ועדכון תשובות — נתוני דמו"
               caption="צילום מסך אמיתי של רשימת המוזמנים · נתוני דמו בלבד"
             />

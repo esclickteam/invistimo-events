@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
+import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import AlcoholCalculator from "./AlcoholCalculator";
 import { ALCOHOL_GUIDE_FAQS } from "./guideFaqs";
 
@@ -136,7 +137,7 @@ export default function WeddingAlcoholGuide() {
           <div className="relative">
             <figure className="overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#FFFDF8] shadow-[0_28px_70px_rgba(58,39,20,0.12)]">
               <Image
-                src="/images/rsvp/guides/alcohol/wedding-bar-hero.jpg"
+                src="/images/rsvp/guides/unique-atmosphere/alcohol-hero.jpg"
                 alt="בר חתונה יוקרתי עם כוסות שמפניה ויין"
                 width={1280}
                 height={720}
@@ -145,6 +146,17 @@ export default function WeddingAlcoholGuide() {
                 sizes="(max-width:1024px) 100vw, 46vw"
               />
             </figure>
+            <div className="mt-6 overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#1E1814]">
+              <PublicAutoplayVideo
+                src="/videos/marketing-captures/guide-alcohol.webm"
+                poster="/videos/marketing-captures/guide-alcohol-poster.jpg"
+                title="המחשה תכנונית — תכנון בר אלכוהול לחתונה"
+                shellClassName="w-full"
+                className="aspect-video w-full"
+                expandable
+                frameBg="#1E1814"
+              />
+            </div>
             {!reduce ? (
               <motion.p
                 initial={{ opacity: 0, y: 10 }}

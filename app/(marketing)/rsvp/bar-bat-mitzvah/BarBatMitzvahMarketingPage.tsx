@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import { Frank_Ruhl_Libre } from "next/font/google";
 import { motion, useReducedMotion } from "framer-motion";
+import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import { MITZVAH_FAQS } from "./mitzvahFaqs";
 import {
   CHECKLIST_ITEMS,
@@ -416,6 +417,30 @@ export default function BarBatMitzvahMarketingPage() {
             className="h-auto w-full"
           />
           <DemoCaption>דשבורד מוזמנים — נתוני הדגמה מהמערכת</DemoCaption>
+        </div>
+        <div className="mt-8 overflow-hidden rounded-[24px] border border-[#D4C4A4] bg-[#1E1814]">
+          <PublicAutoplayVideo
+            src="/videos/marketing-captures/product-guests-dashboard.webm"
+            poster="/videos/marketing-captures/product-guests-dashboard-poster.jpg"
+            title="הקלטת מסך — דשבורד מוזמנים בדמו מבודד של Invistimo"
+            shellClassName="w-full"
+            className="aspect-[8/5] w-full"
+            expandable
+            frameBg="#1E1814"
+          />
+          <DemoCaption>הקלטת מסך אמיתית מדמו מבודד — ניהול מוזמנים ואישורי הגעה</DemoCaption>
+        </div>
+        <div className="mt-8 overflow-hidden rounded-[24px] border border-[#D4C4A4] bg-[#1E1814]">
+          <PublicAutoplayVideo
+            src="/videos/marketing-captures/guide-bar-bat-mitzvah.webm"
+            poster="/videos/marketing-captures/guide-bar-bat-mitzvah-poster.jpg"
+            title="המחשה ויזואלית — אווירת בר ובת מצווה"
+            shellClassName="w-full"
+            className="aspect-video w-full"
+            expandable
+            frameBg="#1E1814"
+          />
+          <DemoCaption>המחשה תכנונית ייעודית לבר ובת מצווה — לא צילום מערכת</DemoCaption>
         </div>
       </SectionShell>
 

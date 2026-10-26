@@ -18,6 +18,7 @@ import {
   Wallet,
 } from "lucide-react";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
+import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import GuideToolbar from "@/components/marketing/guides/GuideToolbar";
 import StickyToc, { type TocItem } from "@/components/marketing/guides/StickyToc";
 import CopyableMessage from "./CopyableMessage";
@@ -359,7 +360,7 @@ export default function EventDayChecklistGuide() {
         <div className="mx-auto max-w-6xl px-5 pb-10 md:px-8">
           <figure className="overflow-hidden rounded-[28px] border border-[#E6D2AA] shadow-[0_24px_60px_rgba(58,39,20,0.12)]">
             <Image
-              src="/images/rsvp/guides/wedding-planning/hero-reception.jpg"
+              src="/images/rsvp/guides/unique-atmosphere/event-day-reception.jpg"
               alt="קבלת פנים באולם חתונה עם שולחנות ערוכים ואווירת ערב חמה"
               width={1600}
               height={900}
@@ -496,7 +497,7 @@ export default function EventDayChecklistGuide() {
               .
             </p>
             <SectionImage
-              src="/images/rsvp/guides/wedding-planning/venue.jpg"
+              src="/images/rsvp/guides/unique-atmosphere/event-day-venue.jpg"
               alt="חזית אולם אירועים מוכן לקבלת אורחים"
             />
           </motion.section>
@@ -673,9 +674,20 @@ export default function EventDayChecklistGuide() {
               </p>
             </Prose>
             <SectionImage
-              src="/images/marketing-captures/demo/event-day-checkin.webp"
+              src="/images/marketing-captures/unique/module-check-in.webp"
               alt="מסך רשימת מוזמנים במערכת Invistimo עם סטטוסי הגעה"
             />
+            <div className="mt-6 overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#1E1814]">
+              <PublicAutoplayVideo
+                src="/videos/marketing-captures/product-check-in.webm"
+                poster="/videos/marketing-captures/product-check-in-poster.jpg"
+                title="הקלטת מסך — כניסה לאירוע בדמו מבודד"
+                shellClassName="w-full"
+                className="aspect-[8/5] w-full"
+                expandable
+                frameBg="#1E1814"
+              />
+            </div>
           </motion.section>
 
           <motion.section id="seating" className="scroll-mt-24" aria-labelledby="seating-h" {...fade}>
@@ -716,7 +728,7 @@ export default function EventDayChecklistGuide() {
               </p>
             </Prose>
             <SectionImage
-              src="/images/marketing-captures/demo/event-day-seating.webp"
+              src="/images/marketing-captures/unique/module-seating-interaction.webp"
               alt="צילום מסך של מפת הושבה דיגיטלית ב־Invistimo עם שולחנות ושיבוץ אורחים"
             />
           </motion.section>
@@ -1046,7 +1058,7 @@ export default function EventDayChecklistGuide() {
               ))}
             </div>
             <SectionImage
-              src="/images/marketing-captures/demo/event-day-seating-mobile.webp"
+              src="/images/marketing-captures/unique/module-seating-wide.webp"
               alt="תצוגת הושבה ושיבוץ אורחים בממשק Invistimo"
             />
             <div className="mt-8 flex flex-wrap gap-3">

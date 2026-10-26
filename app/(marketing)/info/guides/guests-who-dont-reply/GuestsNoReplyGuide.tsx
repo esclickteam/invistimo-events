@@ -123,7 +123,7 @@ export default function GuestsNoReplyGuide() {
           <figure className="relative space-y-4">
             <div className="overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#FFFDF8] shadow-[0_28px_70px_rgba(58,39,20,0.12)]">
               <Image
-                src="/images/marketing-captures/demo/guests-no-reply-hero.webp"
+                src="/images/marketing-captures/unique/module-guests-pending-filter.webp"
                 alt="מסך ניהול מוזמנים אמיתי ב־Invistimo עם סטטוסים: אישרו הגעה, לא מגיעים וממתינים לתשובה"
                 width={1200}
                 height={900}
@@ -378,7 +378,7 @@ export default function GuestsNoReplyGuide() {
           </p>
           <div className="mt-10 overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-white shadow-[0_24px_60px_rgba(58,39,20,0.1)]">
             <Image
-              src="/images/marketing-captures/demo/guests-no-reply-hero.webp"
+              src="/images/marketing-captures/unique/module-guests-pending-filter.webp"
               alt="צילום מסך אמיתי של דשבורד מוזמנים ב־Invistimo עם סיכומי סטטוס אישורי הגעה"
               width={1400}
               height={1000}

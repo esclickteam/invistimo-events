@@ -50,6 +50,19 @@ export const PUBLIC_VIDEO_META: Record<string, PublicVideoMeta> = {
   "/videos/marketing-captures/demo-guests-dashboard.webm": meta(1280, 800, true),
   "/videos/marketing-captures/demo-seating-map.webm": meta(1280, 800, true),
   "/videos/marketing-captures/demo-check-in.webm": meta(1280, 800, true),
+  "/videos/marketing-captures/guide-bar-bat-mitzvah.webm": meta(1280, 720, true),
+  "/videos/marketing-captures/guide-brit-brita.webm": meta(1280, 720, true),
+  "/videos/marketing-captures/guide-rsvp-calls.webm": meta(1280, 720, true),
+  "/videos/marketing-captures/guide-credit-gifts.webm": meta(1280, 720, true),
+  "/videos/marketing-captures/guide-alcohol.webm": meta(1280, 720, true),
+  "/videos/marketing-captures/guide-whatsapp-vs-sms.webm": meta(1280, 720, true),
+  "/videos/marketing-captures/guide-bit-paybox.webm": meta(1280, 720, true),
+  "/videos/marketing-captures/product-guests-dashboard.webm": meta(1280, 800, true),
+  "/videos/marketing-captures/product-seating-map.webm": meta(1280, 800, true),
+  "/videos/marketing-captures/product-messages.webm": meta(1280, 800, true),
+  "/videos/marketing-captures/product-recorded-calls.webm": meta(1280, 800, true),
+  "/videos/marketing-captures/product-check-in.webm": meta(1280, 800, true),
+  "/videos/marketing-captures/product-event-management.webm": meta(1280, 800, true),
 };
 
 export function getPublicVideoMeta(src: string): PublicVideoMeta | null {

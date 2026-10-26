@@ -687,7 +687,7 @@ export default function HomeMarketingSections() {
           </div>
           <div className="overflow-hidden rounded-[28px] border border-[#C9A45C]/25 bg-[#111] shadow-[0_30px_70px_rgba(0,0,0,0.35)]">
             <img
-              src="/marketing/product/webp/desktop-try-seating.webp"
+              src="/videos/marketing-captures/demo-seating-map-poster.jpg"
               alt="מפת סידורי הושבה במערכת Invistimo עם שולחנות ושיבוצי אורחים"
               className="aspect-[16/10] w-full object-cover object-top"
               loading="lazy"
