@@ -35,6 +35,10 @@ const faqs = [
     q: "איך זה קשור למחשבון החבילות?",
     a: "ניהול האירוע מופיע כתוספת במחשבון. הסכום מוצג שם לפי מה שמסמנים — בלי מחיר אחיד בעמוד הזה.",
   },
+  {
+    q: "מה בודקים לפני יום האירוע עצמו?",
+    a: "רשימת מוזמנים מעודכנת, סבבי אישור, הושבה אם נרכשה, תזכורת והודעת תודה, ומסירת מספר לאולם לפי ההסכם. יש מדריך צ׳קליסט מפורט לפני יום האירוע.",
+  },
 ];
 
 const breadcrumbs = [
@@ -93,6 +97,16 @@ export default function Page() {
               </details>
             ))}
           </div>
+          <p className="mt-8 text-base leading-8 text-[#5C4A3A]">
+            לפני יום האירוע עצמו כדאי לעבוד לפי{" "}
+            <Link
+              href="/info/guides/event-day-checklist"
+              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+            >
+              הצ׳קליסט המלא לבדיקות אחרונות
+            </Link>
+            — ספקים, תשלומים, אישורי הגעה, הושבה ולוח זמנים.
+          </p>
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">
             <TrackedCtaLink
               href="/pricing"
@@ -100,6 +114,13 @@ export default function Page() {
               className="inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3 text-base font-black text-white"
             >
               לצפייה בחבילות
+            </TrackedCtaLink>
+            <TrackedCtaLink
+              href="/info/guides/event-day-checklist"
+              location="footer_cta:/event-management"
+              className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white px-8 py-3 text-base font-black text-[#5E4735]"
+            >
+              צ׳קליסט לפני יום האירוע
             </TrackedCtaLink>
             <TrackedCtaLink
               href="/contact"

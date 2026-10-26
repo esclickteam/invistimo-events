@@ -534,6 +534,7 @@ export default function WhenToSendGuide() {
               { href: "/rsvp/calls", label: "שיחות אישורי הגעה" },
               { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
               { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות לאולם" },
+              { href: "/info/guides/event-day-checklist", label: "צ'קליסט לפני יום האירוע" },
               { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
               { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "באיזה ערוץ כדאי לשלוח אישורי הגעה?" },
               { href: "/rsvp/save-the-date", label: "Save the Date" },
