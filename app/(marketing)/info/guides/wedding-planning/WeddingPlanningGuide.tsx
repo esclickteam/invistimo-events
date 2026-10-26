@@ -22,7 +22,7 @@ const TOC: TocItem[] = [
   { id: "budget", label: "תקציב חתונה" },
   { id: "guests", label: "רשימת מוזמנים" },
   { id: "venue", label: "תאריך ואולם" },
-  { id: "vendor-timeline", label: "מתי סוגרים ספקים" },
+  { id: "vendor-timeline", label: "סדר סגירת ספקים" },
   { id: "choosing-vendors", label: "איך בוחרים ספקים" },
   { id: "attire", label: "שמלה וחליפה" },
   { id: "atmosphere", label: "עיצוב ואווירה" },

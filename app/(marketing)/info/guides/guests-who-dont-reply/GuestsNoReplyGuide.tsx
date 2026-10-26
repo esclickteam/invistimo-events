@@ -498,6 +498,10 @@ export default function GuestsNoReplyGuide() {
               כל המדריכים
             </Link>
             {" · "}
+            <Link href="/info/guides/guest-list" className="underline-offset-4 hover:underline">
+              רשימת מוזמנים
+            </Link>
+            {" · "}
             <Link href="/rsvp/whatsapp" className="underline-offset-4 hover:underline">
               WhatsApp
             </Link>
