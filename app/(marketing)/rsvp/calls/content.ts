@@ -22,6 +22,7 @@ export const LINKS = {
   venue: "/info/guides/wedding-venue-guest-guarantee",
   guestList: "/info/guides/guest-list",
   cost: "/info/guides/cost-rsvp-wedding",
+  chooseCompany: "/info/guides/how-to-choose-rsvp-company",
 } as const;
 
 /** Demo event name used across RSVP marketing pages. */
@@ -330,6 +331,11 @@ export const CALL_PATH_CARDS = [
 ] as const;
 
 export const MORE_GUIDES = [
+  {
+    href: LINKS.chooseCompany,
+    title: "איך בוחרים חברת אישורי הגעה?",
+    text: "השוואת ערוצים, סבבים, מחירים והושבה — לפני שסוגרים.",
+  },
   {
     href: LINKS.whatsappVsSms,
     title: "WhatsApp או SMS — מה עדיף?",

@@ -11,11 +11,13 @@ type Props = {
 export default function GuideToolbar({ title, path, readingMinutes }: Props) {
   const [copied, setCopied] = useState(false);
   const [canShare, setCanShare] = useState(false);
-  const url = typeof window !== "undefined" ? `${window.location.origin}${path}` : path;
+  // Keep SSR/client first paint identical; resolve absolute URL after mount.
+  const [url, setUrl] = useState(path);
 
   useEffect(() => {
+    setUrl(`${window.location.origin}${path}`);
     setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
-  }, []);
+  }, [path]);
 
   const copyLink = useCallback(async () => {
     try {

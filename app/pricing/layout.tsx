@@ -3,6 +3,7 @@ import PricingMarketingExtras, { PRICING_PAGE_FAQS } from "@/components/marketin
 import JsonLd from "@/components/seo/JsonLd";
 import { breadcrumbNode, faqNode, graph, organizationNode, serviceNode, softwareNode } from "@/lib/seo/jsonld";
 import { findCoreRoute, pageMetadata } from "@/lib/seo/site";
+import "./pricing-luxury.css";
 
 const route = findCoreRoute("/pricing")!;
 

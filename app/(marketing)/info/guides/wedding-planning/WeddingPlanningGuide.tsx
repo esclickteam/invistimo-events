@@ -656,12 +656,16 @@ export default function WeddingPlanningGuide() {
                 שונים.
               </p>
               <p>
+                <Link href="/info/guides/wedding-seating-arrangements" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                  מדריך סידורי הושבה לחתונה
+                </Link>
+                {" · "}
                 <Link href="/seating-explained" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
                   סידורי הושבה ב־Invistimo
                 </Link>
                 {" · "}
                 <Link href="/info/guides/seating-plan" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
-                  איך מכינים הושבה
+                  איך מכינים הושבה במערכת
                 </Link>
                 .
               </p>

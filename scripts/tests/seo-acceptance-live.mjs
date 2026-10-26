@@ -42,6 +42,7 @@ const GUIDE_SLUGS = [
   "seating-plan",
   "save-the-date-vs-invitation",
   "wedding-venue-guest-guarantee",
+  "wedding-seating-arrangements",
   "guest-list",
   "guests-who-dont-reply",
   "table-number-message",

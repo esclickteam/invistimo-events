@@ -7,6 +7,10 @@ const LINKS = [
   { href: "/invitations/chatuna", label: "הזמנות דיגיטליות" },
   { href: "/rsvp/save-the-date", label: "Save the Date" },
   { href: "/seating-explained", label: "סידורי הושבה" },
+  {
+    href: "/info/guides/wedding-seating-arrangements",
+    label: "מדריך סידורי הושבה לחתונה",
+  },
   { href: "/event-management", label: "ניהול אירוע" },
   { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
   { href: "/services/alcohol-management", label: "ניהול אלכוהול באירועים" },
