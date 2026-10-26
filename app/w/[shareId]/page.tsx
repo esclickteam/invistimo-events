@@ -7,6 +7,7 @@ import WeddingGuestMessageForm from "@/components/wedding-website/WeddingGuestMe
 import { useGuestRsvpController } from "@/lib/rsvp/useGuestRsvpController";
 import type { WeddingDemoContent, WeddingTemplate } from "@/types/weddingWebsite";
 import type { WeddingGiftLinks } from "@/lib/weddingWebsite/gifts";
+import type { StudioSnapshot } from "@/lib/invitationStudio/types";
 
 type PublicSiteResponse = {
   success?: boolean;
@@ -26,6 +27,12 @@ type PublicSiteResponse = {
     canMessage: boolean;
   } | null;
   gifts?: WeddingGiftLinks | null;
+  studioDesign?: {
+    designId?: string;
+    templateId?: string;
+    publishedAt?: string | null;
+    snapshot?: StudioSnapshot | null;
+  } | null;
 };
 
 export default function PublicWeddingWebsitePage() {
@@ -121,6 +128,7 @@ export default function PublicWeddingWebsitePage() {
           token,
           role: token ? "guest" : "demo",
           gifts: data.gifts || null,
+          studioDesign: data.studioDesign || null,
         }}
       />
     </div>

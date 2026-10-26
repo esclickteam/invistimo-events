@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import AnimatedSection, { GlassCard, SectionHeading } from "./AnimatedSection";
 import WeddingCountdownGrid from "./shared/WeddingCountdownGrid";
+import WeddingStudioInvite from "./WeddingStudioInvite";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import FloatingParticles, { HeroParallax, ScrollIndicator } from "./effects/WeddingEffects";
 import { useWeddingTheme } from "./WeddingThemeProvider";
@@ -169,12 +170,14 @@ export function InvitationSection() {
     <AnimatedSection id="invitation" className="py-20 md:py-28">
       <div className="mx-auto max-w-3xl px-6 text-center">
         <SectionHeading eyebrow="You're Invited" title="הזמנה חמה" />
-        <GlassCard>
-          <Heart className="mx-auto mb-6 h-8 w-8 text-[var(--ww-accent)]" />
-          <p className="text-lg leading-loose text-[var(--ww-text-muted)] md:text-xl">
-            {content.invitationText}
-          </p>
-        </GlassCard>
+        <WeddingStudioInvite>
+          <GlassCard>
+            <Heart className="mx-auto mb-6 h-8 w-8 text-[var(--ww-accent)]" />
+            <p className="text-lg leading-loose text-[var(--ww-text-muted)] md:text-xl">
+              {content.invitationText}
+            </p>
+          </GlassCard>
+        </WeddingStudioInvite>
       </div>
     </AnimatedSection>
   );

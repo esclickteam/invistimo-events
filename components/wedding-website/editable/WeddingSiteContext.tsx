@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react";
 import type { WeddingGiftLinks } from "@/lib/weddingWebsite/gifts";
+import type { StudioSnapshot } from "@/lib/invitationStudio/types";
 import type {
   WeddingDemoContent,
   WeddingMediaSlot,
@@ -33,6 +34,12 @@ export type WeddingLiveMeta = {
   invitationId?: string;
   role: WeddingLiveRole;
   gifts?: WeddingGiftLinks | null;
+  studioDesign?: {
+    designId?: string;
+    templateId?: string;
+    publishedAt?: string | Date | null;
+    snapshot?: StudioSnapshot | null;
+  } | null;
 };
 
 export type WeddingEditorDevice = "desktop" | "mobile";

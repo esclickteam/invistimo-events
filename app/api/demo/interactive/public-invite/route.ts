@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { EDITED_DETAILS } from "@/lib/invitationStudio/details";
+import { freezePlate, getPlate } from "@/lib/invitationStudio/plates";
 import { bridgeDemoRequest } from "@/lib/demo/interactive/bridge";
 import {
   commitDemoSession,
@@ -25,5 +27,20 @@ export async function GET(req: Request) {
     null
   );
   await commitDemoSession(getSession(session.id));
-  return NextResponse.json(result.json, { status: result.status });
+  const json = result.json as { invitation?: Record<string, unknown> };
+  const plate = getPlate("ivory-garden");
+  if (json?.invitation && plate) {
+    json.invitation = {
+      ...json.invitation,
+      studioDesign: {
+        designId: "demo-studio",
+        templateId: plate.id,
+        snapshot: freezePlate(plate, {
+          ...EDITED_DETAILS,
+          guestGreeting: "{name}, שמרנו לכם מקום",
+        }),
+      },
+    };
+  }
+  return NextResponse.json(json, { status: result.status });
 }

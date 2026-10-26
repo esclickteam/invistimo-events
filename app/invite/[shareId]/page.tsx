@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import PublicInviteRenderer from "@/app/components/PublicInviteRenderer";
+import InvitationArt from "@/components/invitation-studio/InvitationArt";
 import EventLocationCard from "@/app/components/EventLocationCard";
 import TransportationGuestSection from "@/app/components/TransportationGuestSection";
 import GuestRsvpForm from "@/components/rsvp/GuestRsvpForm";
@@ -217,11 +218,25 @@ export default function PublicInvitePage({ params }: any) {
           </section>
         )}
 
-        <InvitationImageCard
-          imageUrl={invitationImageUrl}
-          imageMode={invitationImageMode}
-          canvasData={invite.canvasData}
-        />
+        {invite?.studioDesign?.snapshot ? (
+          <div className="w-full max-w-md">
+            <InvitationArt
+              play
+              snapshot={invite.studioDesign.snapshot}
+              guestName={
+                invite.studioDesign.snapshot.personalGreeting
+                  ? selectedGuest?.name
+                  : undefined
+              }
+            />
+          </div>
+        ) : (
+          <InvitationImageCard
+            imageUrl={invitationImageUrl}
+            imageMode={invitationImageMode}
+            canvasData={invite.canvasData}
+          />
+        )}
 
         {isStaffPreview ? (
           <StaffPreviewCard publicEventNote={publicEventNote} giftOptions={giftOptions} />

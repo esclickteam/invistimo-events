@@ -20,6 +20,7 @@ import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
 import WeddingSiteMenu from "../WeddingSiteMenu";
 import { WeddingDesktopFx } from "../shared/weddingMotion";
+import WeddingStudioInvite from "../WeddingStudioInvite";
 
 const GREEN = "#6B9E78";
 
@@ -152,7 +153,7 @@ function InvitationSection() {
         <span className="text-4xl">🌿</span>
         <h2 className="mt-4 font-['Libre_Baskerville'] text-4xl text-[#1F3324]">הזמנה חמה</h2>
         <div className="mt-10 rounded-[2rem] bg-white p-10 shadow-[0_20px_60px_rgba(107,158,120,0.12)]">
-          <p className="text-lg leading-loose text-[#5C7A62]">{DEMO.invitationText}</p>
+          <WeddingStudioInvite><p className="text-lg leading-loose text-[#5C7A62]">{DEMO.invitationText}</p></WeddingStudioInvite>
         </div>
       </div>
     </Section>

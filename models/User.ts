@@ -484,6 +484,7 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
 
   selfManageEnabled: boolean;
   customDesignEnabled: boolean;
+  designedInvitationEnabled?: boolean;
 
   smsPerRecord: number;
   smsLimit: number;
@@ -1925,6 +1926,11 @@ preRsvpMessages: {
     },
 
     customDesignEnabled: {
+      type: Boolean,
+      default: false,
+    },
+
+    designedInvitationEnabled: {
       type: Boolean,
       default: false,
     },

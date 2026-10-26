@@ -20,6 +20,7 @@ import {
   Eye,
   Contact,
   Bell,
+  Palette,
   ChevronLeft,
   ChevronRight,
   X,
@@ -293,6 +294,14 @@ export default function DashboardSidebar({
           path.includes("/edit-invite") ||
           path.includes("/create-invite") ||
           (path.includes("/invitations/") && path.includes("/edit") === false),
+      },
+      {
+        id: "invitation-studio",
+        label: "סטודיו הזמנות",
+        icon: Palette,
+        href: "/dashboard/invitation-studio",
+        hidden: gameOnly,
+        match: (path) => path.startsWith("/dashboard/invitation-studio"),
       },
       {
         id: "invitation-preview",

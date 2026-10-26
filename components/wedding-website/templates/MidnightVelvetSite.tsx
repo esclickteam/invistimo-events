@@ -20,6 +20,7 @@ import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
 import WeddingSiteMenu from "../WeddingSiteMenu";
 import { WeddingDesktopFx } from "../shared/weddingMotion";
+import WeddingStudioInvite from "../WeddingStudioInvite";
 
 const fadeIn = {
   initial: { opacity: 0, y: 40 },
@@ -144,7 +145,7 @@ function InvitationSection() {
       <div className="mx-auto max-w-3xl px-6 text-center">
         <h2 className="font-['Playfair_Display'] text-4xl text-[#F5F0E8]">הזמנה חמה</h2>
         <Glass className="mt-10">
-          <p className="text-lg leading-loose text-[#A89BB0]">{DEMO.invitationText}</p>
+          <WeddingStudioInvite><p className="text-lg leading-loose text-[#A89BB0]">{DEMO.invitationText}</p></WeddingStudioInvite>
         </Glass>
       </div>
     </Section>

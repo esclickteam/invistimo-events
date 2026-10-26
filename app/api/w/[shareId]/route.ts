@@ -22,6 +22,8 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 import { getActiveMenuOptions } from "@/lib/rsvp/guestRsvpLogic";
+import type { StudioSnapshot } from "@/lib/invitationStudio/types";
+import { publicSnapshot } from "@/lib/invitationStudio/render";
 
 export async function GET(
   req: NextRequest,
@@ -114,6 +116,23 @@ export async function GET(
       });
     }
 
+    const publishedStudio = (invitation as { studioDesign?: {
+      designId?: unknown;
+      templateId?: unknown;
+      publishedAt?: unknown;
+      snapshot?: StudioSnapshot | null;
+    } }).studioDesign;
+    const studioDesign = publishedStudio?.snapshot
+      ? {
+          designId: publishedStudio.designId ? String(publishedStudio.designId) : undefined,
+          templateId: publishedStudio.templateId ? String(publishedStudio.templateId) : undefined,
+          publishedAt: publishedStudio.publishedAt
+            ? String(publishedStudio.publishedAt)
+            : null,
+          snapshot: publicSnapshot(publishedStudio.snapshot),
+        }
+      : null;
+
     return NextResponse.json({
       success: true,
       shareId,
@@ -121,6 +140,7 @@ export async function GET(
       template,
       weddingWebsite: website,
       event: website.event,
+      studioDesign,
       features: {
         weddingWebsite: true,
         guestMessages: features.guestMessages,

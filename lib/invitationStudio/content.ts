@@ -1,0 +1,102 @@
+import type { StudioCategory, StudioContent } from "@/lib/invitationStudio/types";
+
+export function emptyContent(): StudioContent {
+  return {
+    kicker: "",
+    hostNames: "",
+    eventType: "",
+    wording: "",
+    hebrewDate: "",
+    gregorianDate: "",
+    receptionTime: "",
+    ceremonyTime: "",
+    venueName: "",
+    venueAddress: "",
+    guestGreeting: "",
+  };
+}
+
+const PRESETS: Record<StudioCategory, StudioContent> = {
+  wedding: {
+    kicker: "בְּשִׂמְחָה",
+    hostNames: "נועה ודני",
+    eventType: "החתונה שלנו",
+    wording: "נשמח לחגוג איתכם את היום הגדול שלנו",
+    hebrewDate: "כ״ג באייר תשפ״ז",
+    gregorianDate: "יום חמישי, 10 ביוני 2027",
+    receptionTime: "קבלת פנים 19:30",
+    ceremonyTime: "חופה 20:30",
+    venueName: "אולם הגן",
+    venueAddress: "הרצליה",
+    guestGreeting: "{name}, שמרנו לכם מקום",
+  },
+  henna: {
+    kicker: "בשמחה גדולה",
+    hostNames: "יעל אביב",
+    eventType: "חינה",
+    wording: "נשמח שתבואו לשמוח איתנו בערב החינה",
+    hebrewDate: "י״ב בסיוון תשפ״ז",
+    gregorianDate: "יום שלישי, 18 במאי 2027",
+    receptionTime: "קבלת פנים 20:00",
+    ceremonyTime: "טקס החינה 21:15",
+    venueName: "בית משפחת אביב",
+    venueAddress: "פתח תקווה",
+    guestGreeting: "{name}, מחכים לכם באהבה",
+  },
+  bnai: {
+    kicker: "להזמינכם",
+    hostNames: "איתמר לוי",
+    eventType: "בר המצווה",
+    wording: "נשמח שתשתתפו בשמחת בר המצווה",
+    hebrewDate: "ט״ו בחשוון תשפ״ז",
+    gregorianDate: "יום שבת, 7 בנובמבר 2026",
+    receptionTime: "קבלת פנים 11:00",
+    ceremonyTime: "עלייה לתורה 9:30",
+    venueName: "בית הכנסת המרכזי",
+    venueAddress: "רעננה",
+    guestGreeting: "{name}, נשמח לראותכם",
+  },
+  brit: {
+    kicker: "בסימן טוב",
+    hostNames: "אדם הררי",
+    eventType: "ברית מילה",
+    wording: "נשמח שתבואו לשמוח איתנו בהולדת בננו",
+    hebrewDate: "ב׳ בניסן תשפ״ז",
+    gregorianDate: "יום ראשון, 21 במרץ 2027",
+    receptionTime: "כיבוד 12:30",
+    ceremonyTime: "ברית 13:00",
+    venueName: "בית משפחת הררי",
+    venueAddress: "גבעתיים",
+    guestGreeting: "{name}, בואו לשמוח איתנו",
+  },
+  birthday: {
+    kicker: "חוגגים",
+    hostNames: "מיכל ברק",
+    eventType: "יום הולדת 30",
+    wording: "מזמינים אתכם לערב של מוזיקה, עוגה וחברים",
+    hebrewDate: "א׳ באב תשפ״ז",
+    gregorianDate: "יום שישי, 16 ביולי 2027",
+    receptionTime: "התכנסות 21:00",
+    ceremonyTime: "ברכה ועוגה 22:30",
+    venueName: "גג העיר",
+    venueAddress: "תל אביב",
+    guestGreeting: "{name}, השאירו מקום ביומן",
+  },
+  business: {
+    kicker: "הזמנה",
+    hostNames: "סטודיו אור",
+    eventType: "השקת קולקציה",
+    wording: "נשמח לארח אתכם בערב ההשקה",
+    hebrewDate: "י״ח בכסלו תשפ״ז",
+    gregorianDate: "יום רביעי, 2 בדצמבר 2026",
+    receptionTime: "קבלת פנים 18:30",
+    ceremonyTime: "דברי פתיחה 19:15",
+    venueName: "ביתן הנמל",
+    venueAddress: "יפו",
+    guestGreeting: "{name}, שמרנו לכם מקום",
+  },
+};
+
+export function presetContent(category: StudioCategory, patch?: Partial<StudioContent>): StudioContent {
+  return { ...PRESETS[category], ...patch };
+}

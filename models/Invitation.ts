@@ -313,6 +313,15 @@ const InvitationSchema = new Schema(
       default: {},
     },
 
+    /*
+      Published invitation-studio snapshot.
+      Absent on existing invitations. Guest RSVP data is not stored here.
+    */
+    studioDesign: {
+      type: mongoose.Schema.Types.Mixed,
+      default: undefined,
+    },
+
     orientation: {
       type: String,
       enum: ["portrait", "landscape", "square"],

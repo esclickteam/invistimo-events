@@ -17,6 +17,7 @@ import WeddingVenueNav from "../WeddingVenueNav";
 import WeddingGiftActions from "../WeddingGiftActions";
 import EventUploadMedia from "../shared/EventUploadMedia";
 import WeddingSiteMenu from "../WeddingSiteMenu";
+import WeddingStudioInvite from "../WeddingStudioInvite";
 
 const CREAM = "#FDFBF7";
 
@@ -169,9 +170,11 @@ export default function RoyalIvorySite({ template, embed, live, rsvpController, 
         <div className="mx-auto max-w-3xl px-6 text-center">
           <CrownOrnament className="mx-auto mb-6" />
           <h2 className="font-['Playfair_Display'] text-4xl">הזמנה רשמית</h2>
-          <p className="mt-10 font-['Playfair_Display'] text-xl italic leading-[2] text-[#5C4A38]">
-            {DEMO.invitationText}
-          </p>
+          <WeddingStudioInvite>
+            <p className="mt-10 font-['Playfair_Display'] text-xl italic leading-[2] text-[#5C4A38]">
+              {DEMO.invitationText}
+            </p>
+          </WeddingStudioInvite>
           <p className="mt-8 text-sm text-[#B8956B]">{DEMO.venueName}</p>
         </div>
       </section>

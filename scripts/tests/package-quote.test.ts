@@ -81,6 +81,7 @@ test("hybrid example matches the requested 350-record quote", () => {
       "הושבה דיגיטלית: כן",
       "מערכת עצמאית לניהול ומעקב אירוע: לא",
       "עיצוב הזמנה בהתאמה אישית: לא",
+      "הזמנה דיגיטלית מעוצבת: לא",
       "מחיר שירות: 665 ₪",
       "תוספת הושבה: 100 ₪",
       'סה"כ: 765 ₪',
@@ -237,6 +238,7 @@ test("pricing page restores the original add-ons and drops Wedding Challenges", 
     "הושבה דיגיטלית",
     "מערכת עצמאית לניהול ומעקב אירוע",
     "עיצוב הזמנה בהתאמה אישית",
+    "הזמנה דיגיטלית מעוצבת",
   ]);
   assert.doesNotMatch(page, /WeddingChallengesPurchaseCard/);
   assert.doesNotMatch(page, /סבב ראשון/);
