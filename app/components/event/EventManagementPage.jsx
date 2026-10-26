@@ -1,19 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Frank_Ruhl_Libre } from "next/font/google";
 import { motion, useReducedMotion } from "framer-motion";
 import {
-  ArrowDown,
   ArrowLeft,
-  CalendarClock,
   CheckCircle2,
-  ClipboardList,
+  ChevronLeft,
   LayoutDashboard,
+  ListChecks,
   MapPin,
-  Sparkles,
+  Play,
   Users,
   Wallet,
   X,
@@ -27,1082 +26,771 @@ const display = Frank_Ruhl_Libre({
   variable: "--font-event-mgmt-display",
 });
 
-const RSVP_DEMO_URL = "/try/dashboard";
-const EVENT_MANAGEMENT_DEMO_URL = "/try/event-management";
-
-const IMG = {
-  heroAtmosphere: "/images/rsvp/guides/wedding-planning/hero-reception.jpg",
-  dashboardGuests: "/images/rsvp/chatuna/dashboard-guests.jpg",
-  dashboardSeating: "/images/rsvp/chatuna/dashboard-seating.jpg",
-  sitOverview: "/sit1.png",
-  photographer: "/images/rsvp/guides/wedding-vendors/photographer.jpg",
-  handshake: "/images/rsvp/guides/wedding-vendors/handshake.jpg",
-  contract: "/images/rsvp/guides/wedding-vendors/contract.jpg",
-  meeting: "/images/rsvp/guides/wedding-vendors/meeting.jpg",
-  hallTables: "/images/rsvp/guides/wedding-planning/hall-tables.jpg",
-  toast: "/images/rsvp/guides/wedding-planning/toast.jpg",
-  phoneRsvp: "/images/rsvp/chatuna/phone-rsvp-form.jpg",
-  phoneInvite: "/images/rsvp/chatuna/phone-invite.jpg",
+const PRODUCT = {
+  hero: "/images/event-management/product/hero-dashboard.webp",
+  overview: "/images/event-management/product/overview-dashboard.webp",
+  planning: "/images/event-management/product/planning-concept.webp",
+  suppliers: "/images/event-management/product/suppliers-budget.webp",
+  calendar: "/images/event-management/product/calendar-schedule.webp",
+  logistics: "/images/event-management/product/logistics-timeline.webp",
+  guests: "/images/event-management/product/guests-dashboard.webp",
+  seating: "/images/event-management/product/seating-map.webp",
 };
 
-const PILLARS = [
-  {
-    title: "מערכת לניהול אירוע",
-    text: "משימות, ספקים, תקציב, תשלומים ולוח זמנים במקום אחד — למי שמנהל בעצמו או רוצה בסיס מסודר לפני ליווי.",
-    icon: LayoutDashboard,
+const VIDEOS = {
+  overview: {
+    src: "/videos/event-management/system-overview.webm",
+    poster: "/videos/event-management/system-overview-poster.jpg",
+    caption: "/videos/event-management/system-overview.vtt",
+    title: "סקירת מערכת הניהול",
   },
-  {
-    title: "ליווי מקצועי",
-    text: "הכוונה וליווי בהתאם למסלול השירות שמוצג בהצעה הפעילה — בלי להמציא חבילות או הכללות שלא סוכמו.",
-    icon: ClipboardList,
+  tasks: {
+    src: "/videos/event-management/tasks-flow.webm",
+    poster: "/videos/event-management/tasks-flow-poster.jpg",
+    caption: "/videos/event-management/tasks-flow.vtt",
+    title: "מתכנון לביצוע — משימות",
   },
-  {
-    title: "מנהלי אירועים בשטח",
-    text: "אפשרות לשירות ניהול ביום האירוע באמצעות מנהל מקצועי שעובד עם Invistimo — לפי אזור, תאריך וזמינות.",
-    icon: MapPin,
+  budget: {
+    src: "/videos/event-management/budget-flow.webm",
+    poster: "/videos/event-management/budget-flow-poster.jpg",
+    caption: "/videos/event-management/budget-flow.vtt",
+    title: "ניהול תקציב ותשלומים",
   },
-];
+  day: {
+    src: "/videos/event-management/event-day.webm",
+    poster: "/videos/event-management/event-day-poster.jpg",
+    caption: "/videos/event-management/event-day.vtt",
+    title: "לוח זמנים ליום האירוע",
+  },
+};
 
-const NETWORK_STEPS = [
+const GALLERY_TABS = [
   {
-    title: "שלב 1 — מספרים לנו על האירוע",
-    text: "סוג האירוע, תאריך, אולם, מיקום ומספר מוזמנים משוער.",
+    id: "dashboard",
+    label: "דשבורד",
+    image: PRODUCT.overview,
+    alt: "דשבורד ניהול אירוע ב־Invistimo — תמונת מצב, תקציב ומשימות",
+    text: "תמונת מצב אחת: פרטי האירוע, התראות, תקציב ומשימות פתוחות.",
+    action: "לראות מה דורש טיפול עכשיו",
   },
   {
-    title: "שלב 2 — בוחרים את היקף השירות",
-    text: "ניהול עצמאי, ליווי או ניהול בשטח — לפי מה שמתאים לכם.",
+    id: "tasks",
+    label: "משימות",
+    image: PRODUCT.overview,
+    alt: "רשימת משימות במערכת ניהול האירוע",
+    text: "מוסיפים משימה, קובעים תאריך יעד ומעדכנים סטטוס עד להשלמה.",
+    action: "לנהל רשימת משימות אחת",
   },
   {
-    title: "שלב 3 — בודקים התאמה וזמינות",
-    text: "לשירותי ניהול בשטח בודקים זמינות והתאמה של מנהל אירוע מקצועי. אין הבטחה מראש בכל עיר או תאריך.",
+    id: "suppliers",
+    label: "ספקים",
+    image: PRODUCT.suppliers,
+    alt: "מסך ספקים ותקציב במערכת Invistimo",
+    text: "ריכוז ספקים לפי קטגוריה, אנשי קשר, מקדמות, יתרות וקבצים.",
+    action: "לרכז ספקים ותשלומים",
   },
   {
-    title: "שלב 4 — נערכים לאירוע",
-    text: "מגדירים אחריות, עוברים על הפרטים החשובים ומתאמים את תוכנית העבודה.",
+    id: "budget",
+    label: "תקציב",
+    image: PRODUCT.overview,
+    alt: "כרטיסי תקציב ותשלומים בדשבורד האירוע",
+    text: "תקציב מתוכנן מול התחייבויות, שולם בפועל ויתרה זמינה.",
+    action: "לעקוב אחרי התקציב",
   },
   {
-    title: "שלב 5 — ניהול ביום האירוע",
-    text: "מנהל האירוע פועל בהתאם לתכולת השירות שסוכמה מראש.",
+    id: "payments",
+    label: "תשלומים",
+    image: PRODUCT.suppliers,
+    alt: "מעקב מקדמות ויתרות מול ספקים",
+    text: "לכל ספק רואים מחיר כולל, מקדמה ויתרה — בלי אקסל מפוזר.",
+    action: "לעדכן מקדמות ויתרות",
+  },
+  {
+    id: "schedule",
+    label: "לוח זמנים",
+    image: PRODUCT.logistics,
+    alt: "לוח זמנים ולוגיסטיקה ליום האירוע",
+    text: "ציר זמן ליום האירוע לצד משימות לוגיסטיקה וסטטוסים.",
+    action: "לבנות לו״ז ליום האירוע",
+  },
+  {
+    id: "guests",
+    label: "אורחים והושבה",
+    image: PRODUCT.guests,
+    alt: "רשימת מוזמנים ואישורי הגעה ב־Invistimo",
+    text: "אישורי הגעה והושבה משתלבים בניהול — כשירותים נפרדים לפי החבילה.",
+    action: "לחבר אורחים להושבה",
   },
 ];
 
 const PATHS = [
   {
-    id: "self",
-    title: "ניהול עצמאי עם המערכת",
-    subtitle: "אתם מנהלים — המערכת מסדרת",
-    image: IMG.dashboardGuests,
-    imageAlt: "צילום מסך של לוח הבקרה לניהול מוזמנים ב־Invistimo",
-    points: [
-      "משימות, ספקים, תקציב, תשלומים ולו״ז במערכת ניהול האירוע",
-      "גישה לדמו מלא של ניהול האירוע ב־/try/event-management",
-      "אישורי הגעה, הושבה ו־LIVE הם שירותים נפרדים כשנמכרים בנפרד",
+    title: "ניהול עצמאי",
+    forWho: "למי שרוצה לנהל בעצמו עם כלים מסודרים",
+    includes: [
+      "מערכת משימות, ספקים, תקציב ולוח זמנים",
+      "עבודה עצמאית מהמחשב או מהמובייל",
+      "אפשרות להתנסות בדמו לפני הרכישה",
     ],
-  },
-  {
-    id: "guidance",
-    title: "ליווי מקצועי",
-    subtitle: "הכוונה לפי ההצעה הפעילה",
-    image: IMG.meeting,
-    imageAlt: "פגישת תיאום מקצועית לקראת אירוע",
-    points: [
-      "ליווי והכוונה בהתאם למה שמופיע בהצעה שתקבלו — לא ממציאים הכללות בעמוד",
-      "שילוב עם המערכת הדיגיטלית כדי שתהיה תמונה אחת של התכנון",
-      "מתאים למי שרוצה יד מקצועית בתכנון בלי בהכרח נוכחות מלאה באולם",
+    excludes: [
+      "ליווי מפיקה אינו כלול אוטומטית",
+      "ניהול באולם ביום האירוע אינו כלול אוטומטית",
+      "אישורי הגעה והושבה נמכרים כשירותים נפרדים לפי החבילה",
     ],
+    extra: false,
+    cta: { label: "התנסו במערכת", href: "/try/event-management" },
   },
   {
-    id: "dayof",
-    title: "מנהל אירוע ביום האירוע",
-    subtitle: "תיאום בשטח — לפי זמינות ותנאים",
-    image: IMG.hallTables,
-    imageAlt: "אולם אירועים מוכן לקבלת אורחים",
-    points: [
-      "ייתכן שיכלול תיאום ספקים ביום האירוע, מעקב לו״ז ונוכחות באולם — לפי ההסכם",
-      "ההיקף המדויק נקבע רק אחרי בדיקת זמינות ותנאי השירות",
-      "לא מחליף אוטומטית את מנהל האולם; משלימים או מתאמים לפי הצורך",
+    title: "ניהול עצמאי עם ליווי מקצועי",
+    forWho: "למי שמנהל במערכת ורוצה הכוונה מקצועית",
+    includes: [
+      "שימוש במערכת העצמאית",
+      "ליווי מפיקה בהתאם להסכם ולהצעה הפעילה",
+      "תיאום ציפיות על היקף הליווי לפני סגירה",
     ],
+    excludes: [
+      "התכולה המדויקת נקבעת רק בהצעה",
+      "נוכחות באולם אינה מובטחת בכל מסלול ליווי",
+    ],
+    extra: true,
+    cta: { label: "בדקו אפשרות לליווי", href: "#contact" },
+  },
+  {
+    title: "ניהול בפועל ביום האירוע",
+    forWho: "למי שרוצה גורם מקצועי שמתאם באולם",
+    includes: [
+      "שירות ניהול באולם ביום האירוע — בכפוף לזמינות",
+      "תיאום לפי תחומי האחריות שסוכמו מראש",
+      "שילוב עם המערכת לריכוז פרטים",
+    ],
+    excludes: [
+      "אינו מחליף אוטומטית את מנהל האולם",
+      "אין הבטחת זמינות בכל אזור או תאריך בלי בדיקה",
+    ],
+    extra: true,
+    cta: { label: "בדקו זמינות", href: "#contact" },
   },
 ];
 
-const COMPARISON_ROWS = [
-  {
-    feature: "למי מתאים",
-    self: "למי שמעדיף לנהל בעצמו עם כלים מסודרים",
-    guidance: "למי שרוצה הכוונה מקצועית בתכנון",
-    dayof: "למי שרוצה מנהל מקצועי ביום האירוע",
-  },
-  {
-    feature: "מה מקבלים",
-    self: "גישה למערכת ניהול האירוע",
-    guidance: "ליווי לפי ההצעה הפעילה + שימוש במערכת",
-    dayof: "שירות ניהול בשטח לפי ההסכם + מערכת",
-  },
-  {
-    feature: "מי מבצע",
-    self: "אתם (בעלי האירוע / המשפחה)",
-    guidance: "אתם עם ליווי מקצועי",
-    dayof: "מנהל אירוע שעובד עם Invistimo, לפי זמינות",
-  },
-  {
-    feature: "מתי מתחיל",
-    self: "מיד עם הכניסה למערכת",
-    guidance: "לפי לוח הזמנים שסוכם בהצעה",
-    dayof: "לרוב קרוב ליום האירוע + תיאום מקדים לפי ההסכם",
-  },
-  {
-    feature: "נוכחות באולם",
-    self: "לא כלולה כשירות חיצוני",
-    guidance: "לא בהכרח — תלוי בהצעה",
-    dayof: "כן, כשסוכם בהסכם השירות",
-  },
-  {
-    feature: "שירותים משלימים",
-    self: "RSVP / הושבה / LIVE כתוספות נפרדות כשנמכרות בנפרד",
-    guidance: "אותן תוספות לפי הצורך וההצעה",
-    dayof: "אותן תוספות; אלכוהול ומתנות קיימים בדמו המוצר",
-  },
-  {
-    feature: "איך מקבלים הצעת מחיר",
-    self: "דרך הדמו / יצירת קשר לפי הצורך",
-    guidance: "בדיקת התאמה בטופס למטה",
-    dayof: "בדיקת זמינות והתאמה בטופס — בלי מחיר גנרי בעמוד",
-  },
+const START_STEPS = [
+  "בוחרים את השירות והיקף הניהול",
+  "נכנסים למערכת או מתנסים בדמו",
+  "מגדירים פרטי אירוע בסיסיים",
+  "מוסיפים משימות וספקים",
+  "מתכננים תקציב ולוח זמנים",
+  "ממשיכים לנהל עד יום האירוע",
 ];
 
-const GALLERY = [
-  {
-    title: "לוח בקרה",
-    see: "תמונת מצב של האירוע והמודולים העיקריים",
-    problem: "מידע מפוזר בין הודעות, אקסל וספקים",
-    do: "לנווט בין תכנון, ספקים, לו״ז ומודולים נוספים",
-    path: "כלול במערכת ניהול האירוע",
-    image: IMG.sitOverview,
-    alt: "מסך סקירה של מערכת ניהול האירוע",
-  },
-  {
-    title: "משימות",
-    see: "רשימת משימות עם סטטוסים ותזכורות תכנון",
-    problem: "משימות שנשכחות בין ספקים ותאריכים",
-    do: "לסמן, לחלק ולעקוב אחרי מה שנותר לסגור",
-    path: "כלול במערכת ניהול האירוע",
-    image: null,
-    alt: "",
-  },
-  {
-    title: "ספקים",
-    see: "כרטיסי ספקים, אנשי קשר והערות",
-    problem: "פרטי ספקים מפוזרים בשיחות ובוואטסאפ",
-    do: "לרכז אנשי קשר, סטטוסים ותיאומים",
-    path: "כלול במערכת ניהול האירוע",
-    image: IMG.handshake,
-    alt: "לחיצת יד המייצגת תיאום מול ספקים",
-  },
-  {
-    title: "תקציב",
-    see: "פירוט סעיפי תקציב מול מה שתוכנן",
-    problem: "קשה לדעת מה כבר הוקצה ומה נשאר",
-    do: "לעדכן סעיפים ולראות תמונה כוללת",
-    path: "כלול במערכת ניהול האירוע",
-    image: IMG.contract,
-    alt: "מסמך חוזה המייצג ניהול תקציב והתחייבויות",
-  },
-  {
-    title: "תשלומים",
-    see: "מעקב תשלומים לספקים ולסעיפים",
-    problem: "מקדמות ותשלומים אחרונים מתערבבים",
-    do: "לרשום מה שולם ומה ממתין",
-    path: "כלול במערכת ניהול האירוע",
-    image: null,
-    alt: "",
-  },
-  {
-    title: "לוח זמנים",
-    see: "לו״ז ליום האירוע ולנקודות ציון בתכנון",
-    problem: "חוסר תיאום בין ספקים לרגעי מפתח",
-    do: "לבנות סדר פעולות ולשתף אותו",
-    path: "כלול במערכת ניהול האירוע",
-    image: IMG.toast,
-    alt: "רגע חגיגי המייצג תיאום לוח זמנים לאירוע",
-  },
-  {
-    title: "רשימת מוזמנים",
-    see: "רשימת אורחים מעודכנת במערכת",
-    problem: "גרסאות שונות של הרשימה אצל בני המשפחה",
-    do: "לנהל רשומות, קבוצות ועדכונים",
-    path: "במערכת RSVP / דשבורד המוזמנים",
-    image: IMG.dashboardGuests,
-    alt: "צילום מסך של רשימת מוזמנים ב־Invistimo",
-  },
-  {
-    title: "אישורי הגעה (RSVP)",
-    see: "שליחת הזמנות ומעקב אחרי תשובות",
-    problem: "רדיפה ידנית אחרי אורחים",
-    do: "לשלוח, לעקוב ולעדכן סטטוסים",
-    path: "תוספת נפרדת כשנמכרת בנפרד",
-    image: IMG.phoneRsvp,
-    alt: "טופס אישור הגעה בטלפון",
-  },
-  {
-    title: "הושבה",
-    see: "מפת שולחנות ושיבוץ אורחים",
-    problem: "שיבוץ ידני שמתעדכן באיחור",
-    do: "לשבץ, לעדכן ולשתף מספרי שולחן",
-    path: "תוספת נפרדת; LIVE כשנרכש",
-    image: IMG.dashboardSeating,
-    alt: "צילום מסך של מפת הושבה ב־Invistimo",
-  },
-];
-
-const TIMELINE = [
-  {
-    stage: "לפני תחילת האירוע",
-    text: "וידוא לו״ז, אנשי קשר של ספקים, נקודות תיאום מול האולם ומוכנות לרשימת האורחים.",
-  },
-  {
-    stage: "הקמות",
-    text: "תיאום הגעת ספקים, בדיקת עמדות וסידורים — לפי מה שסוכם במסלול.",
-  },
-  {
-    stage: "קבלת פנים",
-    text: "מעקב אחרי זרימת האורחים ותיאום מול צוות האולם / צוות ההושבה כשיש.",
-  },
-  {
-    stage: "לקראת חופה",
-    text: "וידוא שספקים ומשפחה מסונכרנים לרגע המרכזי.",
-  },
-  {
-    stage: "במהלך",
-    text: "מעקב אחרי נקודות ציון בלו״ז וטיפול בשינויים של הרגע האחרון.",
-  },
-  {
-    stage: "בסיום",
-    text: "סגירת תיאומים אחרונים מול ספקים והעברת סיכום לבעלי האירוע — לפי ההסכם.",
-  },
-];
-
-const RSVP_STEPS = [
-  "בונים רשימת מוזמנים במערכת",
-  "שולחים הזמנה דיגיטלית / קישור אישי",
-  "אוספים אישורי הגעה ומעדכנים סטטוסים",
-  "מעדכנים מנות / הערות מול האולם לפי הצורך",
-  "משבצים הושבה על בסיס מאשרי ההגעה",
-  "משחררים מספרי שולחן לאורחים כשמוכן",
-  "ביום האירוע — LIVE לניהול הגעה בפועל, כשהמודול נרכש",
-];
-
-const REGIONS = [
-  "צפון",
-  "חיפה והקריות",
-  "שרון",
-  "מרכז",
-  "ירושלים והסביבה",
-  "דרום",
-];
-
-const WHY_POINTS = [
-  {
-    title: "מערכת אחת לתכנון",
-    text: "משימות, ספקים, תקציב, תשלומים ולו״ז — במקום אחד, כולל מודולים לדמו כמו אלכוהול ומתנות.",
-  },
-  {
-    title: "חיבור ל־RSVP ולהושבה",
-    text: "כשרוכשים את התוספות, רשימת המוזמנים, האישורים וההושבה מתחברים לאותו עולם מוצר.",
-  },
-  {
-    title: "אנשי מקצוע לפי זמינות",
-    text: "אפשר לבדוק ליווי או מנהל בשטח דרך הרשת של Invistimo — בלי הבטחת כיסוי ארצי מראש.",
-  },
-  {
-    title: "שקיפות במסלולים",
-    text: "עצמאי, ליווי או יום־האירוע — בוחרים לפי הצורך, וההיקף המדויק נקבע בהצעה.",
-  },
-];
+const RSVP_DEMO_URL = "/try/dashboard";
+const EVENT_MANAGEMENT_DEMO_URL = "/try/event-management";
 
 export default function EventManagementPage() {
-  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
-  const [regionHint, setRegionHint] = useState(null);
   const reduceMotion = useReducedMotion();
+  const [galleryTab, setGalleryTab] = useState("dashboard");
+  const [lightbox, setLightbox] = useState(null);
+  const [isDemoModalOpen, setIsDemoModalOpen] = useState(false);
+
+  const activeGallery = useMemo(
+    () => GALLERY_TABS.find((tab) => tab.id === galleryTab) || GALLERY_TABS[0],
+    [galleryTab]
+  );
 
   const scrollToId = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const goToDemo = (url) => {
-    window.location.href = url;
-  };
-
-  const preferRegion = (region) => {
-    setRegionHint(region);
-    scrollToId("contact");
-  };
-
-  const fade = {
-    hidden: reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 22 },
-    show: { opacity: 1, y: 0 },
-  };
-
   return (
-    <div
-      dir="rtl"
-      className={`${display.variable} -mt-[64px] w-full overflow-x-hidden bg-[#FBF6EE] text-right text-[#3F3025]`}
-    >
-      {/* 1. HERO */}
-      <section className="relative isolate min-h-[min(92vh,900px)] overflow-hidden">
-        <div className="absolute inset-0 -z-10">
-          <Image
-            src={IMG.heroAtmosphere}
-            alt="קבלת פנים חגיגית באולם אירועים"
-            fill
-            priority
-            className="object-cover object-center"
-            sizes="100vw"
-          />
-          <div className="absolute inset-0 bg-gradient-to-l from-[#FFFDF8]/96 via-[#FBF6EE]/88 to-[#35281F]/45" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(199,165,107,0.28),transparent_42%)]" />
-          <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#FBF6EE] to-transparent" />
-        </div>
-
-        <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 pb-16 pt-[110px] md:px-8 md:pb-24 lg:grid-cols-[1.15fr_0.85fr] lg:gap-14">
+    <div dir="rtl" className={`${display.variable} overflow-hidden bg-[#FBF6EE] text-[#3F3025]`}>
+      {/* HERO */}
+      <section className="relative isolate overflow-hidden bg-[linear-gradient(180deg,#FFFDF8_0%,#F7EFE0_48%,#FBF6EE_100%)]">
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(201,164,92,0.18),transparent_42%),radial-gradient(circle_at_88%_18%,rgba(232,214,180,0.45),transparent_40%)]"
+          aria-hidden
+        />
+        <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 pb-16 pt-24 md:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:pb-24 lg:pt-28">
           <motion.div
-            initial={reduceMotion ? false : "hidden"}
-            animate="show"
-            variants={fade}
-            transition={{ duration: 0.55 }}
+            initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
           >
-            <p
-              className={`${display.className} text-3xl font-bold tracking-tight text-[#A67C3D] md:text-5xl`}
-            >
+            <p className={`${display.className} text-4xl font-bold tracking-tight text-[#A67C3D] md:text-5xl`}>
               Invistimo
             </p>
             <h1
-              className={`${display.className} mt-4 max-w-3xl text-[1.85rem] font-bold leading-[1.25] text-[#2C241C] md:text-[2.65rem]`}
+              className={`${display.className} mt-4 max-w-2xl text-[2rem] font-bold leading-[1.2] text-[#2C241C] md:text-[2.75rem]`}
             >
-              ניהול אירועים מקצועי — מערכת חכמה ומנהלי אירועים ברחבי הארץ
+              האירוע שלכם. כל הפרטים במקום אחד.
             </h1>
-            <p className="mt-5 max-w-2xl text-lg font-bold leading-8 text-[#35281F] md:text-xl md:leading-9">
-              מתכננים בעצמכם או נעזרים במנהל אירוע מקצועי. עם Invistimo הכול מתחבר.
+            <p className="mt-5 max-w-xl text-base leading-8 text-[#5C4A3A] md:text-lg">
+              מערכת חכמה לניהול והפקת אירועים — משימות, ספקים, תקציב, תשלומים ולוח זמנים, עם
+              אפשרות להוסיף ליווי מקצועי וניהול ביום האירוע.
             </p>
-            <p className="mt-4 max-w-2xl text-base leading-8 text-[#5C4A3A] md:text-[17px]">
-              מערכת דיגיטלית לניהול משימות, ספקים, תקציב, תשלומים ולוח זמנים — ולצדה אפשרות
-              לבדוק ליווי מקצועי ומנהלי אירועים שעובדים עם Invistimo בישראל, בהתאם לאזור,
-              לתאריך ולזמינות. אין הבטחת כיסוי בכל עיר בלי בדיקה.
-            </p>
-
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <a
+                href={EVENT_MANAGEMENT_DEMO_URL}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-[#2C241C] via-[#3F3025] to-[#35281F] px-8 py-3.5 text-base font-extrabold text-white shadow-[0_18px_40px_rgba(44,36,28,0.25)] transition hover:-translate-y-0.5"
+              >
+                התנסו במערכת
+                <ArrowLeft size={18} aria-hidden />
+              </a>
               <button
                 type="button"
                 onClick={() => scrollToId("paths")}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-[#2C241C] via-[#3F3025] to-[#35281F] px-7 py-3.5 text-base font-extrabold text-white shadow-[0_18px_40px_rgba(44,36,28,0.28)] transition hover:-translate-y-0.5"
+                className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-[#C7A56B] bg-white/90 px-8 py-3.5 text-base font-extrabold text-[#2C241C] transition hover:bg-white"
               >
-                גלו את מסלולי ניהול האירוע
-                <ArrowDown size={18} aria-hidden />
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsDemoModalOpen(true)}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-[#C7A56B] bg-[#FFFDF8]/92 px-7 py-3.5 text-base font-extrabold text-[#2C241C] shadow-[0_12px_28px_rgba(166,124,61,0.12)] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
-              >
-                נסו את המערכת
-                <ArrowLeft size={18} aria-hidden />
-              </button>
-              <button
-                type="button"
-                onClick={() => scrollToId("contact")}
-                className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-[#D8C6A0] bg-transparent px-7 py-3.5 text-base font-extrabold text-[#35281F] transition hover:bg-[#FFFDF8]/70"
-              >
-                בדקו אפשרות למנהל אירוע
+                גלו את אפשרויות הניהול
               </button>
             </div>
+            <p className="mt-4 text-sm text-[#7A6042]">
+              התצוגות להמחשה מתוך מערכת Invistimo. ליווי וניהול באולם — רק אם סוכמו.
+            </p>
           </motion.div>
 
           <motion.div
-            initial={reduceMotion ? false : { opacity: 0, y: 24 }}
+            initial={reduceMotion ? false : { opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: reduceMotion ? 0 : 0.12 }}
-            className="relative mx-auto w-full max-w-md lg:max-w-none"
+            transition={{ duration: 0.55, delay: reduceMotion ? 0 : 0.08 }}
+            className="relative"
           >
-            <div className="relative overflow-hidden rounded-[1.75rem] border border-[#E6D2AA]/80 bg-[#FFFDF8]/80 p-2 shadow-[0_30px_80px_rgba(44,36,28,0.22)] backdrop-blur">
-              <div className="relative aspect-[4/3] overflow-hidden rounded-[1.35rem]">
+            <button
+              type="button"
+              onClick={() => setLightbox({ src: PRODUCT.overview, alt: "דשבורד ניהול האירוע" })}
+              className="group relative block w-full overflow-hidden rounded-[1.75rem] border border-[#E6D2AA] bg-white p-2 text-right shadow-[0_28px_70px_rgba(44,36,28,0.14)]"
+            >
+              <div className="relative aspect-[16/11] overflow-hidden rounded-[1.25rem] bg-[#F8F2E8]">
                 <Image
-                  src={IMG.dashboardGuests}
-                  alt="צילום מסך ממוצר Invistimo — ניהול מוזמנים"
+                  src={PRODUCT.hero}
+                  alt="צילום מסך אמיתי של דשבורד ניהול האירוע ב־Invistimo"
                   fill
-                  className="object-cover object-top"
-                  sizes="(max-width: 1024px) 90vw, 420px"
                   priority
+                  className="object-cover object-top transition duration-500 group-hover:scale-[1.02]"
+                  sizes="(max-width:1024px) 100vw, 560px"
                 />
               </div>
-              <p className="px-3 py-3 text-center text-sm font-semibold text-[#5C4A3A]">
-                תמונת מוצר אמיתית מהמערכת — לא רק אווירה
-              </p>
-            </div>
+              <span className="mt-3 flex items-center justify-between px-2 pb-1 text-sm font-bold text-[#5E4735]">
+                דשבורד ניהול האירוע
+                <span className="text-[#A67C3D]">הגדלה</span>
+              </span>
+            </button>
+            {!reduceMotion ? (
+              <motion.div
+                aria-hidden
+                className="pointer-events-none absolute -bottom-6 -left-4 hidden w-[42%] overflow-hidden rounded-2xl border border-[#E6D2AA] bg-white p-1.5 shadow-xl lg:block"
+                animate={{ y: [0, -6, 0] }}
+                transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <div className="relative aspect-[4/3] overflow-hidden rounded-xl">
+                  <Image src={PRODUCT.suppliers} alt="" fill className="object-cover object-top" sizes="220px" />
+                </div>
+              </motion.div>
+            ) : null}
           </motion.div>
         </div>
       </section>
 
-      {/* 2. PILLARS */}
-      <section className="border-y border-[#E8D9C0] bg-[#FFFDF8] px-4 py-20 md:px-8">
+      {/* ZONE 1 — dashboard */}
+      <ProductSection
+        id="dashboard"
+        eyebrow="תמונת מצב"
+        title="כל האירוע במקום אחד"
+        text="בדשבורד רואים מה צריך לעשות, מה הושלם, אילו ספקים דורשים טיפול, מה מצב התקציב ומה צפוי בהמשך — מתוך המערכת עצמה."
+        image={PRODUCT.overview}
+        alt="דשבורד הפקת אירוע עם תקציב, התראות ומשימות"
+        onExpand={setLightbox}
+        video={VIDEOS.overview}
+        reduceMotion={reduceMotion}
+      />
+
+      {/* ZONE 2 — tasks */}
+      <ProductSection
+        id="tasks"
+        eyebrow="משימות"
+        title="ניהול משימות ברור עד ההשלמה"
+        text="מוסיפים משימה, קובעים תאריך יעד, משנים סטטוס וסוגרים פריטים — כדי שהתכנון לא יישאר ברשימות מפוזרות."
+        image={PRODUCT.overview}
+        alt="רשימת משימות עם סטטוסים ותאריכי יעד במערכת"
+        reverse
+        onExpand={setLightbox}
+        video={VIDEOS.tasks}
+        reduceMotion={reduceMotion}
+        bullets={["הוספת משימה", "תאריך יעד", "שינוי סטטוס", "סימון כבוצעה"]}
+      />
+
+      {/* ZONE 3 — suppliers */}
+      <ProductSection
+        id="suppliers"
+        eyebrow="ספקים"
+        title="כל הספקים, אנשי הקשר והתשלומים"
+        text="רשימת ספקים לפי תחומים, פרטי התקשרות, סטטוס, הערות, מקדמות ויתרות — במקום אחד."
+        image={PRODUCT.suppliers}
+        alt="מסך ספקים עם מקדמות, יתרות וקבצים"
+        onExpand={setLightbox}
+        reduceMotion={reduceMotion}
+        bullets={["רשימת ספקים", "סטטוס והערות", "מקדמה ויתרה", "קבצים וחוזים"]}
+      />
+
+      {/* ZONE 4 — budget */}
+      <ProductSection
+        id="budget"
+        eyebrow="תקציב ותשלומים"
+        title="תקציב מתוכנן מול ביצוע בפועל"
+        text="עוקבים אחרי התחייבויות, שולם בפועל ויתרה זמינה. הדוגמה בתצוגה משתמשת בנתונים עקביים של אותו אירוע — לא בגרף שלא קיים במערכת."
+        image={PRODUCT.overview}
+        alt="כרטיסי תקציב: מתוכנן, התחייבויות, שולם ויתרה"
+        reverse
+        onExpand={setLightbox}
+        video={VIDEOS.budget}
+        reduceMotion={reduceMotion}
+        bullets={["תקציב מתוכנן", "עלות בפועל / התחייבויות", "מקדמות", "יתרות ותשלומים צפויים"]}
+      />
+
+      {/* ZONE 5 — schedule */}
+      <ProductSection
+        id="schedule"
+        eyebrow="יום האירוע"
+        title="לוח זמנים שמחבר ספקים, אולם ורגעים"
+        text="בונים ציר זמן: הגעת ספקים, סידור האולם, קבלת פנים, חופה, ארוחה וסיום — לצד משימות לוגיסטיקה."
+        image={PRODUCT.logistics}
+        alt="לוח זמנים ולוגיסטיקה ליום האירוע"
+        onExpand={setLightbox}
+        video={VIDEOS.day}
+        reduceMotion={reduceMotion}
+      />
+
+      {/* ZONE 6 — guests */}
+      <section id="guests" className="scroll-mt-28 bg-[#FFFDF8] px-4 py-20 md:px-8">
+        <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2">
+          <div>
+            <p className="text-sm font-black tracking-[0.14em] text-[#A67C3D]">אורחים</p>
+            <h2 className={`${display.className} mt-3 text-3xl font-bold text-[#2C241C] md:text-4xl`}>
+              אורחים, אישורי הגעה והושבה — באותה סביבה
+            </h2>
+            <p className="mt-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
+              רשימת מוזמנים, אישורי הגעה ומפת הושבה משתלבים בניהול האירוע, אך נמכרים כשירותים נפרדים
+              לפי החבילה. אין להניח שהם כלולים אוטומטית ברכישת מערכת הניהול.
+            </p>
+            <ul className="mt-6 space-y-2 text-sm font-bold text-[#3F3025] md:text-base">
+              {["רשימת אורחים", "מצב אישורי הגעה", "מפת הושבה", "מספרי שולחנות"].map((item) => (
+                <li key={item} className="flex items-center gap-2">
+                  <CheckCircle2 size={18} className="text-[#A67C3D]" aria-hidden />
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                href="/rsvp"
+                className="inline-flex min-h-11 items-center rounded-full border border-[#DCC7A6] bg-white px-5 py-2.5 text-sm font-black text-[#5E4735]"
+              >
+                אישורי הגעה
+              </Link>
+              <Link
+                href="/seating-explained"
+                className="inline-flex min-h-11 items-center rounded-full border border-[#DCC7A6] bg-white px-5 py-2.5 text-sm font-black text-[#5E4735]"
+              >
+                סידורי הושבה
+              </Link>
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <ShotCard
+              src={PRODUCT.guests}
+              alt="רשימת מוזמנים ואישורי הגעה"
+              caption="רשימת אורחים"
+              onExpand={setLightbox}
+            />
+            <ShotCard
+              src={PRODUCT.seating}
+              alt="מפת הושבה דיגיטלית"
+              caption="מפת הושבה"
+              onExpand={setLightbox}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* ZONE 7 — paths */}
+      <section id="paths" className="scroll-mt-28 bg-[#F8F2E8] px-4 py-20 md:px-8">
         <div className="mx-auto max-w-6xl">
-          <p className="text-sm font-black tracking-[0.16em] text-[#A67C3D]">שלושה עמודי תווך</p>
-          <h2
-            className={`${display.className} mt-3 max-w-4xl text-3xl font-bold leading-tight text-[#2C241C] md:text-4xl`}
-          >
-            מערכת דיגיטלית מתקדמת. מנהלי אירועים מקצועיים. פתרון שמתאים לכם.
+          <p className="text-sm font-black tracking-[0.14em] text-[#A67C3D]">מסלולים</p>
+          <h2 className={`${display.className} mt-3 text-3xl font-bold text-[#2C241C] md:text-4xl`}>
+            שלושה מסלולי ניהול — בחרו מה מתאים
           </h2>
-          <div className="mt-12 grid gap-8 md:grid-cols-3">
-            {PILLARS.map((pillar) => {
-              const Icon = pillar.icon;
+          <p className="mt-4 max-w-3xl text-base leading-8 text-[#5C4A3A]">
+            המערכת העצמאית היא הבסיס. ליווי מפיקה וניהול באולם הם שירותים נוספים — רק אם סוכמו.
+          </p>
+          <div className="mt-10 grid gap-6 lg:grid-cols-3">
+            {PATHS.map((path) => (
+              <article
+                key={path.title}
+                className="flex h-full flex-col rounded-[1.75rem] border border-[#E6D2AA] bg-[#FFFDF8] p-6 shadow-[0_14px_36px_rgba(58,39,20,0.06)]"
+              >
+                {path.extra ? (
+                  <p className="text-xs font-black tracking-wide text-[#A67C3D]">שירות נוסף</p>
+                ) : (
+                  <p className="text-xs font-black tracking-wide text-[#7A6042]">המערכת העצמאית</p>
+                )}
+                <h3 className={`${display.className} mt-2 text-2xl font-bold text-[#2C241C]`}>
+                  {path.title}
+                </h3>
+                <p className="mt-3 text-sm leading-7 text-[#5C4A3A]">{path.forWho}</p>
+                <p className="mt-5 text-sm font-black text-[#35281F]">מה כולל</p>
+                <ul className="mt-2 space-y-2">
+                  {path.includes.map((item) => (
+                    <li key={item} className="flex gap-2 text-sm leading-6 text-[#5C4A3A]">
+                      <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-[#A67C3D]" aria-hidden />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-5 text-sm font-black text-[#35281F]">מה אינו כלול אוטומטית</p>
+                <ul className="mt-2 space-y-2">
+                  {path.excludes.map((item) => (
+                    <li key={item} className="text-sm leading-6 text-[#7A6042]">
+                      • {item}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-auto pt-6">
+                  {path.cta.href.startsWith("#") ? (
+                    <button
+                      type="button"
+                      onClick={() => scrollToId(path.cta.href.slice(1))}
+                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[#35281F] px-5 text-sm font-black text-white"
+                    >
+                      {path.cta.label}
+                    </button>
+                  ) : (
+                    <a
+                      href={path.cta.href}
+                      className="inline-flex min-h-11 w-full items-center justify-center rounded-full bg-[#35281F] px-5 text-sm font-black text-white"
+                    >
+                      {path.cta.label}
+                    </a>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+          <p className="mt-8 text-sm leading-7 text-[#7A6042]">
+            רוצים להבין את ההבדל בין מפיק למנהל אירוע?{" "}
+            <Link
+              href="/info/guides/event-management-vs-production"
+              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+            >
+              מדריך ניהול מול הפקה
+            </Link>
+          </p>
+        </div>
+      </section>
+
+      {/* Interactive gallery */}
+      <section id="gallery" className="scroll-mt-28 bg-[#FFFDF8] px-4 py-20 md:px-8">
+        <div className="mx-auto max-w-6xl">
+          <p className="text-sm font-black tracking-[0.14em] text-[#A67C3D]">מבפנים</p>
+          <h2 className={`${display.className} mt-3 text-3xl font-bold text-[#2C241C] md:text-4xl`}>
+            הכירו את המערכת מבפנים
+          </h2>
+          <div
+            className="mt-8 flex gap-2 overflow-x-auto pb-2"
+            role="tablist"
+            aria-label="גלריית מסכי המערכת"
+          >
+            {GALLERY_TABS.map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={galleryTab === tab.id}
+                onClick={() => setGalleryTab(tab.id)}
+                className={[
+                  "shrink-0 rounded-full px-4 py-2.5 text-sm font-black transition",
+                  galleryTab === tab.id
+                    ? "bg-[#35281F] text-white"
+                    : "border border-[#E6D2AA] bg-white text-[#5E4735]",
+                ].join(" ")}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <div className="mt-6 grid items-start gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+            <button
+              type="button"
+              onClick={() => setLightbox({ src: activeGallery.image, alt: activeGallery.alt })}
+              className="overflow-hidden rounded-[1.5rem] border border-[#E6D2AA] bg-white p-2 text-right shadow-[0_16px_40px_rgba(58,39,20,0.08)]"
+            >
+              <div className="relative aspect-[16/11] overflow-hidden rounded-[1.1rem] bg-[#F8F2E8]">
+                <Image
+                  src={activeGallery.image}
+                  alt={activeGallery.alt}
+                  fill
+                  className="object-cover object-top"
+                  sizes="(max-width:1024px) 100vw, 700px"
+                />
+              </div>
+            </button>
+            <div>
+              <h3 className={`${display.className} text-2xl font-bold text-[#2C241C]`}>
+                {activeGallery.label}
+              </h3>
+              <p className="mt-3 leading-8 text-[#5C4A3A]">{activeGallery.text}</p>
+              <p className="mt-4 inline-flex items-center gap-2 rounded-full bg-[#FFF1DA] px-4 py-2 text-sm font-black text-[#8A642E]">
+                <Play size={14} aria-hidden />
+                {activeGallery.action}
+              </p>
+              <a
+                href={EVENT_MANAGEMENT_DEMO_URL}
+                className="mt-8 inline-flex min-h-11 items-center gap-2 font-black text-[#35281F] underline-offset-4 hover:underline"
+              >
+                לפתוח את המסך בדמו
+                <ChevronLeft size={16} aria-hidden />
+              </a>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ZONE 8 — how to start */}
+      <section className="bg-[#FBF6EE] px-4 py-20 md:px-8">
+        <div className="mx-auto max-w-4xl">
+          <p className="text-sm font-black tracking-[0.14em] text-[#A67C3D]">התחלה</p>
+          <h2 className={`${display.className} mt-3 text-3xl font-bold text-[#2C241C] md:text-4xl`}>
+            איך מתחילים?
+          </h2>
+          <ol className="mt-8 space-y-3">
+            {START_STEPS.map((step, index) => (
+              <li
+                key={step}
+                className="flex gap-4 rounded-2xl border border-[#E6D2AA] bg-white px-4 py-4"
+              >
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFF1DA] text-sm font-black text-[#8A642E]">
+                  {index + 1}
+                </span>
+                <span className="pt-1.5 font-bold text-[#3F3025]">{step}</span>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <a
+              href={EVENT_MANAGEMENT_DEMO_URL}
+              className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#35281F] px-8 text-base font-black text-white"
+            >
+              התנסו במערכת
+            </a>
+            <Link
+              href="/pricing"
+              className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white px-8 text-base font-black text-[#5E4735]"
+            >
+              למחשבון החבילות
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Why / pillars short */}
+      <section className="bg-[#FFFDF8] px-4 py-16 md:px-8">
+        <div className="mx-auto max-w-6xl">
+          <h2 className={`${display.className} text-3xl font-bold text-[#2C241C] md:text-4xl`}>
+            למה לנהל את האירוע ב־Invistimo?
+          </h2>
+          <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+            {[
+              { icon: LayoutDashboard, title: "הכול במקום אחד", text: "משימות, ספקים, תקציב ולו״ז במערכת אחת." },
+              { icon: ListChecks, title: "ניהול עצמאי", text: "עובדים בקצב שלכם, עם דמו להתנסות." },
+              { icon: Wallet, title: "סדר בתקציב", text: "מעקב אחרי מקדמות, יתרות והתחייבויות." },
+              { icon: MapPin, title: "ליווי לפי צורך", text: "אפשר להוסיף ליווי או ניהול באולם — רק אם סוכם." },
+            ].map((item) => {
+              const Icon = item.icon;
               return (
-                <article key={pillar.title} className="border-t-2 border-[#C7A56B] pt-6">
-                  <div className="mb-4 text-[#A67C3D]">
-                    <Icon size={28} aria-hidden />
-                  </div>
-                  <h3 className={`${display.className} text-2xl font-bold text-[#35281F]`}>
-                    {pillar.title}
-                  </h3>
-                  <p className="mt-3 text-[15px] leading-8 text-[#5C4A3A]">{pillar.text}</p>
-                </article>
+                <div key={item.title} className="border-t-2 border-[#C7A56B] pt-5">
+                  <Icon className="text-[#A67C3D]" size={24} aria-hidden />
+                  <h3 className="mt-3 text-lg font-black text-[#35281F]">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-7 text-[#5C4A3A]">{item.text}</p>
+                </div>
               );
             })}
           </div>
         </div>
       </section>
 
-      {/* 3. NETWORK PROCESS */}
-      <section className="bg-[#F8F2E8] px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-6xl">
-          <p className="text-sm font-black tracking-[0.16em] text-[#A67C3D]">רשת מקצועית</p>
-          <h2
-            className={`${display.className} mt-3 max-w-3xl text-3xl font-bold text-[#2C241C] md:text-4xl`}
+      <ContactForm
+        title="רוצים לבדוק התאמה למסלול שלכם?"
+        lede="השאירו פרטים לבדיקת מערכת עצמאית, ליווי או ניהול ביום האירוע — בהתאם לזמינות ולהצעה."
+      />
+
+      {lightbox ? (
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm"
+          onClick={() => setLightbox(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="הגדלת צילום מסך"
+        >
+          <div
+            className="relative max-h-[90vh] w-full max-w-5xl overflow-auto rounded-2xl bg-white p-3"
+            onClick={(e) => e.stopPropagation()}
           >
-            מנהלי אירועים מקצועיים ברחבי ישראל
-          </h2>
-          <p className="mt-4 max-w-3xl text-[17px] leading-8 text-[#5C4A3A]">
-            Invistimo עובדת עם מנהלי אירועים מקצועיים בארץ. הזמינות תלויה באזור ובתאריך — לכן
-            בודקים התאמה לפני שסוגרים. בעמוד זה אין שמות מנהלים, תמונות אנשים או הבטחת כיסוי
-            לכל עיר.
-          </p>
-
-          <ol className="mt-12 space-y-0 border-r-2 border-[#C7A56B]/70 pr-6 md:pr-10">
-            {NETWORK_STEPS.map((step, index) => (
-              <li key={step.title} className="relative pb-10 last:pb-0">
-                <span
-                  className="absolute -right-[1.9rem] top-0 flex h-8 w-8 items-center justify-center rounded-full bg-[#35281F] text-sm font-black text-[#FBF6EE] md:-right-[2.4rem]"
-                  aria-hidden
-                >
-                  {index + 1}
-                </span>
-                <h3 className={`${display.className} text-xl font-bold text-[#35281F] md:text-2xl`}>
-                  {step.title}
-                </h3>
-                <p className="mt-2 max-w-2xl leading-8 text-[#5C4A3A]">{step.text}</p>
-              </li>
-            ))}
-          </ol>
-
-          <div className="mt-10">
             <button
               type="button"
-              onClick={() => scrollToId("contact")}
-              className="inline-flex items-center gap-2 text-base font-extrabold text-[#A67C3D] underline decoration-[#C7A56B]/60 underline-offset-4 transition hover:text-[#B8892D]"
+              onClick={() => setLightbox(null)}
+              className="absolute left-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full border border-[#D8C6A0] bg-white"
+              aria-label="סגירה"
             >
-              בדקו זמינות באזור שלכם
-              <ArrowLeft size={16} aria-hidden />
+              <X size={20} />
             </button>
-          </div>
-        </div>
-      </section>
-
-      {/* 4. PATHS */}
-      <section id="paths" className="scroll-mt-28 bg-[#FFFDF8] px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-6xl">
-          <p className="text-sm font-black tracking-[0.16em] text-[#A67C3D]">מסלולים</p>
-          <h2
-            className={`${display.className} mt-3 text-3xl font-bold text-[#2C241C] md:text-4xl`}
-          >
-            שלוש דרכים לנהל את האירוע
-          </h2>
-          <p className="mt-4 max-w-3xl text-[17px] leading-8 text-[#5C4A3A]">
-            אפשר להתחיל במערכת בלבד, להוסיף ליווי, או לבדוק מנהל ליום האירוע. המחירים וההיקף
-            המדויקים מופיעים רק בהצעה אחרי בדיקה — לא בעמוד השיווקי.
-          </p>
-
-          <div className="mt-14 space-y-16">
-            {PATHS.map((path, index) => (
-              <article
-                key={path.id}
-                className={`grid items-center gap-8 lg:grid-cols-2 lg:gap-12 ${
-                  index % 2 === 1 ? "lg:[&>*:first-child]:order-2" : ""
-                }`}
-              >
-                <div className="relative aspect-[5/3] overflow-hidden rounded-[1.5rem] border border-[#E6D2AA] bg-[#F8F2E8]">
-                  <Image
-                    src={path.image}
-                    alt={path.imageAlt}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 1024px) 100vw, 50vw"
-                  />
-                </div>
-                <div>
-                  <p className="text-sm font-black text-[#A67C3D]">מסלול {index + 1}</p>
-                  <h3 className={`${display.className} mt-2 text-2xl font-bold text-[#2C241C] md:text-3xl`}>
-                    {path.title}
-                  </h3>
-                  <p className="mt-2 font-bold text-[#3F3025]">{path.subtitle}</p>
-                  <ul className="mt-5 space-y-3">
-                    {path.points.map((point) => (
-                      <li key={point} className="flex items-start gap-3">
-                        <CheckCircle2
-                          size={18}
-                          className="mt-1 shrink-0 text-[#A67C3D]"
-                          aria-hidden
-                        />
-                        <span className="leading-7 text-[#5C4A3A]">{point}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </article>
-            ))}
-          </div>
-
-          <div className="mt-16 overflow-x-auto rounded-[1.5rem] border border-[#E6D2AA] bg-white">
-            <table className="min-w-[860px] w-full border-collapse text-right">
-              <caption className="border-b border-[#E6D2AA] bg-[#FBF6EE] px-5 py-4 text-right text-base font-bold text-[#2C241C]">
-                השוואת מסלולים — בלי מחירים; הפרטים הסופיים בהצעה אחרי בדיקת התאמה
-              </caption>
-              <thead>
-                <tr className="bg-[#FFFDF8] text-sm text-[#35281F]">
-                  <th scope="col" className="px-4 py-4 font-black">
-                    קריטריון
-                  </th>
-                  <th scope="col" className="px-4 py-4 font-black">
-                    עצמאי
-                  </th>
-                  <th scope="col" className="px-4 py-4 font-black">
-                    ליווי
-                  </th>
-                  <th scope="col" className="px-4 py-4 font-black">
-                    מנהל ביום האירוע
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {COMPARISON_ROWS.map((row) => (
-                  <tr key={row.feature} className="border-t border-[#EFE2CF] text-sm leading-7">
-                    <th
-                      scope="row"
-                      className="bg-[#FFFDF8] px-4 py-4 align-top font-extrabold text-[#2C241C]"
-                    >
-                      {row.feature}
-                    </th>
-                    <td className="px-4 py-4 align-top text-[#5C4A3A]">{row.self}</td>
-                    <td className="px-4 py-4 align-top text-[#5C4A3A]">{row.guidance}</td>
-                    <td className="px-4 py-4 align-top text-[#5C4A3A]">{row.dayof}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      {/* 5. PRODUCT GALLERY */}
-      <section className="bg-[#F8F2E8] px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-6xl">
-          <p className="text-sm font-black tracking-[0.16em] text-[#A67C3D]">המערכת</p>
-          <h2
-            className={`${display.className} mt-3 max-w-3xl text-3xl font-bold text-[#2C241C] md:text-4xl`}
-          >
-            כל פרטי האירוע שלכם, במקום אחד
-          </h2>
-          <p className="mt-4 max-w-3xl text-[17px] leading-8 text-[#5C4A3A]">
-            תשעה אזורים מרכזיים במערכת ובמוצרים המשלימים. אישורי הגעה, הושבה ו־LIVE הם תוספות
-            כשנמכרים בנפרד. מודולי אלכוהול ומתנות קיימים בדמו ניהול האירוע.
-          </p>
-
-          <div className="mt-12 space-y-8">
-            {GALLERY.map((item, index) => (
-              <article
-                key={item.title}
-                className="grid gap-6 border-b border-[#E0D0B4] pb-8 last:border-b-0 md:grid-cols-[minmax(0,220px)_1fr] md:gap-10"
-              >
-                <div className="relative aspect-[4/3] overflow-hidden rounded-2xl border border-[#E6D2AA] bg-[#FFFDF8]">
-                  {item.image ? (
-                    <Image
-                      src={item.image}
-                      alt={item.alt}
-                      fill
-                      className="object-cover"
-                      sizes="220px"
-                    />
-                  ) : (
-                    <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
-                      <Sparkles className="text-[#C7A56B]" size={28} aria-hidden />
-                      <p className="text-sm font-bold text-[#5C4A3A]">
-                        זמין בדמו ניהול האירוע
-                      </p>
-                    </div>
-                  )}
-                </div>
-                <div>
-                  <p className="text-xs font-black tracking-[0.14em] text-[#A67C3D]">
-                    {String(index + 1).padStart(2, "0")}
-                  </p>
-                  <h3 className={`${display.className} mt-1 text-2xl font-bold text-[#35281F]`}>
-                    {item.title}
-                  </h3>
-                  <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <div>
-                      <dt className="text-sm font-extrabold text-[#2C241C]">מה רואים</dt>
-                      <dd className="mt-1 text-sm leading-7 text-[#5C4A3A]">{item.see}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm font-extrabold text-[#2C241C]">איזו בעיה זה פותר</dt>
-                      <dd className="mt-1 text-sm leading-7 text-[#5C4A3A]">{item.problem}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm font-extrabold text-[#2C241C]">מה אפשר לעשות</dt>
-                      <dd className="mt-1 text-sm leading-7 text-[#5C4A3A]">{item.do}</dd>
-                    </div>
-                    <div>
-                      <dt className="text-sm font-extrabold text-[#2C241C]">באיזה מסלול</dt>
-                      <dd className="mt-1 text-sm leading-7 text-[#5C4A3A]">{item.path}</dd>
-                    </div>
-                  </dl>
-                </div>
-              </article>
-            ))}
-          </div>
-
-          <div className="mt-10 flex flex-wrap gap-3">
-            <button
-              type="button"
-              onClick={() => setIsDemoModalOpen(true)}
-              className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-[#35281F] px-6 py-3 text-sm font-extrabold text-white transition hover:bg-[#2C241C]"
-            >
-              פתיחת בחירת דמו
-            </button>
-            <Link
-              href={EVENT_MANAGEMENT_DEMO_URL}
-              className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-[#C7A56B] bg-[#FFFDF8] px-6 py-3 text-sm font-extrabold text-[#2C241C] transition hover:bg-white"
-            >
-              לדמו ניהול האירוע
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* 6. DAY TIMELINE */}
-      <section className="bg-[#FFFDF8] px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-6xl">
-          <p className="text-sm font-black tracking-[0.16em] text-[#A67C3D]">יום האירוע</p>
-          <h2
-            className={`${display.className} mt-3 max-w-4xl text-3xl font-bold text-[#2C241C] md:text-4xl`}
-          >
-            מההכנות ועד הריקוד האחרון — מי מתאם את הכול?
-          </h2>
-          <p className="mt-4 max-w-3xl text-[17px] leading-8 text-[#5C4A3A]">
-            הקו הזמנים להלן הוא להמחשה בלבד. לא כל פעולה מופיעה בכל חבילה — ההיקף נקבע בהסכם
-            אחרי בדיקת זמינות ותנאים.
-          </p>
-
-          <ol className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {TIMELINE.map((item, index) => (
-              <li
-                key={item.stage}
-                className="relative border-t border-[#C7A56B] bg-gradient-to-b from-[#FBF6EE] to-transparent pt-5"
-              >
-                <span className={`${display.className} text-4xl font-bold text-[#C7A56B]/70`}>
-                  {String(index + 1).padStart(2, "0")}
-                </span>
-                <h3 className="mt-2 text-lg font-black text-[#35281F]">{item.stage}</h3>
-                <p className="mt-2 text-sm leading-7 text-[#5C4A3A]">{item.text}</p>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </section>
-
-      {/* 7. VENUE VS EXTERNAL */}
-      <section className="bg-[#F8F2E8] px-4 py-20 md:px-8">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
-          <div>
-            <p className="text-sm font-black tracking-[0.16em] text-[#A67C3D]">אולם מול חיצוני</p>
-            <h2
-              className={`${display.className} mt-3 text-3xl font-bold text-[#2C241C] md:text-4xl`}
-            >
-              יש מנהל אירוע באולם. למה בכלל לשקול מנהל חיצוני?
-            </h2>
-            <p className="mt-5 text-[17px] leading-8 text-[#5C4A3A]">
-              מנהל האולם אחראי בדרך כלל על תפעול שירותי המקום. מנהל חיצוני עובד מטעמכם — למשל
-              כשהצלם מתעכב, כשה־DJ מחכה להוראה, או כשיש שינוי בלו״ז שצריך לתאם מול כמה ספקים
-              במקביל. לא תמיד צריך את שניהם; לפעמים מספיק מנהל האולם, ולפעמים ליווי חיצוני
-              משלים את התמונה.
-            </p>
-            <p className="mt-4 text-[17px] leading-8 text-[#5C4A3A]">
-              דוגמה: הצלם מתעכב ברחוב. מי מודיע לדי־ג׳יי ולצוות האולם על דחיית החופה, ומי
-              מעדכן את המשפחה בלי שתרוצו בין אנשי קשר? מנהל חיצוני יכול להיות הגורם שמתאם
-              מול כולם — כשזה חלק מההסכם שלכם.
-            </p>
-            <Link
-              href="/info/guides/event-management-vs-production"
-              className="mt-7 inline-flex items-center gap-2 text-base font-extrabold text-[#A67C3D] underline decoration-[#C7A56B]/70 underline-offset-4 transition hover:text-[#B8892D]"
-            >
-              למדריך: ניהול אירוע או הפקת אירוע — ההבדלים ומה לבדוק
-              <ArrowLeft size={16} aria-hidden />
-            </Link>
-          </div>
-          <div className="relative aspect-[4/3] overflow-hidden rounded-[1.75rem] border border-[#E6D2AA]">
             <Image
-              src={IMG.photographer}
-              alt="צלם אירועים בעבודה — דוגמה לצורך בתיאום ספקים"
-              fill
-              className="object-cover"
-              sizes="(max-width: 1024px) 100vw, 45vw"
+              src={lightbox.src}
+              alt={lightbox.alt}
+              width={1600}
+              height={1000}
+              className="h-auto w-full rounded-xl"
             />
           </div>
         </div>
-      </section>
-
-      {/* 8. THREE DEEP SECTIONS */}
-      <section className="bg-[#FFFDF8] px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-6xl space-y-20">
-          <div className="grid items-center gap-10 lg:grid-cols-2">
-            <div>
-              <div className="mb-3 text-[#A67C3D]">
-                <Wallet size={26} aria-hidden />
-              </div>
-              <h2 className={`${display.className} text-3xl font-bold text-[#2C241C] md:text-4xl`}>
-                תקציב ותשלומים
-              </h2>
-              <p className="mt-4 text-[17px] leading-8 text-[#5C4A3A]">
-                במקום לנהל מקדמות באקסל נפרד, רושמים במערכת מה תוקצב ומה שולם לכל ספק. דוגמה:
-                אולם עם מקדמה ותשלום אחרון, צלם עם שני תשלומים, והובלת פרחים ביום האירוע —
-                רואים מה פתוח לפני שסוגרים את החודש שלפני.
-              </p>
-            </div>
-            <div className="relative aspect-[5/3] overflow-hidden rounded-[1.5rem] border border-[#E6D2AA]">
-              <Image
-                src={IMG.contract}
-                alt="חוזה והתחייבויות כספיות סביב תכנון אירוע"
-                fill
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 50vw"
-              />
-            </div>
-          </div>
-
-          <div className="grid items-center gap-10 lg:grid-cols-2">
-            <div className="relative order-2 aspect-[5/3] overflow-hidden rounded-[1.5rem] border border-[#E6D2AA] lg:order-1">
-              <Image
-                src={IMG.handshake}
-                alt="תיאום מול ספק אירועים"
-                fill
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 50vw"
-              />
-            </div>
-            <div className="order-1 lg:order-2">
-              <div className="mb-3 text-[#A67C3D]">
-                <Users size={26} aria-hidden />
-              </div>
-              <h2 className={`${display.className} text-3xl font-bold text-[#2C241C] md:text-4xl`}>
-                ספקים
-              </h2>
-              <p className="mt-4 text-[17px] leading-8 text-[#5C4A3A]">
-                כל ספק עם איש קשר, סטטוס והערות — כדי שלא תחפשו מספר של הדי־ג׳יי בשיחה ישנה.
-                דוגמה: מעבירים למנהל ביום האירוע רשימה אחת עם שעות הגעה משוערות, במקום להעתיק
-                משלושה וואטסאפים.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid items-center gap-10 lg:grid-cols-2">
-            <div>
-              <div className="mb-3 text-[#A67C3D]">
-                <CalendarClock size={26} aria-hidden />
-              </div>
-              <h2 className={`${display.className} text-3xl font-bold text-[#2C241C] md:text-4xl`}>
-                לו״ז
-              </h2>
-              <p className="mt-4 text-[17px] leading-8 text-[#5C4A3A]">
-                בונים את סדר היום — מקבלת פנים עד סיום — ומשתפים אותו עם מי שצריך. דוגמה: דחיית
-                חופה ב־20 דקות מתעדכנת בלו״ז, ואז ברור מתי נכנסים צילומי משפחה ומתי נפתחת
-                הרחבה, בלי לנחש מול השעון.
-              </p>
-            </div>
-            <div className="relative aspect-[5/3] overflow-hidden rounded-[1.5rem] border border-[#E6D2AA]">
-              <Image
-                src={IMG.toast}
-                alt="רגע חגיגי המייצג תזמון מדויק ביום האירוע"
-                fill
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 50vw"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 9. RSVP + SEATING */}
-      <section className="bg-[#F8F2E8] px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-6xl">
-          <div className="grid items-start gap-10 lg:grid-cols-[1.1fr_0.9fr]">
-            <div>
-              <p className="text-sm font-black tracking-[0.16em] text-[#A67C3D]">RSVP והושבה</p>
-              <h2
-                className={`${display.className} mt-3 text-3xl font-bold text-[#2C241C] md:text-4xl`}
-              >
-                מההזמנה הראשונה ועד שהאורח מגיע לאולם
-              </h2>
-              <p className="mt-4 text-[17px] leading-8 text-[#5C4A3A]">
-                אישורי הגעה, הושבה ו־LIVE הם חלק ממוצר Invistimo — ולעיתים נמכרים כתוספות
-                נפרדות ממסלול ניהול האירוע. LIVE לניהול הגעה בפועל זמין כשהמודול נרכש במסגרת
-                החבילה שסוכמה.
-              </p>
-              <ol className="mt-8 space-y-4">
-                {RSVP_STEPS.map((step, index) => (
-                  <li key={step} className="flex gap-4">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#35281F] text-sm font-black text-[#FBF6EE]">
-                      {index + 1}
-                    </span>
-                    <span className="pt-1 font-semibold leading-7 text-[#3F3025]">{step}</span>
-                  </li>
-                ))}
-              </ol>
-              <div className="mt-8 flex flex-wrap gap-3">
-                <Link
-                  href="/try/dashboard"
-                  className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-[#C7A56B] bg-[#FFFDF8] px-5 py-2.5 text-sm font-extrabold text-[#2C241C]"
-                >
-                  דמו RSVP והושבה
-                </Link>
-                <Link
-                  href="/seating-explained"
-                  className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-transparent px-5 py-2.5 text-sm font-extrabold text-[#A67C3D] underline underline-offset-4"
-                >
-                  הסבר על הושבה
-                </Link>
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-              <div className="relative aspect-[3/4] overflow-hidden rounded-[1.5rem] border border-[#E6D2AA] bg-white">
-                <Image
-                  src={IMG.phoneInvite}
-                  alt="הזמנה דיגיטלית בטלפון"
-                  fill
-                  className="object-cover"
-                  sizes="280px"
-                />
-              </div>
-              <div className="relative aspect-[4/3] overflow-hidden rounded-[1.5rem] border border-[#E6D2AA] sm:mt-10">
-                <Image
-                  src={IMG.dashboardSeating}
-                  alt="מפת הושבה במערכת Invistimo"
-                  fill
-                  className="object-cover object-top"
-                  sizes="320px"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 10. REGIONS */}
-      <section className="bg-[#FFFDF8] px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-6xl">
-          <p className="text-sm font-black tracking-[0.16em] text-[#A67C3D]">אזורים</p>
-          <h2
-            className={`${display.className} mt-3 max-w-3xl text-3xl font-bold text-[#2C241C] md:text-4xl`}
-          >
-            מחפשים מנהל אירוע באזור שלכם?
-          </h2>
-          <p className="mt-4 max-w-3xl text-[17px] leading-8 text-[#5C4A3A]">
-            בחרו אזור לבדיקת זמינות בלבד. זו לא הבטחת כיסוי, ואין דפי קידום נפרדים לכל עיר.
-            אחרי הבחירה תועברו לטופס יצירת הקשר עם תזכורת לאזור המועדף.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            {REGIONS.map((region) => (
-              <button
-                key={region}
-                type="button"
-                onClick={() => preferRegion(region)}
-                className={[
-                  "rounded-2xl border px-5 py-3 text-sm font-extrabold transition",
-                  regionHint === region
-                    ? "border-[#A67C3D] bg-[#35281F] text-[#FBF6EE]"
-                    : "border-[#D8C6A0] bg-[#FBF6EE] text-[#35281F] hover:border-[#C7A56B] hover:bg-white",
-                ].join(" ")}
-              >
-                {region}
-              </button>
-            ))}
-          </div>
-          <p className="mt-5 text-sm leading-7 text-[#7A6A58]">
-            הזמינות משתנה לפי תאריך והיקף. נבדוק ונחזור אליכם עם מה שאפשר להציע בפועל.
-          </p>
-        </div>
-      </section>
-
-      {/* 11. CONTACT */}
-      <div className="bg-[#F8F2E8]">
-        {regionHint ? (
-          <div className="mx-auto max-w-3xl px-4 pt-10 md:px-6">
-            <p
-              className="rounded-2xl border border-[#C7A56B] bg-[#FFFDF8] px-4 py-3 text-sm font-bold leading-7 text-[#3F3025]"
-              role="status"
-            >
-              ביקשתם לבדוק זמינות באזור: {regionHint}. אנא בחרו את אותו אזור בשדה האזור בטופס
-              למטה.
-            </p>
-          </div>
-        ) : null}
-        <ContactForm />
-      </div>
-
-      {/* 12. WHY INVISTIMO */}
-      <section className="bg-[#FFFDF8] px-4 py-20 md:px-8">
-        <div className="mx-auto max-w-6xl">
-          <p className="text-sm font-black tracking-[0.16em] text-[#A67C3D]">למה Invistimo</p>
-          <h2
-            className={`${display.className} mt-3 max-w-4xl text-3xl font-bold text-[#2C241C] md:text-4xl`}
-          >
-            הטכנולוגיה שמסדרת את התכנון. אנשי המקצוע שעוזרים לנהל את האירוע.
-          </h2>
-          <div className="mt-12 grid gap-8 md:grid-cols-2">
-            {WHY_POINTS.map((item) => (
-              <article key={item.title} className="border-r-2 border-[#C7A56B] pr-5">
-                <h3 className={`${display.className} text-xl font-bold text-[#35281F] md:text-2xl`}>
-                  {item.title}
-                </h3>
-                <p className="mt-3 leading-8 text-[#5C4A3A]">{item.text}</p>
-              </article>
-            ))}
-          </div>
-          <div className="mt-12 flex flex-col gap-3 sm:flex-row">
-            <button
-              type="button"
-              onClick={() => setIsDemoModalOpen(true)}
-              className="inline-flex min-h-12 items-center justify-center rounded-2xl bg-[#35281F] px-7 py-3.5 text-base font-extrabold text-white transition hover:bg-[#2C241C]"
-            >
-              נסו את המערכת
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollToId("contact")}
-              className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-[#C7A56B] bg-[#FBF6EE] px-7 py-3.5 text-base font-extrabold text-[#2C241C] transition hover:bg-white"
-            >
-              בדקו התאמה למנהל אירוע
-            </button>
-          </div>
-        </div>
-      </section>
+      ) : null}
 
       {isDemoModalOpen ? (
         <DemoChoiceModal
           onClose={() => setIsDemoModalOpen(false)}
-          onRsvpDemo={() => goToDemo(RSVP_DEMO_URL)}
-          onEventManagementDemo={() => goToDemo(EVENT_MANAGEMENT_DEMO_URL)}
+          onRsvp={() => {
+            window.location.href = RSVP_DEMO_URL;
+          }}
+          onEvent={() => {
+            window.location.href = EVENT_MANAGEMENT_DEMO_URL;
+          }}
         />
       ) : null}
     </div>
   );
 }
 
-function DemoChoiceModal({ onClose, onRsvpDemo, onEventManagementDemo }) {
+function ProductSection({
+  id,
+  eyebrow,
+  title,
+  text,
+  image,
+  alt,
+  reverse,
+  bullets,
+  video,
+  onExpand,
+  reduceMotion,
+}) {
   return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 px-4 py-8 backdrop-blur-sm"
-      onClick={onClose}
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="demo-choice-title"
+    <section
+      id={id}
+      className={[
+        "scroll-mt-28 px-4 py-20 md:px-8",
+        reverse ? "bg-[#FFFDF8]" : "bg-[#FBF6EE]",
+      ].join(" ")}
     >
       <div
-        className="relative w-full max-w-5xl rounded-[2rem] border border-[#E6D2AA] bg-[#FFFDF8] p-6 shadow-2xl md:p-10"
-        onClick={(event) => event.stopPropagation()}
+        className={[
+          "mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-2",
+          reverse ? "lg:[&>*:first-child]:order-2" : "",
+        ].join(" ")}
       >
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute left-5 top-5 flex h-12 w-12 items-center justify-center rounded-full border border-[#D8C6A0] bg-[#FFFDF8] text-[#2C241C] transition hover:bg-[#F8F2E8]"
-          aria-label="סגירה"
-        >
-          <X size={24} />
-        </button>
-
-        <div className="mx-auto mb-8 max-w-3xl text-center">
-          <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-[#D8C6A0] bg-[#F8F2E8] px-4 py-2 text-sm font-black text-[#A67C3D]">
-            <Sparkles size={16} aria-hidden />
-            בחירת דמו
-          </div>
-          <h2
-            id="demo-choice-title"
-            className="text-3xl font-black text-[#2C241C] md:text-4xl"
-          >
-            איזה דמו תרצו לראות?
+        <div>
+          <p className="text-sm font-black tracking-[0.14em] text-[#A67C3D]">{eyebrow}</p>
+          <h2 className={`${display.className} mt-3 text-3xl font-bold text-[#2C241C] md:text-4xl`}>
+            {title}
           </h2>
-          <p className="mx-auto mt-4 max-w-2xl text-base font-semibold leading-8 text-[#5C4A3A]">
-            אפשר לבחור בין מערכת אישורי הגעה והושבה לבין מערכת ניהול והפקת אירוע.
-          </p>
+          <p className="mt-4 text-base leading-8 text-[#5C4A3A] md:text-lg">{text}</p>
+          {bullets?.length ? (
+            <ul className="mt-6 grid gap-2 sm:grid-cols-2">
+              {bullets.map((item) => (
+                <li key={item} className="flex items-center gap-2 text-sm font-bold text-[#3F3025]">
+                  <CheckCircle2 size={16} className="text-[#A67C3D]" aria-hidden />
+                  {item}
+                </li>
+              ))}
+            </ul>
+          ) : null}
         </div>
-
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-          <DemoCard
-            icon={<Users size={28} aria-hidden />}
-            title="אישורי הגעה והושבה"
-            text="דמו להזמנות, אישורי הגעה, מוזמנים, שולחנות וסידורי הושבה."
-            buttonText="כניסה לדמו"
-            variant="gold"
-            onClick={onRsvpDemo}
-          />
-          <DemoCard
-            icon={<LayoutDashboard size={28} aria-hidden />}
-            title="ניהול והפקת אירוע"
-            text="דמו לניהול ספקים, תקציב, יומן, לוגיסטיקה, אלכוהול ומתנות מהאירוע."
-            buttonText="כניסה לדמו"
-            variant="light"
-            onClick={onEventManagementDemo}
-          />
+        <div className="space-y-4">
+          <ShotCard src={image} alt={alt} onExpand={onExpand} />
+          {video ? <ProductVideo video={video} reduceMotion={reduceMotion} /> : null}
         </div>
       </div>
-    </div>
+    </section>
   );
 }
 
-function DemoCard({ icon, title, text, buttonText, variant, onClick }) {
-  const isGold = variant === "gold";
-
+function ShotCard({ src, alt, caption, onExpand }) {
   return (
-    <div className="rounded-[1.75rem] border border-[#E6D2AA] bg-[#FFFDF8] p-7 text-center shadow-[0_16px_40px_rgba(166,124,61,0.08)]">
-      <div
-        className={[
-          "mx-auto mb-6 flex h-14 w-full items-center justify-center rounded-2xl border text-[#A67C3D]",
-          isGold ? "border-[#D8C6A0] bg-[#EFE2CF]" : "border-[#D8C6A0] bg-[#F8F2E8]",
-        ].join(" ")}
-      >
-        {icon}
+    <button
+      type="button"
+      onClick={() => onExpand?.({ src, alt })}
+      className="w-full overflow-hidden rounded-[1.5rem] border border-[#E6D2AA] bg-white p-2 text-right shadow-[0_16px_40px_rgba(58,39,20,0.08)]"
+    >
+      <div className="relative aspect-[16/11] overflow-hidden rounded-[1.1rem] bg-[#F8F2E8]">
+        <Image src={src} alt={alt} fill className="object-cover object-top" sizes="(max-width:1024px) 100vw, 560px" />
       </div>
-      <h3 className="text-xl font-black text-[#2C241C] md:text-2xl">{title}</h3>
-      <p className="mx-auto mt-3 max-w-md text-base font-semibold leading-8 text-[#5C4A3A]">
-        {text}
-      </p>
-      <button
-        type="button"
-        onClick={onClick}
-        className={[
-          "mt-7 inline-flex min-w-[160px] items-center justify-center rounded-2xl px-6 py-3 text-base font-black transition hover:-translate-y-0.5",
-          isGold
-            ? "bg-gradient-to-l from-[#B8892D] via-[#C7A56B] to-[#A67C3D] text-white shadow-lg shadow-[#B8892D]/20"
-            : "border border-[#D8C6A0] bg-[#FFFDF8] text-[#2C241C] hover:bg-[#F8F2E8]",
-        ].join(" ")}
+      {caption ? (
+        <span className="mt-2 block px-1 pb-1 text-sm font-bold text-[#5E4735]">{caption}</span>
+      ) : null}
+    </button>
+  );
+}
+
+function ProductVideo({ video, reduceMotion }) {
+  return (
+    <figure className="overflow-hidden rounded-[1.5rem] border border-[#E6D2AA] bg-[#1c1612]">
+      <video
+        className="aspect-video h-auto w-full"
+        controls
+        playsInline
+        preload="none"
+        poster={video.poster}
+        muted={false}
       >
-        {buttonText}
-      </button>
+        <source src={video.src} type="video/webm" />
+        <track kind="captions" srcLang="he" label="עברית" src={video.caption} default />
+      </video>
+      <figcaption className="border-t border-white/10 px-4 py-3 text-sm text-[#E8DCC8]">
+        {video.title}
+        {reduceMotion ? " · ניתן להפעיל ידנית" : ""}
+      </figcaption>
+    </figure>
+  );
+}
+
+function DemoChoiceModal({ onClose, onRsvp, onEvent }) {
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/30 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="w-full max-w-3xl rounded-[2rem] border border-[#E2D0AA] bg-[#FFFDF8] p-6 md:p-8"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-4">
+          <h2 className={`${display.className} text-2xl font-bold text-[#2C241C]`}>איזה דמו תרצו?</h2>
+          <button type="button" onClick={onClose} aria-label="סגירה" className="rounded-full border border-[#D8C6A0] p-2">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          <button
+            type="button"
+            onClick={onEvent}
+            className="rounded-2xl border border-[#E6D2AA] bg-white p-5 text-right transition hover:border-[#C7A56B]"
+          >
+            <LayoutDashboard className="text-[#A67C3D]" />
+            <p className="mt-3 font-black text-[#2C241C]">ניהול והפקת אירוע</p>
+            <p className="mt-2 text-sm leading-7 text-[#5C4A3A]">משימות, ספקים, תקציב ולו״ז</p>
+          </button>
+          <button
+            type="button"
+            onClick={onRsvp}
+            className="rounded-2xl border border-[#E6D2AA] bg-white p-5 text-right transition hover:border-[#C7A56B]"
+          >
+            <Users className="text-[#A67C3D]" />
+            <p className="mt-3 font-black text-[#2C241C]">אישורי הגעה והושבה</p>
+            <p className="mt-2 text-sm leading-7 text-[#5C4A3A]">רשימת אורחים ומפת שולחנות</p>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
