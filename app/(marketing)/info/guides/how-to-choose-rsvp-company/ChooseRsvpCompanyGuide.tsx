@@ -17,7 +17,7 @@ const ctaSecondary =
   "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
 
 const TOC: TocItem[] = [
-  { id: "short-answer", label: "תשובה קצרה" },
+  { id: "how-to-choose", label: "איך בוחרים" },
   { id: "why-company", label: "למה חברה מקצועית" },
   { id: "service-types", label: "סוגי שירותים" },
   { id: "comparison", label: "טבלת השוואה" },
@@ -415,19 +415,22 @@ export default function ChooseRsvpCompanyGuide() {
       <div className="mx-auto grid max-w-6xl gap-10 px-5 py-12 md:px-8 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-12 lg:py-16">
         <StickyToc items={TOC} />
         <div className="min-w-0 space-y-16 md:space-y-20">
-          <section id="short-answer" className="scroll-mt-24">
-            <Eyebrow>תשובה קצרה</Eyebrow>
+          <section id="how-to-choose" className="scroll-mt-24">
+            <Eyebrow>לפני הכול</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               איך בוחרים חברת אישורי הגעה לחתונה?
             </h2>
-            <SoftNote>
+            <Prose>
               <p>
-                כדי לבחור חברת אישורי הגעה לחתונה, כדאי לבדוק את שיטות יצירת הקשר עם האורחים, מספר
-                סבבי הפנייה, הטיפול במי שלא השיב, אופן ספירת הרשומות, עדכון התשובות, איכות המערכת,
-                אפשרויות סידורי ההושבה, התמיכה והמחיר הסופי. מומלץ להתנסות במערכת לפני הרכישה ולהשוות
-                בין חבילות בעלות היקף שירות דומה.
+                כדי לבחור חברת אישורי הגעה לחתונה, כדאי לבדוק איך מתבצעת יצירת הקשר עם האורחים, אילו
+                ערוצי מענה זמינים, איך מתעדכנות התשובות במערכת, האם ניתן לטפל באורחים שלא השיבו ומה
+                כלול במחיר. חשוב גם לבדוק את נוחות השימוש, התמיכה והשירותים הנלווים.
               </p>
-            </SoftNote>
+              <p>
+                מומלץ להתנסות במערכת לפני הרכישה ולהשוות בין חבילות בעלות היקף שירות דומה — לא רק לפי
+                הסכום הראשוני בהצעה.
+              </p>
+            </Prose>
           </section>
 
           <section id="why-company" className="scroll-mt-24">

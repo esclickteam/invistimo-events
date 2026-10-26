@@ -23,7 +23,7 @@ const ctaSecondary =
   "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
 
 const TOC: TocItem[] = [
-  { id: "answer", label: "תשובה קצרה" },
+  { id: "fill-tables-overview", label: "האם למלא שולחנות" },
   { id: "when-to-start", label: "מתי מתחילים" },
   { id: "three-numbers", label: "מוזמנים ומאשרים" },
   { id: "ten-percent", label: "האם 10%?" },
@@ -129,11 +129,12 @@ function Prose({ children }: { children: React.ReactNode }) {
   );
 }
 
-function DirectAnswer({ children }: { children: React.ReactNode }) {
+/** Opening paragraph under each H2 — natural lead, not an SEO/AI callout. */
+function Lead({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mt-5 rounded-[22px] border border-[#E7D3B0] bg-[#FFF8EA] px-5 py-4 text-[15px] font-semibold leading-7 text-[#3F3025] md:text-base">
+    <p className="mt-5 text-base font-semibold leading-8 text-[#3F3025] md:text-lg md:leading-9">
       {children}
-    </div>
+    </p>
   );
 }
 
@@ -189,11 +190,11 @@ export default function WeddingSeatingGuide() {
               למחשבון ההושבה
             </TrackedCtaLink>
             <TrackedCtaLink
-              href="#answer"
+              href="#fill-tables-overview"
               className={ctaSecondary}
-              location={`hero_answer:${PATH}`}
+              location={`hero_overview:${PATH}`}
             >
-              לתשובה הקצרה
+              האם למלא את כל השולחנות?
             </TrackedCtaLink>
           </div>
         </div>
@@ -236,18 +237,17 @@ export default function WeddingSeatingGuide() {
         <StickyToc items={TOC} />
 
         <div className="min-w-0 space-y-16 md:space-y-20">
-          {/* 1 Direct answer */}
-          <section id="answer" className="scroll-mt-24" aria-labelledby="answer-h">
-            <Eyebrow>תקציר</Eyebrow>
-            <h2 id="answer-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+          <section id="fill-tables-overview" className="scroll-mt-24" aria-labelledby="fill-tables-overview-h">
+            <Eyebrow>לפני הכול</Eyebrow>
+            <h2 id="fill-tables-overview-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               האם כדאי למלא את כל השולחנות?
             </h2>
-            <DirectAnswer>
+            <Lead>
               כדאי לשבץ את כל האורחים שאישרו הגעה ושעבורם נדרש מקום, אך לא בהכרח למלא כל שולחן עד
               הקיבולת המרבית. מומלץ לתכנן לפי מבנה האולם, סוג השולחנות, קבוצות האורחים והסדרי
               הרזרבה שסוכמו עם האולם. גם אם מעריכים שחלק מהמאשרים לא יגיעו, אין להסתמך על כך כדי
               להושיב יותר אורחים ממספר המקומות הזמינים בפועל.
-            </DirectAnswer>
+            </Lead>
           </section>
 
           {/* 2 When to start */}
@@ -256,11 +256,11 @@ export default function WeddingSeatingGuide() {
             <h2 id="when-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מתי מתחילים סידורי הושבה לחתונה?
             </h2>
-            <DirectAnswer>
+            <Lead>
               את שירות סידורי ההושבה מומלץ לבחור ולסגור מוקדם ככל האפשר לאחר קביעת האולם והתאריך.
               השיבוץ הסופי לשולחנות נעשה בדרך כלל קרוב יותר לאירוע, לאחר שהתקבלו מרבית אישורי
               ההגעה.
-            </DirectAnswer>
+            </Lead>
             <Prose>
               <p>
                 לא לחכות לרגע האחרון כדי להתחיל את ההכנות. אפשר לסגור את השירות ולהכין את התשתית
@@ -297,10 +297,10 @@ export default function WeddingSeatingGuide() {
             <h2 id="three-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               למה מספר מאשרי ההגעה לא תמיד שווה למספר האורחים שמגיעים?
             </h2>
-            <DirectAnswer>
+            <Lead>
               יש שלושה נתונים שונים: מוזמנים, מאשרי הגעה ומגיעים בפועל. אישורי הגעה משפרים את יכולת
               התכנון, אך אינם מבטיחים הגעה ביום האירוע.
-            </DirectAnswer>
+            </Lead>
             <dl className="mt-8 grid gap-4 md:grid-cols-3">
               {[
                 {
@@ -350,11 +350,11 @@ export default function WeddingSeatingGuide() {
             <h2 id="ten-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               האם נכון להניח ש־10% מהאורחים שאישרו הגעה לא יגיעו?
             </h2>
-            <DirectAnswer>
+            <Lead>
               לפעמים משתמשים באומדן של כ־10% אי־הגעה מתוך המאשרים לצורך תכנון. אין מדובר בכלל
               קבוע, בנתון מובטח לכל חתונה או באחוז שאפשר להסתמך עליו בלי בדיקה. אין להציג 10%
               כסטטיסטיקה רשמית או ממוצע מוכח ללא מקור מחקרי אמין.
-            </DirectAnswer>
+            </Lead>
             <Prose>
               <p>
                 שיעור אי־ההגעה עשוי להשתנות בהתאם למאפייני האירוע, מיקום האולם, מזג האוויר, מועד
@@ -381,11 +381,11 @@ export default function WeddingSeatingGuide() {
             <h2 id="seat-all-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               האם חייבים להושיב את כל מי שאישר הגעה?
             </h2>
-            <DirectAnswer>
+            <Lead>
               ההמלצה היא לתכנן פתרון ישיבה לכל אדם שאישר הגעה ונדרש עבורו מקום. אפשר להשתמש
               ברזרבות ובתכנון גמיש לפי ההסכם עם האולם — אך אין להסתמך על אי־הגעה משוערת כדי להותיר
               אורחים ללא מקום מתאים.
-            </DirectAnswer>
+            </Lead>
             <div className="mt-8 grid gap-4 md:grid-cols-2">
               <div className="rounded-[22px] border border-[#E7D3B0] bg-[#FFFDF8] px-5 py-5">
                 <h3 className="text-lg font-black text-[#2C241C]">שיבוץ</h3>
@@ -420,11 +420,11 @@ export default function WeddingSeatingGuide() {
             <h2 id="fill-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               האם כדאי למלא כל שולחן במספר האורחים המרבי?
             </h2>
-            <DirectAnswer>
+            <Lead>
               לא תמיד. שולחן שמיועד לעשרה אנשים אינו בהכרח שולחן שחייבים לשבץ בו עשרה אנשים בכל
               מצב. ההחלטה תלויה בקיבולת שאישר האולם, בגודל השולחן, במרווח בין הכיסאות, במבנה
               הקבוצות ובצורכי האורחים.
-            </DirectAnswer>
+            </Lead>
             <div className="mt-8">
               <TableFillComparison />
             </div>
@@ -464,11 +464,11 @@ export default function WeddingSeatingGuide() {
             <h2 id="empty-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               כמה מקומות פנויים כדאי להשאיר בשולחנות?
             </h2>
-            <DirectAnswer>
+            <Lead>
               אין מספר קבוע שמתאים לכל אירוע. אפשר לתכנן מספר שולחנות עם גמישות מסוימת, בהתאם
               לקיבולת ולמדיניות האולם — אבל לא כל מקום פנוי הוא מקום רזרבה שניתן להשתמש בו בלי עלות
               או תיאום.
-            </DirectAnswer>
+            </Lead>
             <Prose>
               <p>
                 למשל, באירוע עם שולחנות של עשרה מקומות, ייתכן שחלק מהשולחנות ישובצו בתשעה אנשים
@@ -510,10 +510,10 @@ export default function WeddingSeatingGuide() {
             <h2 id="ex-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               איך מסדרים הושבה ל־300 מאשרי הגעה?
             </h2>
-            <DirectAnswer>
+            <Lead>
               נניח שיש 300 מאשרי הגעה ושולחנות בקיבולת מאושרת של עשרה אנשים. אין אפשרות אחת
               שמתאימה לכולם — ההחלטה לפי האולם, ההסכם, התקציב וההרכב החברתי.
-            </DirectAnswer>
+            </Lead>
             <div className="mt-8 overflow-x-auto rounded-[24px] border border-[#E6D2AA] bg-[#FFFDF8]">
               <table className="w-full min-w-[560px] text-right text-sm">
                 <caption className="sr-only">
@@ -572,10 +572,10 @@ export default function WeddingSeatingGuide() {
             <h2 id="groups-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               איך מחלקים משפחות וחברים לשולחנות?
             </h2>
-            <DirectAnswer>
+            <Lead>
               מתחילים בחלוקה לקבוצות טבעיות, ואז בודקים אילו קבוצות אפשר לשלב יחד. הושבה טובה אינה
               רק פתרון מתמטי — היא משפיעה על האווירה ועל הנוחות של האורחים.
-            </DirectAnswer>
+            </Lead>
             <ul className="mt-6 grid gap-2 sm:grid-cols-2">
               {GROUPS.map((g) => (
                 <li
@@ -605,10 +605,10 @@ export default function WeddingSeatingGuide() {
             <h2 id="noreply-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               האם משבצים לשולחן אורחים שלא אישרו הגעה?
             </h2>
-            <DirectAnswer>
+            <Lead>
               יש להפריד בין מי שאישרו, מי שסירבו ומי שטרם השיבו. אורח שלא ענה אינו בהכרח אורח שלא
               יגיע — אין להחשיב אותו אוטומטית כלא מגיע.
-            </DirectAnswer>
+            </Lead>
             <Prose>
               <p>
                 מומלץ לבצע מעקב מסודר, להשלים פניות בהתאם לצורך ולברר את התשובה לפני סגירת ההושבה.
@@ -640,10 +640,10 @@ export default function WeddingSeatingGuide() {
             <h2 id="cancel-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               איך מעדכנים הושבה כשאורחים מבטלים?
             </h2>
-            <DirectAnswer>
+            <Lead>
               כאשר אורח מבטל, מעדכנים את רשימת המוזמנים ואת תוכנית ההושבה. ביטול הגעה לא בהכרח מבטל
               התחייבות כספית שכבר נמסרה לאולם.
-            </DirectAnswer>
+            </Lead>
             <Prose>
               <p>אפשר לבדוק האם נכון:</p>
             </Prose>
@@ -671,10 +671,10 @@ export default function WeddingSeatingGuide() {
             <h2 id="unexp-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מה קורה אם אורחים מגיעים בלי אישור או עם מלווה נוסף?
             </h2>
-            <DirectAnswer>
+            <Lead>
               מכינים תוכנית ברורה מראש: מי בודק, מי משנה שיבוץ, היכן הרזרבות ומי מאשר הפעלה. לא
               מניחים שתמיד אפשר להוסיף כיסא או לפתוח שולחן חדש.
-            </DirectAnswer>
+            </Lead>
             <ol className="mt-6 space-y-3">
               {UNEXPECTED_PLAN.map((item, i) => (
                 <li
@@ -694,11 +694,11 @@ export default function WeddingSeatingGuide() {
             <h2 id="res-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מה ההבדל בין סידורי הושבה לרזרבות באולם?
             </h2>
-            <DirectAnswer>
+            <Lead>
               סידורי הושבה קובעים היכן האורחים ישבו. מנות רזרבה הן חלק מההסדר המסחרי והתפעולי מול
               האולם. מקום פיזי פנוי אינו מעיד בהכרח על מנה שהוזמנה, ומנה נוספת אינה מבטיחה שיש מקום
               ישיבה מתאים.
-            </DirectAnswer>
+            </Lead>
             <Prose>
               <p>יש לתאם בין שני הדברים בהסכם ובתכנון.</p>
               <p>
@@ -719,10 +719,10 @@ export default function WeddingSeatingGuide() {
             <h2 id="digital-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               איך מנהלים סידורי הושבה בצורה מסודרת?
             </h2>
-            <DirectAnswer>
+            <Lead>
               מערכת דיגיטלית מאפשרת לנהל את השיבוץ לצד רשימת המוזמנים, לעקוב אחר מספר המשובצים בכל
               שולחן ולזהות שולחנות מלאים או מקומות פנויים — במקום להעביר רשימות ידניות בין כלים.
-            </DirectAnswer>
+            </Lead>
             <Prose>
               <p>
                 ב־Invistimo קיימת מערכת סידורי הושבה המשולבת עם רשימת המוזמנים ואישורי ההגעה.

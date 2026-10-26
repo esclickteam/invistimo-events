@@ -18,7 +18,7 @@ const ctaSecondary =
   "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
 
 const TOC: TocItem[] = [
-  { id: "short-answer", label: "התשובה הקצרה" },
+  { id: "when-to-send-answer", label: "מתי שולחים מספר שולחן" },
   { id: "venue-sketch", label: "אישור סקיצת האולם" },
   { id: "checklist", label: "צ'קליסט לפני שליחה" },
   { id: "timing", label: "מתי שולחים" },
@@ -29,7 +29,7 @@ const TOC: TocItem[] = [
   { id: "mistakes", label: "טעויות נפוצות" },
   { id: "reception", label: "הושבה וצוות קבלה" },
   { id: "vs-reminder", label: "שולחן מול תזכורת" },
-  { id: "quick-answers", label: "תשובות מהירות" },
+  { id: "quick-answers", label: "תשובות לשאלות נפוצות" },
   { id: "faq", label: "שאלות נפוצות" },
 ];
 
@@ -364,24 +364,23 @@ export default function TableNumberGuide() {
         <StickyToc items={TOC} />
 
         <div className="min-w-0 space-y-16 md:space-y-20">
-          {/* Short answer */}
-          <section id="short-answer" className="scroll-mt-24" aria-labelledby="short-answer-h">
+          <section id="when-to-send-answer" className="scroll-mt-24" aria-labelledby="when-to-send-answer-h">
             <FadeIn>
-              <Eyebrow>בקצרה</Eyebrow>
-              <h2 id="short-answer-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              <Eyebrow>לפני הכול</Eyebrow>
+              <h2 id="when-to-send-answer-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
                 מתי כדאי לשלוח מספרי שולחנות לאורחים?
               </h2>
-              <div className="mt-6 rounded-[28px] border border-[#E6D2AA] bg-gradient-to-l from-[#FFFDF8] via-[#FFF8EA] to-[#F7EDDF] p-6 md:p-8">
-                <p className="text-lg font-black leading-9 text-[#2C241C] md:text-xl">
+              <Prose>
+                <p>
                   מומלץ לשלוח הודעות מספר שולחן רק לאחר שסידורי ההושבה יציבים, האולם אישר את הסקיצה ואת
                   מספור השולחנות, ונבדק שכל אורח משובץ לשולחן הנכון.
                 </p>
-                <p className="mt-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
+                <p>
                   אם מתבצעים שינויים לאחר השליחה, יש לעדכן את האורחים שהושפעו. כאשר השינוי משמעותי,
                   כדאי לשקול סבב הודעות נוסף, לאחר בדיקה חוזרת מול האולם. עדכון שיבוץ במפה אינו מעדכן
                   אוטומטית הודעה שכבר התקבלה בטלפון של האורח.
                 </p>
-              </div>
+              </Prose>
             </FadeIn>
           </section>
 
@@ -991,13 +990,13 @@ export default function TableNumberGuide() {
 
           <section id="quick-answers" className="scroll-mt-24" aria-labelledby="quick-answers-h">
             <FadeIn>
-              <Eyebrow>תשובות מהירות</Eyebrow>
+              <Eyebrow>סיכום מעשי</Eyebrow>
               <h2 id="quick-answers-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
-                תשובות מהירות לשאלות נפוצות
+                תשובות לשאלות נפוצות על מספר שולחן
               </h2>
               <Prose>
                 <p>
-                  להלן שאלות שחוזרות הרבה לפני האירוע — עם תשובה קצרה, הסבר, דוגמה והמלצה מעשית.
+                  ריכזנו כאן את השאלות שחוזרות הכי הרבה — עם תשובה קצרה, הסבר, דוגמה וטיפ מעשי לכל אחת.
                 </p>
               </Prose>
             </FadeIn>
