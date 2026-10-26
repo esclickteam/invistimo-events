@@ -30,11 +30,23 @@ export function pageMetadata(input: {
   description: string;
   path: string;
   index?: boolean;
+  /** Absolute URL or site path for Open Graph / Twitter image */
+  image?: string;
 }): Metadata {
   const index =
     input.index !== undefined ? input.index : defaultPublicIndexable();
   const url = absoluteUrl(input.path);
   const follow = index;
+  const ogImage = input.image
+    ? {
+        url: input.image.startsWith("http")
+          ? input.image
+          : absoluteUrl(input.image),
+        width: OG_IMAGE.width,
+        height: OG_IMAGE.height,
+        alt: input.title,
+      }
+    : OG_IMAGE;
 
   return {
     title: { absolute: input.title },
@@ -47,13 +59,13 @@ export function pageMetadata(input: {
       siteName: SITE_NAME,
       locale: "he_IL",
       type: "website",
-      images: [OG_IMAGE],
+      images: [ogImage],
     },
     twitter: {
       card: "summary_large_image",
       title: input.title,
       description: input.description,
-      images: [OG_IMAGE.url],
+      images: [ogImage.url],
     },
     robots: {
       index,
@@ -170,9 +182,9 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
   },
   {
     path: "/event-management",
-    title: "ניהול אירועים מקצועי | מערכת ומנהלי אירועים בארץ – Invistimo",
+    title: "מערכת לניהול והפקת אירועים עצמאית | Invistimo",
     description:
-      "ניהול אירוע עם Invistimo: מערכת למשימות, ספקים, תקציב ולו״ז, לצד אפשרויות לליווי ומנהלי אירועים מקצועיים בישראל. הכירו את המסלולים ובדקו התאמה.",
+      "נהלו את האירוע במקום אחד עם Invistimo: משימות, ספקים, תקציב, תשלומים ולוח זמנים. מערכת עצמאית עם אפשרות לליווי מקצועי וניהול ביום האירוע.",
     changeFrequency: "monthly",
     priority: 0.85,
   },
