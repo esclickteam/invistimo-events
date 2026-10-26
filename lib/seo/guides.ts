@@ -263,6 +263,7 @@ export const GUIDES: Guide[] = [
       { href: "/rsvp/hina", label: "אישורי הגעה והושבה לחינה" },
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { href: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },
+      { href: "/info/guides/event-day-checklist", label: "צ'קליסט לפני יום האירוע" },
       { href: "/pricing", label: "חבילות ומחירים" },
     ],
   },
@@ -355,6 +356,7 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/cost-rsvp-wedding", label: "כמה עולים אישורי הגעה" },
       { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "WhatsApp ו־SMS" },
       { href: "/info/guides/wedding-planning", label: "תכנון חתונה מלא" },
+      { href: "/info/guides/event-day-checklist", label: "צ'קליסט לפני יום האירוע" },
       { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
       { href: "/rsvp/calls", label: "שיחות טלפון" },
       { href: "/rsvp/bar-bat-mitzvah", label: "בר ובת מצווה" },
@@ -381,6 +383,7 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
       { href: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים להתחייב לאולם" },
       { href: "/info/guides/cost-rsvp-wedding", label: "כמה עולים אישורי הגעה" },
+      { href: "/info/guides/event-day-checklist", label: "צ'קליסט לפני יום האירוע" },
     ],
   },
   {
@@ -604,58 +607,29 @@ export const GUIDES: Guide[] = [
     ],
   },
   {
+    // Dedicated UI: app/(marketing)/info/guides/event-day-checklist/
     slug: "event-day-checklist",
-    title: "מה בודקים לפני יום האירוע במערכת?",
-    description: "רשימת בדיקה מעשית: סטטוסי הגעה, הושבה, תזכורת, הודעת תודה וגבולות המערכת מול ליווי באולם.",
-    h1: "מה בודקים לפני יום האירוע?",
-    titleAccent: "רשימת בדיקה מעשית",
-    lede: "לפני יום האירוע בודקים שהרשימה מעודכנת, שסבבי האישור הסתיימו ככל האפשר, שההושבה מוכנה אם נרכשה, ושהתזכורת והודעת התודה מוגדרות. המערכת לא מחליפה מפיק באולם אלא אם סוכם ליווי.",
-    benefits: [
-      {
-        title: "רשימה מעודכנת",
-        text: "כולל תשובות שהגיעו בטלפון ועודכנו ידנית.",
-      },
-      {
-        title: "הושבה ותזכורת",
-        text: "אם נרכשו — מוודאים שיבוץ והודעות מוכנים.",
-      },
-      {
-        title: "בלי להחליף מפיק",
-        text: "ליווי באולם רק אם סוכם בנפרד.",
-      },
-    ],
-    steps: [
-      { title: "סוגרים פתוחים", text: "סבב שני או שיחות." },
-      { title: "מעבירים מספר לאולם", text: "לפי המועד שלו." },
-      { title: "סוגרים הושבה", text: "אם יש תוספת." },
-      { title: "בודקים תזכורת ותודה", text: "מועדים ותוכן." },
-    ],
-    showEventTypes: true,
-    sections: [
-      {
-        heading: "רשימה ואישורים",
-        paragraphs: [
-          "עוברים על מי עדיין בלי תשובה. משתמשים בסבב וואטסאפ שני או בחבילת שיחות אם היא נרכשה. מעדכנים ידנית תשובות שהגיעו בטלפון כדי שהמספר לאולם יהיה אחד.",
-          "מייצאים או מעבירים לאולם את מספר המגיעים לפי המועד שהאולם קבע. המערכת לא שולחת את המספר לאולם אוטומטית.",
-        ],
-      },
-      {
-        heading: "הושבה, תזכורת ותודה",
-        paragraphs: [
-          "אם יש תוספת הושבה, סוגרים שיבוץ ושולחים מספר שולחן למי שצריך. בודקים שהתזכורת ב־SMS מוגדרת למועד הנכון, ושהודעת התודה מוכנה אחרי האירוע.",
-          "ניהול משימות, ספקים ותקציב נמצא במסך ניהול האירוע. ליווי וניהול באולם הם שירות נפרד, רק אם סוכם.",
-        ],
-      },
-    ],
-    faqs: [
-      {
-        q: "האם יש צ׳ק־אין אוטומטי באולם?",
-        a: "יש מסכי צ׳ק־אין במערכת לשימוש ביום האירוע כשהם מופעלים לאירוע. זה לא מחליף את סבבי אישור ההגעה מראש.",
-      },
-      {
-        q: "מה ההבדל בין המדריך הזה לעמוד ניהול האירוע?",
-        a: "המדריך הוא רשימת בדיקה לפני היום. עמוד ניהול האירוע מתאר את מסך המוצר עצמו.",
-      },
+    title: "מה בודקים לפני יום האירוע? הצ'קליסט המלא לחתונה",
+    description:
+      "מה צריך לסגור לפני החתונה? צ'קליסט מלא לחודש, לשבוע וליום שלפני האירוע: ספקים, תשלומים, אישורי הגעה, הושבה, לו\"ז, ציוד וטיפים מעשיים.",
+    h1: "מה בודקים לפני יום האירוע? הצ'קליסט המלא לחתונה בלי הפתעות",
+    titleAccent: "תוכנית עבודה לפני האירוע",
+    lede: "לפני יום החתונה חשוב לוודא שכל הספקים אישרו את פרטי ההגעה וההסכמים, שהתשלומים והמקדמות מעודכנים, שלוח הזמנים סופי, שרשימת המוזמנים ואישורי ההגעה מעודכנים, שמפת ההושבה מוכנה ושהאולם קיבל את מספר האורחים לפי המועד שסוכם. בנוסף, יש להכין אנשי קשר, ציוד אישי, פתרונות למקרים בלתי צפויים וחלוקת אחריות ברורה ליום האירוע.",
+    sections: [],
+    faqs: [],
+    related: [
+      { href: "/info/guides/wedding-planning", label: "תכנון חתונה מלא" },
+      { href: "/info/guides/wedding-vendors-contracts", label: "ספקים וחוזים" },
+      { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
+      { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
+      { href: "/info/guides/wedding-seating-arrangements", label: "סידורי הושבה" },
+      { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
+      { href: "/event-management", label: "ניהול אירוע" },
+      { href: "/rsvp", label: "אישורי הגעה" },
+      { href: "/seating-explained", label: "הושבה דיגיטלית" },
+      { href: "/pricing", label: "חבילות ומחירים" },
+      { href: "/try", label: "דמו" },
+      { href: "/info/guides", label: "מרכז המדריכים" },
     ],
   },
 ];

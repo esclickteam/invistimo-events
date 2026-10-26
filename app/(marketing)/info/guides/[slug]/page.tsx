@@ -20,6 +20,7 @@ export function generateStaticParams() {
     "wedding-alcohol-calculator",
     "wedding-planning",
     "wedding-vendors-contracts",
+    "event-day-checklist",
     "table-number-message",
   ]);
   return GUIDES.filter((guide) => !dedicated.has(guide.slug)).map((guide) => ({
