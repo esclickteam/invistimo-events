@@ -48,6 +48,7 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
       { href: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים להתחייב לאולם" },
       { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "WhatsApp, SMS ואיך מתבצע הגיבוי?" },
+      { href: "/info/guides/wedding-planning", label: "תכנון חתונה מלא" },
     ],
   },
   {
@@ -348,6 +349,7 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים להתחייב לאולם" },
       { href: "/info/guides/cost-rsvp-wedding", label: "כמה עולים אישורי הגעה" },
       { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "WhatsApp ו־SMS" },
+      { href: "/info/guides/wedding-planning", label: "תכנון חתונה מלא" },
       { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
       { href: "/rsvp/calls", label: "שיחות טלפון" },
       { href: "/rsvp/bar-bat-mitzvah", label: "בר ובת מצווה" },
@@ -376,6 +378,48 @@ export const GUIDES: Guide[] = [
     ],
   },
   {
+    // Dedicated UI: app/(marketing)/info/guides/wedding-planning/
+    slug: "wedding-planning",
+    title: "איך מתכננים חתונה? המדריך המלא לתכנון חתונה בישראל",
+    description:
+      "מתכננים חתונה? מדריך מקיף לבניית תקציב, בחירת אולם, רשימת מוזמנים, סגירת ספקים, אישורי הגעה, הושבה ולוח זמנים עד יום החתונה.",
+    h1: "איך מתכננים חתונה? המדריך המלא מהאירוסין ועד החופה",
+    lede: "תכנון חתונה בישראל מההחלטות הראשונות ועד יום האירוע — תקציב, מוזמנים, אולם, ספקים, אישורים והושבה.",
+    sections: [],
+    faqs: [],
+    related: [
+      { href: "/info/guides/wedding-vendors-contracts", label: "מדריך ספקים וחוזים" },
+      { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
+      { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
+      { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות לאולם" },
+      { href: "/info/guides/seating-plan", label: "סידורי הושבה" },
+      { href: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" },
+      { href: "/event-management", label: "ניהול אירוע" },
+      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/seating-explained", label: "הושבה דיגיטלית" },
+      { href: "/pricing", label: "חבילות ומחירים" },
+    ],
+  },
+  {
+    // Dedicated UI: app/(marketing)/info/guides/wedding-vendors-contracts/
+    slug: "wedding-vendors-contracts",
+    title: "איך בוחרים ספקים לחתונה? חוזים, מקדמות וביטולים",
+    description:
+      "מדריך לבחירת ספקים לחתונה: איך משווים הצעות מחיר, מה לבדוק בחוזה, מה ההבדל בין מקדמה לדמי שריון, תנאי ביטול והחזר כספי.",
+    h1: "איך בוחרים ספקים לחתונה ומה חייבים לבדוק לפני שסוגרים?",
+    lede: "השוואת הצעות, קריאת חוזים, הבנת מקדמות ודמי שריון ומדיניות ביטול — לפני שמתחייבים.",
+    sections: [],
+    faqs: [],
+    related: [
+      { href: "/info/guides/wedding-planning", label: "המדריך המלא לתכנון חתונה" },
+      { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות לאולם" },
+      { href: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" },
+      { href: "/event-management", label: "ניהול אירוע וספקים" },
+      { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול" },
+      { href: "/pricing", label: "חבילות Invistimo" },
+    ],
+  },
+  {
     // Dedicated UI: app/(marketing)/info/guides/wedding-venue-guest-guarantee/
     slug: "wedding-venue-guest-guarantee",
     title: "כמה אורחים להתחייב לאולם? מדריך ומחשבון",
@@ -391,6 +435,8 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
       { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
       { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
+      { href: "/info/guides/wedding-planning", label: "תכנון חתונה מלא" },
+      { href: "/info/guides/wedding-vendors-contracts", label: "ספקים וחוזים" },
       { href: "/seating-explained", label: "סידורי הושבה" },
       { href: "/pricing", label: "חבילות ומחירים" },
     ],
