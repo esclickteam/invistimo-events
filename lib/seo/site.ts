@@ -3,7 +3,7 @@ import { resolveAppEnv } from "@/lib/env/appEnv";
 
 export const SITE_URL = "https://www.invistimo.com";
 export const SITE_NAME = "Invistimo";
-export const CONTENT_UPDATED = new Date("2026-10-26T15:00:00.000Z");
+export const CONTENT_UPDATED = new Date("2026-10-26T17:20:00.000Z");
 
 /** Preview/Staging must not claim indexability in HTML (align with Vercel x-robots-tag). */
 export function defaultPublicIndexable() {
@@ -178,9 +178,9 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
   },
   {
     path: "/pricing",
-    title: "חבילות ומחירים לאישורי הגעה | Invistimo",
+    title: "מחירון אישורי הגעה לחתונה | חבילות ומחירים – Invistimo",
     description:
-      "מחיר Invistimo מחושב לפי מספר רשומות והחבילה: הודעות, שיחות מוקלטות, שיחות אנושיות או משולבות, ותוספות שמופיעות במחשבון.",
+      "כמה עולים אישורי הגעה לחתונה? השוו חבילות Invistimo, בחרו מספר רשומות וראו מחירים לאישורי הגעה, שיחות, הזמנות דיגיטליות וסידורי הושבה.",
     changeFrequency: "monthly",
     priority: 0.9,
   },

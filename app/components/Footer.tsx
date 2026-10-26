@@ -243,6 +243,12 @@ export default function Footer() {
             <Link href="/seating-explained" className="transition hover:text-[#B8862D]">
               סידורי הושבה
             </Link>
+            <Link
+              href="/info/guides/wedding-seating-arrangements"
+              className="transition hover:text-[#B8862D]"
+            >
+              מדריך סידורי הושבה
+            </Link>
             <Link href="/event-management" className="transition hover:text-[#B8862D]">
               ניהול אירוע
             </Link>

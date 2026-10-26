@@ -158,6 +158,10 @@ export const GUIDE_COLUMNS: HeaderNavColumn[] = [
     links: [
       { href: "/info/guides/guest-list", label: "ניהול רשימת מוזמנים" },
       {
+        href: "/info/guides/how-to-choose-rsvp-company",
+        label: "איך בוחרים חברת אישורי הגעה",
+      },
+      {
         href: "/info/guides/when-to-send-rsvp",
         label: "מתי שולחים אישורי הגעה",
       },
@@ -175,10 +179,14 @@ export const GUIDE_COLUMNS: HeaderNavColumn[] = [
     id: "venues-seating",
     title: "אולמות וסידורי הושבה",
     links: [
+      {
+        href: "/info/guides/wedding-seating-arrangements",
+        label: "סידורי הושבה לחתונה — המדריך המלא",
+      },
       { href: "/info/guides/seating-plan", label: "איך מכינים סידורי הושבה" },
       {
         href: "/info/guides/table-number-message",
-        label: "הודעת מספר שולחן",
+        label: "הודעת מספר שולחן לאורחים",
       },
       {
         href: "/info/guides/wedding-venue-guest-guarantee",

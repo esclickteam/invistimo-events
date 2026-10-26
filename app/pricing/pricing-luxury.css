@@ -1,0 +1,249 @@
+/* Luxury Wedding Tech interactions for /pricing — CSS-only, respects reduced motion. */
+
+.pricing-page {
+  --pricing-cream: #f7efe6;
+  --pricing-ivory: #fffdf9;
+  --pricing-champagne: #e8d4b0;
+  --pricing-gold: #c9a46a;
+  --pricing-gold-deep: #a86f2b;
+  --pricing-chocolate: #3e2d20;
+  --pricing-muted: #7b6754;
+  --pricing-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --pricing-dur: 240ms;
+}
+
+.pricing-gold-cta {
+  background-image: linear-gradient(105deg, #a86f2b 0%, #c68f46 42%, #d8a85f 68%, #b88945 100%);
+  background-size: 160% 100%;
+  box-shadow: 0 16px 32px rgba(168, 111, 43, 0.24);
+  transition:
+    transform var(--pricing-dur) var(--pricing-ease),
+    box-shadow var(--pricing-dur) var(--pricing-ease),
+    background-position var(--pricing-dur) var(--pricing-ease);
+}
+
+.pricing-gold-cta:hover:not(:disabled),
+.pricing-gold-cta:focus-visible:not(:disabled) {
+  background-position: 100% 0;
+  transform: translateY(-2px);
+  box-shadow: 0 18px 36px rgba(168, 111, 43, 0.3);
+}
+
+.pricing-package-card {
+  transition:
+    transform var(--pricing-dur) var(--pricing-ease),
+    box-shadow var(--pricing-dur) var(--pricing-ease),
+    border-color var(--pricing-dur) var(--pricing-ease),
+    background-color var(--pricing-dur) var(--pricing-ease);
+  will-change: transform;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .pricing-package-card:hover {
+    transform: translateY(-4px);
+    border-color: #d4b06e;
+    box-shadow:
+      0 0 0 1px rgba(201, 164, 106, 0.35),
+      0 22px 48px rgba(91, 64, 35, 0.14);
+  }
+}
+
+.pricing-package-card.is-selected {
+  border-color: #c9a46a;
+  box-shadow:
+    0 0 0 2px rgba(201, 164, 106, 0.45),
+    0 24px 50px rgba(91, 64, 35, 0.16);
+  background: linear-gradient(160deg, #fffdf9 0%, #fff8ee 100%);
+}
+
+.pricing-package-card.is-price-flash {
+  animation: pricing-gold-flash 420ms var(--pricing-ease) 1;
+}
+
+@keyframes pricing-gold-flash {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(201, 164, 106, 0),
+      0 22px 60px rgba(91, 64, 35, 0.1);
+  }
+  35% {
+    box-shadow:
+      0 0 0 2px rgba(201, 164, 106, 0.7),
+      0 22px 50px rgba(168, 111, 43, 0.18);
+  }
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(201, 164, 106, 0),
+      0 22px 60px rgba(91, 64, 35, 0.1);
+  }
+}
+
+.pricing-package-card.is-selected.is-price-flash {
+  animation: pricing-gold-flash-selected 420ms var(--pricing-ease) 1;
+}
+
+@keyframes pricing-gold-flash-selected {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(201, 164, 106, 0.45),
+      0 24px 50px rgba(91, 64, 35, 0.16);
+  }
+  40% {
+    box-shadow:
+      0 0 0 3px rgba(201, 164, 106, 0.85),
+      0 24px 50px rgba(168, 111, 43, 0.22);
+  }
+}
+
+.pricing-animated-price {
+  display: inline-block;
+  tabular-nums: true;
+  transition:
+    opacity 180ms var(--pricing-ease),
+    transform 220ms var(--pricing-ease);
+}
+
+.pricing-animated-price.is-updating {
+  opacity: 0.55;
+  transform: translateY(2px);
+}
+
+.pricing-animated-price.is-settled {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.pricing-reveal {
+  opacity: 1;
+  transform: none;
+}
+
+.pricing-reveal[data-ready="true"]:not([data-visible="true"]) {
+  opacity: 0;
+  transform: translateY(12px);
+}
+
+.pricing-reveal[data-ready="true"][data-visible="true"] {
+  opacity: 1;
+  transform: none;
+  transition:
+    opacity 320ms var(--pricing-ease),
+    transform 320ms var(--pricing-ease);
+}
+
+.pricing-slider-track-bg {
+  background: linear-gradient(90deg, #efe2cf 0%, #e8d9c7 50%, #f3e7d4 100%);
+}
+
+.pricing-slider-fill {
+  background: linear-gradient(270deg, #a86f2b 0%, #c9a46a 48%, #e4c48a 100%);
+  box-shadow: 0 0 12px rgba(201, 164, 106, 0.35);
+}
+
+.pricing-slider-thumb {
+  transition:
+    transform 180ms var(--pricing-ease),
+    box-shadow 180ms var(--pricing-ease);
+}
+
+.pricing-slider-thumb.is-dragging {
+  transform: translate(50%, -50%) scale(1.1);
+  box-shadow:
+    0 0 0 6px rgba(216, 177, 106, 0.28),
+    0 14px 28px rgba(168, 111, 43, 0.32);
+}
+
+.pricing-slider-bubble {
+  transition:
+    transform 180ms var(--pricing-ease),
+    opacity 180ms var(--pricing-ease);
+}
+
+.pricing-slider-bubble.is-tick {
+  animation: pricing-bubble-tick 280ms var(--pricing-ease) 1;
+}
+
+@keyframes pricing-bubble-tick {
+  0% {
+    transform: translate(50%, 0) scale(1);
+  }
+  40% {
+    transform: translate(50%, -2px) scale(1.06);
+  }
+  100% {
+    transform: translate(50%, 0) scale(1);
+  }
+}
+
+.pricing-record-display.is-tick {
+  animation: pricing-record-tick 280ms var(--pricing-ease) 1;
+}
+
+@keyframes pricing-record-tick {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.035);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.pricing-tooltip-panel {
+  transition:
+    opacity 180ms var(--pricing-ease),
+    transform 180ms var(--pricing-ease);
+}
+
+.pricing-compare-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.pricing-timeline-line {
+  background: linear-gradient(180deg, #c9a46a 0%, #e8d4b0 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pricing-gold-cta,
+  .pricing-package-card,
+  .pricing-animated-price,
+  .pricing-reveal,
+  .pricing-slider-thumb,
+  .pricing-slider-bubble,
+  .pricing-tooltip-panel {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  .pricing-package-card.is-price-flash,
+  .pricing-package-card.is-selected.is-price-flash,
+  .pricing-slider-bubble.is-tick,
+  .pricing-record-display.is-tick {
+    animation: none !important;
+  }
+
+  .pricing-reveal[data-ready="true"]:not([data-visible="true"]) {
+    opacity: 1;
+    transform: none;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .pricing-package-card:hover {
+      transform: none;
+    }
+  }
+
+  .pricing-gold-cta:hover:not(:disabled),
+  .pricing-gold-cta:focus-visible:not(:disabled) {
+    transform: none;
+  }
+}
