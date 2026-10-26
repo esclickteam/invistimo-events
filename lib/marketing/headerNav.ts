@@ -216,12 +216,12 @@ export const HEADER_PRIMARY: HeaderNavItem[] = [
   },
   {
     id: "guides",
-    label: "מדריכים וכלים",
+    label: "מדריכים",
     kind: "mega",
     columns: GUIDE_COLUMNS,
     footerLink: {
       href: "/info/guides",
-      label: "כל המדריכים והכלים",
+      label: "כל המדריכים",
     },
   },
   { id: "pricing", label: "חבילות ומחירים", href: "/pricing", kind: "link" },
