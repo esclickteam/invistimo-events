@@ -1,10 +1,8 @@
 "use client";
 
-import Image from "next/image";
-import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Frank_Ruhl_Libre } from "next/font/google";
-import { Check, Crown, Users } from "lucide-react";
+import { Check, Users } from "lucide-react";
 import GuestRecordSlider from "@/app/pricing/GuestRecordSlider";
 import AnimatedPrice from "@/app/pricing/components/AnimatedPrice";
 import InfoTooltip from "@/app/pricing/components/InfoTooltip";
@@ -237,7 +235,6 @@ export default function PricingPage() {
   const [addons, setAddons] = useState<SelectedAddons>(EMPTY_ADDONS);
   const [selectedPackage, setSelectedPackage] = useState<PackageId | null>(null);
   const [priceFlash, setPriceFlash] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
 
   const packages = useMemo(
     () => [PACKAGES.messages, ...CALL_PACKAGES.map((id) => PACKAGES[id])],
@@ -247,15 +244,6 @@ export default function PricingPage() {
   const selectedQuote = selectedPackage
     ? calculateQuote({ packageId: selectedPackage, records, addons })
     : null;
-
-  useEffect(() => {
-    if (!previewOpen) return;
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setPreviewOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [previewOpen]);
 
   function setRecordCount(next: number) {
     const safe = clampRecords(next);
@@ -297,168 +285,27 @@ export default function PricingPage() {
       <div className="pointer-events-none absolute -top-24 right-[7%] -z-20 h-72 w-72 rounded-full bg-[#DAB273]/20 blur-3xl" />
       <div className="pointer-events-none absolute bottom-[8%] left-[5%] -z-20 h-80 w-80 rounded-full bg-[#CDA37D]/16 blur-3xl" />
 
-      <section className="relative z-10 px-4 pb-4 pt-24 sm:px-8 lg:pt-28">
-        <div className="mx-auto grid max-w-6xl items-center gap-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10">
-          <div className="text-center lg:text-right">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-[#D8B98D] bg-[#FFF8EE] shadow-[0_10px_30px_rgba(186,140,76,0.13)] lg:mx-0">
-              <Crown className="text-[#B88945]" size={24} aria-hidden="true" />
-            </div>
-
-            <p
-              className={`${display.className} text-[32px] tracking-[0.18em] text-[#8A6338] sm:text-[42px]`}
-            >
-              INVISTIMO
-            </p>
-            <div className="mx-auto mt-3 h-px w-24 bg-gradient-to-l from-transparent via-[#C9A46A] to-transparent lg:mx-0" />
-
-            <h1
-              data-testid="pricing-title"
-              className={`${display.className} mx-auto mt-5 max-w-3xl text-balance text-[1.55rem] font-bold leading-[1.35] text-[#3E2D20] min-[380px]:text-[1.85rem] sm:text-4xl sm:leading-tight lg:mx-0 lg:text-[2.55rem]`}
-            >
-              חבילות ומחירים לאישורי הגעה, הזמנות דיגיטליות וסידורי הושבה
-            </h1>
-
-            <p className="mt-4 text-lg font-black text-[#8A4E19] sm:text-xl">
-              האירוע שלכם. החבילה שמתאימה בדיוק לכם.
-            </p>
-
-            <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-[#7B6754] lg:mx-0">
-              בין אם אתם מתכננים חתונה אינטימית או אירוע עם מאות מוזמנים, ב־Invistimo תוכלו לבחור
-              את השירותים שמתאימים לכם — מהזמנות דיגיטליות ואישורי הגעה ועד שיחות טלפוניות, סידורי
-              הושבה וניהול האירוע.
-            </p>
-            <p className="mx-auto mt-3 max-w-2xl text-base leading-8 text-[#7B6754] lg:mx-0">
-              בחרו את מספר הרשומות, השוו בין החבילות, הוסיפו שירותים לפי הצורך וראו את המחיר לפני
-              המעבר לתשלום.
-            </p>
-
-            <div className="mt-7 flex flex-col items-center gap-3 sm:flex-row lg:justify-start">
-              <a
-                href="#pricing-calculator"
-                className="pricing-gold-cta inline-flex min-h-12 items-center justify-center rounded-full px-8 py-3 text-base font-black text-white"
-              >
-                מצאו את החבילה שלכם
-              </a>
-              <Link
-                href="/try"
-                className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-[#FFFDF9] px-8 py-3 text-base font-black text-[#2C241C] transition hover:bg-white"
-              >
-                להתנסות בדמו
-              </Link>
-            </div>
-          </div>
-
-          <RevealOnScroll className="relative mx-auto w-full max-w-lg">
-            <div className="relative overflow-hidden rounded-[28px] border border-[#E5D3B8] bg-[#FFFDF9] p-3 shadow-[0_24px_60px_rgba(91,64,35,0.14)]">
-              <div className="mb-2 flex items-center gap-1.5 px-2 pt-1">
-                <span className="h-2.5 w-2.5 rounded-full bg-[#E2C9A6]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#E2C9A6]" />
-                <span className="h-2.5 w-2.5 rounded-full bg-[#E2C9A6]" />
-                <span className="mr-auto text-[11px] font-bold text-[#9C866D]">תצוגת מערכת</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPreviewOpen(true)}
-                className="group relative block w-full overflow-hidden rounded-[20px] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#D8B16A]/35"
-                aria-label="הגדלת צילום מסך של המערכת"
-              >
-                <Image
-                  src="/images/rsvp/chatuna/dashboard-guests.jpg"
-                  alt="צילום מסך אמיתי של דשבורד ניהול מוזמנים ב־Invistimo"
-                  width={1200}
-                  height={780}
-                  className="h-auto w-full object-cover transition duration-300 group-hover:scale-[1.02]"
-                  priority
-                />
-                <span className="absolute bottom-3 left-3 rounded-full bg-[#3E2D20]/88 px-3 py-1 text-xs font-bold text-[#F7E9D3]">
-                  להגדלה
-                </span>
-              </button>
-              <div className="pointer-events-none absolute -bottom-4 -left-3 w-[42%] overflow-hidden rounded-[18px] border border-[#E5D3B8] bg-white p-1.5 shadow-[0_16px_40px_rgba(91,64,35,0.18)] sm:-left-6">
-                <Image
-                  src="/marketing/invites/invite-wedding-mia-alon.webp"
-                  alt="המחשת הזמנה דיגיטלית לחתונה"
-                  width={480}
-                  height={720}
-                  className="h-auto w-full rounded-[14px] object-cover"
-                />
-              </div>
-            </div>
-          </RevealOnScroll>
+      <section className="relative z-10 px-4 pb-1 pt-5 sm:px-8 sm:pt-6">
+        <div className="mx-auto max-w-3xl text-center">
+          <p className="text-sm font-black tracking-[0.14em] text-[#8A6338]">Invistimo</p>
+          <h1
+            data-testid="pricing-title"
+            className={`${display.className} mt-2 text-balance text-[1.85rem] font-bold leading-[1.25] text-[#3E2D20] sm:text-4xl sm:leading-tight`}
+          >
+            חבילות ומחירים
+          </h1>
+          <p className="mt-2 text-base font-bold leading-7 text-[#8A4E19] sm:text-lg sm:leading-8">
+            בחרו את כמות הרשומות וגלו את החבילה המתאימה לאירוע שלכם.
+          </p>
+          <p className="mx-auto mt-2 max-w-2xl text-sm leading-7 text-[#7B6754] sm:text-base sm:leading-8">
+            המחיר משתנה לפי מספר הרשומות, סוג החבילה והתוספות — ומוצג במחשבון לפני התשלום.
+          </p>
         </div>
       </section>
 
-      <RevealOnScroll className="relative z-10 mx-auto max-w-4xl px-4 pb-2 pt-6 sm:px-8">
-        <section className="rounded-[28px] border border-[#E5D3B8] bg-[#FFFDF9]/92 p-5 shadow-[0_16px_40px_rgba(91,64,35,0.08)] sm:p-7">
-          <h2 className={`${display.className} text-2xl font-bold text-[#3E2D20] sm:text-3xl`}>
-            איך נקבע המחיר של אישורי ההגעה?
-          </h2>
-          <p className="mt-3 text-base font-bold leading-8 text-[#5A3E25]">
-            מחיר חבילת אישורי ההגעה ב־Invistimo נקבע לפי מספר הרשומות, סוג החבילה והשירותים הנוספים
-            שנבחרים. המחיר המדויק מוצג במחשבון לפני התשלום.
-          </p>
-          <p className="mt-3 text-sm leading-7 text-[#7B6754]">
-            חשוב להבחין בין{" "}
-            <span className="inline-flex items-center gap-1 font-black text-[#8A4E19]">
-              רשומה
-              <InfoTooltip label="רשומה">
-                שורת שליחה ברשימת המוזמנים. רשומה אחת יכולה לכסות אורח יחיד, זוג או משפחה — לפי
-                אופן ניהול ההזמנה וכללי החבילה הפעילים.
-              </InfoTooltip>
-            </span>{" "}
-            לבין מספר האנשים באולם. משפחה של חמישה עשויה להיות רשומת קשר אחת אם ההזמנה מנוהלת דרך
-            איש קשר אחד.
-          </p>
-          <div className="mt-5 overflow-x-auto">
-            <table className="w-full min-w-[20rem] border-collapse text-sm">
-              <caption className="mb-2 text-right text-xs font-bold text-[#9C866D]">
-                דוגמה לרשומות קשר אפשריות — אופן הספירה לחיוב כפוף לכללי המערכת הפעילים
-              </caption>
-              <thead>
-                <tr className="bg-[#FFF4E2]">
-                  <th className="border border-[#E6D2AA] px-3 py-2 text-right font-black">משפחה</th>
-                  <th className="border border-[#E6D2AA] px-3 py-2 text-right font-black">מספר אנשים</th>
-                  <th className="border border-[#E6D2AA] px-3 py-2 text-right font-black">רשומות קשר</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  ["זוג", "2", "1"],
-                  ["זוג ושלושה ילדים", "5", "1"],
-                  ["אורח יחיד", "1", "1"],
-                  ["סה״כ", "8", "3"],
-                ].map(([a, b, c]) => (
-                  <tr key={a}>
-                    <td className="border border-[#E6D2AA] px-3 py-2">{a}</td>
-                    <td className="border border-[#E6D2AA] px-3 py-2 tabular-nums">{b}</td>
-                    <td className="border border-[#E6D2AA] px-3 py-2 tabular-nums">{c}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="mt-4 text-sm leading-7 text-[#7B6754]">
-            לפירוט מלא:{" "}
-            <Link
-              href="/info/guides/guest-list"
-              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
-            >
-              מדריך ניהול רשימת מוזמנים
-            </Link>
-            {" · "}
-            <Link
-              href="/info/guides/cost-rsvp-wedding"
-              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
-            >
-              כמה עולים אישורי הגעה
-            </Link>
-          </p>
-        </section>
-      </RevealOnScroll>
-
       <div
         id="pricing-calculator"
-        className="relative z-10 mx-auto flex w-full max-w-6xl scroll-mt-28 flex-col gap-6 px-4 pb-10 pt-8 sm:px-8"
+        className="relative z-10 mx-auto flex w-full max-w-6xl scroll-mt-24 flex-col gap-5 px-4 pb-8 pt-3 sm:gap-6 sm:px-8 sm:pt-4"
       >
         <RevealOnScroll>
           <section className="rounded-[32px] border border-[#D9C0A0] bg-[#FFFDF9]/92 p-5 shadow-[0_22px_55px_rgba(91,64,35,0.1)] sm:p-8">
@@ -467,14 +314,19 @@ export default function PricingPage() {
                 1
               </span>
               <h2 className={`${display.className} text-xl font-bold leading-snug text-[#3E2D20] sm:text-3xl`}>
-                כמה יעלו אישורי ההגעה לאירוע שלכם?
+                כמה רשומות מוזמנים יש לכם?
               </h2>
             </div>
-            <p className="mb-6 mr-12 text-sm leading-6 text-[#7B6754]">
-              כמה רשומות מוזמנים יש לכם?{" "}
-              <span className="font-bold text-[#8A5A25]">
-                לא בטוחים כמה רשומות יש לכם? מספר הרשומות אינו בהכרח מספר האורחים.
-              </span>
+            <p className="mb-4 mr-0 text-sm leading-6 text-[#7B6754] sm:mr-12">
+              מספר הרשומות אינו בהכרח מספר האורחים.{" "}
+              <span className="inline-flex items-center gap-1 font-bold text-[#8A5A25]">
+                רשומה
+                <InfoTooltip label="רשומה">
+                  שורת שליחה ברשימת המוזמנים. רשומה אחת יכולה לכסות אורח יחיד, זוג או משפחה — לפי
+                  אופן ניהול ההזמנה וכללי החבילה הפעילים.
+                </InfoTooltip>
+              </span>{" "}
+              היא יחידת הקשר להזמנה ולשליחה.
             </p>
 
             <GuestRecordSlider
@@ -512,10 +364,70 @@ export default function PricingPage() {
 
         <RevealOnScroll>
           <section className="rounded-[32px] border border-[#D9C0A0] bg-[#FFFDF9]/92 p-5 shadow-[0_22px_55px_rgba(91,64,35,0.1)] sm:p-8">
+            <div className="mb-6 flex items-center gap-3">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
+                2
+              </span>
+              <h2 className="text-xl font-black leading-snug text-[#3E2D20] sm:text-2xl">
+                בחרו חבילה
+              </h2>
+            </div>
+            {records <= 0 ? (
+              <p className="mb-4 text-sm leading-6 text-[#9C866D]">
+                בחרו לפחות רשומה אחת כדי לשלוח בקשה.
+              </p>
+            ) : null}
+            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+              {packages.map((pkg) => (
+                <PackageCard
+                  key={pkg.id}
+                  pkg={pkg}
+                  records={records}
+                  addons={addons}
+                  selected={selectedPackage === pkg.id}
+                  priceFlash={priceFlash}
+                  onSelect={() => setSelectedPackage(pkg.id)}
+                />
+              ))}
+            </div>
+
+            {selectedQuote ? (
+              <div
+                data-testid="selection-summary"
+                className="mt-6 rounded-[24px] border border-[#D4B06E] bg-gradient-to-l from-[#FFF8EA] via-[#FFFDF9] to-[#F7E8CA] p-5"
+              >
+                <p className="text-sm font-black text-[#8A4E19]">סיכום הבחירה</p>
+                <p className="mt-2 text-base leading-7 text-[#5A3E25]">
+                  {selectedQuote.packageName} · {selectedQuote.records.toLocaleString("he-IL")}{" "}
+                  רשומות · סה״כ{" "}
+                  <span className="font-black tabular-nums">{formatIls(selectedQuote.total)}</span>
+                </p>
+                {selectedQuote.canOrder ? (
+                  <a
+                    href={buildWhatsappUrl(selectedQuote)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="pricing-gold-cta mt-4 inline-flex min-h-12 items-center justify-center gap-2 rounded-[18px] px-6 py-3 text-sm font-black text-white"
+                  >
+                    <WhatsAppBrandIcon />
+                    אני רוצה את החבילה
+                  </a>
+                ) : null}
+              </div>
+            ) : (
+              <p className="mt-5 text-sm leading-6 text-[#9C866D]">
+                בחרו כרטיס חבילה כדי לראות סיכום בחירה מרוכז. המחירים בכל הכרטיסים מתעדכנים בזמן אמת.
+              </p>
+            )}
+          </section>
+        </RevealOnScroll>
+
+        <RevealOnScroll>
+          <section className="rounded-[32px] border border-[#D9C0A0] bg-[#FFFDF9]/92 p-5 shadow-[0_22px_55px_rgba(91,64,35,0.1)] sm:p-8">
             <div className="mb-6 flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
-                  2
+                  3
                 </span>
                 <h2 className="text-xl font-black leading-snug text-[#3E2D20] sm:text-2xl">
                   תוספות אפשריות
@@ -597,66 +509,6 @@ export default function PricingPage() {
             </div>
           </section>
         </RevealOnScroll>
-
-        <RevealOnScroll>
-          <section className="rounded-[32px] border border-[#D9C0A0] bg-[#FFFDF9]/92 p-5 shadow-[0_22px_55px_rgba(91,64,35,0.1)] sm:p-8">
-            <div className="mb-6 flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
-                3
-              </span>
-              <h2 className="text-xl font-black leading-snug text-[#3E2D20] sm:text-2xl">
-                בחרו חבילה
-              </h2>
-            </div>
-            {records <= 0 ? (
-              <p className="mb-4 text-sm leading-6 text-[#9C866D]">
-                בחרו לפחות רשומה אחת כדי לשלוח בקשה.
-              </p>
-            ) : null}
-            <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-              {packages.map((pkg) => (
-                <PackageCard
-                  key={pkg.id}
-                  pkg={pkg}
-                  records={records}
-                  addons={addons}
-                  selected={selectedPackage === pkg.id}
-                  priceFlash={priceFlash}
-                  onSelect={() => setSelectedPackage(pkg.id)}
-                />
-              ))}
-            </div>
-
-            {selectedQuote ? (
-              <div
-                data-testid="selection-summary"
-                className="mt-6 rounded-[24px] border border-[#D4B06E] bg-gradient-to-l from-[#FFF8EA] via-[#FFFDF9] to-[#F7E8CA] p-5"
-              >
-                <p className="text-sm font-black text-[#8A4E19]">סיכום הבחירה</p>
-                <p className="mt-2 text-base leading-7 text-[#5A3E25]">
-                  {selectedQuote.packageName} · {selectedQuote.records.toLocaleString("he-IL")}{" "}
-                  רשומות · סה״כ{" "}
-                  <span className="font-black tabular-nums">{formatIls(selectedQuote.total)}</span>
-                </p>
-                {selectedQuote.canOrder ? (
-                  <a
-                    href={buildWhatsappUrl(selectedQuote)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="pricing-gold-cta mt-4 inline-flex min-h-12 items-center justify-center gap-2 rounded-[18px] px-6 py-3 text-sm font-black text-white"
-                  >
-                    <WhatsAppBrandIcon />
-                    אני רוצה את החבילה
-                  </a>
-                ) : null}
-              </div>
-            ) : (
-              <p className="mt-5 text-sm leading-6 text-[#9C866D]">
-                בחרו כרטיס חבילה כדי לראות סיכום בחירה מרוכז. המחירים בכל הכרטיסים מתעדכנים בזמן אמת.
-              </p>
-            )}
-          </section>
-        </RevealOnScroll>
       </div>
 
       <div className="px-4 pb-4 sm:px-8">
@@ -677,36 +529,6 @@ export default function PricingPage() {
       </div>
 
       <ServiceLinks current="/pricing" />
-
-      {previewOpen ? (
-        <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-[#2A211A]/72 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-label="תצוגה מוגדלת של צילום המערכת"
-          onClick={() => setPreviewOpen(false)}
-        >
-          <div
-            className="relative max-h-[90vh] w-full max-w-5xl overflow-auto rounded-[24px] border border-[#E5D3B8] bg-[#FFFDF9] p-3 shadow-2xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              className="absolute left-4 top-4 z-10 rounded-full bg-[#3E2D20] px-3 py-1.5 text-xs font-black text-white"
-              onClick={() => setPreviewOpen(false)}
-            >
-              סגירה
-            </button>
-            <Image
-              src="/images/rsvp/chatuna/dashboard-guests.jpg"
-              alt="צילום מסך מוגדל של דשבורד המוזמנים ב־Invistimo"
-              width={1600}
-              height={1040}
-              className="h-auto w-full rounded-[18px]"
-            />
-          </div>
-        </div>
-      ) : null}
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#E5D3B8] bg-[#FFFDF9]/95 p-3 backdrop-blur md:hidden">
         <a

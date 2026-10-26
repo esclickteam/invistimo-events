@@ -138,13 +138,12 @@ export default function PublicContentPage({
             </h1>
 
             {answer ? (
-              <section className="mt-7 rounded-[28px] border border-[#E6D2AA] bg-white/90 p-5 shadow-[0_20px_50px_rgba(95,68,34,0.08)] md:p-6">
-                <h2 className="text-lg font-black text-[#35281F] md:text-xl">התשובה הקצרה</h2>
-                <p className="mt-3 text-base leading-8 text-[#3F3025] md:text-lg">{answer}</p>
-              </section>
+              <p className="mt-6 max-w-2xl text-base leading-8 text-[#5C4A3A] md:text-lg">{answer}</p>
             ) : null}
 
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-[#5C4A3A]">{lede}</p>
+            <p className={`max-w-2xl text-lg leading-8 text-[#5C4A3A] ${answer ? "mt-4" : "mt-6"}`}>
+              {lede}
+            </p>
 
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <TrackedCtaLink href={primaryCta.href} className={ctaClass} location={`hero_cta:${path}`}>

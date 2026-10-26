@@ -282,7 +282,7 @@ export default function PackageComparison() {
       <div className="hidden overflow-x-auto lg:block">
         <table className="w-full min-w-[54rem] border-collapse text-right text-sm">
           <caption className="mb-3 text-right text-base font-black text-[#35281F]">
-            השוואה לפי תכולת החבילות הפעילות במחשבון — הסכום מופיע רק אחרי בחירת רשומות ותוספות
+            השוואה לפי תכולת החבילות במחשבון — הסכום מופיע אחרי בחירת רשומות ותוספות
           </caption>
           <thead>
             <tr>

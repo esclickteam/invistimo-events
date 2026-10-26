@@ -96,7 +96,7 @@ export default function PricingMarketingExtras() {
         <section className="px-5 py-12 md:px-8 md:py-16">
           <div className="mx-auto max-w-6xl">
             <h2 className="text-center text-3xl font-black text-[#35281F] md:text-4xl">
-              מה ההבדל בין חבילות Invistimo?
+              מה כלול בכל חבילה?
             </h2>
             <p className="mx-auto mt-3 max-w-3xl text-center leading-8 text-[#5C4A3A]">
               השוואה לפי התכולה בפועל במחשבון. יכולת שקיימת במערכת אינה מוצגת ככלולה אוטומטית בכל חבילה.

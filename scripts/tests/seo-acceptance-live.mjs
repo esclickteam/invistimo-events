@@ -49,21 +49,6 @@ const GUIDE_SLUGS = [
   "event-day-checklist",
 ];
 
-const ANSWER_PATHS = new Set([
-  "/",
-  "/rsvp",
-  "/rsvp/chatuna",
-  "/rsvp/whatsapp",
-  "/rsvp/save-the-date",
-  "/invitations/chatuna",
-  "/seating-explained",
-  "/event-management",
-  "/pricing",
-  "/faq",
-  "/info/about",
-  ...GUIDE_SLUGS.map((s) => `/info/guides/${s}`),
-]);
-
 const MARKETING = [...CORE, ...GUIDE_SLUGS.map((s) => `/info/guides/${s}`)];
 
 function extractMeta(html, name) {
@@ -172,7 +157,7 @@ async function checkPage(pathname) {
   const jsonld = extractJsonLdBlocks(html);
   const types = new Set();
   for (const block of jsonld) collectTypes(block, types);
-  const hasAnswer = html.includes("התשובה הקצרה");
+  const hasLegacyAnswerChrome = html.includes("התשובה הקצרה");
   const hasAggregate = /AggregateRating|"Review"/.test(html);
   const ogUrl = extractProperty(html, "og:url");
   const dirRtl = /dir=["']rtl["']/i.test(html) || /<html[^>]+dir=["']rtl["']/i.test(html);
@@ -192,7 +177,7 @@ async function checkPage(pathname) {
     jsonLdBlocks: jsonld.length,
     jsonLdTypes: [...types].sort(),
     jsonLdParseOk: jsonld.every((b) => !b.parseError),
-    answerFirst: ANSWER_PATHS.has(pathname) ? hasAnswer : null,
+    hasLegacyAnswerChrome,
     noFakeReviews: !hasAggregate,
     ogUrl,
     rtl: dirRtl,
@@ -210,7 +195,7 @@ async function checkPage(pathname) {
   if (jsonld.length === 0 && !["/terms", "/privacy", "/accessibility", "/credit-gifts", "/wedding-website"].includes(pathname)) {
     result.warnings.push("no JSON-LD block");
   }
-  if (ANSWER_PATHS.has(pathname) && !hasAnswer) result.failures.push("missing answer-first block");
+  if (hasLegacyAnswerChrome) result.failures.push("legacy answer-first chrome still present");
   if (hasAggregate) result.failures.push("AggregateRating/Review found");
   if (!langHe) result.warnings.push("html lang not he");
   if (!dirRtl) result.warnings.push("rtl dir not detected in initial HTML");

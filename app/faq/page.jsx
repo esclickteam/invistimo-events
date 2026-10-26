@@ -1,5 +1,4 @@
 import FAQAccordion from "../components/FAQAccordion";
-import AnswerFirst from "@/components/seo/AnswerFirst";
 import ServiceLinks from "@/components/marketing/ServiceLinks";
 import JsonLd from "@/components/seo/JsonLd";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
@@ -36,7 +35,6 @@ export default function FAQPage() {
           faqNode(allFaqItems()),
         ])}
       />
-      <AnswerFirst path="/faq" />
       <main dir="rtl" className="overflow-hidden bg-[#FBF6EE] text-[#3F3025]">
         <section className="relative isolate px-5 pb-12 pt-14 md:px-8 md:pb-16 md:pt-20">
           <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,#E9D4AF_0%,transparent_36%),linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_100%)]" />

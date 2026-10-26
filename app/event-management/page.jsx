@@ -1,4 +1,3 @@
-import AnswerFirst from "@/components/seo/AnswerFirst";
 import EventManagementPage from "@/app/components/event/EventManagementPage";
 import ServiceLinks from "@/components/marketing/ServiceLinks";
 import JsonLd from "@/components/seo/JsonLd";
@@ -65,7 +64,6 @@ export default function Page() {
           faqNode(faqs),
         ])}
       />
-      <AnswerFirst path="/event-management" />
       <EventManagementPage />
       <section dir="rtl" className="bg-[#FBF6EE] px-6 py-14 text-[#3F3025]">
         <div className="mx-auto max-w-6xl">
