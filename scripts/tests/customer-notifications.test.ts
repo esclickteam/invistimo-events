@@ -383,9 +383,12 @@ test("push worker does not intercept traffic and permission is opt-in", () => {
   assert.match(bell, /סגירת התראות/);
   assert.match(bell, /dir="rtl"/);
   const header = read("app/dashboard/DashboardHeader.tsx");
-  assert.match(header, /CustomerNotificationBell/);
-  assert.ok(header.indexOf("תמיכה") < header.indexOf("<CustomerNotificationBell"));
-  assert.ok(header.indexOf("<CustomerNotificationBell") < header.lastIndexOf("התנתקות"));
+  assert.doesNotMatch(header, /CustomerNotificationBell/);
+  assert.doesNotMatch(read("app/dashboard/seating/page.tsx"), /CustomerNotificationBell/);
+  assert.doesNotMatch(read("app/dashboard/components/DashboardSidebar.tsx"), /העדפות התראות/);
+  assert.doesNotMatch(read("app/dashboard/DashboardMobileMenu.tsx"), /העדפות התראות/);
+  assert.match(bell, /canSeeAdminNotificationCenter/);
+  assert.match(bell, /source === "admin"/);
   assert.match(bell, /bg-\[#E53935\]/);
   assert.match(bell, /סינון לפי חשיבות/);
   assert.match(bell, /פתוח/);

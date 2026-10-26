@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { countUnreadCustomerNotifications } from "@/lib/customerNotifications/service";
 import { processVenueSeatingRemindersForUser } from "@/lib/venueSeatingContacts/service";
 
 export const dynamic = "force-dynamic";
@@ -19,11 +18,10 @@ export async function POST(request: Request) {
   await dbConnect();
   const userId = customerId(auth);
   await processVenueSeatingRemindersForUser(userId);
-  const unreadCount = await countUnreadCustomerNotifications(userId);
 
   return NextResponse.json({
     success: true,
-    showBell: true,
-    unreadCount,
+    showBell: false,
+    unreadCount: 0,
   });
 }

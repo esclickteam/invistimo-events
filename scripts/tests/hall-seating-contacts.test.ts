@@ -378,7 +378,7 @@ test("customer surfaces are gated and past-event screens are not given a new req
   const page = read("app/dashboard/venue-seating/page.tsx");
   assert.match(sidebar, /label: "הושבה באולם"/);
   assert.match(sidebar, /hidden: gameOnly \|\| !canVenueSeatingContacts/);
-  assert.match(header, /CustomerNotificationBell/);
+  assert.doesNotMatch(header, /CustomerNotificationBell/);
   assert.match(page, /אנשי קשר ואישור רזרבות/);
   assert.match(page, /VENUE_SEATING_RESPONSIBILITY_TEXT/);
   assert.match(read("vercel.json"), /venue-seating-contact-reminders/);

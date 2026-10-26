@@ -4,7 +4,6 @@ import { Menu, Home, MessageCircle, LogOut, LogIn } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import ProducerDashboardHeader from "./ProducerDashboardHeader";
-import CustomerNotificationBell from "./components/CustomerNotificationBell";
 
 /* ============================================================
    Types
@@ -181,7 +180,6 @@ export default function DashboardHeader({
                 תמיכה
               </button>
             </div>
-            <CustomerNotificationBell enabled={!isDemo} />
             {gameOnly ? (
               <button
                 onClick={() =>

@@ -1,16 +1,15 @@
 import { NextResponse } from "next/server";
-import dbConnect from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import {
-  countUnreadCustomerNotifications,
-  listActiveCustomerNotifications,
-} from "@/lib/customerNotifications/service";
+import { canExposeCustomerNotificationFeed } from "@/lib/customerNotifications/visibility";
 
 export const dynamic = "force-dynamic";
 
-function customerId(auth: { userId: string; adminManagingUserId?: string | null }) {
-  return auth.adminManagingUserId || auth.userId;
-}
+const hiddenFeed = {
+  success: true,
+  showBell: false,
+  unreadCount: 0,
+  notifications: [] as [],
+};
 
 export async function GET(request: Request) {
   const auth = await getUserIdFromRequest(request);
@@ -18,17 +17,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: false }, { status: 401 });
   }
 
-  await dbConnect();
-  const userId = customerId(auth);
-  const [notifications, unreadCount] = await Promise.all([
-    listActiveCustomerNotifications(userId),
-    countUnreadCustomerNotifications(userId),
-  ]);
+  if (!canExposeCustomerNotificationFeed(auth)) {
+    return NextResponse.json(hiddenFeed);
+  }
 
-  return NextResponse.json({
-    success: true,
-    showBell: true,
-    unreadCount,
-    notifications,
-  });
+  return NextResponse.json(hiddenFeed);
 }

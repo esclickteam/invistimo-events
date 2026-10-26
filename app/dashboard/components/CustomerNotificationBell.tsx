@@ -4,12 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { CheckCheck, X } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 import { placeNotificationPanel, type PanelPlacement } from "@/lib/customerNotifications/planners";
 import {
   ADMIN_TYPE_LABELS,
   adminNoticeStatusLabels,
   filterAdminNotifications,
 } from "@/lib/customerNotifications/adminCenter";
+import { canSeeAdminNotificationCenter } from "@/lib/customerNotifications/visibility";
 
 type CustomerNotification = {
   id: string;
@@ -62,6 +64,9 @@ export default function CustomerNotificationBell({
   source?: "customer" | "admin";
 }) {
   const router = useRouter();
+  const { user } = useAuth();
+  const allowed =
+    enabled && source === "admin" && canSeeAdminNotificationCenter(user);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -80,7 +85,7 @@ export default function CustomerNotificationBell({
   const settingsHref = source === "admin" ? "/admin/notification-settings" : "/dashboard/notifications";
 
   const load = useCallback(async () => {
-    if (!enabled) return;
+    if (!allowed) return;
     try {
       const res = await fetch(listEndpoint, {
         credentials: "include",
@@ -98,10 +103,10 @@ export default function CustomerNotificationBell({
     } catch {
       // Keep the last known badge if the network blips.
     }
-  }, [enabled, listEndpoint]);
+  }, [allowed, listEndpoint]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!allowed) return;
     let cancelled = false;
     const start = source === "customer"
       ? fetch("/api/customer-notifications/sync", {
@@ -122,10 +127,10 @@ export default function CustomerNotificationBell({
     return () => {
       cancelled = true;
     };
-  }, [enabled, load, source]);
+  }, [allowed, load, source]);
 
   useEffect(() => {
-    if (!enabled || !showBell) return;
+    if (!allowed || !showBell) return;
     const tick = () => {
       if (document.visibilityState === "hidden") return;
       load();
@@ -142,7 +147,7 @@ export default function CustomerNotificationBell({
       window.removeEventListener("visibilitychange", onFocus);
       window.removeEventListener("invistimo:customer-notifications", onCustom);
     };
-  }, [enabled, showBell, load]);
+  }, [allowed, showBell, load]);
 
   const measure = useCallback(() => {
     const rect = buttonRef.current?.getBoundingClientRect();
@@ -211,7 +216,7 @@ export default function CustomerNotificationBell({
     }
   };
 
-  if (!enabled || !showBell) return null;
+  if (!allowed || !showBell) return null;
 
   const unread = notifications.filter((item) => !item.read);
   const read = notifications.filter((item) => item.read);
