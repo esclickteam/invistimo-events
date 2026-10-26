@@ -101,7 +101,9 @@ export default function GuidesPage() {
                           ? "למחשבון האלכוהול ←"
                           : guide.slug === "wedding-seating-arrangements"
                             ? "למדריך ולמחשבון ההושבה ←"
-                            : "לקריאת המדריך ←"}
+                            : guide.slug === "seating-plan"
+                              ? "למדריך המעשי צעד אחר צעד ←"
+                              : "לקריאת המדריך ←"}
                       </Link>
                     </li>
                   ))}

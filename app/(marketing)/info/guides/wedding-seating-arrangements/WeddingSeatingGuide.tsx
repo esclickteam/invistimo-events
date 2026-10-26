@@ -772,7 +772,7 @@ export default function WeddingSeatingGuide() {
                 className={ctaSecondary}
                 location={`digital_howto:${PATH}`}
               >
-                איך מכינים הושבה במערכת
+                רוצים להכין את מפת ההושבה בעצמכם? למדריך המעשי
               </TrackedCtaLink>
             </div>
           </section>
@@ -887,7 +887,10 @@ export default function WeddingSeatingGuide() {
             </div>
             <nav aria-label="מדריכים קשורים" className="mt-8 flex flex-wrap gap-3 text-sm">
               {[
-                { href: "/info/guides/seating-plan", label: "איך מכינים הושבה במערכת" },
+                {
+                  href: "/info/guides/seating-plan",
+                  label: "מדריך מעשי לבניית סידורי הושבה",
+                },
                 { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות למנות ורזרבות" },
                 { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
                 { href: "/info/guides/wedding-planning", label: "תכנון חתונה" },
