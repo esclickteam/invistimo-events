@@ -218,14 +218,14 @@ export default function CreditGiftsMarketingPage() {
           <PublicAutoplayVideo
             src={MEDIA.video}
             poster={MEDIA.videoPoster}
-            title="המחשה — מתנות דיגיטליות באשראי, bit ו־PayBox"
+            title="המחשה — הצגת אפשרויות מתנה דיגיטליות (אשראי חיצוני, bit ו־PayBox)"
             shellClassName="w-full"
             className="aspect-video w-full"
             expandable
             frameBg="#1E1814"
           />
           <p className="border-t border-[#3A322C] bg-[#241E1A] px-5 py-3 text-sm font-semibold text-[#E8D5A3]">
-            המחשה ייעודית לנושא מתנות דיגיטליות — ללא הצגת יכולות שאינן קיימות במוצר
+            Invistimo מציגה קישור/מספר שאתם מזינים — אינה סולקת כרטיסים ואינה מאמתת תשלומי bit או PayBox
           </p>
         </div>
       </section>

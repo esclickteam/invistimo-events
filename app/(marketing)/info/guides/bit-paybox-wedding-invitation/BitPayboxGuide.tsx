@@ -331,14 +331,14 @@ export default function BitPayboxGuide() {
             <PublicAutoplayVideo
               src="/videos/marketing-captures/guide-bit-paybox.webm"
               poster="/videos/marketing-captures/guide-bit-paybox-poster.jpg"
-              title="המחשה תכנונית — הוספת bit ו־PayBox להזמנה"
+              title="המחשה תכנונית — הצגת bit ו־PayBox בהזמנה (ללא סליקה ב־Invistimo)"
               shellClassName="w-full"
               className="aspect-video w-full"
               expandable
               frameBg="#1E1814"
             />
             <p className="border-t border-[#EFE2CC] bg-[#FFFDF8] px-5 py-3 text-sm font-semibold text-[#7A6042]">
-              המחשה ייעודית למדריך bit/PayBox — בלי להציג יכולות סליקה שאינן של Invistimo
+              Invistimo רק מציגה את מספר ה־bit או קישור ה־PayBox שהזנתם — ההעברה והאימות אצל הספק החיצוני בלבד
             </p>
           </div>
         </div>

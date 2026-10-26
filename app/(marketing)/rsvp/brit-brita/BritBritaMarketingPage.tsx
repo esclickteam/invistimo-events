@@ -367,18 +367,6 @@ export default function BritBritaMarketingPage() {
         </div>
         <div className="mt-8 overflow-hidden rounded-[24px] border border-[#D8C9AE] bg-[#1E1814]">
           <PublicAutoplayVideo
-            src="/videos/marketing-captures/demo-seating-map.webm"
-            poster="/videos/marketing-captures/demo-seating-map-poster.jpg"
-            title="הקלטת מסך — מפת הושבה בדמו מבודד של Invistimo"
-            shellClassName="w-full"
-            className="aspect-[8/5] w-full"
-            expandable
-            frameBg="#1E1814"
-          />
-          <DemoCaption>הקלטת מסך אמיתית מדמו מבודד — מפת הושבה משובצת</DemoCaption>
-        </div>
-        <div className="mt-8 overflow-hidden rounded-[24px] border border-[#D8C9AE] bg-[#1E1814]">
-          <PublicAutoplayVideo
             src="/videos/marketing-captures/guide-brit-brita.webm"
             poster="/videos/marketing-captures/guide-brit-brita-poster.jpg"
             title="המחשה ויזואלית — אווירת ברית ובריתה"
@@ -387,7 +375,9 @@ export default function BritBritaMarketingPage() {
             expandable
             frameBg="#1E1814"
           />
-          <DemoCaption>המחשה תכנונית ייעודית לברית/בריתה — לא צילום מערכת</DemoCaption>
+          <DemoCaption>
+            המחשה ייעודית לברית/בריתה — לא תוכן חתונה. צילומי המסך למעלה הם המחשות דמו לסוג האירוע.
+          </DemoCaption>
         </div>
         <div className="mt-8">
           <CtaLink href={LINKS.seating} variant="secondary">

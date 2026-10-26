@@ -416,19 +416,7 @@ export default function BarBatMitzvahMarketingPage() {
             height={800}
             className="h-auto w-full"
           />
-          <DemoCaption>דשבורד מוזמנים — נתוני הדגמה מהמערכת</DemoCaption>
-        </div>
-        <div className="mt-8 overflow-hidden rounded-[24px] border border-[#D4C4A4] bg-[#1E1814]">
-          <PublicAutoplayVideo
-            src="/videos/marketing-captures/product-guests-dashboard.webm"
-            poster="/videos/marketing-captures/product-guests-dashboard-poster.jpg"
-            title="הקלטת מסך — דשבורד מוזמנים בדמו מבודד של Invistimo"
-            shellClassName="w-full"
-            className="aspect-[8/5] w-full"
-            expandable
-            frameBg="#1E1814"
-          />
-          <DemoCaption>הקלטת מסך אמיתית מדמו מבודד — ניהול מוזמנים ואישורי הגעה</DemoCaption>
+          <DemoCaption>דשבורד מוזמנים — המחשת דמו לבר/בת מצווה (לא תוכן חתונה)</DemoCaption>
         </div>
         <div className="mt-8 overflow-hidden rounded-[24px] border border-[#D4C4A4] bg-[#1E1814]">
           <PublicAutoplayVideo
@@ -440,7 +428,9 @@ export default function BarBatMitzvahMarketingPage() {
             expandable
             frameBg="#1E1814"
           />
-          <DemoCaption>המחשה תכנונית ייעודית לבר ובת מצווה — לא צילום מערכת</DemoCaption>
+          <DemoCaption>
+            המחשה ייעודית לבר ובת מצווה — לא תוכן חתונה. צילומי המסך למעלה הם המחשות דמו לסוג האירוע.
+          </DemoCaption>
         </div>
       </SectionShell>
 
@@ -469,7 +459,7 @@ export default function BarBatMitzvahMarketingPage() {
             height={800}
             className="h-auto w-full"
           />
-          <DemoCaption>מפת הושבה — נתוני הדגמה; זמינות בהתאם לחבילה</DemoCaption>
+          <DemoCaption>מפת הושבה — המחשת דמו לבר/בת מצווה; זמינות בהתאם לחבילה</DemoCaption>
         </div>
         <div className="mt-8">
           <CtaLink href={LINKS.seating} variant="primary">
