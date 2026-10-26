@@ -891,6 +891,10 @@ export default function WeddingSeatingGuide() {
                   href: "/info/guides/seating-plan",
                   label: "מדריך מעשי לבניית סידורי הושבה",
                 },
+                {
+                  href: "/info/guides/seating-cards-vs-qr",
+                  label: "פתקיות הושבה או QR דיגיטלי",
+                },
                 { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות למנות ורזרבות" },
                 { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
                 { href: "/info/guides/wedding-planning", label: "תכנון חתונה" },

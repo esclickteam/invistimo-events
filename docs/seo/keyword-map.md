@@ -21,7 +21,14 @@ Source of truth in code: `lib/seo/keywordMap.ts`.
 | אישורי הגעה בוואטסאפ | commercial | `/rsvp/whatsapp` | `/rsvp/chatuna`, `/info/guides/guests-who-dont-reply` |
 | הזמנות דיגיטליות לחתונה | commercial | `/invitations/chatuna` | `/info/guides/send-digital-invitation`, `/wedding-website` |
 | Save the Date לחתונה | informational | `/rsvp/save-the-date` | `/info/guides/save-the-date-vs-invitation` |
-| סידורי הושבה לחתונה | commercial | `/seating-explained` | `/info/guides/seating-plan`, `/info/guides/table-number-message` |
+| סידורי הושבה לחתונה | commercial | `/seating-explained` | `/info/guides/seating-plan`, `/info/guides/seating-cards-vs-qr`, `/info/guides/table-number-message` |
+| פתקיות הושבה לחתונה | informational | `/info/guides/seating-cards-vs-qr` | `/seating-explained`, `/info/guides/seating-plan` |
+| פתקיות הושבה או ברקוד | informational | `/info/guides/seating-cards-vs-qr` | `/seating-explained` |
+| QR לחתונה | informational | `/info/guides/seating-cards-vs-qr` | `/seating-explained` |
+| ברקוד להושבה | informational | `/info/guides/seating-cards-vs-qr` | `/seating-explained` |
+| איך אורחים יודעים איפה לשבת | informational | `/info/guides/seating-cards-vs-qr` | `/info/guides/table-number-message` |
+| קבלת פנים לחתונה | informational | `/info/guides/seating-cards-vs-qr` | `/seating-explained`, `/info/guides/event-day-checklist` |
+| סריקת QR בכניסה לאירוע | informational | `/info/guides/seating-cards-vs-qr` | `/seating-explained` |
 | מספר שולחן לאורחים | informational | `/info/guides/table-number-message` | `/seating-explained`, `/info/guides/seating-plan` |
 | מערכת ניהול אירועים | commercial | `/event-management` | `/rsvp`, `/seating-explained`, `/info/guides/event-day-checklist` |
 | מה לבדוק לפני יום החתונה | informational | `/info/guides/event-day-checklist` | `/event-management`, `/rsvp` |

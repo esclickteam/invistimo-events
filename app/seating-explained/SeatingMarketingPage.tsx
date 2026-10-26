@@ -762,6 +762,9 @@ export default function SeatingMarketingPage() {
             <Link href={LINKS.seatingPlan} className="hover:underline">
               מדריך הכנת הושבה במערכת
             </Link>
+            <Link href={LINKS.seatingCardsVsQr} className="hover:underline">
+              פתקיות הושבה או QR דיגיטלי
+            </Link>
           </div>
         </div>
       </Section>
