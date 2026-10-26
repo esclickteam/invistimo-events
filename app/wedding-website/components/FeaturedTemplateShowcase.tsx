@@ -44,8 +44,8 @@ export default function FeaturedTemplateShowcase({ styles }: Props) {
               className={`grid items-center gap-8 lg:gap-10 ${
                 reverse
                   ? // order swap: text lands in col1, visual in col2 — so col2 must be the wide track
-                    "lg:grid-cols-[0.72fr_minmax(0,1.28fr)] lg:[&>*:first-child]:order-2"
-                  : "lg:grid-cols-[minmax(0,1.28fr)_0.72fr]"
+                    "lg:grid-cols-[0.62fr_minmax(0,1.38fr)] lg:[&>*:first-child]:order-2"
+                  : "lg:grid-cols-[minmax(0,1.38fr)_0.62fr]"
               }`}
             >
               <div className="min-w-0">
