@@ -63,6 +63,10 @@ export const PUBLIC_VIDEO_META: Record<string, PublicVideoMeta> = {
   "/videos/marketing-captures/product-recorded-calls.webm": meta(1280, 800, true),
   "/videos/marketing-captures/product-check-in.webm": meta(1280, 800, true),
   "/videos/marketing-captures/product-event-management.webm": meta(1280, 800, true),
+  "/marketing/videos/guides/qr-checkin-table.webm": meta(420, 860, true),
+  "/marketing/videos/guides/reception-guest-search.webm": meta(1280, 720, true),
+  "/marketing/videos/guides/reception-mark-arrival.webm": meta(1280, 720, true),
+  "/marketing/videos/guides/seating-reassign.webm": meta(1440, 900, true),
 };
 
 export function getPublicVideoMeta(src: string): PublicVideoMeta | null {

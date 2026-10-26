@@ -836,6 +836,7 @@ export default function SeatingPlanGuide() {
                   href: "/info/guides/wedding-seating-arrangements",
                   label: "המדריך המלא לסידורי הושבה",
                 },
+                { href: "/info/guides/seating-cards-vs-qr", label: "פתקיות הושבה או QR דיגיטלי" },
                 { href: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },
                 { href: "/info/guides/event-day-checklist", label: "לפני יום האירוע" },
                 { href: "/try/dashboard/seating", label: "דמו הושבה" },

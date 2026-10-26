@@ -363,7 +363,7 @@ export default function BritBritaMarketingPage() {
             height={800}
             className="h-auto w-full"
           />
-          <DemoCaption>דשבורד מוזמנים — נתוני הדגמה מהמערכת</DemoCaption>
+          <DemoCaption>דשבורד מוזמנים — המחשת דמו לברית/בריתה (לא תוכן חתונה)</DemoCaption>
         </div>
         <div className="mt-8 overflow-hidden rounded-[24px] border border-[#D8C9AE] bg-[#1E1814]">
           <PublicAutoplayVideo
@@ -445,7 +445,7 @@ export default function BritBritaMarketingPage() {
             height={800}
             className="h-auto w-full"
           />
-          <DemoCaption>הושבה — נתוני הדגמה; זמינה בהתאם לחבילה</DemoCaption>
+          <DemoCaption>הושבה — המחשת דמו לברית/בריתה; זמינה בהתאם לחבילה</DemoCaption>
         </div>
       </SectionShell>
 

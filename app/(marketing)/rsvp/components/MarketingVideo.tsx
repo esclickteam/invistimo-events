@@ -10,6 +10,11 @@ type Props = {
   className?: string;
   /** Eager for hero; lazy for below-fold */
   eager?: boolean;
+  /**
+   * Legacy prop from older RSVP pages. Public policy always uses contain
+   * (no crop); kept for call-site compatibility.
+   */
+  objectFit?: "cover" | "contain";
   videoRef?: RefObject<HTMLVideoElement | null>;
   onTimeUpdate?: (currentTime: number) => void;
   onSeeked?: (currentTime: number) => void;
@@ -25,6 +30,7 @@ export default function MarketingVideo({
   title,
   className = "",
   eager = false,
+  objectFit: _objectFit = "cover",
   videoRef,
   onTimeUpdate,
   onSeeked,
