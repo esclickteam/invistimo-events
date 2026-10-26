@@ -447,6 +447,7 @@ export default function RSVPPage() {
           <nav aria-label="מדריכים קשורים" className="mt-10 flex flex-wrap justify-center gap-3">
             {[
               { href: "/seating-explained", label: "סידורי הושבה" },
+              { href: "/info/guides/how-to-choose-rsvp-company", label: "איך בוחרים חברת אישורי הגעה" },
               { href: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים להתחייב לאולם" },
               { href: "/info/guides/cost-rsvp-wedding", label: "מחיר לפי רשומות" },
               { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },

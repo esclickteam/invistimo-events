@@ -15,6 +15,7 @@ export function generateStaticParams() {
     "wedding-venue-guest-guarantee",
     "cost-rsvp-wedding",
     "whatsapp-vs-sms-rsvp",
+    "how-to-choose-rsvp-company",
     "wedding-alcohol-calculator",
     "wedding-planning",
     "wedding-vendors-contracts",

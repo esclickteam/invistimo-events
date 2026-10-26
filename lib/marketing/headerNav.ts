@@ -154,6 +154,10 @@ export const GUIDE_COLUMNS: HeaderNavColumn[] = [
     links: [
       { href: "/info/guides/guest-list", label: "ניהול רשימת מוזמנים" },
       {
+        href: "/info/guides/how-to-choose-rsvp-company",
+        label: "איך בוחרים חברת אישורי הגעה",
+      },
+      {
         href: "/info/guides/when-to-send-rsvp",
         label: "מתי שולחים אישורי הגעה",
       },
