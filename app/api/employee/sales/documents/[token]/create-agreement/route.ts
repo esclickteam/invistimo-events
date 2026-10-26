@@ -3,7 +3,12 @@ import mongoose from "mongoose";
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { withCurrentQuoteTerms } from "@/lib/quoteCustomerTerms";
+import {
+  QUOTE_TERMS_VERSION,
+  buildAgreementDocumentTerms,
+  stripLegalTermsFromUpsells,
+  withCurrentQuoteTerms,
+} from "@/lib/quoteCustomerTerms";
 import {
   isSignedAgreement,
   saveDocumentEdit,
@@ -170,8 +175,25 @@ export async function POST(
 
     const token = await createUniqueToken();
     const url = `${baseUrl(req)}/sales-documents/${token}`;
-    const terms = (value: unknown, fallback: unknown[] | undefined) =>
+    const pickArray = (value: unknown, fallback: unknown) =>
       Array.isArray(value) ? value : fallback;
+
+    const agreementUpsells = stripLegalTermsFromUpsells(
+      pickArray(
+        content.upsells,
+        pickArray(source.upsells, quote.upsells),
+      ),
+    );
+    const agreementTerms = buildAgreementDocumentTerms({
+      upsells: agreementUpsells,
+      paymentTerms: pickArray(
+        content.paymentTerms,
+        pickArray(source.paymentTerms, quote.paymentTerms),
+      ),
+      engagementTerms: content.engagementTerms,
+      cancellationTerms: content.cancellationTerms,
+      additionalTerms: content.additionalTerms,
+    });
 
     const editedClient =
       content.client && typeof content.client === "object"
@@ -213,7 +235,7 @@ export async function POST(
         signedAt: null,
       },
       selectedPackage: content.selectedPackage || quote.selectedPackage,
-      upsells: terms(content.upsells, terms(source.upsells, quote.upsells)),
+      upsells: agreementUpsells,
       totals: (() => {
         const raw =
           content.totals && typeof content.totals === "object"
@@ -239,26 +261,11 @@ export async function POST(
               typeof source.customerDealSummary === "object"
             ? (source.customerDealSummary as Record<string, unknown>)
             : quote.customerDealSummary,
-      engagementTerms: terms(
-        content.engagementTerms,
-        terms(source.engagementTerms, quote.engagementTerms),
-      ),
-      paymentTerms: terms(
-        content.paymentTerms,
-        terms(source.paymentTerms, quote.paymentTerms),
-      ),
-      cancellationTerms: terms(
-        content.cancellationTerms,
-        terms(source.cancellationTerms, quote.cancellationTerms),
-      ),
-      additionalTerms: terms(
-        content.additionalTerms,
-        terms(source.additionalTerms, quote.additionalTerms),
-      ),
-      quoteTermsVersion:
-        typeof source.quoteTermsVersion === "string"
-          ? source.quoteTermsVersion
-          : quote.quoteTermsVersion,
+      engagementTerms: agreementTerms.engagementTerms,
+      paymentTerms: agreementTerms.paymentTerms,
+      cancellationTerms: agreementTerms.cancellationTerms,
+      additionalTerms: agreementTerms.additionalTerms,
+      quoteTermsVersion: QUOTE_TERMS_VERSION,
       notes: cleanString(content.notes || quote.notes || ""),
     });
 

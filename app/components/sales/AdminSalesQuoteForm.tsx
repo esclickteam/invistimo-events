@@ -3,18 +3,20 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { hydrateAdminQuoteForm } from "@/lib/adminQuoteWorkflow";
-import { quoteEngagementTerms, VENUE_SEATING_QUOTE_TERM_SECTIONS } from "@/lib/quoteCustomerTerms";
 import {
-  CUSTOMER_ADDITIONAL_TERMS,
+  agreementAdditionalTerms,
+  agreementEngagementTerms,
+  quoteEngagementTerms,
+} from "@/lib/quoteCustomerTerms";
+import { VENUE_SEATING_SERVICE_CUSTOMER_DETAILS } from "@/lib/venueSeatingServiceDetails";
+import {
   CUSTOMER_CANCELLATION_TERMS,
-  CUSTOMER_ENGAGEMENT_TERMS,
   CUSTOMER_PAYMENT_TERMS,
 } from "@/lib/salesDocumentTerms";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
 import SeatingScheduleFields from "@/app/components/sales/SeatingScheduleFields";
 import {
   emptySeatingScheduleTimes,
-  missingSeatingScheduleLabels,
   type SeatingScheduleTimes,
 } from "@/lib/seatingSchedule";
 import CallsTypeField, {
@@ -329,57 +331,10 @@ const ALCOHOL_CUSTOMER_DETAILS: DetailSection[] = [
 
 /* =========================================================
    פירוט מלא מהקוד הקודם — למודל עם מתג עובד/לקוח
+   (פירוט שירות ללקוח ללא תנאים משפטיים — אלה מתווספים להסכם בלבד)
 ========================================================= */
-const DETAILED_VENUE_SEATING_CUSTOMER_DETAILS: DetailSection[] = [
-  {
-    title: "שירות הושבה באולם",
-    items: [
-      "שירות ההושבה באולם כולל צוות הושבה מטעמנו, הכולל דיילים/דיילות ומנהל/ת הושבה, בהתאם לחבילה שנבחרה ולכמות אנשי הצוות שסוכמה מול הלקוח.",
-      "השירות נועד לנהל את שלב קבלת האורחים והושבתם באולם בצורה מסודרת, יעילה ומקצועית, תוך שימוש במערכת לייב ייעודית לניהול ההושבה בזמן אמת.",
-      "מטרת השירות היא לצמצם עיכובים בכניסה לאולם, למנוע אי־נעימות לאורחים, ולסייע במציאת פתרונות מהירים במקרה של שינויים בכמות המגיעים בפועל.",
-    ],
-  },
-  {
-    title: "היערכות לפני תחילת האירוע",
-    items: [
-      "צוות ההושבה יגיע לאולם כחצי שעה לפני תחילת האירוע, ייצור קשר עם בעל/ת האירוע או עם נציג מוסמך מטעמם, ויבצע מעבר על סקיצת ההושבה, מספרי השולחנות, כמות הכיסאות והסידור בפועל באולם.",
-      "לאחר מכן הצוות יקים עמדת הושבה מסודרת, הכוללת מחשבים, מערכת לייב ופתקי הושבה, ויוודא שהנתונים במערכת תואמים ככל האפשר לסידור שהוגדר מראש.",
-      "שירות ההושבה נמשך לאורך שלב קבלת האורחים והכניסה לאולם, ועד לשלב המנה הראשונה או עד שכלל האורחים יושבים בצורה מסודרת — בהתאם להתנהלות האירוע בפועל. במקרים בהם המנה הראשונה מוגשת לפני החופה, השירות נמשך עד 3 שעות או עד שחרורם מהאירוע — לפי המוקדם מביניהם.",
-    ],
-  },
-  {
-    title: "קבלת האורחים והכוונה לשולחנות",
-    items: [
-      "במהלך הגעת האורחים, הצוות יקבל את האורחים בכניסה, יאתר אותם במערכת, וימסור להם את פרטי ההושבה שלהם בצורה נעימה וברורה.",
-      "הצוות פועל כדי שהאורחים יקבלו מענה מהיר, ידעו לאיזה שולחן הם משובצים, ולא יצטרכו להמתין או להסתובב באולם עד למציאת מקום.",
-    ],
-  },
-  {
-    title: "ניהול הושבה בזמן אמת",
-    items: [
-      "ההושבה מנוהלת באמצעות מערכת לייב ייעודית, המאפשרת לצוות לעדכן בזמן אמת את כמות האורחים שהגיעו בפועל ביחס לאישורי ההגעה שסומנו מראש.",
-      "לדוגמה, אם אורח אישר הגעה עבור 4 אנשים ובפועל הגיע אדם אחד בלבד, הצוות רשאי לברר בנימוס האם צפויים להגיע אורחים נוספים מתוך אותה רשומה.",
-      "אם לא צפויים להגיע נוספים, ניתן לעדכן את המערכת בזמן אמת ולפנות את המקומות שלא נוצלו, כך שניתן יהיה להשתמש בהם במקרה הצורך.",
-      "במקרה שבו מגיעים יותר אורחים מהכמות שסומנה מראש, המערכת מסייעת לצוות לאתר מקומות פנויים באולם בצורה מהירה ומסודרת, כדי למצוא פתרון יעיל ולצמצם עיכובים או אי־נעימות לאורחים.",
-    ],
-  },
-  {
-    title: "ניהול במהלך האירוע",
-    items: [
-      "במהלך שלב הכניסה לאולם ועד להתייצבות ההושבה, הצוות יפעל לוודא שהאורחים יודעים היכן הם יושבים, ויסייע במקרה שבו אורחים עומדים, מחפשים מקום או נדרשת התאמה בשטח.",
-      "במידת הצורך, הצוות יסייע בניוד כיסאות, איתור מקומות פנויים, עדכון הגעת אורחים בפועל ותיאום פתרונות מול נציג המשפחה או הגורם המוסמך מטעם בעל האירוע.",
-    ],
-  },
-  {
-    title: "רזרבות ושינויים מול האולם",
-    items: [
-      "השירות כולל סיוע בניהול ההושבה ובצמצום הצורך בפתיחת רזרבות מיותרות, ככל שניתן ובהתאם למצב בפועל באירוע.",
-      "פתיחת רזרבות או התחייבות נוספת מול האולם תתבצע רק באישור נציג המשפחה או גורם מוסמך מטעם בעל האירוע.",
-      "ככל שנדרשת חתימה על פתיחת רזרבות מול האולם, החתימה תתבצע על ידי נציג המשפחה או הגורם המוסמך בלבד, ולא על ידי צוות ההושבה.",
-    ],
-  },
-  ...VENUE_SEATING_QUOTE_TERM_SECTIONS,
-];
+const DETAILED_VENUE_SEATING_CUSTOMER_DETAILS: DetailSection[] =
+  VENUE_SEATING_SERVICE_CUSTOMER_DETAILS;
 
 const DETAILED_VENUE_SEATING_EMPLOYEE_DETAILS: DetailSection[] = [
   {
@@ -839,8 +794,6 @@ const UPSELLS: UpsellItem[] = [
 ];
 
 const CANCELLATION_TERMS = CUSTOMER_CANCELLATION_TERMS;
-const ADDITIONAL_TERMS = CUSTOMER_ADDITIONAL_TERMS;
-const ENGAGEMENT_TERMS = CUSTOMER_ENGAGEMENT_TERMS;
 const PAYMENT_TERMS = CUSTOMER_PAYMENT_TERMS;
 
 function createEmptyUpsells(): SelectedUpsells {
@@ -1543,8 +1496,30 @@ export default function AdminSalesQuoteForm({
   ], [extraRecordPrice, packageCalculation.records]);
 
   const finalPaymentTerms = useMemo(
-    () => [...PAYMENT_TERMS, ...extraRecordsTerms],
-    [extraRecordsTerms],
+    () =>
+      documentType === "quote"
+        ? [...extraRecordsTerms]
+        : [...PAYMENT_TERMS, ...extraRecordsTerms],
+    [documentType, extraRecordsTerms],
+  );
+
+  const documentEngagementTerms = useMemo(
+    () =>
+      documentType === "quote" ? quoteEngagementTerms() : agreementEngagementTerms(),
+    [documentType],
+  );
+
+  const documentCancellationTerms = useMemo(
+    () => (documentType === "quote" ? [] : CANCELLATION_TERMS),
+    [documentType],
+  );
+
+  const documentAdditionalTerms = useMemo(
+    () =>
+      documentType === "quote"
+        ? []
+        : agreementAdditionalTerms(Boolean(selectedUpsells.venueSeating)),
+    [documentType, selectedUpsells.venueSeating],
   );
 
   const showUpsellPricesInDocument =
@@ -1571,10 +1546,10 @@ export default function AdminSalesQuoteForm({
     quotePricingDisplay,
     showUpsellPricesInDocument,
     pricingDisplayMode: quotePricingDisplay,
-    cancellationTerms: CANCELLATION_TERMS,
+    cancellationTerms: documentCancellationTerms,
     paymentTerms: finalPaymentTerms,
-    additionalTerms: ADDITIONAL_TERMS,
-    engagementTerms: documentType === "quote" ? quoteEngagementTerms() : ENGAGEMENT_TERMS,
+    additionalTerms: documentAdditionalTerms,
+    engagementTerms: documentEngagementTerms,
     extraRecordsTerms,
     includedItems: selectedPlan.includes,
     upsells: selectedUpsellsList.map((upsell) => {
@@ -1611,7 +1586,7 @@ export default function AdminSalesQuoteForm({
         showFreeLabelInDocument: showUpsellPricesInDocument && givenFree,
       };
     }),
-  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, documentType, eventCity, eventDate, eventName, extraRecordPrice, extraRecordsTerms, finalGrossAmount, finalPaymentTerms, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, preRsvpUpsellMode, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount, getEffectiveUpsellPrice]);
+  }), [alcoholManagementStaffCount, baseGrossAmount, canGiveSuppliersBudgetFree, documentAdditionalTerms, documentCancellationTerms, documentEngagementTerms, documentType, eventCity, eventDate, eventName, extraRecordPrice, extraRecordsTerms, finalGrossAmount, finalPaymentTerms, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, preRsvpUpsellMode, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount, getEffectiveUpsellPrice]);
 
   const effectiveEventDate = eventDate || quoteCreatedAt;
   const effectiveEventCity = eventCity.trim() || "לא הוגדרה";
@@ -1796,11 +1771,11 @@ export default function AdminSalesQuoteForm({
       paymentSchedule,
     },
     customerDealSummary,
-    cancellationTerms: CANCELLATION_TERMS,
+    cancellationTerms: documentCancellationTerms,
     paymentTerms: finalPaymentTerms,
-    additionalTerms: ADDITIONAL_TERMS,
-    engagementTerms: documentType === "quote" ? quoteEngagementTerms() : ENGAGEMENT_TERMS,
-  }), [alcoholManagementStaffCount, baseGrossAmount, builderState, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, extraRecordPrice, finalGrossAmount, finalPaymentTerms, netAmount, effectivePackagePrice, getEffectiveUpsellPrice, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, preRsvpUpsellMode, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, seatingScheduleTimes, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
+    additionalTerms: documentAdditionalTerms,
+    engagementTerms: documentEngagementTerms,
+  }), [alcoholManagementStaffCount, baseGrossAmount, builderState, canGiveSuppliersBudgetFree, clientAddress, clientEmail, clientName, clientPhone, customerDealSummary, customerIdNumber, documentAdditionalTerms, documentCancellationTerms, documentEngagementTerms, documentType, effectiveEventCity, effectiveEventDate, effectiveEventName, effectiveVenueName, extraRecordPrice, finalGrossAmount, finalPaymentTerms, netAmount, effectivePackagePrice, getEffectiveUpsellPrice, packageCalculation.finalPrice, packageCalculation.records, paymentDiscountAmount, paymentMode, paymentSchedule, preRsvpUpsellMode, quoteCreatedAt, quoteExpiresAt, quotePricingDisplay, seatingScheduleTimes, selectedPlan.customerSummary, selectedPlan.includes, selectedPlan.key, selectedPlan.title, selectedUpsellsList, showUpsellPricesInDocument, suppliersBudgetFree, venueSeatingStaffCount]);
 
   const documentRequestPayload = useMemo(() => {
     if (showUpsellPricesInDocument) return documentPayload;
@@ -1871,9 +1846,6 @@ export default function AdminSalesQuoteForm({
 
     if (!clientName.trim()) missing.push("שם לקוח");
     if (!clientPhone.trim()) missing.push("טלפון לקוח");
-    if (selectedUpsells.venueSeating) {
-      missing.push(...missingSeatingScheduleLabels(seatingScheduleTimes));
-    }
 
     return missing;
   }
@@ -1884,9 +1856,6 @@ export default function AdminSalesQuoteForm({
     if (!clientName.trim()) missing.push("שם לקוח");
     if (!clientPhone.trim()) missing.push("טלפון לקוח");
     if (!clientEmail.trim()) missing.push("מייל לקוח");
-    if (selectedUpsells.venueSeating) {
-      missing.push(...missingSeatingScheduleLabels(seatingScheduleTimes));
-    }
     if (packageIncludesCalls && callsType !== "human" && callsType !== "ivr") {
       missing.push("סוג השיחות (מוקד אנושי / שיחות מוקלטות)");
     }
@@ -2419,10 +2388,10 @@ export default function AdminSalesQuoteForm({
           quote: documentPayload.quote,
           totals: documentPayload.totals,
           customerDealSummary,
-          cancellationTerms: CANCELLATION_TERMS,
+          cancellationTerms: documentCancellationTerms,
           paymentTerms: finalPaymentTerms,
-          additionalTerms: ADDITIONAL_TERMS,
-          engagementTerms: documentType === "quote" ? quoteEngagementTerms() : ENGAGEMENT_TERMS,
+          additionalTerms: documentAdditionalTerms,
+          engagementTerms: documentEngagementTerms,
           paymentSchedule,
           paymentMode,
           adminPaymentStatus,

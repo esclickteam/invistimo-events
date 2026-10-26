@@ -29,6 +29,17 @@ export type SeatingScheduleRecord = SeatingScheduleTimes & {
 
 export type CustomerSeatingSchedule = Partial<SeatingScheduleTimes>;
 
+export const SEATING_START_DEFAULT_WITH_RECEPTION =
+  "תחילת שירות ההושבה תהיה בשעת תחילת קבלת הפנים, אלא אם נקבע אחרת במפורש.";
+
+export const SEATING_START_DEFAULT_UNSCHEDULED =
+  "תחילת שירות ההושבה תהיה במועד תחילת קבלת הפנים, כפי שייקבע בתיאום עם הלקוח.";
+
+export type SeatingServiceStartDisplay =
+  | { kind: "explicit"; time: string; label: string }
+  | { kind: "default_reception"; time: string; text: string }
+  | { kind: "default_unscheduled"; text: string };
+
 const FROZEN_STATUSES = new Set(["sent", "viewed", "signed", "expired"]);
 
 export function emptySeatingScheduleTimes(): SeatingScheduleTimes {
@@ -64,21 +75,34 @@ export function orderIncludesVenueSeating(upsells: unknown) {
   });
 }
 
-export function missingSeatingScheduleLabels(input: unknown) {
-  const source =
-    input && typeof input === "object"
-      ? (input as Record<string, unknown>)
-      : {};
+/** All seating hour fields are optional — kept for callers that still list labels. */
+export function missingSeatingScheduleLabels(_input?: unknown) {
+  return [] as string[];
+}
 
-  return SEATING_SCHEDULE_FIELDS.filter(
-    (field) => !normalizeClockTime(source[field.key]),
-  ).map((field) => field.label);
+export function invalidSeatingScheduleLabels(input: unknown) {
+  if (!input || typeof input !== "object") return [] as string[];
+  const source = input as Record<string, unknown>;
+
+  return SEATING_SCHEDULE_FIELDS.filter((field) => {
+    const raw = String(source[field.key] ?? "").trim();
+    if (!raw) return false;
+    return !normalizeClockTime(raw);
+  }).map((field) => field.label);
 }
 
 export function parseSeatingScheduleTimes(input: unknown) {
-  const missing = missingSeatingScheduleLabels(input);
-  if (missing.length > 0 || !input || typeof input !== "object") {
-    return { ok: false as const, missing };
+  if (!input || typeof input !== "object") {
+    return {
+      ok: true as const,
+      times: emptySeatingScheduleTimes(),
+      missing: [] as string[],
+    };
+  }
+
+  const invalid = invalidSeatingScheduleLabels(input);
+  if (invalid.length > 0) {
+    return { ok: false as const, missing: invalid };
   }
 
   const source = input as Record<string, unknown>;
@@ -87,7 +111,7 @@ export function parseSeatingScheduleTimes(input: unknown) {
     times[field.key] = normalizeClockTime(source[field.key]);
   }
 
-  return { ok: true as const, times };
+  return { ok: true as const, times, missing: [] as string[] };
 }
 
 export function seatingTimesEqual(
@@ -112,7 +136,11 @@ function readStoredTimes(record: Partial<SeatingScheduleRecord> | null | undefin
 export function hasApprovedSeatingSchedule(
   record: Partial<SeatingScheduleRecord> | null | undefined,
 ) {
-  return missingSeatingScheduleLabels(record).length === 0;
+  if (!record || typeof record !== "object") return false;
+  if (String(record.approvedAt || "").trim()) return true;
+  return SEATING_SCHEDULE_FIELDS.some((field) =>
+    Boolean(normalizeClockTime(record[field.key])),
+  );
 }
 
 export function isSeatingScheduleFrozen(status: unknown) {
@@ -207,4 +235,39 @@ export function toCustomerSeatingSchedule(
   }
 
   return Object.keys(visible).length > 0 ? visible : null;
+}
+
+export function seatingServiceStartDisplay(
+  schedule: CustomerSeatingSchedule | Partial<SeatingScheduleTimes> | null | undefined,
+): SeatingServiceStartDisplay {
+  const explicit = normalizeClockTime(schedule?.plannedSeatingStartTime);
+  if (explicit) {
+    return {
+      kind: "explicit",
+      time: explicit,
+      label: "שעת תחילת ההושבה המתוכננת",
+    };
+  }
+
+  const reception = normalizeClockTime(schedule?.receptionStartTime);
+  if (reception) {
+    return {
+      kind: "default_reception",
+      time: reception,
+      text: SEATING_START_DEFAULT_WITH_RECEPTION,
+    };
+  }
+
+  return {
+    kind: "default_unscheduled",
+    text: SEATING_START_DEFAULT_UNSCHEDULED,
+  };
+}
+
+export function hasVisibleSeatingScheduleContent(
+  schedule: CustomerSeatingSchedule | Partial<SeatingScheduleTimes> | null | undefined,
+  includesVenueSeating: boolean,
+) {
+  if (!includesVenueSeating) return false;
+  return true;
 }

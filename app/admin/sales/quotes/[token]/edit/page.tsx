@@ -10,7 +10,6 @@ import {
   emptySeatingScheduleTimes,
   hasApprovedSeatingSchedule,
   isSeatingScheduleFrozen,
-  missingSeatingScheduleLabels,
   orderIncludesVenueSeating,
   type SeatingScheduleChange,
   type SeatingScheduleRecord,
@@ -183,12 +182,6 @@ export default function EditQuotePage() {
     : null;
 
   async function saveSchedule(times: SeatingScheduleTimes) {
-    const missing = missingSeatingScheduleLabels(times);
-    if (missing.length > 0) {
-      setError(`חסרות שעות הושבה: ${missing.join(", ")}`);
-      return null;
-    }
-
     const res = await fetch(
       `/api/employee/sales/documents/${encodeURIComponent(token)}`,
       {

@@ -8,7 +8,7 @@ import React, {
   useState,
 } from "react";
 import { useParams } from "next/navigation";
-import { sanitizePaymentTermsForCustomer, sanitizeDetailSectionsForCustomer, CUSTOMER_ENGAGEMENT_TERMS } from "@/lib/salesDocumentTerms";
+import { sanitizePaymentTermsForCustomer, sanitizeDetailSectionsForCustomer } from "@/lib/salesDocumentTerms";
 import {
   quoteCustomerStatusLabel,
   quoteShowsExpiredNotice,
@@ -21,6 +21,7 @@ import {
 import {
   SEATING_SCHEDULE_FIELDS,
   orderIncludesVenueSeating,
+  seatingServiceStartDisplay,
   toCustomerSeatingSchedule,
   type SeatingScheduleTimes,
 } from "@/lib/seatingSchedule";
@@ -837,13 +838,10 @@ export default function SalesDocumentPage() {
     asNumber(paymentSchedule.stripeAmount) ||
     asNumber(paymentSchedule.immediateTotal);
 
-  const customerEngagementTerms = useMemo(() => {
-    const fromDocument = sanitizeDetailSectionsForCustomer(
-      document?.engagementTerms,
-    );
-
-    return fromDocument.length > 0 ? fromDocument : CUSTOMER_ENGAGEMENT_TERMS;
-  }, [document?.engagementTerms]);
+  const customerEngagementTerms = useMemo(
+    () => sanitizeDetailSectionsForCustomer(document?.engagementTerms),
+    [document?.engagementTerms],
+  );
 
   const customerPaymentTerms = useMemo(
     () => sanitizePaymentTermsForCustomer(document?.paymentTerms),
@@ -1232,25 +1230,10 @@ export default function SalesDocumentPage() {
     const source = editorSource || document;
     if (!source) return false;
 
-    if (venueSeatingOnQuote) {
-      const missing = SEATING_SCHEDULE_FIELDS.filter(
-        (field) => !cleanStr(draft.seating[field.key]),
-      ).map((field) => field.label);
-      const anyFilled = SEATING_SCHEDULE_FIELDS.some((field) =>
-        cleanStr(draft.seating[field.key]),
-      );
-      if (anyFilled && missing.length > 0) {
-        throw new Error(`כדי לשמור את שעות ההושבה חסר: ${missing.join(", ")}`);
-      }
-    }
-
     const upsells = (source.upsells || []).map((upsell, index) => ({
       ...upsell,
       price: asNumber(draft.upsellPrices[index]),
     }));
-    const seatingFilled = SEATING_SCHEDULE_FIELDS.every((field) =>
-      cleanStr(draft.seating[field.key]),
-    );
     const nextTotals = pricesDirty
       ? buildEditedQuoteTotals({
           packagePrice: asNumber(draft.packagePrice),
@@ -1320,7 +1303,7 @@ export default function SalesDocumentPage() {
                 },
               }
             : {}),
-          ...(venueSeatingOnQuote && seatingFilled
+          ...(venueSeatingOnQuote
             ? {
                 seatingSchedule: draft.seating,
                 replaceCustomerSchedule: true,
@@ -1527,6 +1510,9 @@ export default function SalesDocumentPage() {
   const approvedSeatingSchedule = toCustomerSeatingSchedule(
     document.seatingSchedule,
   );
+  const seatingStartInfo = venueSeatingOnQuote
+    ? seatingServiceStartDisplay(approvedSeatingSchedule || document.seatingSchedule)
+    : null;
   const paymentConfirmed =
     document.type === "quote" && document.adminPaymentConfirmed === true;
   const statusLabel =
@@ -1672,10 +1658,10 @@ export default function SalesDocumentPage() {
 
               <p className="mt-3 max-w-3xl text-sm font-semibold leading-7 text-[#7b6a58]">
                 {isAgreement
-                  ? "בעמוד זה מופיעים פרטי העסקה, השירותים שנבחרו, תנאי התשלום ותנאי הביטול. בסיום העמוד ניתן למלא פרטים ולחתום דיגיטלית."
+                  ? "בעמוד זה מופיעים פרטי העסקה, השירותים שנבחרו, התמחור וכל תנאי ההתקשרות. בסיום העמוד ניתן למלא פרטים ולחתום דיגיטלית."
                   : editing
-                    ? "אפשר לעדכן את הפרטים שמופיעים ללקוח. שמירה מעדכנת את אותו קישור."
-                    : "בעמוד זה מופיעים פרטי הצעת המחיר, השירותים שנבחרו, תנאי התשלום ותנאי הביטול. הצעה זו לצפייה בלבד."}
+                    ? "אפשר לעדכן את הפרטים המסחריים שמופיעים ללקוח. שמירה מעדכנת את אותו קישור."
+                    : "בעמוד זה מופיעים פרטי הצעת המחיר, השירותים שנבחרו והתמחור בלבד. הצעה זו לצפייה בלבד ואינה כוללת תנאי התקשרות."}
               </p>
             </div>
 
@@ -1779,13 +1765,14 @@ export default function SalesDocumentPage() {
             {editing && draft && venueSeatingOnQuote ? (
               <SectionCard title="לוחות זמנים שסוכמו להושבה">
                 <p className="mb-4 text-sm font-semibold leading-7 text-[#7b6a58]">
-                  השעות האלה מוצגות ללקוח. שעה שלא מולאה לא תופיע בהצעה.
+                  כל השדות אופציונליים. שעה שלא מולאה לא תופיע בהצעה. אם לא
+                  הוזנה שעת תחילת הושבה, תוצג ברירת המחדל לפי שעת קבלת הפנים.
                 </p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {SEATING_SCHEDULE_FIELDS.map((field) => (
                     <Field
                       key={field.key}
-                      label={field.label}
+                      label={`${field.label} (אופציונלי)`}
                       value={draft.seating[field.key]}
                       edit={{
                         value: draft.seating[field.key],
@@ -1799,27 +1786,27 @@ export default function SalesDocumentPage() {
                   ))}
                 </div>
               </SectionCard>
-            ) : approvedSeatingSchedule ? (
+            ) : venueSeatingOnQuote ? (
               <SectionCard title="לוחות זמנים שסוכמו להושבה">
                 <p className="mb-4 text-sm font-semibold leading-7 text-[#7b6a58]">
-                  מוצגות רק שעות שהוגדרו בפועל. שעת תחילת ההושבה מוצגת בנפרד משעות האירוע, ורק אם נקבעה במפורש.
+                  מוצגות רק שעות שהוגדרו בפועל, ובנוסף נוסח תחילת שירות ההושבה.
                 </p>
                 {(
                   [
                     {
                       title: "שעות האירוע",
-                      keys: ["receptionStartTime", "plannedChuppahTime"],
+                      keys: ["receptionStartTime", "plannedChuppahTime"] as const,
                     },
                     {
-                      title: "שעת תחילת ההושבה והגעת הצוות",
-                      keys: ["plannedSeatingStartTime", "teamArrivalTime"],
+                      title: "הגעת הצוות",
+                      keys: ["teamArrivalTime"] as const,
                     },
                   ] as const
                 ).map((group) => {
                   const fields = SEATING_SCHEDULE_FIELDS.filter(
                     (field) =>
                       (group.keys as readonly string[]).includes(field.key) &&
-                      approvedSeatingSchedule[field.key],
+                      approvedSeatingSchedule?.[field.key],
                   );
                   if (fields.length === 0) return null;
 
@@ -1833,13 +1820,34 @@ export default function SalesDocumentPage() {
                           <Field
                             key={field.key}
                             label={field.label}
-                            value={approvedSeatingSchedule[field.key]}
+                            value={approvedSeatingSchedule?.[field.key]}
                           />
                         ))}
                       </div>
                     </div>
                   );
                 })}
+
+                {seatingStartInfo ? (
+                  <div className="mt-4 rounded-[24px] border border-[#eadfce] bg-[#fff7ec] p-4">
+                    <p className="text-sm font-black text-[#3f3327]">
+                      תחילת שירות ההושבה
+                    </p>
+                    {seatingStartInfo.kind === "explicit" ? (
+                      <Field
+                        label={seatingStartInfo.label}
+                        value={seatingStartInfo.time}
+                      />
+                    ) : (
+                      <p className="mt-2 text-sm font-semibold leading-7 text-[#6d5840]">
+                        {seatingStartInfo.text}
+                        {seatingStartInfo.kind === "default_reception"
+                          ? ` (${seatingStartInfo.time})`
+                          : ""}
+                      </p>
+                    )}
+                  </div>
+                ) : null}
               </SectionCard>
             ) : null}
 
@@ -1975,21 +1983,35 @@ export default function SalesDocumentPage() {
               )}
             </SectionCard>
 
-            <SectionCard title="תנאי התקשרות">
-              <DetailSections sections={customerEngagementTerms} />
-            </SectionCard>
+            {isAgreement ? (
+              <>
+                {customerEngagementTerms.length > 0 ? (
+                  <SectionCard title="תנאי התקשרות">
+                    <DetailSections sections={customerEngagementTerms} />
+                  </SectionCard>
+                ) : null}
 
-            <SectionCard title="תנאי תשלום">
-              <DetailSections sections={customerPaymentTerms} />
-            </SectionCard>
+                {customerPaymentTerms.length > 0 ? (
+                  <SectionCard title="תנאי תשלום">
+                    <DetailSections sections={customerPaymentTerms} />
+                  </SectionCard>
+                ) : null}
 
-            <SectionCard title="תנאי ביטול">
-              <DetailSections sections={customerCancellationTerms} />
-            </SectionCard>
+                {customerCancellationTerms.length > 0 ? (
+                  <SectionCard title="תנאי ביטול">
+                    <DetailSections sections={customerCancellationTerms} />
+                  </SectionCard>
+                ) : null}
 
-            {customerAdditionalTerms.length > 0 ? (
-              <SectionCard title="תנאים נוספים">
-                <DetailSections sections={customerAdditionalTerms} />
+                {customerAdditionalTerms.length > 0 ? (
+                  <SectionCard title="תנאים נוספים">
+                    <DetailSections sections={customerAdditionalTerms} />
+                  </SectionCard>
+                ) : null}
+              </>
+            ) : customerPaymentTerms.length > 0 ? (
+              <SectionCard title="הערות תמחור">
+                <DetailSections sections={customerPaymentTerms} />
               </SectionCard>
             ) : null}
 
