@@ -4,6 +4,12 @@ import mongoose from "mongoose";
 
 import db from "@/lib/db";
 import {
+  QUOTE_TERMS_VERSION,
+  buildAgreementDocumentTerms,
+  stripLegalTermsFromUpsells,
+  withCurrentQuoteTerms,
+} from "@/lib/quoteCustomerTerms";
+import {
   applySeatingScheduleUpdate,
   orderIncludesVenueSeating,
   parseSeatingScheduleTimes,
@@ -636,15 +642,20 @@ export async function POST(req: NextRequest) {
     const selectedPackagePrice = asNumber(selectedPackage.price);
     const selectedPackageRecords = asNumber(selectedPackage.records);
 
-    const upsells = normalizeArray(payload.upsells);
+    const rawUpsells = normalizeArray(payload.upsells);
+    const upsells = stripLegalTermsFromUpsells(rawUpsells);
     const includesVenueSeating = orderIncludesVenueSeating(upsells);
     let seatingSchedule: Record<string, unknown> | null = null;
 
     if (includesVenueSeating) {
-      const parsedSchedule = parseSeatingScheduleTimes(payload.seatingSchedule);
+      const parsedSchedule = parseSeatingScheduleTimes(
+        payload.seatingSchedule && typeof payload.seatingSchedule === "object"
+          ? payload.seatingSchedule
+          : {},
+      );
       if (!parsedSchedule.ok) {
         return jsonError(
-          `בהזמנה עם הושבה באולם חובה למלא: ${parsedSchedule.missing.join(", ")}`,
+          `שעות הושבה לא תקינות: ${parsedSchedule.missing.join(", ")}`,
           400,
         );
       }
@@ -658,6 +669,26 @@ export async function POST(req: NextRequest) {
       if (!applied.ok) return jsonError(applied.error, 400);
       seatingSchedule = applied.schedule;
     }
+
+    const commercialQuoteShell = withCurrentQuoteTerms({
+      type: "quote",
+      paymentTerms: normalizeArray(payload.paymentTerms),
+      cancellationTerms: normalizeArray(payload.cancellationTerms),
+      additionalTerms: normalizeArray(payload.additionalTerms),
+      engagementTerms: normalizeArray(payload.engagementTerms),
+      upsells,
+      customerDealSummary: normalizeObject(payload.customerDealSummary),
+    });
+    const agreementTerms =
+      type === "agreement"
+        ? buildAgreementDocumentTerms({
+            upsells,
+            paymentTerms: normalizeArray(payload.paymentTerms),
+            engagementTerms: normalizeArray(payload.engagementTerms),
+            cancellationTerms: normalizeArray(payload.cancellationTerms),
+            additionalTerms: normalizeArray(payload.additionalTerms),
+          })
+        : null;
 
     const customerFile = await upsertCustomerFile({
       type,
@@ -741,20 +772,33 @@ export async function POST(req: NextRequest) {
         paymentSchedule: paymentAmounts.paymentSchedule,
       },
 
-      customerDealSummary: normalizeObject(payload.customerDealSummary),
+      customerDealSummary:
+        type === "quote"
+          ? commercialQuoteShell.customerDealSummary
+          : normalizeObject(payload.customerDealSummary),
       builderState:
         payload.builderState && typeof payload.builderState === "object"
           ? payload.builderState
           : null,
       sourceQuoteToken: cleanStr(payload.sourceQuoteToken),
 
-      cancellationTerms: normalizeArray(payload.cancellationTerms),
+      cancellationTerms: agreementTerms
+        ? agreementTerms.cancellationTerms
+        : commercialQuoteShell.cancellationTerms,
 
-      paymentTerms: normalizeArray(payload.paymentTerms),
+      paymentTerms: agreementTerms
+        ? agreementTerms.paymentTerms
+        : commercialQuoteShell.paymentTerms,
 
-      additionalTerms: normalizeArray(payload.additionalTerms),
+      additionalTerms: agreementTerms
+        ? agreementTerms.additionalTerms
+        : commercialQuoteShell.additionalTerms,
 
-      engagementTerms: normalizeArray(payload.engagementTerms),
+      engagementTerms: agreementTerms
+        ? agreementTerms.engagementTerms
+        : commercialQuoteShell.engagementTerms,
+
+      quoteTermsVersion: QUOTE_TERMS_VERSION,
 
       signature: {
         fullName: "",

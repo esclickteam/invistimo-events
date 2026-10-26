@@ -2,7 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  ACCOUNT_USAGE_AND_DELETION_SECTION,
   QUOTE_TERMS_VERSION,
+  VENUE_SEATING_QUOTE_TERM_SECTIONS,
+  buildAgreementDocumentTerms,
   buildQuoteTermsUpdate,
   withCurrentQuoteTerms,
 } from "../../lib/quoteCustomerTerms";
@@ -33,7 +36,7 @@ function itemsOf(value: unknown, title: string) {
   return section?.items || [];
 }
 
-test("a current quote, a valid quote, and an expired quote show the updated terms and approval section", () => {
+test("a current quote, a valid quote, and an expired quote stay commercial-only without legal terms", () => {
   const cases = [
     {
       name: "new",
@@ -84,6 +87,7 @@ test("a current quote, a valid quote, and an expired quote show the updated term
                 "השירות נמשך עד 4 שעות.",
               ],
             },
+            ...VENUE_SEATING_QUOTE_TERM_SECTIONS,
           ],
         },
         {
@@ -107,52 +111,49 @@ test("a current quote, a valid quote, and an expired quote show the updated term
     assert.equal(updated.upsells[0].price, 1600);
     assert.equal(updated.upsells[1].price, 100);
 
-    const engagementTitles = titles(visible?.engagementTerms);
-    assert.equal(engagementTitles.includes("תנאי התקשרות"), true);
+    assert.deepEqual(updated.engagementTerms, []);
+    assert.deepEqual(updated.cancellationTerms, []);
+    assert.deepEqual(updated.additionalTerms, []);
+    assert.equal(titles(visible?.engagementTerms).includes("תנאי התקשרות"), false);
     assert.equal(
-      engagementTitles.includes("אישור הצעת המחיר, תנאי ההתקשרות ותקנון האתר"),
-      true,
-    );
-    assert.equal(
-      itemsOf(visible?.engagementTerms, "תנאי התקשרות").includes(
-        "נוסח ישן וקצר של תנאי ההתקשרות.",
+      titles(visible?.engagementTerms).includes(
+        "אישור הצעת המחיר, תנאי ההתקשרות ותקנון האתר",
       ),
       false,
-    );
-    assert.equal(
-      itemsOf(
-        visible?.engagementTerms,
-        "אישור הצעת המחיר, תנאי ההתקשרות ותקנון האתר",
-      ).some((item) => item.includes("הגדרת הסיסמה")),
-      true,
     );
     assert.equal(
       itemsOf(visible?.paymentTerms, "רשומות נוספות")[0],
       "כל רשומה נוספת תחויב לפי ₪12.00 לרשומה.",
     );
-    assert.equal(itemsOf(visible?.paymentTerms, "תנאי תשלום").includes("נוסח תשלום ישן."), false);
+    assert.equal(itemsOf(visible?.paymentTerms, "תנאי תשלום").length, 0);
 
     const seating = updated.upsells[0].customerDetails as Array<{ title: string; items: string[] }>;
     const seatingText = JSON.stringify(seating);
     assert.equal(seating[0].items[0], "תיאור שירות מקורי שנשמר.");
     assert.equal(seatingText.includes("60 דקות"), false);
     assert.equal(seatingText.includes("דחייה קצרה מ"), false);
-    assert.equal(seatingText.includes("נמסרה והוסכמה מראש"), false);
-    assert.equal(seatingText.includes("כאשר נקבע בהזמנה כי יתרת התשלום"), false);
-    assert.equal(seatingText.includes("30 דקות או יותר"), true);
-    assert.equal(seatingText.includes("נדחתה ב־15 דקות"), false);
-    assert.equal(seatingText.includes("שיקול דעתה הבלעדי"), true);
+    assert.equal(seatingText.includes("30 דקות או יותר"), false);
+    assert.equal(seatingText.includes("שיקול דעתה הבלעדי"), false);
     assert.equal(
       seating.some((section) => section.title === "שינויים ועיכובים בלוחות הזמנים ובשעת החופה"),
-      true,
+      false,
     );
-    const chuppah = seating.find(
-      (section) => section.title === "שינויים ועיכובים בלוחות הזמנים ובשעת החופה",
+    assert.equal(
+      seating.some((section) => section.title === "אחריות למפת ההושבה"),
+      false,
     );
-    assert.equal(JSON.stringify(chuppah).includes("אינו גורר חיוב אוטומטי"), true);
-    assert.equal(JSON.stringify(chuppah).includes("15 דקות ומעלה"), true);
-    assert.equal(JSON.stringify(chuppah).includes("30 דקות או יותר"), true);
-    assert.equal(JSON.stringify(chuppah).includes("אין לגבות פעמיים תוספת של 500 ₪"), false);
+    assert.equal(
+      seating.some((section) => section.title === "תשלום יתרת שירות ההושבה"),
+      false,
+    );
+    assert.equal(
+      seating.some((section) => section.title === "מסירת אנשי קשר עד 24 שעות לפני האירוע"),
+      false,
+    );
+    assert.equal(
+      seating.some((section) => section.title === "הארכת שעות השירות"),
+      false,
+    );
     assert.equal(seating[0].items[1].includes("עד 3 שעות"), true);
     assert.equal(seating[0].items[1].includes("עד 4 שעות"), false);
     assert.equal(
@@ -162,71 +163,6 @@ test("a current quote, a valid quote, and an expired quote show the updated term
     assert.equal(seating[0].items[2].includes("ההושבה היא עד המנה הראשונה"), true);
     assert.equal(
       seating[0].items[2].includes("למקרים חריגים, אם המנה הראשונה מוגשת לפני החופה"),
-      true,
-    );
-    assert.equal(seating[0].items[2].includes("עד 4 שעות"), false);
-    assert.equal(JSON.stringify(chuppah).includes("12:35"), false);
-    assert.equal(JSON.stringify(chuppah).includes("לדוגמה"), false);
-    assert.equal(
-      seating.some((section) => section.title === "תשלום יתרת שירות ההושבה"),
-      true,
-    );
-    assert.equal(
-      seating.some((section) =>
-        section.items.some((item) =>
-          item.includes("מיד עם סיום עבודת צוות Invistimo"),
-        ),
-      ),
-      true,
-    );
-    assert.equal(
-      seating.some((section) => section.title === "מסירת אנשי קשר עד 24 שעות לפני האירוע"),
-      true,
-    );
-    assert.equal(
-      seating.some((section) => section.title === "איש קשר המורשה לחתום על רזרבות"),
-      true,
-    );
-    assert.equal(
-      seating.some((section) =>
-        section.items.some((item) => item.includes("לא ייגבה חיוב כפול")),
-      ),
-      true,
-    );
-    assert.equal(
-      itemsOf(visible?.engagementTerms, "דיווח על תקלות, בעיות וטענות").length > 0,
-      true,
-    );
-    assert.equal(
-      itemsOf(visible?.engagementTerms, "תנאי התקשרות").some((item) =>
-        item.includes("חל איסור על אלימות פיזית"),
-      ),
-      true,
-    );
-    assert.equal(
-      itemsOf(visible?.additionalTerms, "תנאים נוספים").some((item) =>
-        item.includes("תמונת ההזמנה"),
-      ),
-      true,
-    );
-    assert.equal(
-      itemsOf(visible?.additionalTerms, "תנאים נוספים").some((item) =>
-        item.includes("אינה מחויבת ליזום תזמון"),
-      ),
-      true,
-    );
-    assert.equal(
-      seating.some((section) => section.title === "הארכת שעות השירות"),
-      true,
-    );
-    assert.equal(
-      seating.some((section) =>
-        section.items.some((item) =>
-          item.includes(
-            "בהיעדר קביעה מפורשת אחרת בהצעת המחיר או בהסכמה בכתב בין הצדדים, שעת תחילת שירות ההושבה באולם תהיה שעת תחילת קבלת הפנים של האירוע.",
-          ),
-        ),
-      ),
       true,
     );
     assert.deepEqual(updated.upsells[1].customerDetails, original.upsells[1].customerDetails);
@@ -245,6 +181,7 @@ test("a quote without venue seating does not receive seating terms, and saved ho
       receptionStartTime: "18:30",
       plannedChuppahTime: "20:00",
     },
+    engagementTerms: oldEngagement,
     upsells: [
       {
         key: "digitalSeating",
@@ -257,19 +194,17 @@ test("a quote without venue seating does not receive seating terms, and saved ho
 
   const updated = withCurrentQuoteTerms(original);
   const text = JSON.stringify(updated.upsells);
-  const engagement = JSON.stringify(updated.engagementTerms);
   assert.equal(text.includes("בהיעדר קביעה מפורשת אחרת"), false);
   assert.equal(text.includes("500 ₪"), false);
   assert.equal(text.includes("דחייה בתחילת שירות ההושבה"), false);
-  assert.equal(engagement.includes("דיווח על תקלות, בעיות וטענות"), true);
-  assert.equal(engagement.includes("אישור הצעת המחיר, תנאי ההתקשרות ותקנון האתר"), true);
+  assert.deepEqual(updated.engagementTerms, []);
   assert.deepEqual(updated.seatingSchedule, original.seatingSchedule);
   assert.equal(updated.quote.expiresAt, "2025-12-01");
   assert.equal(updated.status, "paid");
   assert.equal(updated.upsells[0].price, 100);
 });
 
-test("an older venue-seating title still receives the current seating terms", () => {
+test("an older venue-seating title keeps service wording and strips legal seating clauses on quotes", () => {
   const updated = withCurrentQuoteTerms({
     type: "quote",
     upsells: [
@@ -277,7 +212,10 @@ test("an older venue-seating title still receives the current seating terms", ()
         key: "legacy",
         title: "הושבה באולם",
         price: 2100,
-        customerDetails: [{ title: "שירות הושבה באולם", items: ["הצוות מגיע כחצי שעה לפני האירוע."] }],
+        customerDetails: [
+          { title: "שירות הושבה באולם", items: ["הצוות מגיע כחצי שעה לפני האירוע."] },
+          ...VENUE_SEATING_QUOTE_TERM_SECTIONS,
+        ],
       },
     ],
   });
@@ -289,7 +227,11 @@ test("an older venue-seating title still receives the current seating terms", ()
     seating.some((section) =>
       section.items.some((item) => item.startsWith("בהיעדר קביעה מפורשת אחרת")),
     ),
-    true,
+    false,
+  );
+  assert.equal(
+    seating.some((section) => section.title === "אחריות למפת ההושבה"),
+    false,
   );
 });
 
@@ -306,6 +248,67 @@ test("an agreement keeps its stored terms", () => {
   assert.equal(updated, agreement);
   assert.equal(updated.quote.expiresAt, "2026-02-01");
   assert.equal(updated.totals.grossAmount, 500);
+});
+
+test("agreement terms include seating legal clauses and account deletion when venue seating is purchased", () => {
+  const terms = buildAgreementDocumentTerms({
+    upsells: [{ key: "venueSeating", title: "הושבה באולם" }],
+    paymentTerms: [{ title: "רשומות נוספות", items: ["12 ₪ לרשומה."] }],
+  });
+
+  assert.equal(
+    terms.engagementTerms.some((section) => section.title === "תנאי התקשרות"),
+    true,
+  );
+  assert.equal(
+    terms.engagementTerms.some((section) => section.title === "דיווח על תקלות, בעיות וטענות"),
+    true,
+  );
+  assert.equal(
+    terms.cancellationTerms.some((section) => section.title === "תנאי ביטול"),
+    true,
+  );
+  assert.equal(
+    terms.additionalTerms.some(
+      (section) => section.title === ACCOUNT_USAGE_AND_DELETION_SECTION.title,
+    ),
+    true,
+  );
+  assert.equal(
+    terms.additionalTerms.some((section) => section.title === "אחריות למפת ההושבה"),
+    true,
+  );
+  assert.equal(
+    terms.additionalTerms.some((section) => section.title === "הארכת שעות השירות"),
+    true,
+  );
+  assert.equal(
+    itemsOf(terms.additionalTerms, ACCOUNT_USAGE_AND_DELETION_SECTION.title).some((item) =>
+      item.includes("7 ימים קלנדריים"),
+    ),
+    true,
+  );
+  assert.equal(
+    itemsOf(terms.paymentTerms, "רשומות נוספות")[0],
+    "12 ₪ לרשומה.",
+  );
+});
+
+test("agreement terms omit seating legal clauses without venue seating but still include account deletion", () => {
+  const terms = buildAgreementDocumentTerms({
+    upsells: [{ key: "digitalSeating" }],
+  });
+
+  assert.equal(
+    terms.additionalTerms.some((section) => section.title === "אחריות למפת ההושבה"),
+    false,
+  );
+  assert.equal(
+    terms.additionalTerms.some(
+      (section) => section.title === ACCOUNT_USAGE_AND_DELETION_SECTION.title,
+    ),
+    true,
+  );
 });
 
 test("stored legacy seating wording is replaced on the same quote and archived once", () => {
@@ -357,10 +360,9 @@ test("stored legacy seating wording is replaced on the same quote and archived o
   assert.equal(visibleText.includes("נמסרה והוסכמה מראש"), false);
   assert.equal(visibleText.includes("כאשר נקבע בהזמנה כי יתרת התשלום"), false);
   assert.equal(visibleText.includes("הצוות מגיע כחצי שעה לפני האירוע."), true);
-  assert.equal(visibleText.includes("30 דקות או יותר"), true);
-  assert.equal(visibleText.includes("נדחתה ב־15 דקות"), false);
-  assert.equal(visibleText.includes("15 דקות ומעלה בשעת תחילת החופה"), true);
-  assert.equal(visibleText.includes("מיד עם סיום עבודת צוות Invistimo"), true);
+  assert.equal(visibleText.includes("30 דקות או יותר"), false);
+  assert.equal(visibleText.includes("מיד עם סיום עבודת צוות Invistimo"), false);
+  assert.deepEqual(visible.engagementTerms, []);
 
   const first = buildQuoteTermsUpdate(original);
   assert.ok(first);
@@ -374,6 +376,7 @@ test("stored legacy seating wording is replaced on the same quote and archived o
   const archive = first.customerTermsArchive as { upsells: Array<{ customerDetails: Array<{ items: string[] }> }> };
   assert.equal(JSON.stringify(archive.upsells).includes("60 דקות"), true);
   assert.equal(JSON.stringify(first.upsells).includes("60 דקות"), false);
+  assert.equal(JSON.stringify(first.upsells).includes("אחריות למפת ההושבה"), false);
 
   const second = buildQuoteTermsUpdate({
     ...original,

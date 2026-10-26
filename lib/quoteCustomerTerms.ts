@@ -5,8 +5,10 @@ import {
   CUSTOMER_PAYMENT_TERMS,
   type DetailSection,
 } from "@/lib/salesDocumentTerms";
+import { orderIncludesVenueSeating } from "@/lib/seatingSchedule";
+import { VENUE_SEATING_SERVICE_CUSTOMER_DETAILS } from "@/lib/venueSeatingServiceDetails";
 
-export const QUOTE_TERMS_VERSION = "2026-10-10-seating-3-hours";
+export const QUOTE_TERMS_VERSION = "2026-10-27-quote-commercial-only";
 
 export const QUOTE_APPROVAL_SECTION: DetailSection = {
   title: "אישור הצעת המחיר, תנאי ההתקשרות ותקנון האתר",
@@ -28,11 +30,27 @@ export const INCIDENT_REPORTING_SECTION: DetailSection = {
   ],
 };
 
+export const ACCOUNT_USAGE_AND_DELETION_SECTION: DetailSection = {
+  title: "תקופת השימוש ומחיקת חשבון המשתמש",
+  items: [
+    "השירות הנרכש באמצעות INVISTIMO מיועד לאירוע אחד בלבד, ואינו מקנה ללקוח בעלות על חשבון המשתמש, מנוי קבוע או זכות שימוש במערכת לאירועים נוספים.",
+    "חשבון המשתמש יימחק באופן אוטומטי 7 ימים קלנדריים לאחר מועד האירוע, לרבות פרטי האירוע, רשימות המוזמנים, אישורי ההגעה, סידורי ההושבה וכלל הנתונים המשויכים לחשבון, למעט מידע הנדרש לשמירה על פי דין.",
+    "באחריות הלקוח לשמור או לייצא את המידע הנחוץ לו לפני מועד המחיקה. לאחר מחיקת החשבון לא תובטח אפשרות לשחזורו או לשחזור המידע שנמחק.",
+    "שינוי מועד האירוע יתאפשר אך ורק לאחר קבלת אישור מפורש מטעם INVISTIMO. רק לאחר מתן האישור ועדכון התאריך במערכת, מועד מחיקת החשבון יחושב בהתאם למועד האירוע החדש. שינוי מועד שלא אושר על ידי INVISTIMO לא יחייב את הארכת תקופת השימוש או את דחיית מחיקת החשבון.",
+    "במקרה שנרכש שירות הושבה באולם הכולל רישום נוכחות אורחים ביום האירוע, הלקוח יהיה רשאי לבקש דוח הגעת אורחים בפועל, בהתאם לנתוני הנוכחות שנקלטו במערכת. הדוח יהיה זמין לבקשה ולהפקה עד למועד מחיקת חשבון המשתמש, ולא תובטח אפשרות לקבלתו לאחר מכן.",
+    "הלקוח מאשר כי ידוע לו שתקופת השימוש במערכת מוגבלת כאמור, וכי מחיקת החשבון בתום התקופה היא חלק מתנאי השירות ואינה מקנה כשלעצמה זכאות להחזר כספי או לפיצוי, בכפוף להוראות הדין.",
+  ],
+};
+
+/** @deprecated Quote documents are commercial-only; prefer empty engagement terms on quotes. */
 export function quoteEngagementTerms(): DetailSection[] {
+  return [];
+}
+
+export function agreementEngagementTerms(): DetailSection[] {
   return [
     ...CUSTOMER_ENGAGEMENT_TERMS,
     INCIDENT_REPORTING_SECTION,
-    QUOTE_APPROVAL_SECTION,
   ];
 }
 
@@ -57,6 +75,7 @@ export function quoteAdditionalTerms(): DetailSection[] {
   });
 }
 
+/** Legal seating clauses — agreement only; never embedded in quote service details. */
 export const VENUE_SEATING_QUOTE_TERM_SECTIONS: DetailSection[] = [
   {
     title: "אחריות למפת ההושבה",
@@ -151,6 +170,8 @@ export const VENUE_SEATING_QUOTE_TERM_SECTIONS: DetailSection[] = [
   },
 ];
 
+export const VENUE_SEATING_AGREEMENT_TERM_SECTIONS = VENUE_SEATING_QUOTE_TERM_SECTIONS;
+
 const RETIRED_SEATING_SECTION_TITLES = new Set([
   "תשלום בגין דחייה מהותית של תחילת ההושבה",
   "חובת תשלום בסיום עבודת הצוות",
@@ -165,16 +186,20 @@ const RETIRED_SEATING_ITEM_SNIPPETS = [
   "כאשר נקבע בהזמנה כי יתרת התשלום",
 ];
 
-const STANDARD_TERM_TITLES = new Set([
+const LEGAL_TERM_SECTION_TITLES = new Set([
   "תנאי התקשרות",
   "תנאי תשלום",
   "תנאי ביטול",
   "תנאים נוספים",
   QUOTE_APPROVAL_SECTION.title,
   INCIDENT_REPORTING_SECTION.title,
+  ACCOUNT_USAGE_AND_DELETION_SECTION.title,
   ...VENUE_SEATING_QUOTE_TERM_SECTIONS.map((section) => section.title),
   ...RETIRED_SEATING_SECTION_TITLES,
 ]);
+
+/** @deprecated Use LEGAL_TERM_SECTION_TITLES */
+const STANDARD_TERM_TITLES = LEGAL_TERM_SECTION_TITLES;
 
 function asSections(value: unknown): DetailSection[] {
   if (!Array.isArray(value)) return [];
@@ -205,10 +230,18 @@ function withoutRetiredSeatingText(sections: DetailSection[]) {
     .filter((section) => section.items.length > 0);
 }
 
-function paymentTermsForQuote(existing: unknown): DetailSection[] {
-  const preserved = withoutRetiredSeatingText(
-    asSections(existing).filter((section) => !STANDARD_TERM_TITLES.has(section.title)),
+function withoutLegalTermSections(sections: DetailSection[]) {
+  return withoutRetiredSeatingText(
+    sections.filter((section) => !LEGAL_TERM_SECTION_TITLES.has(section.title)),
   );
+}
+
+function commercialPaymentNotes(existing: unknown): DetailSection[] {
+  return withoutLegalTermSections(asSections(existing));
+}
+
+function paymentTermsForAgreement(existing: unknown): DetailSection[] {
+  const preserved = withoutLegalTermSections(asSections(existing));
   return [...CUSTOMER_PAYMENT_TERMS, ...preserved];
 }
 
@@ -232,14 +265,13 @@ function withSeatingDurationSections(sections: DetailSection[]) {
   }));
 }
 
-function syncVenueSeatingDetails(existing: unknown): DetailSection[] {
-  const serviceSections = withoutRetiredSeatingText(
-    asSections(existing).filter((section) => !STANDARD_TERM_TITLES.has(section.title)),
-  );
-  return withSeatingDurationSections([
-    ...serviceSections,
-    ...VENUE_SEATING_QUOTE_TERM_SECTIONS,
-  ]);
+function syncVenueSeatingServiceDetails(existing: unknown): DetailSection[] {
+  const serviceSections = withoutLegalTermSections(asSections(existing));
+  const base =
+    serviceSections.length > 0
+      ? serviceSections
+      : VENUE_SEATING_SERVICE_CUSTOMER_DETAILS;
+  return withSeatingDurationSections(base);
 }
 
 function isVenueSeatingUpsell(record: Record<string, unknown>) {
@@ -248,7 +280,7 @@ function isVenueSeatingUpsell(record: Record<string, unknown>) {
   return key === "venueSeating" || title === "הושבה באולם";
 }
 
-function syncUpsell(upsell: unknown) {
+function syncUpsellCommercial(upsell: unknown) {
   if (!upsell || typeof upsell !== "object") return upsell;
   const record = upsell as Record<string, unknown>;
   if (!isVenueSeatingUpsell(record)) return upsell;
@@ -259,46 +291,126 @@ function syncUpsell(upsell: unknown) {
       typeof record.description === "string"
         ? withSeatingDurationText(record.description)
         : record.description,
-    customerDetails: syncVenueSeatingDetails(record.customerDetails),
+    customerDetails: syncVenueSeatingServiceDetails(record.customerDetails),
   };
 }
 
-function syncSummary(summary: unknown, paymentTerms: DetailSection[]) {
+function syncCommercialSummary(summary: unknown, paymentNotes: DetailSection[]) {
   if (!summary || typeof summary !== "object" || Array.isArray(summary)) {
     return summary;
   }
 
   const record = summary as Record<string, unknown>;
   const upsells = Array.isArray(record.upsells)
-    ? record.upsells.map((upsell) => syncUpsell(upsell))
+    ? record.upsells.map((upsell) => syncUpsellCommercial(upsell))
     : record.upsells;
 
   return {
     ...record,
-    engagementTerms: quoteEngagementTerms(),
-    paymentTerms: paymentTermsForQuote(record.paymentTerms ?? paymentTerms),
-    cancellationTerms: CUSTOMER_CANCELLATION_TERMS,
-    additionalTerms: quoteAdditionalTerms(),
+    engagementTerms: [],
+    paymentTerms: paymentNotes,
+    cancellationTerms: [],
+    additionalTerms: [],
     upsells,
   };
 }
 
+export function agreementAdditionalTerms(hasVenueSeating: boolean): DetailSection[] {
+  return [
+    ...quoteAdditionalTerms(),
+    ...(hasVenueSeating ? VENUE_SEATING_AGREEMENT_TERM_SECTIONS : []),
+    ACCOUNT_USAGE_AND_DELETION_SECTION,
+  ];
+}
+
+export function buildAgreementDocumentTerms(input: {
+  upsells?: unknown;
+  paymentTerms?: unknown;
+  engagementTerms?: unknown;
+  cancellationTerms?: unknown;
+  additionalTerms?: unknown;
+}) {
+  const hasVenueSeating = orderIncludesVenueSeating(input.upsells);
+  const providedEngagement = asSections(input.engagementTerms);
+  const providedCancellation = asSections(input.cancellationTerms);
+  const providedAdditional = asSections(input.additionalTerms);
+  const hasFullLegalPayload =
+    providedEngagement.some((section) => section.title === "תנאי התקשרות") &&
+    providedCancellation.some((section) => section.title === "תנאי ביטול");
+
+  if (hasFullLegalPayload) {
+    const additional = withoutRetiredSeatingText(providedAdditional);
+    const hasAccountDeletion = additional.some(
+      (section) => section.title === ACCOUNT_USAGE_AND_DELETION_SECTION.title,
+    );
+    const hasSeatingLegal = VENUE_SEATING_AGREEMENT_TERM_SECTIONS.every((section) =>
+      additional.some((existing) => existing.title === section.title),
+    );
+
+    return {
+      engagementTerms:
+        providedEngagement.length > 0
+          ? providedEngagement
+          : agreementEngagementTerms(),
+      paymentTerms: paymentTermsForAgreement(input.paymentTerms),
+      cancellationTerms:
+        providedCancellation.length > 0
+          ? providedCancellation
+          : CUSTOMER_CANCELLATION_TERMS,
+      additionalTerms: [
+        ...additional.filter(
+          (section) =>
+            !LEGAL_TERM_SECTION_TITLES.has(section.title) ||
+            section.title === "תנאים נוספים" ||
+            section.title === ACCOUNT_USAGE_AND_DELETION_SECTION.title ||
+            VENUE_SEATING_AGREEMENT_TERM_SECTIONS.some((s) => s.title === section.title),
+        ),
+        ...(!hasSeatingLegal && hasVenueSeating
+          ? VENUE_SEATING_AGREEMENT_TERM_SECTIONS
+          : []),
+        ...(!hasAccountDeletion ? [ACCOUNT_USAGE_AND_DELETION_SECTION] : []),
+      ].filter((section, index, list) => {
+        return list.findIndex((item) => item.title === section.title) === index;
+      }),
+    };
+  }
+
+  return {
+    engagementTerms: agreementEngagementTerms(),
+    paymentTerms: paymentTermsForAgreement(input.paymentTerms),
+    cancellationTerms: CUSTOMER_CANCELLATION_TERMS,
+    additionalTerms: agreementAdditionalTerms(hasVenueSeating),
+  };
+}
+
+export function stripLegalTermsFromUpsells(upsells: unknown) {
+  if (!Array.isArray(upsells)) return upsells;
+  return upsells.map((upsell) => syncUpsellCommercial(upsell));
+}
+
+/**
+ * Quotes stay commercial-only: service details + pricing notes, no legal clauses.
+ * Agreements are left untouched (frozen stored copy).
+ */
 export function withCurrentQuoteTerms<T extends Record<string, unknown>>(document: T): T {
   if (String(document.type || "") !== "quote") return document;
 
-  const paymentTerms = paymentTermsForQuote(document.paymentTerms);
+  const paymentNotes = commercialPaymentNotes(document.paymentTerms);
   const upsells = Array.isArray(document.upsells)
-    ? document.upsells.map((upsell) => syncUpsell(upsell))
+    ? document.upsells.map((upsell) => syncUpsellCommercial(upsell))
     : document.upsells;
 
   return {
     ...document,
-    engagementTerms: quoteEngagementTerms(),
-    paymentTerms,
-    cancellationTerms: CUSTOMER_CANCELLATION_TERMS,
-    additionalTerms: quoteAdditionalTerms(),
+    engagementTerms: [],
+    paymentTerms: paymentNotes,
+    cancellationTerms: [],
+    additionalTerms: [],
     upsells,
-    customerDealSummary: syncSummary(document.customerDealSummary, paymentTerms),
+    customerDealSummary: syncCommercialSummary(
+      document.customerDealSummary,
+      paymentNotes,
+    ),
   };
 }
 
@@ -353,3 +465,5 @@ export function buildQuoteTermsUpdate(document: Record<string, unknown>) {
 
   return set;
 }
+
+export { STANDARD_TERM_TITLES, LEGAL_TERM_SECTION_TITLES };
