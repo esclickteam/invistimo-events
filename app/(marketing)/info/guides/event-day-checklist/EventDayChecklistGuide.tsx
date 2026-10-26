@@ -706,7 +706,7 @@ export default function EventDayChecklistGuide() {
                 אינה זהה אוטומטית להושבה הדיגיטלית במחשבון.
               </p>
               <p>
-                <Link href="/info/guides/seating-plan" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                <Link href="/info/guides/wedding-seating-arrangements" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
                   איך מכינים סידורי הושבה
                 </Link>
                 {" · "}
@@ -1114,7 +1114,7 @@ export default function EventDayChecklistGuide() {
                 </Link>
               </li>
               <li>
-                <Link href="/info/guides/seating-plan" className="hover:text-white">
+                <Link href="/info/guides/wedding-seating-arrangements" className="hover:text-white">
                   סידורי הושבה
                 </Link>
               </li>
