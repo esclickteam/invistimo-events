@@ -107,27 +107,8 @@ export default function CustomerNotificationBell({
 
   useEffect(() => {
     if (!allowed) return;
-    let cancelled = false;
-    const start = source === "customer"
-      ? fetch("/api/customer-notifications/sync", {
-          method: "POST",
-          credentials: "include",
-        })
-          .then((res) => res.json().catch(() => null))
-          .then((data: Payload | null) => {
-            if (cancelled || !data?.success) return;
-            setShowBell(data.showBell !== false);
-            if (typeof data.unreadCount === "number") setUnreadCount(data.unreadCount);
-          })
-          .catch(() => {})
-      : Promise.resolve();
-    start.finally(() => {
-      if (!cancelled) load();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [allowed, load, source]);
+    void load();
+  }, [allowed, load]);
 
   useEffect(() => {
     if (!allowed || !showBell) return;
