@@ -121,6 +121,10 @@ export const GUIDE_COLUMNS: HeaderNavColumn[] = [
         label: "המדריך המלא לתכנון חתונה",
       },
       {
+        href: "/info/guides/event-management-vs-production",
+        label: "ניהול אירוע או הפקת אירוע",
+      },
+      {
         href: "/info/guides/event-day-checklist",
         label: "בדיקה לפני יום האירוע",
       },

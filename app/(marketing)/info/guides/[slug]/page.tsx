@@ -21,6 +21,7 @@ export function generateStaticParams() {
     "wedding-alcohol-calculator",
     "wedding-planning",
     "wedding-vendors-contracts",
+    "event-management-vs-production",
     "event-day-checklist",
     "table-number-message",
     "bit-paybox-wedding-invitation",
