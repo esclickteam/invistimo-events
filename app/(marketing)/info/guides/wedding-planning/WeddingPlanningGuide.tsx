@@ -60,13 +60,45 @@ const VENUE_QUESTIONS = [
   "מי מנהל את האירוע מטעם האולם ומה כלול בשירות?",
 ];
 
-const VENDOR_ORDER = [
-  { stage: "בתחילת הדרך", what: "תקציב, רשימת מוזמנים, תאריך ואולם" },
-  { stage: "לאחר קביעת תאריך", what: "צילום, DJ וספקים מרכזיים בעלי זמינות מוגבלת" },
-  { stage: "בחודשים הבאים", what: "שמלה, חליפה, איפור, שיער ועיצוב" },
-  { stage: "לקראת האירוע", what: "הזמנות, רשימת מוזמנים ואישורי הגעה" },
-  { stage: "בשבועות האחרונים", what: "הושבה, תשלומים, לוח זמנים ואישורי ספקים" },
-  { stage: "בימים האחרונים", what: "תיאומים סופיים, אנשי קשר, ציוד ומסמכים" },
+type VendorOrderPart = { text: string; emphasize?: boolean };
+
+const VENDOR_ORDER: { stage: string; parts: VendorOrderPart[] }[] = [
+  {
+    stage: "בתחילת הדרך",
+    parts: [{ text: "תקציב, רשימת מוזמנים ראשונית, בחירת תאריך ואולם" }],
+  },
+  {
+    stage: "מיד לאחר קביעת התאריך",
+    parts: [
+      { text: "צילום, DJ, " },
+      { text: "אישורי הגעה וסידורי הושבה", emphasize: true },
+      { text: ", ומנהל אירוע חיצוני אם מעוניינים" },
+    ],
+  },
+  {
+    stage: "בחודשים הבאים",
+    parts: [{ text: "שמלת כלה, חליפת חתן, איפור, שיער, עיצוב וספקים נוספים" }],
+  },
+  {
+    stage: "מספר חודשים לפני האירוע",
+    parts: [{ text: "השלמת רשימת המוזמנים, הכנת הזמנות ותיאום תהליך אישורי ההגעה" }],
+  },
+  {
+    stage: "לקראת האירוע",
+    parts: [
+      {
+        text: "שליחת הזמנות, ביצוע סבבי אישורי הגעה, מעקב אחר תשובות והכנת סידורי הושבה",
+      },
+    ],
+  },
+  {
+    stage: "בשבועות האחרונים",
+    parts: [{ text: "סגירת מספר המגיעים, עדכון ההושבה, תשלומים ותיאומים סופיים" }],
+  },
+  {
+    stage: "בימים האחרונים",
+    parts: [{ text: "אישור לוח זמנים, אנשי קשר, ספקים, ציוד ומסמכים" }],
+  },
 ];
 
 const MONTH_ITEMS = [
@@ -358,24 +390,33 @@ export default function WeddingPlanningGuide() {
           <section id="vendor-timeline" className="scroll-mt-24" aria-labelledby="vendor-timeline-h">
             <Eyebrow>פרק 5</Eyebrow>
             <h2 id="vendor-timeline-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
-              באיזה סדר כדאי לסגור ספקים לחתונה?
+              באיזה סדר כדאי לסגור ספקים ושירותים לחתונה?
             </h2>
             <Prose>
               <p>
-                הלוח תלוי במשך תקופת האירוסין, בעונה ובביקוש. הטבלה הבאה מציגה טווחים מומלצים וגמישים
-                — לא מועדים מחייבים.
+                הסדר שבו סוגרים ספקים ושירותים לחתונה תלוי בתאריך האירוע, בזמינות ובתקציב. עם זאת, ככל
+                שמקדימים לתכנן ולשריין את השירותים החשובים, כך אפשר להגיע לחודשים האחרונים עם פחות
+                משימות פתוחות ויותר שקט נפשי.
+              </p>
+              <p>
+                <strong className="font-black text-[#2C241C]">
+                  ההמלצה שלנו היא לסגור את הספקים והשירותים המרכזיים מוקדם ככל האפשר, ולא להמתין לרגע
+                  האחרון.
+                </strong>{" "}
+                גם שירותים שמתבצעים בפועל סמוך לחתונה, כמו אישורי הגעה וסידורי הושבה, כדאי לבחור ולסגור
+                מראש. חשוב להבחין בין מועד רכישת השירות לבין מועד הביצוע בפועל.
               </p>
             </Prose>
             <div className="mt-6 overflow-x-auto rounded-[24px] border border-[#E6D2AA] bg-white">
               <table className="min-w-[520px] w-full border-collapse text-sm md:text-base">
-                <caption className="sr-only">סדר מומלץ לסגירת ספקי חתונה</caption>
+                <caption className="sr-only">סדר מומלץ לסגירת ספקים ושירותים לחתונה</caption>
                 <thead>
                   <tr className="border-b border-[#E6D2AA] bg-[#FFF8EA] text-right text-[#7A5530]">
                     <th scope="col" className="px-4 py-3 font-black">
                       שלב
                     </th>
                     <th scope="col" className="px-4 py-3 font-black">
-                      מה מתכננים
+                      מה מומלץ לסגור או לתכנן
                     </th>
                   </tr>
                 </thead>
@@ -385,13 +426,101 @@ export default function WeddingPlanningGuide() {
                       <th scope="row" className="px-4 py-3 text-right font-bold text-[#2C241C]">
                         {row.stage}
                       </th>
-                      <td className="px-4 py-3 text-[#5C4A3A]">{row.what}</td>
+                      <td className="px-4 py-3 text-[#5C4A3A]">
+                        {row.parts.map((part) =>
+                          part.emphasize ? (
+                            <strong key={part.text} className="font-black text-[#2C241C]">
+                              {part.text}
+                            </strong>
+                          ) : (
+                            <span key={part.text}>{part.text}</span>
+                          )
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <p className="mt-5 text-base leading-8 text-[#5C4A3A] md:text-lg">
+
+            <div className="mt-10 space-y-8">
+              <div>
+                <h3 className="text-xl font-black text-[#2C241C] md:text-2xl">
+                  למה כדאי לסגור אישורי הגעה וסידורי הושבה כבר בתחילת הדרך?
+                </h3>
+                <Prose>
+                  <p>
+                    אישורי הגעה וסידורי הושבה הם חלק חשוב מתכנון החתונה, ולכן כדאי לדאוג להם מראש.
+                  </p>
+                  <p>
+                    כאשר בוחרים את השירותים מוקדם, אפשר להכין את רשימת המוזמנים בנחת, לבדוק מספרי
+                    טלפון, לטפל בכפילויות ולארגן את הרשימה בצורה מסודרת.
+                  </p>
+                  <p>
+                    כך, כשהמועד לשליחת ההזמנות ואישורי ההגעה מתקרב, התשתית כבר מוכנה ואפשר להתמקד
+                    בביצוע במקום להתחיל לחפש פתרונות.
+                  </p>
+                  <p>
+                    גם את שירות סידורי ההושבה כדאי לסגור מראש, אף שהשיבוץ הסופי מתבצע בדרך כלל לאחר
+                    קבלת תשובות האורחים.
+                  </p>
+                  <p>
+                    לעמודים הרלוונטיים ב־Invistimo:{" "}
+                    <Link
+                      href="/rsvp/chatuna"
+                      className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+                    >
+                      אישורי הגעה לחתונה
+                    </Link>
+                    {" · "}
+                    <Link
+                      href="/seating-explained"
+                      className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+                    >
+                      סידורי הושבה
+                    </Link>
+                    {" · "}
+                    <Link
+                      href="/info/guides/when-to-send-rsvp"
+                      className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+                    >
+                      מתי שולחים אישורי הגעה
+                    </Link>
+                    .
+                  </p>
+                </Prose>
+              </div>
+
+              <div>
+                <h3 className="text-xl font-black text-[#2C241C] md:text-2xl">
+                  פחות לחץ בחודשים האחרונים, יותר זמן ליהנות מההכנות
+                </h3>
+                <Prose>
+                  <p>
+                    אחת ההמלצות החשובות בתכנון חתונה היא לא לדחות משימות שאפשר לסגור מראש.
+                  </p>
+                  <p>
+                    בחירת ספקים מוקדמת מאפשרת לבדוק הצעות מחיר בנחת, לקרוא חוזים, להשוות שירותים ולבחור
+                    את אנשי המקצוע המתאימים לכם.
+                  </p>
+                  <p>
+                    ככל שמתקרבים לחתונה, מתווספים אישורים, מדידות, תשלומים, שינויים ברשימת המוזמנים
+                    ותיאומים אחרונים.
+                  </p>
+                  <p>
+                    לכן כדאי להשאיר את התקופה האחרונה בעיקר לביצוע, לבדיקות ולעדכונים — ולא לחיפוש
+                    ספקים ולסגירת שירותים מרכזיים.
+                  </p>
+                  <p>
+                    <strong className="font-black text-[#2C241C]">
+                      חתונה שמתוכננת מראש מאפשרת להגיע ליום האירוע עם יותר סדר, ביטחון ושקט נפשי.
+                    </strong>
+                  </p>
+                </Prose>
+              </div>
+            </div>
+
+            <p className="mt-8 text-base leading-8 text-[#5C4A3A] md:text-lg">
               לפירוט על הצעות מחיר, חוזים, מקדמות וביטולים ראו את{" "}
               <Link
                 href="/info/guides/wedding-vendors-contracts"
