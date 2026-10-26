@@ -126,7 +126,7 @@ export const GUIDE_COLUMNS: HeaderNavColumn[] = [
       },
       {
         href: "/info/guides/send-digital-invitation",
-        label: "איך שולחים הזמנה דיגיטלית",
+        label: "איך שולחים הזמנה דיגיטלית לחתונה",
       },
       {
         href: "/info/guides/bit-paybox-wedding-invitation",

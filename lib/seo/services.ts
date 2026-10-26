@@ -321,7 +321,7 @@ export const SERVICE_PAGES: ServicePage[] = [
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { href: "/rsvp/save-the-date", label: "Save the Date" },
       { href: "/wedding-website", label: "תבניות אתר חתונה" },
-      { href: "/info/guides/send-digital-invitation", label: "איך שולחים הזמנה" },
+      { href: "/info/guides/send-digital-invitation", label: "איך שולחים הזמנה דיגיטלית" },
     ],
     breadcrumbs: [home, { name: "הזמנות דיגיטליות", path: "/invitations/chatuna" }],
   },
