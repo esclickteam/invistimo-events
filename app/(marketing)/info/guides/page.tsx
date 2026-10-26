@@ -103,7 +103,9 @@ export default function GuidesPage() {
                             ? "למדריך ולמחשבון ההושבה ←"
                             : guide.slug === "seating-plan"
                               ? "למדריך המעשי צעד אחר צעד ←"
-                              : "לקריאת המדריך ←"}
+                              : guide.slug === "seating-cards-vs-qr"
+                                ? "למדריך פתקיות הושבה או QR ←"
+                                : "לקריאת המדריך ←"}
                       </Link>
                     </li>
                   ))}

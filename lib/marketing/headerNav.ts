@@ -192,6 +192,10 @@ export const GUIDE_COLUMNS: HeaderNavColumn[] = [
         label: "איך מכינים סידורי הושבה — צעד אחר צעד",
       },
       {
+        href: "/info/guides/seating-cards-vs-qr",
+        label: "פתקיות הושבה או QR דיגיטלי?",
+      },
+      {
         href: "/info/guides/table-number-message",
         label: "הודעת מספר שולחן לאורחים",
       },
