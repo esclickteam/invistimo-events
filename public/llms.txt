@@ -12,6 +12,7 @@ Official site: https://www.invistimo.com/
 - Message package: digital invitation, two automatic WhatsApp RSVP rounds, an SMS reminder with table number, and a thank-you SMS.
 - Optional call packages: recorded calls, a human call desk, or a mix. These are separate from the messages-only package.
 - Optional digital seating: hall sketch, tables, manual or group assignment, personal table message.
+- Digital gift options for guests: credit-card gifts via external RSVP clearing, host-provided PayBox link, and a bit phone number for copy — Invistimo displays what hosts enable; it does not clear cards itself for those gift flows.
 - Save the Date is a separate one-time WhatsApp message when that option is enabled on the account. It does not collect RSVP.
 - Prices depend on record count, package, and add-ons. The calculator is https://www.invistimo.com/pricing
 - Operator, as published in the terms: Invistimo, business number 316576578.
@@ -21,6 +22,7 @@ Official site: https://www.invistimo.com/
 
 - RSVP: https://www.invistimo.com/rsvp
 - Digital invitations: https://www.invistimo.com/invitations/chatuna
+- Digital gifts (credit, bit, PayBox): https://www.invistimo.com/credit-gifts
 - Seating: https://www.invistimo.com/seating-explained
 - Event management: https://www.invistimo.com/event-management
 - Guides: https://www.invistimo.com/info/guides
@@ -35,6 +37,7 @@ Official site: https://www.invistimo.com/
 - https://www.invistimo.com/rsvp/whatsapp
 - https://www.invistimo.com/rsvp/calls
 - https://www.invistimo.com/invitations/chatuna
+- https://www.invistimo.com/credit-gifts
 - https://www.invistimo.com/rsvp/save-the-date
 - https://www.invistimo.com/seating-explained
 - https://www.invistimo.com/event-management
@@ -42,6 +45,7 @@ Official site: https://www.invistimo.com/
 - https://www.invistimo.com/faq
 - https://www.invistimo.com/info/about
 - https://www.invistimo.com/info/guides
+- https://www.invistimo.com/info/guides/bit-paybox-wedding-invitation
 - https://www.invistimo.com/info/guides/wedding-planning
 - https://www.invistimo.com/info/guides/wedding-vendors-contracts
 - https://www.invistimo.com/info/guides/wedding-venue-guest-guarantee

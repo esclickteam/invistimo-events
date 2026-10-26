@@ -41,7 +41,9 @@ export const PILLARS: ContentPillar[] = [
     summary: "ההזמנה שהאורח פותח מהקישור, ו־Save the Date כהודעה מוקדמת נפרדת.",
     clusters: [
       { path: "/rsvp/save-the-date", label: "Save the Date" },
+      { path: "/credit-gifts", label: "מתנות באשראי, bit ו־PayBox" },
       { path: "/info/guides/send-digital-invitation", label: "איך שולחים הזמנה" },
+      { path: "/info/guides/bit-paybox-wedding-invitation", label: "bit ו־PayBox בהזמנה" },
       { path: "/info/guides/save-the-date-vs-invitation", label: "Save the Date מול הזמנה" },
     ],
   },

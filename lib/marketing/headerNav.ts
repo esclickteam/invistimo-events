@@ -92,8 +92,8 @@ export const SERVICE_COLUMNS: HeaderNavColumn[] = [
       },
       {
         href: "/credit-gifts",
-        label: "מתנות באשראי",
-        description: "מתנה דיגיטלית דרך סליקה חיצונית",
+        label: "מתנות באשראי, bit ו־PayBox",
+        description: "אשראי דרך RSVP, PayBox ומספר bit בהזמנה",
       },
     ],
   },
@@ -127,6 +127,10 @@ export const GUIDE_COLUMNS: HeaderNavColumn[] = [
       {
         href: "/info/guides/send-digital-invitation",
         label: "איך שולחים הזמנה דיגיטלית",
+      },
+      {
+        href: "/info/guides/bit-paybox-wedding-invitation",
+        label: "bit ו־PayBox בהזמנה",
       },
       {
         href: "/info/guides/save-the-date-vs-invitation",
