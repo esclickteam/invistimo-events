@@ -178,7 +178,7 @@ export const GUIDE_COLUMNS: HeaderNavColumn[] = [
       { href: "/info/guides/seating-plan", label: "איך מכינים סידורי הושבה" },
       {
         href: "/info/guides/table-number-message",
-        label: "הודעת מספר שולחן",
+        label: "הודעת מספר שולחן לאורחים",
       },
       {
         href: "/info/guides/wedding-venue-guest-guarantee",
