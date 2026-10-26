@@ -24,6 +24,7 @@ export function generateStaticParams() {
     "event-day-checklist",
     "table-number-message",
     "bit-paybox-wedding-invitation",
+    "save-the-date-vs-invitation",
   ]);
   return GUIDES.filter((guide) => !dedicated.has(guide.slug)).map((guide) => ({
     slug: guide.slug,
