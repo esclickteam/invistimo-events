@@ -684,7 +684,10 @@ export default function AlcoholCalculator() {
                     onClick={() => setCatalogExpanded(true)}
                     className="rounded-full border border-[#C9A45C] bg-white px-6 py-2.5 text-sm font-black text-[#5E4735]"
                   >
-                    הצג עוד בקבוקים ({filteredCatalog.length - visibleCatalog.length})
+                    הצג עוד
+                    <span className="ms-1 font-bold text-[#8A6B45]">
+                      ({filteredCatalog.length - visibleCatalog.length})
+                    </span>
                   </button>
                 </div>
               ) : null}

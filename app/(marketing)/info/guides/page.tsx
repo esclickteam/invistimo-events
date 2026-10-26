@@ -68,6 +68,27 @@ export default function GuidesPage() {
       </section>
 
       <div className="mx-auto max-w-4xl space-y-12 px-5 pb-20 md:px-8">
+        <section
+          aria-labelledby="alcohol-calc-feature"
+          className="overflow-hidden rounded-[32px] border border-[#E3C990] bg-gradient-to-l from-[#FFF8EA] via-white to-[#F7E8CA] p-6 shadow-[0_18px_40px_rgba(95,68,34,0.08)] md:p-8"
+        >
+          <p className="text-sm font-black tracking-[0.12em] text-[#7A5530]">מחשבון חינם</p>
+          <h2 id="alcohol-calc-feature" className="mt-3 text-2xl font-black text-[#35281F] md:text-3xl">
+            כמה אלכוהול צריך לקנות לחתונה?
+          </h2>
+          <p className="mt-3 max-w-2xl leading-8 text-[#5C4A3A]">
+            מחשבון אלכוהול לחתונה — בוחרים משקאות, מחשבים כמויות ומעריכים עלויות לפי מספר האורחים
+            ואופי האירוע.
+          </p>
+          <TrackedCtaLink
+            href="/info/guides/wedding-alcohol-calculator#alcohol-calculator"
+            className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-7 py-3 text-base font-black text-white"
+            location="featured_alcohol:/info/guides"
+          >
+            למחשבון האלכוהול
+          </TrackedCtaLink>
+        </section>
+
         {PILLARS.map((pillar) => {
           const guides = GUIDES.filter((guide) =>
             pillar.clusters.some((item) => item.path === guidePath(guide.slug))
@@ -98,7 +119,7 @@ export default function GuidesPage() {
                         className="mt-4 inline-flex text-sm font-black text-[#8A642E] underline-offset-4 hover:underline"
                       >
                         {guide.slug === "wedding-alcohol-calculator"
-                          ? "למחשבון האלכוהול ←"
+                          ? "למחשבון האלכוהול"
                           : "לקריאת המדריך ←"}
                       </Link>
                     </li>
