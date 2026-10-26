@@ -3,11 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
-import InteractiveChecklist from "@/components/marketing/guides/InteractiveChecklist";
 import StickyToc, { type TocItem } from "@/components/marketing/guides/StickyToc";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import CopyableMessage from "./CopyableMessage";
-import SeatingDemo from "./SeatingDemo";
+import SeatingMapDemo from "./SeatingMapDemo";
+import SeatingPlanChecklist from "./SeatingPlanChecklist";
 import { SEATING_PLAN_FAQS } from "./guideFaqs";
 
 const PATH = "/info/guides/seating-plan";
@@ -555,7 +555,7 @@ export default function SeatingPlanGuide() {
               </p>
             </Prose>
             <div className="mt-8">
-              <SeatingDemo />
+              <SeatingMapDemo />
             </div>
           </section>
 
@@ -759,12 +759,7 @@ export default function SeatingPlanGuide() {
               רשימת בדיקה לפני שסוגרים את ההושבה
             </h2>
             <div className="mt-8">
-              <InteractiveChecklist
-                id="seating-plan-checklist"
-                storageKey="invistimo-seating-plan-checklist-v1"
-                title="צ׳קליסט הכנת סידורי הושבה"
-                items={CHECKLIST}
-              />
+              <SeatingPlanChecklist id="seating-plan-checklist" />
             </div>
           </section>
 
