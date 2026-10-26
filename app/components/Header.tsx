@@ -37,6 +37,7 @@ export default function Header() {
     { label: "אישורי הגעה", href: "/rsvp" },
     { label: "הזמנות ואתר חתונה", href: "/wedding-website" },
     { label: "סידורי הושבה", href: "/seating-explained" },
+    { label: "מדריכים", href: "/info/guides" },
     { label: "חבילות ומחירים", href: "/pricing" },
     { label: "ניהול אירוע", href: "/event-management" },
     { label: "צור קשר", href: "/contact" },
