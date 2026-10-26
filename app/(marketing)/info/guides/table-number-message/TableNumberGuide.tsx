@@ -682,7 +682,7 @@ export default function TableNumberGuide() {
           {/* After change scenarios */}
           <section id="after-change" className="scroll-mt-24" aria-labelledby="after-change-h">
             <FadeIn>
-              <Eyebrow>פרק מרכזי</Eyebrow>
+              <Eyebrow>שינוי אחרי שליחה</Eyebrow>
               <h2 id="after-change-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
                 שלחנו מספר שולחן — ואז ההושבה השתנתה. מה עושים?
               </h2>
@@ -1052,7 +1052,7 @@ export default function TableNumberGuide() {
           {/* FAQ */}
           <section id="faq" className="scroll-mt-24" aria-labelledby="faq-h">
             <FadeIn>
-              <Eyebrow>FAQ</Eyebrow>
+              <Eyebrow>שאלות נפוצות</Eyebrow>
               <h2 id="faq-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
                 שאלות נפוצות על הודעת מספר שולחן
               </h2>

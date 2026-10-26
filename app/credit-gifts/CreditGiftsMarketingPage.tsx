@@ -212,7 +212,7 @@ export default function CreditGiftsMarketingPage() {
         </div>
       </section>
 
-      {/* Direct answer for AEO */}
+      {/* Short direct answer */}
       <Section tone="white" className="!py-10">
         <p className="mx-auto max-w-4xl text-center text-base font-semibold leading-8 text-[#5C4A3A] md:text-lg">
           {PAGE_ANSWER}

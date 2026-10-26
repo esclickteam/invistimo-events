@@ -1066,7 +1066,7 @@ export default function EventDayChecklistGuide() {
           </motion.section>
 
           <motion.section id="faq" className="scroll-mt-24" aria-labelledby="faq-h" {...fade}>
-            <Eyebrow>FAQ</Eyebrow>
+            <Eyebrow>שאלות נפוצות</Eyebrow>
             <h2 id="faq-h" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               שאלות נפוצות לפני יום האירוע
             </h2>

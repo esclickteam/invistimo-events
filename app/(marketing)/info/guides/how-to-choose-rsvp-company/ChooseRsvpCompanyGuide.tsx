@@ -434,7 +434,6 @@ export default function ChooseRsvpCompanyGuide() {
           </section>
 
           <section id="why-company" className="scroll-mt-24">
-            <Eyebrow>פרק 1</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               למה לא לעשות אישורי הגעה לבד?
             </h2>
@@ -479,7 +478,6 @@ export default function ChooseRsvpCompanyGuide() {
           </section>
 
           <section id="service-types" className="scroll-mt-24">
-            <Eyebrow>פרק 2</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               אילו סוגים של אישורי הגעה קיימים?
             </h2>
@@ -543,7 +541,6 @@ export default function ChooseRsvpCompanyGuide() {
           </section>
 
           <section id="comparison" className="scroll-mt-24">
-            <Eyebrow>פרק 3</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               WhatsApp, שיחות מוקלטות או מוקד אנושי — מה כדאי לבחור?
             </h2>
@@ -599,7 +596,6 @@ export default function ChooseRsvpCompanyGuide() {
           </section>
 
           <section id="rounds" className="scroll-mt-24">
-            <Eyebrow>פרק 4</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               למה חשוב לבדוק כמה פעמים החברה פונה לאורחים?
             </h2>
@@ -641,7 +637,6 @@ export default function ChooseRsvpCompanyGuide() {
           </section>
 
           <section id="no-reply" className="scroll-mt-24">
-            <Eyebrow>פרק 5</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               איך חברה מקצועית מטפלת במוזמנים שלא השיבו?
             </h2>
@@ -682,7 +677,6 @@ export default function ChooseRsvpCompanyGuide() {
           </section>
 
           <section id="pricing" className="scroll-mt-24">
-            <Eyebrow>פרק 6</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               כמה עולה חברת אישורי הגעה לחתונה?
             </h2>
@@ -751,7 +745,6 @@ export default function ChooseRsvpCompanyGuide() {
           </section>
 
           <section id="seating" className="scroll-mt-24">
-            <Eyebrow>פרק 7</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מה היתרון של אישורי הגעה וסידורי הושבה באותה מערכת?
             </h2>
@@ -806,7 +799,6 @@ export default function ChooseRsvpCompanyGuide() {
           </section>
 
           <section id="dashboard" className="scroll-mt-24">
-            <Eyebrow>פרק 8</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               איך יודעים אם מערכת אישורי הגעה נוחה לשימוש?
             </h2>
@@ -842,7 +834,6 @@ export default function ChooseRsvpCompanyGuide() {
           </section>
 
           <section id="guest-ux" className="scroll-mt-24">
-            <Eyebrow>פרק 9</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               האם אישור ההגעה פשוט גם לאורחים?
             </h2>
@@ -894,7 +885,6 @@ export default function ChooseRsvpCompanyGuide() {
           </section>
 
           <section id="kosher" className="scroll-mt-24">
-            <Eyebrow>פרק 10</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               איך עושים אישורי הגעה לאורחים שאין להם WhatsApp?
             </h2>
@@ -915,7 +905,6 @@ export default function ChooseRsvpCompanyGuide() {
           </section>
 
           <section id="broader" className="scroll-mt-24">
-            <Eyebrow>פרק 11</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               האם עדיף לבחור חברה שמספקת רק אישורי הגעה או מערכת רחבה יותר?
             </h2>
@@ -1022,7 +1011,6 @@ export default function ChooseRsvpCompanyGuide() {
           </section>
 
           <section id="checklist" className="scroll-mt-24">
-            <Eyebrow>פרק 12</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               מה לשאול לפני שסוגרים חברת אישורי הגעה?
             </h2>
@@ -1042,7 +1030,6 @@ export default function ChooseRsvpCompanyGuide() {
           </section>
 
           <section id="mistakes" className="scroll-mt-24">
-            <Eyebrow>פרק 13</Eyebrow>
             <h2 className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
               8 טעויות שכדאי להימנע מהן
             </h2>
