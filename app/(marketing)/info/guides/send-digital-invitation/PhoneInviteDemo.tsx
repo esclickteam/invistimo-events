@@ -131,7 +131,7 @@ export default function PhoneInviteDemo() {
             )}
           </div>
           <p className="mt-3 text-center text-xs leading-6 text-[#9A8570]">
-            סרטון מוצר · `/marketing/videos/hero-guest-journey.webm`
+            סרטון מוצר אמיתי ממסע האורח ב־Invistimo
           </p>
         </div>
 
