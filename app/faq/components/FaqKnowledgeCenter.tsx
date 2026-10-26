@@ -278,7 +278,7 @@ export default function FaqKnowledgeCenter({ items }: Props) {
           ) : null}
 
           <div
-            className="mt-6 -mx-1 flex gap-2 overflow-x-auto px-1 pb-2 [scrollbar-width:thin]"
+            className="mt-6 -mx-1 flex gap-2 overflow-x-auto scroll-px-3 px-3 pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
             role="tablist"
             aria-label="קטגוריות שאלות"
           >
@@ -322,7 +322,7 @@ export default function FaqKnowledgeCenter({ items }: Props) {
                   }`}
                 >
                   {category.shortTitle}
-                  <span className="mr-1 opacity-70">({count})</span>
+                  <span className="opacity-70">{` (${count})`}</span>
                 </button>
               );
             })}
