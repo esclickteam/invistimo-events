@@ -59,13 +59,17 @@ await page.goto(`${baseUrl}/wedding-website/eternal-gold`, {
 await page.waitForSelector(".wedding-website-root, .ww-site, main, body", {
   timeout: 60_000,
 });
-await page.addStyleTag({
-  content: `
-    nextjs-portal, [data-nextjs-toast], [data-nextjs-dialog],
-    #__next-build-watcher, [data-next-badge], [data-nextjs-dev-overlay] {
-      display: none !important; visibility: hidden !important;
-    }
-  `,
+await page.evaluate(() => {
+  document.querySelectorAll("nextjs-portal").forEach((el) => el.remove());
+  const style = document.createElement("style");
+  style.textContent =
+    "nextjs-portal{display:none!important;visibility:hidden!important;pointer-events:none!important}";
+  document.documentElement.appendChild(style);
+  const mo = new MutationObserver(() => {
+    document.querySelectorAll("nextjs-portal").forEach((el) => el.remove());
+  });
+  mo.observe(document.documentElement, { childList: true, subtree: true });
+  setTimeout(() => mo.disconnect(), 25000);
 });
 await page.waitForTimeout(2500);
 
