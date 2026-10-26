@@ -1,10 +1,8 @@
 "use client";
 
 import { useReducedMotion } from "framer-motion";
-import Image from "next/image";
 import Link from "next/link";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
-import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import { WHATSAPP_VS_SMS_FAQS } from "./guideFaqs";
 
 const PATH = "/info/guides/whatsapp-vs-sms-rsvp";
@@ -206,34 +204,7 @@ export default function WhatsappVsSmsGuide() {
               </a>
             </div>
           </div>
-          <div className="space-y-6">
-            <figure className="overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-white shadow-[0_28px_70px_rgba(58,39,20,0.12)]">
-              <Image
-                src="/images/rsvp/guides/unique-atmosphere/whatsapp-vs-sms-hero.jpg"
-                alt="השוואה ויזואלית בין הודעת צ׳אט ל־SMS — המחשה"
-                width={1280}
-                height={720}
-                className="h-auto w-full object-cover"
-                priority
-                sizes="(max-width:1024px) 100vw, 40vw"
-              />
-            </figure>
-            <ChannelDemo reduce={reduce} />
-          </div>
-        </div>
-        <div className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#1E1814]">
-          <PublicAutoplayVideo
-            src="/videos/marketing-captures/product-messages.webm"
-            poster="/videos/marketing-captures/product-messages-poster.jpg"
-            title="הקלטת מסך — בחירת ערוץ WhatsApp או SMS בשליחת הודעות"
-            shellClassName="w-full"
-            className="aspect-[8/5] w-full"
-            expandable
-            frameBg="#1E1814"
-          />
-          <p className="border-t border-[#EFE2CC] bg-[#FFFDF8] px-5 py-3 text-sm font-semibold text-[#7A6042]">
-            הקלטת מסך אמיתית מדמו מבודד — מסך שליחת הודעות עם ערוצי WhatsApp ו־SMS
-          </p>
+          <ChannelDemo reduce={reduce} />
         </div>
       </header>
 

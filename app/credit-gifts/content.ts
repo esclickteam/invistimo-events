@@ -31,18 +31,16 @@ export const LINKS = {
 } as const;
 
 export const MEDIA = {
-  hero: "/marketing/credit-gifts/hero-envelope-unique.jpg",
+  hero: "/marketing/credit-gifts/hero-envelope.jpg",
   giftPageIcon: "/icons/gift-page.png",
   paymentIcon: "/icons/payment.png",
   installmentsIcon: "/icons/installments.png",
   transferIcon: "/icons/transfer.png",
   summaryIcon: "/icons/summary.png",
   scheduleIcon: "/icons/schedule.png",
-  dashboard: "/images/marketing-captures/unique/module-messages-whatsapp-focus.webp",
+  dashboard: "/images/rsvp/chatuna/dashboard-guests.jpg",
   phoneInvite: "/images/rsvp/chatuna/phone-invite.jpg",
   phoneThanks: "/images/rsvp/chatuna/phone-thanks.jpg",
-  video: "/videos/marketing-captures/guide-credit-gifts.webm",
-  videoPoster: "/videos/marketing-captures/guide-credit-gifts-poster.jpg",
 } as const;
 
 /** Demo-only values — never real payment details. */

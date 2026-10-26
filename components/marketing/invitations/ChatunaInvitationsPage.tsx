@@ -20,7 +20,6 @@ import {
 } from "@/components/marketing/invitations/designs";
 import InvitationArt from "@/components/marketing/invitations/InvitationArt";
 import "@/components/marketing/invitations/invite-motion.css";
-import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import { addonPrice } from "@/lib/pricing/packageQuote";
 
 const display = Frank_Ruhl_Libre({
@@ -355,7 +354,7 @@ export default function ChatunaInvitationsPage() {
   };
 
   return (
-    <div dir="rtl" className={`${display.variable} overflow-x-hidden bg-[#FBF6EE] text-[#2C241C]`}>
+    <div dir="rtl" className={`${display.variable} bg-[#FBF6EE] text-[#2C241C]`}>
       {/* HERO */}
       <section className="relative isolate px-5 pb-16 pt-14 md:px-8 md:pb-24 md:pt-20">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,#E9D4AF_0%,transparent_36%),radial-gradient(circle_at_top_left,#F5E8D3_0%,transparent_32%),linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_55%,#F1E4D2_100%)]" />
@@ -665,14 +664,16 @@ export default function ChatunaInvitationsPage() {
               </p>
             </div>
             <div className="mx-auto w-full max-w-[280px] overflow-hidden rounded-[22px] border border-white/10 bg-black shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
-              <PublicAutoplayVideo
+              <video
                 src="/marketing/videos/hero-guest-journey.webm"
                 poster="/marketing/videos/hero-guest-journey-poster.jpg"
-                title="מסע אורח: הזמנה דיגיטלית ואישור הגעה"
-                shellClassName="w-full"
-                className="aspect-[9/16] w-full"
-                frameBg="#000000"
-              />
+                controls
+                playsInline
+                preload="none"
+                className="aspect-[9/16] h-auto w-full object-cover"
+              >
+                הסרטון אינו נתמך בדפדפן זה
+              </video>
             </div>
           </div>
         </div>
@@ -777,13 +778,13 @@ export default function ChatunaInvitationsPage() {
             </Link>
           </div>
           <div className="mx-auto w-full max-w-[300px] overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-2xl">
-            <PublicAutoplayVideo
+            <video
               src="/marketing/videos/hero-guest-journey.webm"
               poster="/marketing/videos/hero-guest-journey-poster.jpg"
-              title="מסע אורח: הזמנה דיגיטלית ואישור הגעה"
-              shellClassName="w-full"
-              className="aspect-[9/16] w-full"
-              frameBg="#000000"
+              controls
+              playsInline
+              preload="none"
+              className="aspect-[9/16] h-auto w-full object-cover"
             />
           </div>
         </div>

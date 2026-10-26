@@ -5,7 +5,6 @@ import { useState, type ReactNode } from "react";
 import { Frank_Ruhl_Libre } from "next/font/google";
 import { motion, useReducedMotion } from "framer-motion";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
-import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import CallDemoPlayer from "./components/CallDemoPlayer";
 import CallsHeroVisual from "./components/CallsHeroVisual";
 import { CALLS_FAQS } from "./callsFaqs";
@@ -422,20 +421,6 @@ export default function CallsMarketingPage() {
           <Reveal>
             <CallsHeroVisual />
           </Reveal>
-        </div>
-        <div className="mx-auto mt-12 max-w-4xl overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#1E1814]">
-          <PublicAutoplayVideo
-            src="/videos/marketing-captures/product-recorded-calls.webm"
-            poster="/videos/marketing-captures/product-recorded-calls-poster.jpg"
-            title="הקלטת מסך — מסך שיחות מוקלטות בדמו מבודד"
-            shellClassName="w-full"
-            className="aspect-[8/5] w-full"
-            expandable
-            frameBg="#1E1814"
-          />
-          <p className="border-t border-[#3A322C] bg-[#241E1A] px-5 py-3 text-sm font-semibold text-[#E8D5A3]">
-            הקלטת מסך אמיתית מדמו מבודד — מעקב שיחות ואישורי הגעה בטלפון
-          </p>
         </div>
       </section>
 

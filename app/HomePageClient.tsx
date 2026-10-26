@@ -2,7 +2,7 @@
 
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import HomeMarketingSections from "@/components/marketing/HomeMarketingSections";
 
@@ -68,11 +68,9 @@ function DemoButton({
    HERO PHONE — CLEAN 3D VIDEO PHONE
 ===================================================== */
 function HeroPhone3D() {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
   const [reduceMotion, setReduceMotion] = useState(false);
   /** Defer heavy webm until after first paint / LCP candidate (poster + hero bg). */
   const [videoReady, setVideoReady] = useState(false);
-  const [playing, setPlaying] = useState(false);
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
     const sync = () => setReduceMotion(mq.matches);
@@ -92,7 +90,10 @@ function HeroPhone3D() {
     if (conn?.saveData || conn?.effectiveType === "slow-2g" || conn?.effectiveType === "2g") {
       return;
     }
-    // Defer ~7MB webm until after LCP (poster first). Autoplay muted + contain on all viewports.
+    // Mobile: poster only (no competing 7MB webm). Desktop: play after load/idle.
+    const desktopMq = window.matchMedia("(min-width: 768px)");
+    if (!desktopMq.matches) return;
+
     const enable = () => {
       if (!cancelled) setVideoReady(true);
     };
@@ -122,33 +123,11 @@ function HeroPhone3D() {
     };
   }, [reduceMotion]);
 
-  useEffect(() => {
-    const el = videoRef.current;
-    if (!el || !videoReady || reduceMotion) return;
-    const play = el.play();
-    if (play && typeof play.catch === "function") {
-      play.then(() => setPlaying(true)).catch(() => setPlaying(false));
-    }
-  }, [videoReady, reduceMotion]);
-
-  const togglePlay = () => {
-    const el = videoRef.current;
-    if (!el) return;
-    if (el.paused) {
-      el.play()
-        .then(() => setPlaying(true))
-        .catch(() => setPlaying(false));
-    } else {
-      el.pause();
-      setPlaying(false);
-    }
-  };
-
   return (
     <div
       className="
         relative z-10
-        flex w-full flex-col items-center justify-center gap-3
+        flex w-full items-center justify-center
         min-h-[420px]
         md:min-h-[500px]
         lg:min-h-[540px]
@@ -258,17 +237,14 @@ function HeroPhone3D() {
               />
             ) : videoReady ? (
               <video
-                ref={videoRef}
-                className="h-full w-full bg-[#FBF6EE] object-contain object-center"
+                className="h-full w-full bg-[#FBF6EE] object-cover object-top"
                 autoPlay
                 muted
                 loop
                 playsInline
-                preload="metadata"
+                preload="none"
                 poster="/marketing/videos/hero-guest-journey-poster.jpg"
                 aria-label="מסע אורח: הודעת WhatsApp, הזמנה של מיה ואלון, ואישור הגעה"
-                onPlay={() => setPlaying(true)}
-                onPause={() => setPlaying(false)}
               >
                 <source src="/marketing/videos/hero-guest-journey.webm" type="video/webm" />
               </video>
@@ -276,7 +252,7 @@ function HeroPhone3D() {
               <img
                 src="/marketing/videos/hero-guest-journey-poster.jpg"
                 alt="מסע אורח: הודעת WhatsApp, הזמנה של מיה ואלון, ואישור הגעה"
-                className="h-full w-full bg-[#FBF6EE] object-contain object-center"
+                className="h-full w-full bg-[#FBF6EE] object-cover object-top"
                 draggable={false}
               />
             )}
@@ -301,23 +277,6 @@ function HeroPhone3D() {
           </div>
         </div>
       </motion.div>
-
-      {/* Compact a11y control outside the 3D phone — no giant Play overlay */}
-      {!reduceMotion && videoReady ? (
-        <button
-          type="button"
-          onClick={togglePlay}
-          className="relative z-20 inline-flex min-h-10 items-center justify-center rounded-full border border-[#D8C6A0] bg-white/90 px-4 text-xs font-black text-[#5E4735] shadow-sm backdrop-blur transition hover:bg-white"
-          aria-pressed={playing}
-          aria-label={
-            playing
-              ? "השהיית סרטון מסע האורח בטלפון"
-              : "ניגון סרטון מסע האורח בטלפון"
-          }
-        >
-          {playing ? "השהיה" : "ניגון"}
-        </button>
-      ) : null}
     </div>
   );
 }

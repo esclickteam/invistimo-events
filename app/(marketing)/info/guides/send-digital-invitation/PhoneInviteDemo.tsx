@@ -1,10 +1,9 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useReducedMotion } from "framer-motion";
-import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 
 const JOURNEY_VIDEO = {
   src: "/marketing/videos/hero-guest-journey.webm",
@@ -68,12 +67,20 @@ const VIDEO_CAPTIONS = [
  */
 export default function PhoneInviteDemo() {
   const reduce = useReducedMotion();
-  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [time, setTime] = useState(0);
   const [screen, setScreen] = useState<ScreenId>("whatsapp");
   const activeCaption =
     VIDEO_CAPTIONS.find((c) => time >= c.start && time < c.end) ?? VIDEO_CAPTIONS[0];
   const activeScreen = REAL_SCREENS.find((s) => s.id === screen) ?? REAL_SCREENS[0];
+
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el || reduce) return;
+    const onTime = () => setTime(el.currentTime || 0);
+    el.addEventListener("timeupdate", onTime);
+    return () => el.removeEventListener("timeupdate", onTime);
+  }, [reduce]);
 
   return (
     <div
@@ -105,21 +112,22 @@ export default function PhoneInviteDemo() {
                 alt="פוסטר סרטון מסע האורח — הזמנה דיגיטלית ב־Invistimo"
                 width={720}
                 height={1280}
-                className="h-auto w-full object-contain"
+                className="h-auto w-full object-cover"
                 sizes="280px"
               />
             ) : (
-              <PublicAutoplayVideo
+              <video
+                ref={videoRef}
                 src={JOURNEY_VIDEO.src}
                 poster={JOURNEY_VIDEO.poster}
-                title="סרטון אמיתי: מסע האורח מהזמנה דיגיטלית לאישור הגעה ב־Invistimo"
-                shellClassName="w-full"
-                className="aspect-[9/16] w-full"
-                eager
-                videoRef={videoRef}
-                onTimeUpdate={setTime}
-                frameBg="#0B0908"
-              />
+                controls
+                playsInline
+                preload="metadata"
+                className="aspect-[9/16] h-auto w-full object-cover"
+                aria-label="סרטון אמיתי: מסע האורח מהזמנה דיגיטלית לאישור הגעה ב־Invistimo"
+              >
+                הסרטון אינו נתמך בדפדפן זה
+              </video>
             )}
           </div>
           <p className="mt-3 text-center text-xs leading-6 text-[#9A8570]">
@@ -224,13 +232,14 @@ export default function PhoneInviteDemo() {
             </p>
           </div>
           <div className="mx-auto w-full max-w-[220px] overflow-hidden rounded-[22px] border border-white/10 bg-black">
-            <PublicAutoplayVideo
+            <video
               src={STEPS_VIDEO.src}
               poster={STEPS_VIDEO.poster}
-              title="סרטון אמיתי: שלבי אישור הגעה ב־WhatsApp ב־Invistimo"
-              shellClassName="w-full"
-              className="aspect-[9/16] w-full"
-              frameBg="#000000"
+              controls
+              playsInline
+              preload="none"
+              className="aspect-[9/16] h-auto w-full object-cover"
+              aria-label="סרטון אמיתי: שלבי אישור הגעה ב־WhatsApp ב־Invistimo"
             />
           </div>
         </div>

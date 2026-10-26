@@ -246,13 +246,10 @@ test("AI referral helpers recognize hosts and UTMs without inventing traffic", (
 test("marketing pages no longer point the RSVP call to action at a missing short link", () => {
   const rsvp = read("app/(marketing)/rsvp/RsvpMarketingPage.tsx");
   const video = read("app/(marketing)/rsvp/components/MarketingVideo.tsx");
-  const sharedVideo = read("components/marketing/PublicAutoplayVideo.tsx");
   assert.doesNotMatch(rsvp, /\/create-invite/);
   assert.match(rsvp, /\/pricing/);
-  assert.match(video, /PublicAutoplayVideo/);
-  assert.match(sharedVideo, /preload=\{eager \|\| shouldLoad \? "metadata" : "none"\}/);
-  assert.match(sharedVideo, /prefers-reduced-motion/);
-  assert.match(sharedVideo, /object-contain/);
+  assert.match(video, /preload=\{eager \? "metadata" : "none"\}/);
+  assert.match(video, /prefers-reduced-motion/);
   assert.match(read("app/layout.tsx"), /next\/font\/google/);
   assert.match(read("app/layout.tsx"), /Heebo/);
   assert.doesNotMatch(read("app/layout.tsx"), /fonts\.googleapis\.com\/css2/);

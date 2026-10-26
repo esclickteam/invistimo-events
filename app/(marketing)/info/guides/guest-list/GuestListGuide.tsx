@@ -892,7 +892,7 @@ export default function GuestListGuide() {
               </div>
               <figure className="mt-6 overflow-hidden rounded-[22px] border border-[#E7D3B0] bg-white">
                 <Image
-                  src="/images/marketing-captures/unique/module-guests-scrolled.webp"
+                  src="/images/guides/guest-list/seating-map.png"
                   alt="מפת הושבה ב־Invistimo לצד רשימת מוזמנים ושיבוץ לשולחנות"
                   width={1440}
                   height={900}

@@ -1,7 +1,6 @@
 "use client";
 
-import type { RefObject } from "react";
-import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 type Props = {
   src: string;
@@ -9,35 +8,86 @@ type Props = {
   title: string;
   className?: string;
   eager?: boolean;
-  /** @deprecated Always contain — kept for call-site compatibility */
+  /** cover crops; contain keeps full frame visible (for phone/portrait clips). */
   fit?: "cover" | "contain";
   videoRef?: RefObject<HTMLVideoElement | null>;
   onTimeUpdate?: (currentTime: number) => void;
 };
 
-/**
- * Chatuna marketing video — shared public autoplay policy, never crops.
- */
+function usePrefersReducedMotion() {
+  const [reduced, setReduced] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReduced(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  return reduced;
+}
+
 export default function ChatunaVideo({
   src,
   poster,
   title,
   className = "",
   eager = false,
+  fit = "cover",
   videoRef,
   onTimeUpdate,
 }: Props) {
+  const localRef = useRef<HTMLVideoElement | null>(null);
+  const reducedMotion = usePrefersReducedMotion();
+  const [pausedByUser, setPausedByUser] = useState(false);
+
+  useEffect(() => {
+    const el = (videoRef?.current ?? localRef.current) as HTMLVideoElement | null;
+    if (!el) return;
+    if (reducedMotion) {
+      el.pause();
+      el.removeAttribute("autoplay");
+      return;
+    }
+    if (!pausedByUser) {
+      const play = el.play();
+      if (play && typeof play.catch === "function") play.catch(() => undefined);
+    }
+  }, [reducedMotion, pausedByUser, videoRef, src]);
+
   return (
-    <PublicAutoplayVideo
-      src={src}
-      poster={poster}
-      title={title}
-      className={className}
-      shellClassName="w-full"
-      eager={eager}
-      videoRef={videoRef}
-      onTimeUpdate={onTimeUpdate}
-      frameBg="#F7EDDF"
-    />
+    <div className={`relative overflow-hidden bg-[#F7EDDF] ${className}`}>
+      <video
+        ref={(node) => {
+          localRef.current = node;
+          if (videoRef) {
+            (videoRef as React.MutableRefObject<HTMLVideoElement | null>).current = node;
+          }
+        }}
+        src={src}
+        poster={poster}
+        title={title}
+        aria-label={title}
+        muted
+        loop
+        playsInline
+        autoPlay={!reducedMotion}
+        controls
+        preload={eager ? "metadata" : "none"}
+        className={`absolute inset-0 h-full w-full ${
+          fit === "contain" ? "object-contain" : "object-cover object-center"
+        }`}
+        onTimeUpdate={(e) => onTimeUpdate?.(e.currentTarget.currentTime)}
+        onPlay={() => setPausedByUser(false)}
+        onPause={() => {
+          const el = localRef.current;
+          if (el && !el.ended) setPausedByUser(true);
+        }}
+      />
+      {reducedMotion ? (
+        <p className="sr-only">
+          הווידאו מושהה כי הופעלה העדפת הפחתת תנועה. אפשר להפעיל ידנית באמצעות פקדי הניגון.
+        </p>
+      ) : null}
+    </div>
   );
 }

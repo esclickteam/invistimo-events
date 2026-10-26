@@ -232,7 +232,7 @@ export default function WeddingPlanningGuide() {
               className="overflow-hidden border-y border-[#E6D2AA]"
             >
               <Image
-                src="/images/rsvp/guides/unique-atmosphere/wedding-planning-hero.jpg"
+                src="/images/rsvp/guides/wedding-planning/hero-reception.jpg"
                 alt="שולחנות חתונה ערוכים באולם עם מפות שמנת, נרות ומרכזי פרחים באווירה חגיגית"
                 width={1920}
                 height={900}
@@ -244,7 +244,7 @@ export default function WeddingPlanningGuide() {
           ) : (
             <div className="overflow-hidden border-y border-[#E6D2AA]">
               <Image
-                src="/images/rsvp/guides/unique-atmosphere/wedding-planning-hero.jpg"
+                src="/images/rsvp/guides/wedding-planning/hero-reception.jpg"
                 alt="שולחנות חתונה ערוכים באולם עם מפות שמנת, נרות ומרכזי פרחים באווירה חגיגית"
                 width={1920}
                 height={900}
@@ -378,7 +378,7 @@ export default function WeddingPlanningGuide() {
               </ol>
             </div>
             <SectionImage
-              src="/images/rsvp/guides/unique-atmosphere/wedding-planning-venue.jpg"
+              src="/images/rsvp/guides/wedding-planning/venue.jpg"
               alt="אולם אירועים מעוצב עם תאורה חמה לקראת קבלת פנים"
             />
           </section>
@@ -661,7 +661,7 @@ export default function WeddingPlanningGuide() {
               </p>
             </Prose>
             <SectionImage
-              src="/images/rsvp/guides/unique-atmosphere/wedding-planning-hall.jpg"
+              src="/images/rsvp/guides/wedding-planning/hall-tables.jpg"
               alt="אולם חתונה עם שולחנות עגולים ערוכים ומפות שמנת"
             />
           </section>
