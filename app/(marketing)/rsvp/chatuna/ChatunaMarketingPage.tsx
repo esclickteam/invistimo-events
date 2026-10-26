@@ -131,7 +131,7 @@ function PhoneVideoFrame({
   return (
     <div className="mx-auto w-[min(100%,340px)]">
       <div className="overflow-hidden rounded-[2rem] border border-[#E4D3B6] bg-[#F7EDDF] shadow-[0_24px_50px_rgba(40,28,16,0.16)]">
-        {/* Fixed 9:16 stage — video is absolutely filled inside ChatunaVideo */}
+        {/* Fixed 9:16 stage — contain, no crop (shared public video policy) */}
         <ChatunaVideo
           src={src}
           poster={poster}
