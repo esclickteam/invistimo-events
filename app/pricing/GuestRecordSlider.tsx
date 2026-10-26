@@ -114,22 +114,22 @@ export default function GuestRecordSlider({
     percent <= 6 ? "translate(10%, 0)" : percent >= 94 ? "translate(90%, 0)" : "translate(50%, 0)";
 
   return (
-    <div dir="rtl" className="px-2 sm:px-6">
-      <div className="mb-5 flex items-center justify-center gap-3 sm:gap-4">
+    <div dir="rtl" className="px-1 sm:px-4">
+      <div className="mb-3 flex items-center justify-center gap-3 sm:gap-4">
         <button
           type="button"
           aria-label="הקטן מספר רשומות"
           onClick={() => nudge(-1)}
           disabled={safeValue <= RECORD_MIN}
-          className="flex h-11 w-11 items-center justify-center rounded-full border border-[#D7B98D] bg-[#FFFDF9] text-[#A86F2B] shadow-[0_8px_18px_rgba(168,111,43,0.1)] transition enabled:hover:border-[#C9A46A] enabled:hover:bg-[#FFF8EE] disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-[#D7B98D] bg-[#FFFDF9] text-[#A86F2B] shadow-[0_8px_18px_rgba(168,111,43,0.1)] transition enabled:hover:border-[#C9A46A] enabled:hover:bg-[#FFF8EE] disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Minus size={18} strokeWidth={2} aria-hidden="true" />
         </button>
 
-        <div className="min-w-[9.5rem] text-center">
+        <div className="min-w-[8.5rem] text-center">
           <p
             data-testid="record-display"
-            className={`pricing-record-display text-5xl font-black tabular-nums leading-none text-[#3E2D20] sm:text-6xl ${
+            className={`pricing-record-display text-4xl font-black tabular-nums leading-none text-[#3E2D20] sm:text-5xl ${
               tick ? "is-tick" : ""
             }`}
             aria-live="polite"
@@ -144,7 +144,7 @@ export default function GuestRecordSlider({
           aria-label="הגדל מספר רשומות"
           onClick={() => nudge(1)}
           disabled={safeValue >= RECORD_MAX}
-          className="flex h-11 w-11 items-center justify-center rounded-full border border-[#D7B98D] bg-[#FFFDF9] text-[#A86F2B] shadow-[0_8px_18px_rgba(168,111,43,0.1)] transition enabled:hover:border-[#C9A46A] enabled:hover:bg-[#FFF8EE] disabled:cursor-not-allowed disabled:opacity-40"
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-[#D7B98D] bg-[#FFFDF9] text-[#A86F2B] shadow-[0_8px_18px_rgba(168,111,43,0.1)] transition enabled:hover:border-[#C9A46A] enabled:hover:bg-[#FFF8EE] disabled:cursor-not-allowed disabled:opacity-40"
         >
           <Plus size={18} strokeWidth={2} aria-hidden="true" />
         </button>
@@ -178,7 +178,7 @@ export default function GuestRecordSlider({
         }}
         onMouseUp={() => endDrag()}
         onKeyDown={onKeyDown}
-        className="relative h-20 cursor-grab touch-none select-none outline-none focus-visible:ring-4 focus-visible:ring-[#D8B16A]/30 active:cursor-grabbing sm:h-16"
+        className="relative h-16 cursor-grab touch-none select-none outline-none focus-visible:ring-4 focus-visible:ring-[#D8B16A]/30 active:cursor-grabbing sm:h-14"
       >
         <div className="pricing-slider-track-bg absolute inset-x-0 top-1/2 h-3 -translate-y-1/2 rounded-full shadow-inner sm:h-2.5" />
         <div
@@ -195,7 +195,7 @@ export default function GuestRecordSlider({
           }}
         >
           <span
-            className={`pricing-slider-bubble absolute bottom-[calc(100%+0.55rem)] left-1/2 whitespace-nowrap rounded-full border border-[#D4B06E] bg-[#3E2D20] px-2.5 py-1 text-[11px] font-black tabular-nums text-[#F7E9D3] shadow-[0_10px_22px_rgba(62,45,32,0.28)] ${
+            className={`pricing-slider-bubble absolute bottom-[calc(100%+0.45rem)] left-1/2 whitespace-nowrap rounded-full border border-[#D4B06E] bg-[#3E2D20] px-2.5 py-1 text-[11px] font-black tabular-nums text-[#F7E9D3] shadow-[0_10px_22px_rgba(62,45,32,0.28)] ${
               tick ? "is-tick" : ""
             }`}
             style={{ transform: bubbleShift }}
@@ -206,24 +206,20 @@ export default function GuestRecordSlider({
           </span>
 
           <span
-            className={`flex h-16 w-16 items-center justify-center rounded-full border-[2.5px] border-[#C89545] bg-[#FFFDF9] text-[#A86F2B] shadow-[0_12px_24px_rgba(168,111,43,0.28)] sm:h-14 sm:w-14 ${
+            className={`flex h-14 w-14 items-center justify-center rounded-full border-[2.5px] border-[#C89545] bg-[#FFFDF9] text-[#A86F2B] shadow-[0_12px_24px_rgba(168,111,43,0.28)] sm:h-12 sm:w-12 ${
               dragging ? "ring-4 ring-[#D8B16A]/35" : ""
             }`}
           >
-            <UserRound size={28} strokeWidth={1.75} aria-hidden="true" />
+            <UserRound size={24} strokeWidth={1.75} aria-hidden="true" />
           </span>
         </div>
       </div>
 
-      <div className="mt-2 flex justify-between text-[11px] font-bold text-[#9C866D] sm:text-xs">
+      <div className="mt-1.5 flex justify-between text-[11px] font-bold text-[#9C866D] sm:text-xs">
         {MARKS.map((mark) => (
           <span key={mark}>{mark.toLocaleString("he-IL")}</span>
         ))}
       </div>
-
-      <p className="mt-4 text-center text-sm leading-6 text-[#7B6754]">
-        רשומה יכולה לייצג אורח יחיד, זוג או משפחה — בהתאם לאופן ניהול ההזמנה ברשימה.
-      </p>
     </div>
   );
 }

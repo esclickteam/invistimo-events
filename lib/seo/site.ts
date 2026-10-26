@@ -3,7 +3,7 @@ import { resolveAppEnv } from "@/lib/env/appEnv";
 
 export const SITE_URL = "https://www.invistimo.com";
 export const SITE_NAME = "Invistimo";
-export const CONTENT_UPDATED = new Date("2026-10-26T17:20:00.000Z");
+export const CONTENT_UPDATED = new Date("2026-10-26T17:45:00.000Z");
 
 /** Preview/Staging must not claim indexability in HTML (align with Vercel x-robots-tag). */
 export function defaultPublicIndexable() {
@@ -210,9 +210,9 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
   },
   {
     path: "/contact",
-    title: "יצירת קשר | Invistimo",
+    title: "יצירת קשר עם Invistimo | שירות לקוחות ותמיכה",
     description:
-      "דברו עם Invistimo בטופס, בוואטסאפ או בדוא״ל support@invistimo.com על חבילה, אישורי הגעה או ניהול האירוע.",
+      "צריכים עזרה עם Invistimo? צרו קשר ב־WhatsApp, בדוא״ל או באמצעות טופס הפנייה. מידע על חבילות, הזמנות דיגיטליות, אישורי הגעה וסידורי הושבה.",
     changeFrequency: "yearly",
     priority: 0.5,
   },
