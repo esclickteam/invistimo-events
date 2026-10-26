@@ -20,6 +20,7 @@ import {
 } from "@/components/marketing/invitations/designs";
 import InvitationArt from "@/components/marketing/invitations/InvitationArt";
 import "@/components/marketing/invitations/invite-motion.css";
+import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import { addonPrice } from "@/lib/pricing/packageQuote";
 
 const display = Frank_Ruhl_Libre({
@@ -664,16 +665,14 @@ export default function ChatunaInvitationsPage() {
               </p>
             </div>
             <div className="mx-auto w-full max-w-[280px] overflow-hidden rounded-[22px] border border-white/10 bg-black shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
-              <video
+              <PublicAutoplayVideo
                 src="/marketing/videos/hero-guest-journey.webm"
                 poster="/marketing/videos/hero-guest-journey-poster.jpg"
-                controls
-                playsInline
-                preload="none"
-                className="aspect-[9/16] h-auto w-full object-cover"
-              >
-                הסרטון אינו נתמך בדפדפן זה
-              </video>
+                title="מסע אורח: הזמנה דיגיטלית ואישור הגעה"
+                shellClassName="w-full"
+                className="aspect-[9/16] w-full"
+                frameBg="#000000"
+              />
             </div>
           </div>
         </div>
@@ -778,13 +777,13 @@ export default function ChatunaInvitationsPage() {
             </Link>
           </div>
           <div className="mx-auto w-full max-w-[300px] overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-2xl">
-            <video
+            <PublicAutoplayVideo
               src="/marketing/videos/hero-guest-journey.webm"
               poster="/marketing/videos/hero-guest-journey-poster.jpg"
-              controls
-              playsInline
-              preload="none"
-              className="aspect-[9/16] h-auto w-full object-cover"
+              title="מסע אורח: הזמנה דיגיטלית ואישור הגעה"
+              shellClassName="w-full"
+              className="aspect-[9/16] w-full"
+              frameBg="#000000"
             />
           </div>
         </div>

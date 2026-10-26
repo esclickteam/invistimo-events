@@ -137,7 +137,7 @@ function PhoneVideoFrame({
           poster={poster}
           title={title}
           eager={eager}
-          fit="cover"
+          fit="contain"
           videoRef={videoRef}
           className="aspect-[9/16] w-full bg-[#F7EDDF]"
         />

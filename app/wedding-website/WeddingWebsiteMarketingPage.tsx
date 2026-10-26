@@ -399,7 +399,7 @@ export default function WeddingWebsiteMarketingPage() {
               src={videoExistsHint}
               poster={WW_MEDIA.video.poster}
               title={WW_MEDIA.video.title}
-              className="aspect-[16/10] w-full"
+              className="aspect-video w-full"
             />
           </FadeIn>
           <p className="mt-4 text-center text-sm font-semibold text-[#7A6042]">

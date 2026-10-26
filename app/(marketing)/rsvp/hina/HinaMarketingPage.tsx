@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { type CSSProperties, type ReactNode } from "react";
 import { Noto_Serif_Hebrew } from "next/font/google";
 import { motion, useReducedMotion } from "framer-motion";
+import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 import { HINA_FAQS } from "./hinaFaqs";
 import {
   CONTENT_UPDATED_LABEL,
@@ -266,35 +267,16 @@ function FaqBlock() {
 }
 
 function SeatingVideo() {
-  const ref = useRef<HTMLVideoElement | null>(null);
-  const reduce = useReducedMotion();
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || reduce) return;
-    const io = new IntersectionObserver(
-      ([entry]) => {
-        if (entry?.isIntersecting) el.play().catch(() => undefined);
-        else el.pause();
-      },
-      { threshold: 0.35 }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [reduce]);
-
   return (
     <div className="overflow-hidden rounded-[28px] border border-[#D4B483]/70 bg-[#2A1814] shadow-[0_24px_50px_rgba(74,21,32,0.18)]">
-      <video
-        ref={ref}
+      <PublicAutoplayVideo
         src={SEATING_VIDEO.src}
         poster={SEATING_VIDEO.poster}
         title={SEATING_VIDEO.title}
-        muted
-        loop
-        playsInline
-        preload="none"
-        className="aspect-video w-full object-cover"
+        shellClassName="w-full"
+        className="aspect-video w-full"
+        expandable
+        frameBg="#2A1814"
       />
     </div>
   );

@@ -90,10 +90,7 @@ function HeroPhone3D() {
     if (conn?.saveData || conn?.effectiveType === "slow-2g" || conn?.effectiveType === "2g") {
       return;
     }
-    // Mobile: poster only (no competing 7MB webm). Desktop: play after load/idle.
-    const desktopMq = window.matchMedia("(min-width: 768px)");
-    if (!desktopMq.matches) return;
-
+    // Defer ~7MB webm until after LCP (poster first). Autoplay muted + contain on all viewports.
     const enable = () => {
       if (!cancelled) setVideoReady(true);
     };
@@ -237,12 +234,12 @@ function HeroPhone3D() {
               />
             ) : videoReady ? (
               <video
-                className="h-full w-full bg-[#FBF6EE] object-cover object-top"
+                className="h-full w-full bg-[#FBF6EE] object-contain object-center"
                 autoPlay
                 muted
                 loop
                 playsInline
-                preload="none"
+                preload="metadata"
                 poster="/marketing/videos/hero-guest-journey-poster.jpg"
                 aria-label="מסע אורח: הודעת WhatsApp, הזמנה של מיה ואלון, ואישור הגעה"
               >
@@ -252,7 +249,7 @@ function HeroPhone3D() {
               <img
                 src="/marketing/videos/hero-guest-journey-poster.jpg"
                 alt="מסע אורח: הודעת WhatsApp, הזמנה של מיה ואלון, ואישור הגעה"
-                className="h-full w-full bg-[#FBF6EE] object-cover object-top"
+                className="h-full w-full bg-[#FBF6EE] object-contain object-center"
                 draggable={false}
               />
             )}

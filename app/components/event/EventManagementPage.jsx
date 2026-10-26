@@ -18,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import ContactForm from "@/app/components/event/ContactForm";
+import PublicAutoplayVideo from "@/components/marketing/PublicAutoplayVideo";
 
 const display = Frank_Ruhl_Libre({
   subsets: ["hebrew", "latin"],
@@ -738,17 +739,17 @@ function ShotCard({ src, alt, caption, onExpand }) {
 function ProductVideo({ video, reduceMotion }) {
   return (
     <figure className="overflow-hidden rounded-[1.5rem] border border-[#E6D2AA] bg-[#1c1612]">
-      <video
-        className="aspect-video h-auto w-full"
-        controls
-        playsInline
-        preload="none"
+      <PublicAutoplayVideo
+        src={video.src}
         poster={video.poster}
-        muted={false}
-      >
-        <source src={video.src} type="video/webm" />
-        <track kind="captions" srcLang="he" label="עברית" src={video.caption} default />
-      </video>
+        title={video.title}
+        shellClassName="w-full"
+        className="aspect-[8/5] w-full"
+        allowUnmute
+        expandable
+        captionsSrc={video.caption}
+        frameBg="#1c1612"
+      />
       <figcaption className="border-t border-white/10 px-4 py-3 text-sm text-[#E8DCC8]">
         {video.title}
         {reduceMotion ? " · ניתן להפעיל ידנית" : ""}
