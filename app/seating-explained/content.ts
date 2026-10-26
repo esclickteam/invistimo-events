@@ -28,6 +28,7 @@ export const LINKS = {
   costGuide: "/info/guides/cost-rsvp-wedding",
   seatingPlan: "/info/guides/seating-plan",
   weddingSeatingGuide: "/info/guides/wedding-seating-arrangements",
+  seatingCardsVsQr: "/info/guides/seating-cards-vs-qr",
   tableMessage: "/info/guides/table-number-message",
   contact: "/contact",
   trySeating: "/try/dashboard/seating",

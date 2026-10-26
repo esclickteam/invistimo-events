@@ -193,12 +193,36 @@ export const GUIDES: Guide[] = [
         href: "/info/guides/wedding-seating-arrangements",
         label: "המדריך המלא לסידורי הושבה",
       },
+      { href: "/info/guides/seating-cards-vs-qr", label: "פתקיות הושבה או QR דיגיטלי" },
       { href: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },
       { href: "/info/guides/event-day-checklist", label: "לפני יום האירוע" },
       { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { href: "/try/dashboard/seating", label: "דמו הושבה" },
       { href: "/pricing", label: "חבילות ומחירים" },
+    ],
+  },
+  {
+    // Dedicated UI: app/(marketing)/info/guides/seating-cards-vs-qr/
+    slug: "seating-cards-vs-qr",
+    title: "פתקיות הושבה או QR דיגיטלי? המדריך לקבלת פנים והושבת אורחים",
+    description:
+      "פתקיות הושבה לחתונה מול הושבה דיגיטלית עם צוות ומול QR אישי: איך אורחים יודעים איפה לשבת, איך מונעים תורים בכניסה, ומה Invistimo באמת מציעה — בלי חלוקת פתקיות.",
+    h1: "פתקיות הושבה או QR דיגיטלי? המדריך המלא לקבלת פנים והושבת אורחים באירוע",
+    lede:
+      "מדריך מלא להשוואת פתקיות הושבה, קבלת פנים דיגיטלית עם צוות ו־QR אישי — כולל תהליכים, יתרונות, חסרונות ו־30 שאלות נפוצות.",
+    sections: [],
+    faqs: [],
+    related: [
+      { href: "/seating-explained", label: "סידורי הושבה" },
+      { href: "/seating-explained#staff", label: "צוות הושבה" },
+      { href: "/rsvp", label: "אישורי הגעה" },
+      { href: "/info/guides/seating-plan", label: "איך מכינים הושבה" },
+      { href: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },
+      { href: "/info/guides/wedding-seating-arrangements", label: "מדריך סידורי הושבה" },
+      { href: "/pricing", label: "מחירון" },
+      { href: "/try/dashboard/check-in", label: "דמו קבלת פנים" },
+      { href: "/info/guides", label: "מרכז המדריכים" },
     ],
   },
   {
