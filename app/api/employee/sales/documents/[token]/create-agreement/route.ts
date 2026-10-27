@@ -175,8 +175,12 @@ export async function POST(
 
     const token = await createUniqueToken();
     const url = `${baseUrl(req)}/sales-documents/${token}`;
-    const pickArray = (value: unknown, fallback: unknown) =>
-      Array.isArray(value) ? value : fallback;
+    const pickArray = (value: unknown, fallback: unknown): unknown[] =>
+      Array.isArray(value)
+        ? value
+        : Array.isArray(fallback)
+          ? fallback
+          : [];
 
     const agreementUpsells = stripLegalTermsFromUpsells(
       pickArray(

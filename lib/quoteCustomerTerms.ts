@@ -383,8 +383,8 @@ export function buildAgreementDocumentTerms(input: {
   };
 }
 
-export function stripLegalTermsFromUpsells(upsells: unknown) {
-  if (!Array.isArray(upsells)) return upsells;
+export function stripLegalTermsFromUpsells(upsells: unknown): unknown[] {
+  if (!Array.isArray(upsells)) return [];
   return upsells.map((upsell) => syncUpsellCommercial(upsell));
 }
 
