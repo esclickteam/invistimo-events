@@ -1,4 +1,5 @@
-import { absoluteUrl, CONTENT_UPDATED, SITE_NAME, SITE_URL } from "@/lib/seo/site";
+import { routeContentDate } from "@/lib/seo/contentDates";
+import { absoluteUrl, SITE_NAME, SITE_URL } from "@/lib/seo/site";
 
 export const ORGANIZATION_ID = `${SITE_URL}/#organization`;
 
@@ -104,14 +105,16 @@ export function articleNode(input: {
   description: string;
   path: string;
 }) {
+  const dates = routeContentDate(input.path);
   return {
     "@type": "Article",
     headline: input.title,
     description: input.description,
     inLanguage: "he-IL",
     mainEntityOfPage: absoluteUrl(input.path),
-    datePublished: CONTENT_UPDATED.toISOString().slice(0, 10),
-    dateModified: CONTENT_UPDATED.toISOString().slice(0, 10),
+    ...(dates
+      ? { datePublished: dates.published, dateModified: dates.modified }
+      : {}),
     author: { "@id": ORGANIZATION_ID },
     publisher: {
       "@type": "Organization",

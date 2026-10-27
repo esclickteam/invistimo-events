@@ -121,11 +121,24 @@ test("public metadata has a unique absolute canonical and stays indexable", () =
   assert.equal(new Set(paths).size, paths.length);
 });
 
+test("IndexNow key is hosted as a public file whose contents match its name", () => {
+  const names = fs
+    .readdirSync(path.join(root, "public"))
+    .filter((name) => /^[a-f0-9]{32}\.txt$/.test(name));
+  assert.equal(names.length, 1);
+  const key = names[0].slice(0, -4);
+  assert.equal(fs.readFileSync(path.join(root, "public", names[0]), "utf8").trim(), key);
+});
+
 test("sitemap lists public guides and omits private or auth URLs", () => {
   const urls = sitemap().map((item) => item.url);
   assert.ok(urls.includes("https://www.invistimo.com") || urls.includes("https://www.invistimo.com/"));
   assert.ok(urls.includes("https://www.invistimo.com/rsvp/chatuna"));
   assert.ok(urls.includes("https://www.invistimo.com/info/guides"));
+  assert.ok(urls.includes("https://www.invistimo.com/services/alcohol-management"));
+  const lastMods = sitemap().map((item) => String(item.lastModified));
+  assert.ok(new Set(lastMods).size > 1, "lastmod must follow each page, not one build stamp");
+  assert.equal(lastMods.some((value) => value.startsWith("2026-10-27T10:00:00")), false);
   for (const guide of GUIDES) {
     assert.ok(urls.includes(`https://www.invistimo.com${guidePath(guide.slug)}`));
   }
@@ -218,6 +231,7 @@ test("analytics stays off guest and account URLs and on public marketing URLs", 
   assert.equal(analyticsAllowed("/rsvp"), true);
   assert.equal(analyticsAllowed("/rsvp/chatuna"), true);
   assert.equal(analyticsAllowed("/event-management"), true);
+  assert.equal(contentGroup("/services/alcohol-management"), "services");
   assert.equal(analyticsAllowed("/wedding-website"), true);
   assert.equal(analyticsAllowed("/wedding-website/classic"), true);
   assert.equal(analyticsAllowed("/invite/abc"), false);
@@ -265,8 +279,8 @@ test("marketing pages no longer point the RSVP call to action at a missing short
   assert.ok(fs.existsSync(path.join(root, "public/og-invistimo.jpg")));
   assert.equal(GUIDES.length, 19);
   assert.equal(SERVICE_PAGES.length, 5);
-  assert.match(read("app/components/Footer.tsx"), /href="\/pricing"/);
-  assert.match(read("app/components/Footer.tsx"), /href="\/rsvp"/);
+  assert.match(read("lib/marketing/footerNav.ts"), /href: "\/pricing"/);
+  assert.match(read("lib/marketing/footerNav.ts"), /href: "\/rsvp"/);
 });
 
 test("marketing RSVP service pages keep the public pre-login header and footer", () => {

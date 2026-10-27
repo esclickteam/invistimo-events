@@ -9,10 +9,10 @@ import { WHATSAPP_URL } from "@/app/contact/contactContent";
 import {
   ALL_FAQ_ITEMS,
   FAQ_CATEGORIES,
-  FAQ_CONTENT_UPDATED,
   allFaqItems,
 } from "@/lib/seo/publicFaq";
 import { breadcrumbNode, faqNode, graph, organizationNode } from "@/lib/seo/jsonld";
+import { routeContentDate } from "@/lib/seo/contentDates";
 import {
   absoluteUrl,
   findCoreRoute,
@@ -52,7 +52,7 @@ function webpageNode() {
     isPartOf: { "@id": `${SITE_URL}/#website` },
     about: { "@id": `${SITE_URL}/#organization` },
     inLanguage: "he-IL",
-    dateModified: FAQ_CONTENT_UPDATED,
+    dateModified: routeContentDate("/faq")?.modified,
     publisher: { "@id": `${SITE_URL}/#organization` },
   };
 }
