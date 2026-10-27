@@ -465,7 +465,7 @@ test("template picker shows a unique on-theme mockup for every template", () => 
 
   assert.equal(new Set(previews).size, previews.length);
   assert.equal(new Set(heroes).size, heroes.length);
-  assert.equal(WEDDING_TEMPLATES.length, 10);
+  assert.equal(WEDDING_TEMPLATES.length, 16);
   assert.match(dialogs, /WeddingTemplateThumb/);
   assert.match(editor, /WeddingTemplateThumb/);
   assert.match(thumb, /heroOverlay/);

@@ -1,5 +1,6 @@
-import InteractiveInviteGallery from "@/components/interactive-invites/InteractiveInviteGallery";
+import { redirect } from "next/navigation";
 
-export default function InteractiveInvitesGalleryPage() {
-  return <InteractiveInviteGallery />;
+/** Gallery moved into the wedding website template showcase. */
+export default function InteractiveInviteGalleryPage() {
+  redirect("/wedding-website");
 }

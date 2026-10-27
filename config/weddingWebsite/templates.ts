@@ -1,4 +1,5 @@
 import type { WeddingSectionId, WeddingTemplate } from "@/types/weddingWebsite";
+import { INTERACTIVE_WEDDING_THEMES } from "@/config/weddingWebsite/interactiveThemes";
 
 export const WEDDING_PRIMARY_NAV_IDS = [
   "hero",
@@ -377,6 +378,19 @@ export const WEDDING_TEMPLATES: WeddingTemplate[] = [
       grain: false,
     },
   },
+  ...INTERACTIVE_WEDDING_THEMES.map(
+    (t): WeddingTemplate => ({
+      id: t.id,
+      name: t.name,
+      tagline: t.tagline,
+      description: t.description,
+      previewImage: t.previewImage,
+      heroImage: t.heroImage,
+      galleryImages: t.galleryImages,
+      mood: t.mood,
+      theme: t.weddingTheme,
+    })
+  ),
 ];
 
 export function getWeddingTemplate(id: string) {

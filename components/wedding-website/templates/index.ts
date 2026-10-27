@@ -11,6 +11,12 @@ import MinimalNoirSite from "./MinimalNoirSite";
 import ModernGlassSite from "./ModernGlassSite";
 import RoyalIvorySite from "./RoyalIvorySite";
 import SunsetBlushSite from "./SunsetBlushSite";
+import LunarSilkSite from "./LunarSilkSite";
+import OliveClaySite from "./OliveClaySite";
+import NoirChampagneSite from "./NoirChampagneSite";
+import GardenMistSite from "./GardenMistSite";
+import CoastalPearlSite from "./CoastalPearlSite";
+import AmberArchiveSite from "./AmberArchiveSite";
 
 export const WEDDING_TEMPLATE_SITES: Record<
   WeddingTemplateId,
@@ -26,6 +32,12 @@ export const WEDDING_TEMPLATE_SITES: Record<
   "sunset-blush": SunsetBlushSite,
   "forest-enchanted": ForestEnchantedSite,
   "modern-glass": ModernGlassSite,
+  "lunar-silk": LunarSilkSite,
+  "olive-clay": OliveClaySite,
+  "noir-champagne": NoirChampagneSite,
+  "garden-mist": GardenMistSite,
+  "coastal-pearl": CoastalPearlSite,
+  "amber-archive": AmberArchiveSite,
 };
 
 export function getWeddingTemplateSite(id: string) {
