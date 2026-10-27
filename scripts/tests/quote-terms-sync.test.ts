@@ -5,13 +5,18 @@ import {
   ACCOUNT_USAGE_AND_DELETION_SECTION,
   QUOTE_TERMS_VERSION,
   VENUE_SEATING_QUOTE_TERM_SECTIONS,
+  agreementAccountDeletionTermsForDisplay,
+  agreementSeatingLegalTermsForDisplay,
   buildAgreementDocumentTerms,
   buildAgreementTermsUpdate,
   buildQuoteTermsUpdate,
+  ensureVenueSeatingServiceDetails,
   needsAgreementTermsRepair,
+  splitAgreementAdditionalTerms,
   withCurrentQuoteTerms,
   withRepairedAgreementTerms,
 } from "../../lib/quoteCustomerTerms";
+import { VENUE_SEATING_SERVICE_CUSTOMER_DETAILS } from "../../lib/venueSeatingServiceDetails";
 import { sanitizeSalesDocumentForCustomer } from "../../lib/salesDocumentTerms";
 import {
   QUOTE_PAYMENT_CONFIRMED_LABEL,
@@ -374,7 +379,66 @@ test("an unsigned agreement that lost legal terms is repaired with seating claus
 
   const signed = { ...broken, status: "signed" };
   assert.equal(needsAgreementTermsRepair(signed), false);
-  assert.equal(withRepairedAgreementTerms(signed), signed);
+  // Display repair still fills missing legal terms for signed agreements;
+  // persistence stays gated by needsAgreementTermsRepair / buildAgreementTermsUpdate.
+  const signedRepaired = withRepairedAgreementTerms(signed);
+  assert.equal(
+    signedRepaired.additionalTerms.some(
+      (section: { title: string }) =>
+        section.title === ACCOUNT_USAGE_AND_DELETION_SECTION.title,
+    ),
+    true,
+  );
+  assert.equal(
+    signedRepaired.additionalTerms.some(
+      (section: { title: string }) => section.title === "אחריות למפת ההושבה",
+    ),
+    true,
+  );
+  assert.equal(buildAgreementTermsUpdate(signed), null);
+});
+
+test("agreement UI helpers expose seating legal and account deletion even when additionalTerms are empty", () => {
+  const seating = agreementSeatingLegalTermsForDisplay({
+    upsells: [{ key: "venueSeating" }],
+    additionalTerms: [],
+  });
+  assert.equal(seating.some((section) => section.title === "אחריות למפת ההושבה"), true);
+  assert.equal(
+    agreementSeatingLegalTermsForDisplay({
+      upsells: [{ key: "digitalSeating" }],
+      additionalTerms: [],
+    }).length,
+    0,
+  );
+
+  const deletion = agreementAccountDeletionTermsForDisplay([]);
+  assert.equal(deletion[0]?.title, ACCOUNT_USAGE_AND_DELETION_SECTION.title);
+
+  const split = splitAgreementAdditionalTerms([
+    { title: "תנאים נוספים", items: ["כללי."] },
+    { title: "אחריות למפת ההושבה", items: ["משפטי."] },
+    ACCOUNT_USAGE_AND_DELETION_SECTION,
+  ]);
+  assert.deepEqual(
+    split.general.map((section) => section.title),
+    ["תנאים נוספים"],
+  );
+  assert.equal(split.seatingLegal[0]?.title, "אחריות למפת ההושבה");
+  assert.equal(split.accountDeletion[0]?.title, ACCOUNT_USAGE_AND_DELETION_SECTION.title);
+});
+
+test("venue seating service details are restored when customerDetails were emptied", () => {
+  const restored = ensureVenueSeatingServiceDetails([
+    { key: "venueSeating", title: "הושבה באולם", customerDetails: [] },
+    { key: "digitalSeating", title: "הושבה דיגיטלית", customerDetails: [] },
+  ]) as Array<{ key: string; customerDetails: Array<{ title: string }> }>;
+
+  assert.equal(
+    restored[0].customerDetails[0]?.title,
+    VENUE_SEATING_SERVICE_CUSTOMER_DETAILS[0].title,
+  );
+  assert.deepEqual(restored[1].customerDetails, []);
 });
 
 test("empty commercial quote terms still rebuild a full agreement payload", () => {

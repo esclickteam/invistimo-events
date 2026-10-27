@@ -62,6 +62,10 @@
   "exclude": [
     "node_modules",
     "mobile",
+    "scripts/tests",
+    "scripts/test-*.ts",
+    "scripts/test-*.js",
+    "scripts/test-*.mjs",
     "scripts/test-whatsapp-excel-export.ts",
     "scripts/test-sms-excel-export.ts",
     "scripts/restore-callback-carry-forward.ts"

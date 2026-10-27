@@ -10,6 +10,11 @@ import React, {
 import { useParams } from "next/navigation";
 import { sanitizePaymentTermsForCustomer, sanitizeDetailSectionsForCustomer } from "@/lib/salesDocumentTerms";
 import {
+  agreementAccountDeletionTermsForDisplay,
+  agreementSeatingLegalTermsForDisplay,
+  splitAgreementAdditionalTerms,
+} from "@/lib/quoteCustomerTerms";
+import {
   quoteCustomerStatusLabel,
   quoteShowsExpiredNotice,
 } from "@/lib/quotePaymentStatus";
@@ -20,6 +25,7 @@ import {
 } from "@/lib/quoteEditDraft";
 import {
   SEATING_SCHEDULE_FIELDS,
+  hasVisibleSeatingScheduleContent,
   orderIncludesVenueSeating,
   seatingServiceStartDisplay,
   toCustomerSeatingSchedule,
@@ -853,10 +859,28 @@ export default function SalesDocumentPage() {
     [document?.cancellationTerms],
   );
 
-  const customerAdditionalTerms = useMemo(
-    () => sanitizeDetailSectionsForCustomer(document?.additionalTerms),
-    [document?.additionalTerms],
-  );
+  const customerAdditionalTerms = useMemo(() => {
+    const sanitized = sanitizeDetailSectionsForCustomer(document?.additionalTerms);
+    if (!isAgreement) return sanitized;
+    return splitAgreementAdditionalTerms(sanitized).general;
+  }, [document?.additionalTerms, isAgreement]);
+
+  const agreementSeatingLegalTerms = useMemo(() => {
+    if (!isAgreement) return [];
+    return sanitizeDetailSectionsForCustomer(
+      agreementSeatingLegalTermsForDisplay({
+        upsells: document?.upsells,
+        additionalTerms: document?.additionalTerms,
+      }),
+    );
+  }, [document?.additionalTerms, document?.upsells, isAgreement]);
+
+  const agreementAccountDeletionTerms = useMemo(() => {
+    if (!isAgreement) return [];
+    return sanitizeDetailSectionsForCustomer(
+      agreementAccountDeletionTermsForDisplay(document?.additionalTerms),
+    );
+  }, [document?.additionalTerms, isAgreement]);
 
   const loadDocument = useCallback(async (options?: { silent?: boolean }) => {
     if (!token) {
@@ -1510,7 +1534,14 @@ export default function SalesDocumentPage() {
   const approvedSeatingSchedule = toCustomerSeatingSchedule(
     document.seatingSchedule,
   );
-  const seatingStartInfo = venueSeatingOnQuote
+  const showSeatingScheduleSection =
+    editing && draft
+      ? venueSeatingOnQuote
+      : hasVisibleSeatingScheduleContent(
+          approvedSeatingSchedule || document.seatingSchedule,
+          venueSeatingOnQuote,
+        );
+  const seatingStartInfo = showSeatingScheduleSection
     ? seatingServiceStartDisplay(approvedSeatingSchedule || document.seatingSchedule)
     : null;
   const paymentConfirmed =
@@ -1786,7 +1817,7 @@ export default function SalesDocumentPage() {
                   ))}
                 </div>
               </SectionCard>
-            ) : venueSeatingOnQuote ? (
+            ) : showSeatingScheduleSection ? (
               <SectionCard title="לוחות זמנים שסוכמו להושבה">
                 <p className="mb-4 text-sm font-semibold leading-7 text-[#7b6a58]">
                   מוצגות רק שעות שהוגדרו בפועל, ובנוסף נוסח תחילת שירות ההושבה.
@@ -2000,6 +2031,18 @@ export default function SalesDocumentPage() {
                 {customerCancellationTerms.length > 0 ? (
                   <SectionCard title="תנאי ביטול">
                     <DetailSections sections={customerCancellationTerms} />
+                  </SectionCard>
+                ) : null}
+
+                {agreementSeatingLegalTerms.length > 0 ? (
+                  <SectionCard title="תנאי שירות הושבה באולם">
+                    <DetailSections sections={agreementSeatingLegalTerms} />
+                  </SectionCard>
+                ) : null}
+
+                {agreementAccountDeletionTerms.length > 0 ? (
+                  <SectionCard title="תקופת השימוש ומחיקת חשבון המשתמש">
+                    <DetailSections sections={agreementAccountDeletionTerms} />
                   </SectionCard>
                 ) : null}
 

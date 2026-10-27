@@ -10,6 +10,7 @@ import {
   missingSeatingScheduleLabels,
   orderIncludesVenueSeating,
   parseSeatingScheduleTimes,
+  hasVisibleSeatingScheduleContent,
   seatingServiceStartDisplay,
   toCustomerSeatingSchedule,
 } from "../../lib/seatingSchedule";
@@ -96,6 +97,24 @@ test("seating service start display distinguishes explicit times from defaults",
       time: "19:30",
       label: "שעת תחילת ההושבה המתוכננת",
     },
+  );
+});
+
+test("schedules section is visible only when venue seating has at least one filled hour", () => {
+  assert.equal(hasVisibleSeatingScheduleContent(null, false), false);
+  assert.equal(hasVisibleSeatingScheduleContent({}, true), false);
+  assert.equal(hasVisibleSeatingScheduleContent(null, true), false);
+  assert.equal(
+    hasVisibleSeatingScheduleContent({ receptionStartTime: "19:00" }, true),
+    true,
+  );
+  assert.equal(
+    hasVisibleSeatingScheduleContent({ teamArrivalTime: "18:30" }, true),
+    true,
+  );
+  assert.equal(
+    hasVisibleSeatingScheduleContent({ receptionStartTime: "19:00" }, false),
+    false,
   );
 });
 
