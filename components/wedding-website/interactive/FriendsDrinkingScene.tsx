@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Friends drinking scene — premium line illustration + bottle liquid scrubbed by scroll.
+ * Friends drinking — line illustration + wine liquid scrubbed by scroll.
  */
 
 import { useEffect, useRef } from "react";
@@ -34,13 +34,13 @@ export default function FriendsDrinkingScene({
         liquid,
         { scaleY: 1 },
         {
-          scaleY: 0.04,
+          scaleY: 0.05,
           ease: "none",
           scrollTrigger: {
             trigger: root,
-            start: "top 78%",
-            end: "bottom 38%",
-            scrub: 0.9,
+            start: "top 75%",
+            end: "bottom 35%",
+            scrub: 0.85,
           },
         }
       );
@@ -58,6 +58,7 @@ export default function FriendsDrinkingScene({
       <div className="iw-drink-bottle" aria-hidden>
         <div className="iw-drink-bottle-glass">
           <div className="iw-drink-liquid" data-drink-liquid />
+          <div className="iw-drink-meniscus" />
         </div>
       </div>
       <p className="iw-drink-caption">{caption}</p>

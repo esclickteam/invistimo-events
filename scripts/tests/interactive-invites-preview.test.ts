@@ -32,16 +32,31 @@ test("interactive templates live in wedding-website system with physical envelop
     read("app/preview/interactive-invites/[templateId]/page.tsx"),
     /wedding-website/
   );
-  assert.match(read("components/wedding-website/interactive/PhysicalEnvelope.tsx"), /data-pe-flap/);
+  assert.match(read("components/wedding-website/interactive/PhysicalEnvelope.tsx"), /data-pe-card/);
+  assert.match(read("components/wedding-website/interactive/PhysicalEnvelope.tsx"), /data-pe-closed/);
   assert.match(read("components/wedding-website/interactive/PhysicalEnvelope.tsx"), /gsap/);
   assert.match(read("components/wedding-website/interactive/FriendsDrinkingScene.tsx"), /ScrollTrigger/);
   assert.match(read("components/wedding-website/interactive/InteractiveWeddingSite.tsx"), /PhysicalEnvelope/);
+  assert.doesNotMatch(read("components/wedding-website/interactive/InteractiveWeddingSite.tsx"), /iw-nav/);
   assert.match(read("components/wedding-website/templates/index.ts"), /lunar-silk/);
   assert.match(read("config/weddingWebsite/interactiveThemes.ts"), /amber-archive/);
   assert.match(read("config/weddingWebsite/templates.ts"), /INTERACTIVE_WEDDING_THEMES/);
 
   const inviteApi = read("app/api/wedding-website/route.ts");
   assert.doesNotMatch(inviteApi, /interactive-invites/);
+});
+
+test("local interactive asset paths are allowed by wedding media sanitizer", async () => {
+  const { isAllowedWeddingImageUrl, sanitizeWeddingImageUrl } = await import(
+    "../../lib/weddingWebsite/images"
+  );
+  assert.equal(isAllowedWeddingImageUrl("/interactive-invites/lunar-silk/gallery-1.webp"), true);
+  assert.equal(
+    sanitizeWeddingImageUrl("/interactive-invites/lunar-silk/gallery-1.webp"),
+    "/interactive-invites/lunar-silk/gallery-1.webp"
+  );
+  assert.equal(isAllowedWeddingImageUrl("//evil.example/x.jpg"), false);
+  assert.equal(isAllowedWeddingImageUrl("javascript:alert(1)"), false);
 });
 
 test("lunar-silk ships original local media assets (not stock URLs)", () => {
@@ -54,6 +69,8 @@ test("lunar-silk ships original local media assets (not stock URLs)", () => {
     "public/interactive-invites/lunar-silk/silk-ribbon.webp",
     "public/interactive-invites/lunar-silk/invite-card.webp",
     "public/interactive-invites/lunar-silk/hero.webp",
+    "public/interactive-invites/lunar-silk/friends-drink.webp",
+    "public/interactive-invites/lunar-silk/gallery-1.webp",
   ];
   for (const rel of required) {
     assert.ok(readFileSync(join(root, rel)).byteLength > 1000, `${rel} missing or empty`);

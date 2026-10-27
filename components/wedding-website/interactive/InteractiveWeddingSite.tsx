@@ -24,23 +24,14 @@ import "./interactive-wedding.css";
 const FONT_HREF =
   "https://fonts.googleapis.com/css2?family=Alef:wght@400;700&family=Assistant:wght@300;400;600;700&family=Caveat:wght@400;600&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&family=Frank+Ruhl+Libre:wght@400;500;700&family=Great+Vibes&family=Heebo:wght@300;400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Noto+Serif+Hebrew:wght@300;400;600&family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Rubik:wght@300;400;500;600&display=swap";
 
-const NAV = [
-  { id: "hero", label: "ראשי" },
-  { id: "countdown", label: "ספירה" },
-  { id: "our-story", label: "סיפור" },
-  { id: "gallery", label: "גלריה" },
-  { id: "schedule", label: "לוח זמנים" },
-  { id: "location", label: "הגעה" },
-  { id: "rsvp", label: "אישור הגעה" },
-  { id: "faq", label: "שאלות" },
-];
-
 const LUNAR_ASSETS = {
   closed: "/interactive-invites/lunar-silk/envelope-photo.webp",
   card: "/interactive-invites/lunar-silk/invite-card.webp",
   friends: "/interactive-invites/lunar-silk/friends-drink.webp",
   proposal: "/interactive-invites/lunar-silk/proposal-art.webp",
 };
+
+const GALLERY_TILT = [-2.6, 2.2, -1.5, 2.8, -2.1];
 
 export default function InteractiveWeddingSite({
   themeId,
@@ -79,10 +70,13 @@ export default function InteractiveWeddingSite({
     DEMO.coupleNames.split(/[&ו]/)[1]?.trim()?.[0] || "ב"
   }`;
   const dateLabel = formatHebrewDate(DEMO.weddingDate);
-  const closedImage = themeId === "lunar-silk" ? LUNAR_ASSETS.closed : LUNAR_ASSETS.closed;
+  const closedImage = LUNAR_ASSETS.closed;
   const cardImage = theme.heroImage || LUNAR_ASSETS.card;
   const friendsArt = LUNAR_ASSETS.friends;
   const proposalArt = LUNAR_ASSETS.proposal;
+  const gallery = template.galleryImages?.length
+    ? template.galleryImages
+    : theme.galleryImages;
 
   return (
     <div className="iw-root wedding-website-root" style={cssVars} dir="rtl" lang="he" data-template={themeId}>
@@ -108,33 +102,22 @@ export default function InteractiveWeddingSite({
 
       {opened && (
         <div className="iw-column iw-grain">
-          <nav className="iw-nav" aria-label="ניווט הזמנה">
-            {NAV.map((item) => (
-              <a key={item.id} href={`#${item.id}`}>
-                {item.label}
-              </a>
-            ))}
-          </nav>
-
           <section id="hero" className="iw-hero">
             <WeddingMedia
               slot="hero"
-              src={template.heroImage}
+              src={template.heroImage || theme.heroImage}
               alt=""
               className="iw-hero-art"
+              placeholder={false}
             />
             <div className="iw-hero-fade" aria-hidden />
             <div className="iw-hero-copy">
-              <p className="iw-kicker">{DEMO.heroSubtitle ? "מתחתנים" : "מתחתנים"}</p>
-              <h1 className="iw-script text-5xl leading-none sm:text-6xl">{DEMO.coupleNames}</h1>
+              <p className="iw-kicker">מתחתנים</p>
+              <h1 className="iw-script iw-hero-names">{DEMO.coupleNames}</h1>
               <div className="iw-divider" />
-              <p className="iw-lede" style={{ marginBottom: "0.6rem" }}>
-                {DEMO.heroSubtitle}
-              </p>
-              <p className="iw-display text-xl">
-                {dateLabel}
-              </p>
-              <p className="mt-1 text-sm opacity-65">
+              <p className="iw-lede iw-hero-sub">{DEMO.heroSubtitle}</p>
+              <p className="iw-display iw-hero-date">{dateLabel}</p>
+              <p className="iw-hero-meta">
                 {DEMO.weddingTime} · {DEMO.venueName}
               </p>
               {showRsvp ? (
@@ -154,22 +137,18 @@ export default function InteractiveWeddingSite({
           <section id="countdown" className="iw-section text-center">
             <p className="iw-kicker">ספירה לאחור</p>
             <h2 className="iw-title">עד החתונה</h2>
-            <div className="iw-divider" />
-            <WeddingCountdownGrid className="mx-auto mt-2 grid max-w-md grid-cols-4 gap-2">
+            <div className="iw-ornament" aria-hidden>
+              <span />
+              <i />
+              <span />
+            </div>
+            <WeddingCountdownGrid className="iw-count-grid">
               {(u) => (
-                <div
-                  key={u.label}
-                  className="rounded-xl px-2 py-4"
-                  style={{
-                    background: "color-mix(in srgb, var(--iw-paper) 88%, white)",
-                    boxShadow: "0 14px 32px rgba(50,35,18,0.08)",
-                    border: "1px solid color-mix(in srgb, var(--iw-accent) 18%, transparent)",
-                  }}
-                >
-                  <div className="iw-display text-2xl font-semibold tabular-nums sm:text-3xl">
+                <div key={u.label} className="iw-count-cell">
+                  <div className="iw-display iw-count-value">
                     {String(u.value).padStart(2, "0")}
                   </div>
-                  <div className="mt-1 text-[11px] opacity-65">{u.label}</div>
+                  <div className="iw-count-label">{u.label}</div>
                 </div>
               )}
             </WeddingCountdownGrid>
@@ -203,9 +182,10 @@ export default function InteractiveWeddingSite({
             <figure className="iw-scrap mx-auto max-w-sm" style={{ transform: "rotate(-1.4deg)" }}>
               <WeddingMedia
                 slot="how-we-met"
-                src={template.galleryImages[0]}
+                src={gallery[0]}
                 alt=""
                 className="aspect-[4/5] w-full object-cover"
+                placeholder={false}
               />
             </figure>
             <p className="iw-lede mt-6">{DEMO.howWeMet}</p>
@@ -220,24 +200,22 @@ export default function InteractiveWeddingSite({
               <img src={proposalArt} alt="ההצעה" className="aspect-[4/3] w-full object-cover" loading="lazy" />
             </figure>
             <p className="iw-lede mt-6">{DEMO.proposalStory}</p>
-            <p className="iw-script mt-2 text-center text-2xl" style={{ color: "var(--iw-accent)" }}>
-              and she said YES
-            </p>
+            <p className="iw-script iw-yes">and she said YES</p>
           </section>
 
           <section id="gallery" className="iw-section">
             <p className="iw-kicker">רגעים</p>
             <h2 className="iw-title">גלריה</h2>
             <div className="iw-divider" />
-            <div className="mt-2 grid grid-cols-2 gap-4">
-              {template.galleryImages.map((src, i) => (
+            <div className="iw-gallery">
+              {gallery.map((src, i) => (
                 <figure
-                  key={src}
+                  key={`${src}-${i}`}
                   className="iw-scrap"
                   style={{
-                    transform: `rotate(${i % 2 === 0 ? -2.4 : 2.1}deg)`,
+                    transform: `rotate(${GALLERY_TILT[i % GALLERY_TILT.length]}deg)`,
                     gridColumn: i === 0 ? "span 2" : undefined,
-                    marginTop: i > 0 ? (i % 2 === 0 ? "0.35rem" : "1rem") : undefined,
+                    marginTop: i > 0 ? (i % 2 === 0 ? "0.2rem" : "1.1rem") : undefined,
                   }}
                 >
                   <WeddingMedia
@@ -246,6 +224,7 @@ export default function InteractiveWeddingSite({
                     alt=""
                     loading="lazy"
                     className={`w-full object-cover ${i === 0 ? "aspect-[16/10]" : "aspect-[4/5]"}`}
+                    placeholder={false}
                   />
                 </figure>
               ))}
@@ -256,22 +235,15 @@ export default function InteractiveWeddingSite({
             <p className="iw-kicker">פרטים</p>
             <h2 className="iw-title">פרטי האירוע</h2>
             <div className="iw-divider" />
-            <div className="mx-auto grid max-w-md gap-3">
+            <div className="iw-detail-list">
               {[
                 { label: "תאריך", value: dateLabel },
                 { label: "שעה", value: DEMO.weddingTime },
                 { label: "מיקום", value: DEMO.venueName },
               ].map((item) => (
-                <div
-                  key={item.label}
-                  className="rounded-2xl px-4 py-4"
-                  style={{
-                    background: "color-mix(in srgb, var(--iw-accent) 9%, var(--iw-paper))",
-                    boxShadow: "0 10px 28px rgba(50,35,18,0.06)",
-                  }}
-                >
-                  <div className="text-xs tracking-wide opacity-55">{item.label}</div>
-                  <div className="iw-display mt-1 text-lg">{item.value}</div>
+                <div key={item.label} className="iw-detail-row">
+                  <div className="iw-detail-label">{item.label}</div>
+                  <div className="iw-display iw-detail-value">{item.value}</div>
                 </div>
               ))}
             </div>
@@ -281,34 +253,16 @@ export default function InteractiveWeddingSite({
             <p className="iw-kicker">לוח האירועים</p>
             <h2 className="iw-title">סדר היום</h2>
             <div className="iw-divider" />
-            <ol className="relative mx-auto mt-2 max-w-md space-y-4">
-              <div
-                className="absolute start-4 top-2 bottom-2 w-px"
-                style={{ background: "linear-gradient(180deg, var(--iw-accent), transparent)" }}
-                aria-hidden
-              />
+            <ol className="iw-timeline">
+              <div className="iw-timeline-line" aria-hidden />
               {DEMO.schedule.map((item) => (
-                <li
-                  key={item.time}
-                  className="relative rounded-2xl py-3 pe-3 ps-10"
-                  style={{
-                    background: "color-mix(in srgb, var(--iw-paper) 92%, white)",
-                    boxShadow: "0 10px 26px rgba(50,35,18,0.06)",
-                  }}
-                >
-                  <span
-                    className="absolute start-[0.7rem] top-5 h-3 w-3 rounded-full"
-                    style={{
-                      background: "var(--iw-accent)",
-                      boxShadow: "0 0 0 4px color-mix(in srgb, var(--iw-accent) 20%, transparent)",
-                    }}
-                    aria-hidden
-                  />
-                  <div className="text-xs opacity-55" style={{ direction: "ltr" }}>
+                <li key={item.time} className="iw-timeline-item">
+                  <span className="iw-timeline-dot" aria-hidden />
+                  <div className="iw-timeline-time" style={{ direction: "ltr" }}>
                     {item.time}
                   </div>
-                  <div className="iw-display text-lg">{item.title}</div>
-                  {item.description ? <div className="text-sm opacity-70">{item.description}</div> : null}
+                  <div className="iw-display iw-timeline-title">{item.title}</div>
+                  {item.description ? <div className="iw-timeline-desc">{item.description}</div> : null}
                 </li>
               ))}
             </ol>
@@ -351,23 +305,21 @@ export default function InteractiveWeddingSite({
             <p className="iw-kicker">שאלות נפוצות</p>
             <h2 className="iw-title">כל מה שחשוב לדעת</h2>
             <div className="iw-divider" />
-            <div className="mx-auto max-w-md divide-y" style={{ borderColor: "color-mix(in srgb, var(--iw-ink) 10%, transparent)" }}>
+            <div className="iw-faq">
               {DEMO.faq.map((item, i) => {
                 const isOpen = openFaq === i;
                 return (
-                  <div key={item.question} className="py-3">
+                  <div key={item.question} className="iw-faq-item">
                     <button
                       type="button"
-                      className="flex w-full items-center justify-between gap-3 text-start"
+                      className="iw-faq-q"
                       aria-expanded={isOpen}
                       onClick={() => toggleFaq(i)}
                     >
-                      <span className="font-medium">{item.question}</span>
-                      <span aria-hidden style={{ color: "var(--iw-accent)" }}>
-                        {isOpen ? "−" : "+"}
-                      </span>
+                      <span>{item.question}</span>
+                      <span aria-hidden>{isOpen ? "−" : "+"}</span>
                     </button>
-                    {isOpen ? <p className="mt-2 text-sm leading-7 opacity-75">{item.answer}</p> : null}
+                    {isOpen ? <p className="iw-faq-a">{item.answer}</p> : null}
                   </div>
                 );
               })}

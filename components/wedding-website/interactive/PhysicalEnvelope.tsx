@@ -1,10 +1,8 @@
 "use client";
 
 /**
- * Premium stationery open:
- * - Closed look is a photoreal product photo (paper, ribbon, wax, sprig).
- * - On click: seal/ribbon break away, invitation card physically rises from
- *   the pocket with perspective, envelope drops away into the site.
+ * Photoreal closed stationery → invitation card rises from the pocket.
+ * No flat CSS flap/pocket mid-state (that read as PowerPoint shapes).
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -59,8 +57,8 @@ export default function PhysicalEnvelope({
     if (!root) return;
     const idle = gsap.timeline({ repeat: -1, yoyo: true });
     idle
-      .to(root.querySelector("[data-pe-closed]"), { y: -3, duration: 2.8, ease: "sine.inOut" }, 0)
-      .to(root.querySelector("[data-pe-hint-cta]"), { opacity: 0.45, duration: 1.5, ease: "sine.inOut" }, 0);
+      .to(root.querySelector("[data-pe-closed]"), { y: -4, duration: 3.2, ease: "sine.inOut" }, 0)
+      .to(root.querySelector("[data-pe-hint-cta]"), { opacity: 0.42, duration: 1.6, ease: "sine.inOut" }, 0);
     return () => {
       idle.kill();
     };
@@ -79,63 +77,81 @@ export default function PhysicalEnvelope({
     }
 
     const closed = root.querySelector<HTMLElement>("[data-pe-closed]");
-    const sealEl = root.querySelector<HTMLElement>("[data-pe-seal]");
-    const ribbonEl = root.querySelector<HTMLElement>("[data-pe-ribbon]");
     const card = root.querySelector<HTMLElement>("[data-pe-card]");
-    const flap = root.querySelector<HTMLElement>("[data-pe-flap]");
-    const pocket = root.querySelector<HTMLElement>("[data-pe-pocket]");
-    const stack = root.querySelector<HTMLElement>("[data-pe-stack]");
     const hint = root.querySelector<HTMLElement>("[data-pe-hint]");
+    const glow = root.querySelector<HTMLElement>("[data-pe-glow]");
 
-    gsap.killTweensOf([closed, sealEl, ribbonEl, card, flap, pocket, stack]);
+    gsap.killTweensOf([closed, card, hint, glow]);
 
     const tl = gsap.timeline({
       onComplete: () => {
-        gsap.to(root, { opacity: 0, duration: 0.65, ease: "power1.out", onComplete: finish });
+        gsap.to(root, {
+          opacity: 0,
+          duration: 0.75,
+          ease: "power1.out",
+          onComplete: finish,
+        });
       },
     });
 
-    tl.to(hint, { opacity: 0, y: 12, duration: 0.25 }, 0)
-      .set([sealEl, ribbonEl], { opacity: 1 }, 0)
-      .to(
-        sealEl,
-        { y: -42, scale: 0.5, rotate: -26, opacity: 0, duration: 0.55, ease: "back.in(1.9)" },
-        0.05
-      )
-      .to(
-        ribbonEl,
-        { scaleX: 1.18, y: 28, opacity: 0, filter: "blur(2px)", duration: 0.55, ease: "power2.in" },
-        0.1
-      )
-      .set(stack, { visibility: "visible" }, 0.28)
-      .fromTo(stack, { opacity: 0 }, { opacity: 1, duration: 0.28 }, 0.28)
-      .to(closed, { opacity: 0, scale: 0.985, duration: 0.45, ease: "power1.out" }, 0.3)
-      .to(flap, { rotateX: -168, duration: 1.05, ease: "power3.inOut" }, 0.38)
-      .to(
+    tl.to(hint, { opacity: 0, y: 18, duration: 0.28 }, 0)
+      .to(glow, { opacity: 0.55, duration: 0.45, ease: "power1.out" }, 0.05)
+      .set(card, { visibility: "visible" }, 0.12)
+      .fromTo(
         card,
         {
-          yPercent: -128,
-          rotateZ: -1.4,
-          scale: 1.05,
-          duration: 1.2,
+          yPercent: 42,
+          scale: 0.9,
+          opacity: 0.85,
+          rotateZ: -1.2,
+          filter: "brightness(0.92)",
+        },
+        {
+          yPercent: -22,
+          scale: 1.04,
+          opacity: 1,
+          rotateZ: 0,
+          filter: "brightness(1)",
+          duration: 1.35,
           ease: "power3.out",
         },
-        0.58
+        0.18
       )
-      .to(card, { rotateZ: 0, scale: 1.14, duration: 0.5, ease: "power2.out" }, 1.4)
-      .to([pocket, flap], { y: 110, opacity: 0, duration: 0.7, ease: "power2.in" }, 1.5)
+      .to(
+        closed,
+        {
+          y: 88,
+          scale: 0.94,
+          opacity: 0,
+          filter: "blur(2px)",
+          duration: 0.95,
+          ease: "power2.in",
+        },
+        0.42
+      )
       .to(
         card,
         {
-          scale: 1.4,
-          yPercent: -152,
-          opacity: 0.1,
-          filter: "blur(1.5px)",
-          duration: 0.7,
+          yPercent: -6,
+          scale: 1.1,
+          duration: 0.55,
+          ease: "power2.out",
+        },
+        1.25
+      )
+      .to(
+        card,
+        {
+          scale: 1.42,
+          yPercent: -48,
+          opacity: 0.08,
+          filter: "blur(2px)",
+          duration: 0.8,
           ease: "power2.inOut",
         },
-        1.8
-      );
+        1.75
+      )
+      .to(glow, { opacity: 0, duration: 0.5 }, 1.85);
   };
 
   return (
@@ -156,6 +172,8 @@ export default function PhysicalEnvelope({
         דלגו
       </button>
 
+      <div className="pe-glow" data-pe-glow aria-hidden />
+
       <div
         className="pe-stage"
         role="button"
@@ -169,40 +187,22 @@ export default function PhysicalEnvelope({
           }
         }}
       >
-        {/* Photoreal closed stationery */}
+        <div className="pe-rise-card" data-pe-card aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={cardImage} alt="" className="pe-rise-card-art" draggable={false} />
+          <div className="pe-rise-card-copy">
+            <p className="pe-card-kicker">מתחתנים</p>
+            <p className="pe-card-names">{coupleNames}</p>
+            <div className="pe-card-rule" />
+            <p className="pe-card-date">{dateLabel}</p>
+            <p className="pe-card-venue">{venueName}</p>
+            <span className="sr-only">{monogram}</span>
+          </div>
+        </div>
+
         <div className="pe-closed" data-pe-closed aria-hidden>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={closedImage} alt="" draggable={false} />
-        </div>
-
-        {/* Layered open stack */}
-        <div className="pe-stack" data-pe-stack aria-hidden>
-          <div className="pe-pocket" data-pe-pocket>
-            <div className="pe-paper-slab" />
-            <div className="pe-pocket-shade" />
-          </div>
-
-          <div className="pe-card" data-pe-card>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={cardImage} alt="" className="pe-card-art" draggable={false} />
-            <div className="pe-card-copy">
-              <p className="pe-card-kicker">מתחתנים</p>
-              <p className="pe-card-names">{coupleNames}</p>
-              <div className="pe-card-rule" />
-              <p className="pe-card-date">{dateLabel}</p>
-              <p className="pe-card-venue">{venueName}</p>
-            </div>
-          </div>
-
-          <div className="pe-flap" data-pe-flap>
-            <div className="pe-flap-face" />
-          </div>
-        </div>
-
-        {/* Breakaway overlays matched to the photo */}
-        <div className="pe-ribbon-overlay" data-pe-ribbon aria-hidden />
-        <div className="pe-seal-overlay" data-pe-seal aria-hidden>
-          <span>{monogram}</span>
         </div>
 
         <div className="pe-hint" data-pe-hint>

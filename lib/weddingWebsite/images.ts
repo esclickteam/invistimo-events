@@ -1,6 +1,5 @@
 import type { WeddingDemoContent, WeddingTemplate } from "@/types/weddingWebsite";
 
-const ALLOWED_IMAGE_HOST_RE = /^https:\/\//i;
 const CLOUDINARY_UPLOAD_MARKER = "/upload/";
 
 const BROKEN_UNSPLASH_REPLACEMENTS: Array<[RegExp, string]> = [
@@ -16,6 +15,11 @@ function cleanString(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+/** Same-origin public asset paths (e.g. /interactive-invites/...), not protocol-relative. */
+function isSameOriginAssetPath(url: string) {
+  return url.startsWith("/") && !url.startsWith("//") && !url.includes("\\");
+}
+
 export function repairWeddingImageUrl(value: unknown) {
   let url = cleanString(value);
   if (!url) return "";
@@ -28,9 +32,11 @@ export function repairWeddingImageUrl(value: unknown) {
 export function isAllowedWeddingImageUrl(value: unknown) {
   const url = cleanString(value);
   if (!url) return false;
-  if (!ALLOWED_IMAGE_HOST_RE.test(url)) return false;
   if (url.toLowerCase().startsWith("javascript:")) return false;
-  return true;
+  if (url.toLowerCase().startsWith("data:")) return false;
+  if (isSameOriginAssetPath(url)) return true;
+  if (/^https:\/\//i.test(url)) return true;
+  return false;
 }
 
 export function sanitizeWeddingImageUrl(value: unknown) {
