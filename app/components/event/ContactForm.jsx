@@ -87,7 +87,10 @@ export default function ContactForm({
       if (!res.ok || !data.success) throw new Error();
 
       setSuccess("הפנייה נשלחה בהצלחה! ניצור קשר לבדיקת התאמה וזמינות.");
-      trackPublicEvent("generate_lead", { method: "event_management_fit" });
+      trackPublicEvent("generate_lead", {
+        method: "event_management_fit",
+        page_path: window.location.pathname,
+      });
       setName("");
       setEmail("");
       setPhone("");
@@ -277,7 +280,11 @@ export default function ContactForm({
 
       <p className="mt-6 text-center text-sm text-[#7A6042]">
         או במייל ישיר: <strong>support@invistimo.com</strong> ·{" "}
-        <a className="font-bold underline-offset-2 hover:underline" href="https://wa.me/972555039072">
+        <a
+          className="font-bold underline-offset-2 hover:underline"
+          href="https://wa.me/972555039072"
+          data-placement="event_management"
+        >
           WhatsApp
         </a>
       </p>

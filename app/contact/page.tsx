@@ -156,7 +156,10 @@ export default function ContactPage() {
         throw new Error("שליחת ההודעה נכשלה");
       }
       setSubmitted(true);
-      trackPublicEvent("generate_lead", { method: "contact" });
+      trackPublicEvent("generate_lead", {
+        method: "contact",
+        page_path: window.location.pathname,
+      });
       setName("");
       setEmail("");
       setSubject("");
@@ -234,6 +237,7 @@ export default function ContactPage() {
                 href={WHATSAPP_URL}
                 target="_blank"
                 rel="noopener noreferrer"
+                data-placement="contact_hero"
                 className="group inline-flex min-h-11 items-center justify-center gap-2.5 rounded-full bg-[#2C2118] px-6 py-2.5 text-[15px] font-bold text-white transition hover:-translate-y-px hover:bg-[#3D2E22] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4A46A]"
               >
                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#25D366] text-white">
@@ -494,6 +498,7 @@ export default function ContactPage() {
                   href={WHATSAPP_URL}
                   target="_blank"
                   rel="noopener noreferrer"
+                  data-placement="contact_aside"
                   className="mt-4 inline-flex min-h-10 items-center gap-2 border-b border-[#2C2118] pb-0.5 text-sm font-bold text-[#2C2118] transition hover:border-[#C4A46A] hover:text-[#5A4330] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4A46A]"
                 >
                   <span className="inline-flex text-[#25D366]">

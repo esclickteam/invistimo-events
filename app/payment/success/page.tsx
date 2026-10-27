@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { trackPurchaseConversion } from "@/lib/seo/analytics";
 
 export default function PaymentSuccessPage() {
   const router = useRouter();
@@ -50,8 +51,12 @@ export default function PaymentSuccessPage() {
           }
 
           if (!cancelled) {
-  window.location.href = "/dashboard";
-}
+            await Promise.race([
+              trackPurchaseConversion(),
+              new Promise((resolve) => setTimeout(resolve, 1500)),
+            ]);
+          }
+          if (!cancelled) window.location.href = "/dashboard";
 
 
           return;

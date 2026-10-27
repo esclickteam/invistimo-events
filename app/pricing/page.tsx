@@ -202,7 +202,7 @@ function PackageCard({
         {selected ? "החבילה מסומנת לסיכום" : "סמנו חבילה זו לסיכום"}
       </button>
 
-      <OrderButton href={href} disabled={!quote.canOrder} />
+      <OrderButton href={href} disabled={!quote.canOrder} packageId={pkg.id} />
 
       <div className="mt-6 border-t border-[#E9D9C4] pt-5">
         <p className="mb-3 text-sm font-black text-[#3E2D20]">כלול בחבילה</p>
@@ -407,6 +407,8 @@ export default function PricingPage() {
                     href={buildWhatsappUrl(selectedQuote)}
                     target="_blank"
                     rel="noopener noreferrer"
+                    data-package-id={selectedQuote.packageId}
+                    data-placement="package_summary"
                     className="pricing-gold-cta mt-4 inline-flex min-h-12 items-center justify-center gap-2 rounded-[18px] px-6 py-3 text-sm font-black text-white"
                   >
                     <WhatsAppBrandIcon />
@@ -542,7 +544,15 @@ export default function PricingPage() {
   );
 }
 
-function OrderButton({ href, disabled }: { href: string; disabled: boolean }) {
+function OrderButton({
+  href,
+  disabled,
+  packageId,
+}: {
+  href: string;
+  disabled: boolean;
+  packageId: PackageId;
+}) {
   if (!disabled && href) {
     return (
       <a
@@ -550,6 +560,8 @@ function OrderButton({ href, disabled }: { href: string; disabled: boolean }) {
         target="_blank"
         rel="noopener noreferrer"
         data-testid="whatsapp-cta"
+        data-package-id={packageId}
+        data-placement="package_card"
         className={`${ctaClassName} pricing-gold-cta mt-5 text-white`}
       >
         <WhatsAppBrandIcon />

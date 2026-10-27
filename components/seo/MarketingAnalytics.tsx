@@ -7,8 +7,10 @@ import {
   GA_MEASUREMENT_ID,
   aiTrafficLabel,
   analyticsAllowed,
+  classifyPublicClick,
   contentGroup,
   isGaMeasurementId,
+  trackPublicEvent,
 } from "@/lib/seo/analytics";
 import WebVitalsReporter from "@/components/seo/WebVitalsReporter";
 
@@ -35,6 +37,32 @@ function MarketingAnalyticsInner() {
     seenAi.current = `${source}:${pathname}`;
     window.gtag("event", "ai_referral", { ai_source: source, page_path: pathname });
   }, [enabled, pathname, searchParams]);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const onClick = (event: MouseEvent) => {
+      if (event.type === "auxclick" && event.button === 0) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const link = target.closest("a[href]");
+      if (!(link instanceof HTMLAnchorElement)) return;
+      if (link.hasAttribute("data-conversion-tracked")) return;
+      const decision = classifyPublicClick(link.getAttribute("href") || "", pathname, {
+        packageId: link.getAttribute("data-package-id") || "",
+        placement: link.getAttribute("data-placement") || "",
+      });
+      if (!decision) return;
+      trackPublicEvent(decision.name, decision.params);
+    };
+
+    document.addEventListener("click", onClick);
+    document.addEventListener("auxclick", onClick);
+    return () => {
+      document.removeEventListener("click", onClick);
+      document.removeEventListener("auxclick", onClick);
+    };
+  }, [enabled, pathname]);
 
   if (!enabled) return null;
 

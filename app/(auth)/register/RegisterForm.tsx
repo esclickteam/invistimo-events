@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { trackPublicEvent } from "@/lib/seo/analytics";
+import { trackSignupConversion } from "@/lib/seo/analytics";
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
@@ -148,9 +148,7 @@ function RegisterFormInner() {
         return;
       }
 
-      trackPublicEvent("sign_up", {
-        method: isVenueClientRegistration ? "venue" : "site",
-      });
+      trackSignupConversion(isVenueClientRegistration ? "venue" : "site");
 
       const userId = String(registerData?.userId || "").trim();
 

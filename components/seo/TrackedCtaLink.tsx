@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { trackPublicEvent } from "@/lib/seo/analytics";
+import { classifyPublicClick, trackPublicEvent } from "@/lib/seo/analytics";
 
 type Props = {
   href: string;
@@ -15,7 +15,15 @@ export default function TrackedCtaLink({ href, className, children, location }: 
     <Link
       href={href}
       className={className}
-      onClick={() => trackPublicEvent("select_cta", { location, href })}
+      data-conversion-tracked="1"
+      onClick={() => {
+        const decision = classifyPublicClick(href, window.location.pathname, { placement: location });
+        if (decision) {
+          trackPublicEvent(decision.name, decision.params);
+          return;
+        }
+        trackPublicEvent("select_cta", { location, destination: href });
+      }}
     >
       {children}
     </Link>

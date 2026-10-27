@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { trackPublicEvent } from "@/lib/seo/analytics";
 
 export default function SupportBot({ onClose }) {
   const whatsappNumber = "972555039072";
@@ -72,12 +73,13 @@ export default function SupportBot({ onClose }) {
     }
 
     const whatsappWindow = window.open("about:blank", "_blank");
+    let inquiryTracked = false;
 
     try {
       setOpeningWhatsapp(true);
       setFormError("");
 
-      await fetch("/api/public/support-whatsapp-lead", {
+      const leadRes = await fetch("/api/public/support-whatsapp-lead", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -96,6 +98,19 @@ export default function SupportBot({ onClose }) {
             typeof navigator !== "undefined" ? navigator.userAgent : "",
         }),
       });
+      const leadData = await leadRes.json().catch(() => ({}));
+      if (leadRes.ok && leadData?.success === true) {
+        trackPublicEvent("generate_lead", {
+          method: "support_widget",
+          page_path: window.location.pathname,
+        });
+      } else {
+        trackPublicEvent("click_whatsapp", {
+          placement: "support_widget",
+          page_path: window.location.pathname,
+        });
+      }
+      inquiryTracked = true;
 
       const whatsappUrl = buildWhatsappUrl();
 
@@ -110,6 +125,12 @@ export default function SupportBot({ onClose }) {
       }
     } catch (error) {
       console.error("OPEN WHATSAPP SUPPORT LEAD ERROR:", error);
+      if (!inquiryTracked) {
+        trackPublicEvent("click_whatsapp", {
+          placement: "support_widget",
+          page_path: window.location.pathname,
+        });
+      }
 
       const fallbackUrl = buildWhatsappUrl();
 
