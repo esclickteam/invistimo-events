@@ -4,8 +4,10 @@ import db from "@/lib/db";
 import SalesDocument from "@/models/SalesDocument";
 import {
   QUOTE_TERMS_VERSION,
+  buildAgreementTermsUpdate,
   buildQuoteTermsUpdate,
   withCurrentQuoteTerms,
+  withRepairedAgreementTerms,
 } from "@/lib/quoteCustomerTerms";
 import { sanitizeSalesDocumentForCustomer } from "@/lib/salesDocumentTerms";
 import { editorView } from "@/lib/adminQuoteWorkflow";
@@ -151,14 +153,21 @@ function shouldMarkAsViewed(req: NextRequest) {
 function normalizeDocumentForClient(document: any) {
   if (!document) return null;
 
+  const typed = {
+    ...document,
+    _id: document._id ? String(document._id) : "",
+    createdByUserId: document.createdByUserId
+      ? String(document.createdByUserId)
+      : null,
+  };
+
+  const withTerms =
+    String(typed.type || "") === "agreement"
+      ? withRepairedAgreementTerms(typed)
+      : withCurrentQuoteTerms(typed);
+
   const normalized = sanitizeSalesDocumentForCustomer(
-    withCurrentQuoteTerms({
-      ...document,
-      _id: document._id ? String(document._id) : "",
-      createdByUserId: document.createdByUserId
-        ? String(document.createdByUserId)
-        : null,
-    }),
+    withTerms,
   ) as Record<string, unknown> | null;
 
   if (normalized) {
@@ -243,6 +252,23 @@ export async function GET(req: NextRequest, context: RouteContext) {
           );
         } catch (error) {
           console.error("QUOTE TERMS SYNC FAILED:", error);
+        }
+      }
+    }
+
+    if (documentType === "agreement") {
+      const agreementUpdate = buildAgreementTermsUpdate(
+        document as Record<string, unknown>,
+      );
+      if (agreementUpdate) {
+        try {
+          await SalesDocument.updateOne(
+            { token, type: "agreement", status: { $ne: "signed" } },
+            { $set: agreementUpdate },
+          );
+          Object.assign(document as object, agreementUpdate);
+        } catch (error) {
+          console.error("AGREEMENT TERMS REPAIR FAILED:", error);
         }
       }
     }

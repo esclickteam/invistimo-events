@@ -6,8 +6,11 @@ import {
   QUOTE_TERMS_VERSION,
   VENUE_SEATING_QUOTE_TERM_SECTIONS,
   buildAgreementDocumentTerms,
+  buildAgreementTermsUpdate,
   buildQuoteTermsUpdate,
+  needsAgreementTermsRepair,
   withCurrentQuoteTerms,
+  withRepairedAgreementTerms,
 } from "../../lib/quoteCustomerTerms";
 import { sanitizeSalesDocumentForCustomer } from "../../lib/salesDocumentTerms";
 import {
@@ -307,6 +310,92 @@ test("agreement terms omit seating legal clauses without venue seating but still
     terms.additionalTerms.some(
       (section) => section.title === ACCOUNT_USAGE_AND_DELETION_SECTION.title,
     ),
+    true,
+  );
+});
+
+test("an unsigned agreement that lost legal terms is repaired with seating clauses and account deletion", () => {
+  const broken = {
+    type: "agreement",
+    status: "sent",
+    engagementTerms: [],
+    paymentTerms: [],
+    cancellationTerms: [],
+    additionalTerms: [],
+    upsells: [
+      {
+        key: "venueSeating",
+        title: "הושבה באולם",
+        customerDetails: [{ title: "שירות הושבה באולם", items: ["תיאור שירות."] }],
+      },
+    ],
+  };
+
+  assert.equal(needsAgreementTermsRepair(broken), true);
+  const repaired = withRepairedAgreementTerms(broken);
+  assert.equal(
+    repaired.additionalTerms.some(
+      (section: { title: string }) =>
+        section.title === ACCOUNT_USAGE_AND_DELETION_SECTION.title,
+    ),
+    true,
+  );
+  assert.equal(
+    repaired.additionalTerms.some(
+      (section: { title: string }) => section.title === "אחריות למפת ההושבה",
+    ),
+    true,
+  );
+  assert.equal(
+    repaired.additionalTerms.some(
+      (section: { title: string }) => section.title === "הארכת שעות השירות",
+    ),
+    true,
+  );
+  assert.equal(
+    repaired.engagementTerms.some(
+      (section: { title: string }) => section.title === "תנאי התקשרות",
+    ),
+    true,
+  );
+  assert.equal(
+    JSON.stringify(repaired.upsells).includes("אחריות למפת ההושבה"),
+    false,
+  );
+
+  const update = buildAgreementTermsUpdate(broken);
+  assert.ok(update);
+  assert.equal(
+    (update?.additionalTerms as Array<{ title: string }>).some(
+      (section) => section.title === ACCOUNT_USAGE_AND_DELETION_SECTION.title,
+    ),
+    true,
+  );
+
+  const signed = { ...broken, status: "signed" };
+  assert.equal(needsAgreementTermsRepair(signed), false);
+  assert.equal(withRepairedAgreementTerms(signed), signed);
+});
+
+test("empty commercial quote terms still rebuild a full agreement payload", () => {
+  const terms = buildAgreementDocumentTerms({
+    upsells: [{ key: "venueSeating" }],
+    engagementTerms: [],
+    cancellationTerms: [],
+    additionalTerms: [],
+    paymentTerms: [{ title: "רשומות נוספות", items: ["10 ₪"] }],
+  });
+
+  assert.equal(terms.engagementTerms.length > 0, true);
+  assert.equal(terms.cancellationTerms.length > 0, true);
+  assert.equal(
+    terms.additionalTerms.some(
+      (section) => section.title === ACCOUNT_USAGE_AND_DELETION_SECTION.title,
+    ),
+    true,
+  );
+  assert.equal(
+    terms.additionalTerms.some((section) => section.title === "דחייה בתחילת שירות ההושבה"),
     true,
   );
 });

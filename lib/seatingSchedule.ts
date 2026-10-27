@@ -71,7 +71,10 @@ export function orderIncludesVenueSeating(upsells: unknown) {
 
   return upsells.some((upsell) => {
     if (!upsell || typeof upsell !== "object") return false;
-    return String((upsell as { key?: unknown }).key || "") === "venueSeating";
+    const record = upsell as { key?: unknown; title?: unknown };
+    const key = String(record.key || "");
+    const title = String(record.title || "").trim();
+    return key === "venueSeating" || title === "הושבה באולם";
   });
 }
 

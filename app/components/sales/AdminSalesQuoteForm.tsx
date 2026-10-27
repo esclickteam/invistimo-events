@@ -1943,6 +1943,7 @@ export default function AdminSalesQuoteForm({
       let token = "";
       let status = "draft";
       let expiresAt = quoteExpiresAt;
+      let saveMessage = "";
 
       if (mode === "edit" && quoteToken) {
         if (documentType === "quote") {
@@ -1964,8 +1965,13 @@ export default function AdminSalesQuoteForm({
           url = data?.document?.url || `/sales-documents/${quoteToken}`;
           status = data?.document?.status || editMeta.publishedStatus || "draft";
           expiresAt = data?.document?.quote?.expiresAt || quoteExpiresAt;
-          if (data?.hasUnpublishedRevision) {
-            setEditMeta((current) => ({ ...current, hasUnpublishedRevision: true }));
+          setEditMeta((current) => ({
+            ...current,
+            hasUnpublishedRevision: Boolean(data?.hasUnpublishedRevision),
+            publishedStatus: String(data?.document?.status || current.publishedStatus || "draft"),
+          }));
+          if (typeof data?.message === "string" && data.message.trim()) {
+            saveMessage = data.message;
           }
         } else {
           const response = await fetch(
@@ -2057,9 +2063,10 @@ export default function AdminSalesQuoteForm({
       if (action === "save") {
         setGeneratedDocument(nextDocument);
         setDocumentSuccess(
-          documentType === "quote"
-            ? "ההצעה נשמרה בלי שליחת SMS"
-            : "ההסכם נשמר בלי שליחת SMS",
+          saveMessage ||
+            (documentType === "quote"
+              ? "ההצעה נשמרה בלי שליחת SMS"
+              : "ההסכם נשמר בלי שליחת SMS"),
         );
         return true;
       }

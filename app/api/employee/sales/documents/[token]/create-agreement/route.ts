@@ -10,7 +10,9 @@ import {
   withCurrentQuoteTerms,
 } from "@/lib/quoteCustomerTerms";
 import {
+  editorView,
   isSignedAgreement,
+  publishPendingRevision,
   saveDocumentEdit,
 } from "@/lib/adminQuoteWorkflow";
 import SalesDocument from "@/models/SalesDocument";
@@ -97,12 +99,13 @@ export async function POST(
         ? (body as Record<string, unknown>)
         : {};
     const createNew = payload.createNew === true;
+    // Include unpublished quote edits so agreement creation matches the admin form.
     const source = withCurrentQuoteTerms(
-      quote.toObject() as Record<string, unknown>,
+      editorView(quote.toObject() as Record<string, unknown>),
     );
     const hasEditedPayload =
       payload.selectedPackage && typeof payload.selectedPackage === "object";
-    const content = hasEditedPayload ? payload : source;
+    const content = hasEditedPayload ? { ...payload } : { ...source };
     if (content.selectedPackage && typeof content.selectedPackage === "object") {
       const pkg = content.selectedPackage as Record<string, unknown>;
       if ((pkg.price === null || pkg.price === undefined) && pkg.actualPrice != null) {
@@ -120,6 +123,33 @@ export async function POST(
           Number(raw.grossAmountBeforeDiscount ?? raw.originalGrossAmount ?? gross) || 0,
       };
     }
+
+    const pickArray = (value: unknown, fallback: unknown): unknown[] =>
+      Array.isArray(value)
+        ? value
+        : Array.isArray(fallback)
+          ? fallback
+          : [];
+
+    const agreementUpsells = stripLegalTermsFromUpsells(
+      pickArray(content.upsells, pickArray(source.upsells, quote.upsells)),
+    );
+    // Always rebuild agreement legal terms — never copy empty commercial-only quote terms.
+    const agreementTerms = buildAgreementDocumentTerms({
+      upsells: agreementUpsells,
+      paymentTerms: pickArray(
+        content.paymentTerms,
+        pickArray(source.paymentTerms, quote.paymentTerms),
+      ),
+      engagementTerms: hasEditedPayload ? content.engagementTerms : undefined,
+      cancellationTerms: hasEditedPayload ? content.cancellationTerms : undefined,
+      additionalTerms: hasEditedPayload ? content.additionalTerms : undefined,
+    });
+    content.upsells = agreementUpsells;
+    content.engagementTerms = agreementTerms.engagementTerms;
+    content.paymentTerms = agreementTerms.paymentTerms;
+    content.cancellationTerms = agreementTerms.cancellationTerms;
+    content.additionalTerms = agreementTerms.additionalTerms;
 
     const existing = await SalesDocument.findOne({
       type: "agreement",
@@ -152,8 +182,18 @@ export async function POST(
         );
       }
       if (decision.mode === "revision") {
-        existing.set("draftRevision", decision.draftRevision);
-        existing.markModified("draftRevision");
+        const published = publishPendingRevision(
+          {
+            ...(existing.toObject() as Record<string, unknown>),
+            draftRevision: decision.draftRevision,
+          },
+          auth.userId,
+        );
+        for (const [key, value] of Object.entries(published.doc)) {
+          if (key === "_id" || key === "token" || key === "type") continue;
+          existing.set(key, value);
+          existing.markModified(key);
+        }
       } else {
         for (const [key, value] of Object.entries(decision.apply)) {
           if (key === "savedAt" || key === "savedByUserId") continue;
@@ -161,6 +201,18 @@ export async function POST(
           existing.markModified(key);
         }
       }
+      // Force rebuilt legal terms onto the live agreement document.
+      existing.set("upsells", agreementUpsells);
+      existing.set("engagementTerms", agreementTerms.engagementTerms);
+      existing.set("paymentTerms", agreementTerms.paymentTerms);
+      existing.set("cancellationTerms", agreementTerms.cancellationTerms);
+      existing.set("additionalTerms", agreementTerms.additionalTerms);
+      existing.set("quoteTermsVersion", QUOTE_TERMS_VERSION);
+      existing.markModified("upsells");
+      existing.markModified("engagementTerms");
+      existing.markModified("paymentTerms");
+      existing.markModified("cancellationTerms");
+      existing.markModified("additionalTerms");
       await existing.save();
       quote.set("linkedAgreementToken", existing.token);
       await quote.save();
@@ -175,29 +227,6 @@ export async function POST(
 
     const token = await createUniqueToken();
     const url = `${baseUrl(req)}/sales-documents/${token}`;
-    const pickArray = (value: unknown, fallback: unknown): unknown[] =>
-      Array.isArray(value)
-        ? value
-        : Array.isArray(fallback)
-          ? fallback
-          : [];
-
-    const agreementUpsells = stripLegalTermsFromUpsells(
-      pickArray(
-        content.upsells,
-        pickArray(source.upsells, quote.upsells),
-      ),
-    );
-    const agreementTerms = buildAgreementDocumentTerms({
-      upsells: agreementUpsells,
-      paymentTerms: pickArray(
-        content.paymentTerms,
-        pickArray(source.paymentTerms, quote.paymentTerms),
-      ),
-      engagementTerms: content.engagementTerms,
-      cancellationTerms: content.cancellationTerms,
-      additionalTerms: content.additionalTerms,
-    });
 
     const editedClient =
       content.client && typeof content.client === "object"

@@ -184,6 +184,61 @@ test("saving a sent quote keeps the published copy and does not send SMS", () =>
   assert.equal(withDraft.sms, undefined);
 });
 
+test("a later partial edit merges into the existing draft revision instead of dropping builderState", () => {
+  const first = saveDocumentEdit(
+    storedQuote,
+    {
+      selectedPackage: { ...storedQuote.selectedPackage, price: 5200 },
+      builderState: {
+        ...storedQuote.builderState,
+        adminPackagePriceOverride: 5200,
+      },
+    },
+    "admin-1",
+  );
+  assert.equal(first.ok, true);
+  if (!first.ok || first.mode !== "revision") return;
+
+  const second = saveDocumentEdit(
+    { ...storedQuote, draftRevision: first.draftRevision },
+    {
+      client: { fullName: "נועה מעודכנת", email: "n@example.com", phone: "0501111111" },
+    },
+    "admin-2",
+  );
+  assert.equal(second.ok, true);
+  if (!second.ok || second.mode !== "revision") return;
+
+  assert.equal(
+    (second.draftRevision.selectedPackage as { price?: number }).price,
+    5200,
+  );
+  assert.equal(
+    (second.draftRevision.builderState as { adminPackagePriceOverride?: number })
+      .adminPackagePriceOverride,
+    5200,
+  );
+  assert.equal(
+    (second.draftRevision.client as { fullName?: string }).fullName,
+    "נועה מעודכנת",
+  );
+
+  const viewed = editorView({
+    ...storedQuote,
+    draftRevision: second.draftRevision,
+  });
+  assert.equal((viewed.client as { fullName?: string }).fullName, "נועה מעודכנת");
+  assert.equal((viewed.selectedPackage as { price?: number }).price, 5200);
+
+  const reloaded = hydrateAdminQuoteForm({
+    ...storedQuote,
+    draftRevision: second.draftRevision,
+  });
+  // Full admin saves keep builderState; hydrate prefers it for package/price overrides.
+  assert.equal(reloaded.adminPackagePriceOverride, 5200);
+  assert.equal(reloaded.selectedUpsells.venueSeating, true);
+});
+
 test("explicit publish archives the sent copy and then a quote SMS is separate from an agreement", () => {
   const draft = saveDocumentEdit(
     storedQuote,
