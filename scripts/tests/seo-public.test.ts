@@ -348,10 +348,27 @@ test("pillar clusters do not assign one URL to two topics and answer-first cover
 });
 
 test("FAQ accordion keeps answers in the HTML even when collapsed", () => {
-  const faq = read("app/components/FAQAccordion.jsx");
-  assert.doesNotMatch(faq, /isOpen\s*&&/);
-  assert.match(faq, /hidden/);
+  const faq = read("app/faq/components/FaqKnowledgeCenter.tsx");
+  assert.match(faq, /: "hidden"/);
   assert.match(faq, /item\.a/);
+  assert.match(faq, /Answers stay in the DOM/);
+});
+
+test("FAQ knowledge center has stable ids and matching schema answers", async () => {
+  const { ALL_FAQ_ITEMS, allFaqItems, FAQ_CATEGORIES } = await import(
+    "../../lib/seo/faq/index.ts"
+  );
+  assert.ok(ALL_FAQ_ITEMS.length >= 100);
+  assert.ok(ALL_FAQ_ITEMS.length <= 200);
+  assert.equal(FAQ_CATEGORIES.length, 13);
+  const ids = new Set(ALL_FAQ_ITEMS.map((item) => item.id));
+  assert.equal(ids.size, ALL_FAQ_ITEMS.length);
+  const schema = allFaqItems();
+  assert.equal(schema.length, ALL_FAQ_ITEMS.length);
+  for (let i = 0; i < schema.length; i++) {
+    assert.equal(schema[i].q, ALL_FAQ_ITEMS[i].q);
+    assert.equal(schema[i].a, ALL_FAQ_ITEMS[i].a);
+  }
 });
 
 test("wedding demo templates are explicitly noindex", () => {

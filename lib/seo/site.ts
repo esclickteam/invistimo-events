@@ -3,7 +3,7 @@ import { resolveAppEnv } from "@/lib/env/appEnv";
 
 export const SITE_URL = "https://www.invistimo.com";
 export const SITE_NAME = "Invistimo";
-export const CONTENT_UPDATED = new Date("2026-10-26T17:45:00.000Z");
+export const CONTENT_UPDATED = new Date("2026-10-27T10:00:00.000Z");
 
 /** Preview/Staging must not claim indexability in HTML (align with Vercel x-robots-tag). */
 export function defaultPublicIndexable() {
@@ -198,11 +198,11 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
   },
   {
     path: "/faq",
-    title: "שאלות ותשובות על אישורי הגעה | Invistimo",
+    title: "שאלות ותשובות על אישורי הגעה, הושבה והזמנות | Invistimo",
     description:
-      "תשובות על אישורי הגעה, וואטסאפ, הזמנות דיגיטליות, הושבה, חבילות ותמיכה במערכת Invistimo.",
+      "כל התשובות על שירותי Invistimo: אישורי הגעה, הזמנות דיגיטליות, סידורי הושבה, WhatsApp, QR, מחירים וניהול אירועים. מדריכים והסברים במקום אחד.",
     changeFrequency: "monthly",
-    priority: 0.75,
+    priority: 0.8,
   },
   {
     path: "/info/about",
