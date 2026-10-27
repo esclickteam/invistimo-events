@@ -167,10 +167,12 @@ function normalizeDocumentForClient(document: any) {
       ? withRepairedAgreementTerms(typed)
       : withCurrentQuoteTerms(typed);
 
-  const withServiceDetails = {
-    ...withTerms,
-    upsells: ensureVenueSeatingServiceDetails(withTerms.upsells),
-  };
+  const withServiceDetails = Array.isArray(withTerms.upsells)
+    ? {
+        ...withTerms,
+        upsells: ensureVenueSeatingServiceDetails(withTerms.upsells),
+      }
+    : withTerms;
 
   const normalized = sanitizeSalesDocumentForCustomer(
     withServiceDetails,
