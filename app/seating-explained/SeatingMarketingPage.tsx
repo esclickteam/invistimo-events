@@ -692,6 +692,7 @@ export default function SeatingMarketingPage() {
               href={LINKS.staffWhatsapp}
               target="_blank"
               rel="noopener noreferrer"
+              data-placement="seating_staff"
               className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/80 px-7 py-3.5 text-base font-black !text-[#2C241C] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
             >
               לקבלת הצעת מחיר לצוותי הושבה

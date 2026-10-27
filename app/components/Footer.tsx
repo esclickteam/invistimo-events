@@ -25,6 +25,7 @@ function FooterAnchor({
         href={link.href}
         target="_blank"
         rel="noopener noreferrer"
+        data-placement="footer"
         className={className}
       >
         {link.label}
@@ -33,7 +34,7 @@ function FooterAnchor({
   }
 
   return (
-    <Link href={link.href} className={className}>
+    <Link href={link.href} className={className} data-placement="footer">
       {link.label}
     </Link>
   );
