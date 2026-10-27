@@ -15,6 +15,7 @@ import {
   describeDealGap,
   editorView,
   isSignedAgreement,
+  publishPendingRevision,
   saveDocumentEdit,
   userLinkStatus,
 } from "@/lib/adminQuoteWorkflow";
@@ -118,6 +119,36 @@ export async function PATCH(
         );
       }
       if (decision.mode === "revision") {
+        const adminFullSave =
+          body.builderState && typeof body.builderState === "object";
+
+        // Full admin-form saves publish immediately so edit behaves like create:
+        // the customer link shows the saved commercials without requiring SMS.
+        // Partial edits still stay as an unpublished revision until SMS/publish.
+        if (adminFullSave) {
+          const published = publishPendingRevision(
+            {
+              ...(doc.toObject() as Record<string, unknown>),
+              draftRevision: decision.draftRevision,
+            },
+            String(auth.userId),
+          );
+          for (const [key, value] of Object.entries(published.doc)) {
+            if (key === "_id" || key === "token" || key === "type") continue;
+            (doc as any)[key] = value;
+            doc.markModified(key);
+          }
+          (doc as any).draftRevision = null;
+          doc.markModified("draftRevision");
+          await doc.save();
+          return NextResponse.json({
+            success: true,
+            hasUnpublishedRevision: false,
+            document: editorView(doc.toObject() as Record<string, unknown>),
+            message: "ההצעה עודכנה ונשמרה. הקישור ללקוח מציג את הנוסח המעודכן.",
+          });
+        }
+
         (doc as any).draftRevision = decision.draftRevision;
         doc.markModified("draftRevision");
         await doc.save();

@@ -21,8 +21,9 @@ const times = {
   teamArrivalTime: "18:30",
 };
 
-test("venue seating is detected only by the physical seating upsell", () => {
+test("venue seating is detected by key or legacy Hebrew title", () => {
   assert.equal(orderIncludesVenueSeating([{ key: "venueSeating" }]), true);
+  assert.equal(orderIncludesVenueSeating([{ title: "הושבה באולם" }]), true);
   assert.equal(orderIncludesVenueSeating([{ key: "digitalSeating" }]), false);
   assert.equal(orderIncludesVenueSeating([]), false);
 });

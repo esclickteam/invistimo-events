@@ -388,9 +388,83 @@ export function stripLegalTermsFromUpsells(upsells: unknown): unknown[] {
   return upsells.map((upsell) => syncUpsellCommercial(upsell));
 }
 
+function agreementHasRequiredLegalTerms(document: Record<string, unknown>) {
+  const engagement = asSections(document.engagementTerms);
+  const cancellation = asSections(document.cancellationTerms);
+  const additional = asSections(document.additionalTerms);
+  const hasVenueSeating = orderIncludesVenueSeating(document.upsells);
+
+  const hasEngagement = engagement.some((section) => section.title === "תנאי התקשרות");
+  const hasCancellation = cancellation.some((section) => section.title === "תנאי ביטול");
+  const hasAccountDeletion = additional.some(
+    (section) => section.title === ACCOUNT_USAGE_AND_DELETION_SECTION.title,
+  );
+  const hasSeatingLegal =
+    !hasVenueSeating ||
+    VENUE_SEATING_AGREEMENT_TERM_SECTIONS.every((section) =>
+      additional.some((existing) => existing.title === section.title),
+    );
+
+  return hasEngagement && hasCancellation && hasAccountDeletion && hasSeatingLegal;
+}
+
+/** Unsigned agreements that lost legal terms after quote commercialization can be repaired. */
+export function needsAgreementTermsRepair(document: Record<string, unknown>) {
+  if (String(document.type || "") !== "agreement") return false;
+  const status = String(document.status || "");
+  if (status === "signed") return false;
+  if (document.signedAt) return false;
+  const signature = document.signature;
+  const agreement = document.agreement;
+  if (signature && typeof signature === "object" && !Array.isArray(signature)) {
+    if ((signature as { signedAt?: unknown }).signedAt) return false;
+  }
+  if (agreement && typeof agreement === "object" && !Array.isArray(agreement)) {
+    if ((agreement as { signedAt?: unknown }).signedAt) return false;
+  }
+  return !agreementHasRequiredLegalTerms(document);
+}
+
+export function withRepairedAgreementTerms<T extends Record<string, unknown>>(
+  document: T,
+): T {
+  if (!needsAgreementTermsRepair(document)) return document;
+
+  const upsells = stripLegalTermsFromUpsells(document.upsells);
+  const terms = buildAgreementDocumentTerms({
+    upsells,
+    paymentTerms: document.paymentTerms,
+    engagementTerms: document.engagementTerms,
+    cancellationTerms: document.cancellationTerms,
+    additionalTerms: document.additionalTerms,
+  });
+
+  return {
+    ...document,
+    upsells,
+    engagementTerms: terms.engagementTerms,
+    paymentTerms: terms.paymentTerms,
+    cancellationTerms: terms.cancellationTerms,
+    additionalTerms: terms.additionalTerms,
+  };
+}
+
+export function buildAgreementTermsUpdate(document: Record<string, unknown>) {
+  if (!needsAgreementTermsRepair(document)) return null;
+  const repaired = withRepairedAgreementTerms(document);
+  return {
+    upsells: repaired.upsells,
+    engagementTerms: repaired.engagementTerms,
+    paymentTerms: repaired.paymentTerms,
+    cancellationTerms: repaired.cancellationTerms,
+    additionalTerms: repaired.additionalTerms,
+    quoteTermsVersion: QUOTE_TERMS_VERSION,
+  };
+}
+
 /**
  * Quotes stay commercial-only: service details + pricing notes, no legal clauses.
- * Agreements are left untouched (frozen stored copy).
+ * Agreements are left untouched here (use withRepairedAgreementTerms for unsigned repair).
  */
 export function withCurrentQuoteTerms<T extends Record<string, unknown>>(document: T): T {
   if (String(document.type || "") !== "quote") return document;

@@ -157,10 +157,15 @@ export function saveDocumentEdit(
   patch.savedByUserId = actorId;
 
   if (quoteWasSent(doc.status)) {
+    const previousRevision = record(doc.draftRevision);
     return {
       ok: true as const,
       mode: "revision" as const,
-      draftRevision: patch,
+      // Merge so a later partial save cannot drop builderState / terms from an earlier edit.
+      draftRevision: {
+        ...previousRevision,
+        ...patch,
+      },
     };
   }
 
@@ -334,8 +339,21 @@ export function hydrateAdminQuoteForm(source: Record<string, unknown>): AdminQuo
   const view = editorView(source);
   if (isBuilderState(view.builderState)) {
     const state = view.builderState;
+    const client = record(view.client);
+    const event = record(view.event);
+    const schedule = scheduleTimes(view.seatingSchedule);
     return {
       ...state,
+      // Prefer commercial fields from the document/revision over stale builder copy.
+      clientName: clean(client.fullName) || state.clientName,
+      clientEmail: clean(client.email) || state.clientEmail,
+      clientPhone: clean(client.phone) || state.clientPhone,
+      customerIdNumber: clean(client.idNumber) || state.customerIdNumber,
+      clientAddress: clean(client.address) || state.clientAddress,
+      eventName: clean(event.name) || state.eventName,
+      eventDate: clean(event.date) || state.eventDate,
+      eventCity: clean(event.city) || state.eventCity,
+      venueName: clean(event.venueName) || state.venueName,
       selectedPlanKey: isQuotePackageKey(state.selectedPlanKey)
         ? state.selectedPlanKey
         : "personal",
@@ -343,10 +361,16 @@ export function hydrateAdminQuoteForm(source: Record<string, unknown>): AdminQuo
       selectedUpsells: { ...emptyUpsells(), ...(state.selectedUpsells || {}) },
       adminUpsellPriceOverrides: { ...(state.adminUpsellPriceOverrides || {}) },
       seatingScheduleTimes: {
-        receptionStartTime: state.seatingScheduleTimes?.receptionStartTime || "",
-        plannedChuppahTime: state.seatingScheduleTimes?.plannedChuppahTime || "",
-        plannedSeatingStartTime: state.seatingScheduleTimes?.plannedSeatingStartTime || "",
-        teamArrivalTime: state.seatingScheduleTimes?.teamArrivalTime || "",
+        receptionStartTime:
+          schedule.receptionStartTime || state.seatingScheduleTimes?.receptionStartTime || "",
+        plannedChuppahTime:
+          schedule.plannedChuppahTime || state.seatingScheduleTimes?.plannedChuppahTime || "",
+        plannedSeatingStartTime:
+          schedule.plannedSeatingStartTime ||
+          state.seatingScheduleTimes?.plannedSeatingStartTime ||
+          "",
+        teamArrivalTime:
+          schedule.teamArrivalTime || state.seatingScheduleTimes?.teamArrivalTime || "",
       },
     };
   }
