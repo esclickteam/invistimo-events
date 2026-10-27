@@ -44,6 +44,15 @@
     var(--ii-bg-deep);
 }
 
+.ii-root[data-template-shell="lunar-silk"],
+.ii-desktop-frame:has([data-template="lunar-silk"]) {
+  background-color: #e5dbcc;
+  background-image:
+    linear-gradient(90deg, rgba(120, 100, 70, 0.08), transparent 18%, transparent 82%, rgba(120, 100, 70, 0.08)),
+    url("/interactive-invites/lunar-silk/stage-linen.webp");
+  background-size: auto, 480px;
+}
+
 @media (min-width: 900px) {
   .ii-desktop-frame {
     display: flex;
@@ -51,6 +60,14 @@
     background:
       linear-gradient(90deg, color-mix(in srgb, var(--ii-bg-deep) 85%, #000 8%), transparent 18%, transparent 82%, color-mix(in srgb, var(--ii-bg-deep) 85%, #000 8%)),
       var(--ii-bg-deep);
+  }
+
+  .ii-desktop-frame:has([data-template="lunar-silk"]) {
+    background-image:
+      linear-gradient(90deg, rgba(90, 70, 40, 0.12), transparent 16%, transparent 84%, rgba(90, 70, 40, 0.12)),
+      url("/interactive-invites/lunar-silk/stage-linen.webp");
+    background-size: auto, 520px;
+    background-color: #e5dbcc;
   }
 
   .ii-stage {
@@ -123,6 +140,411 @@
   place-items: center;
   background: var(--ii-bg-deep);
   overflow: hidden;
+}
+
+/* ——— Realistic physical envelope (Lunar Silk flagship) ——— */
+
+.ii-real-scene {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ii-real-glow {
+  position: absolute;
+  width: min(70vw, 420px);
+  height: min(70vw, 420px);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 250, 235, 0.7), transparent 68%);
+  opacity: 0.25;
+  pointer-events: none;
+  filter: blur(8px);
+}
+
+.ii-real-wrap {
+  position: relative;
+  width: min(88vw, 360px);
+  aspect-ratio: 5 / 3.75;
+  perspective: 1600px;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  filter: drop-shadow(0 28px 40px rgba(60, 45, 25, 0.28))
+    drop-shadow(0 8px 14px rgba(60, 45, 25, 0.18));
+}
+
+.ii-real-closed-plate {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.ii-real-closed-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+}
+
+.ii-real-stack {
+  position: absolute;
+  inset: 6% 4% 8%;
+  transform-style: preserve-3d;
+}
+
+.ii-real-back,
+.ii-real-pocket,
+.ii-real-flap,
+.ii-real-card {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+  visibility: hidden;
+}
+
+.ii-real-back img,
+.ii-real-pocket img,
+.ii-real-flap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 10px 10px 14px 14px;
+  user-select: none;
+}
+
+.ii-real-back {
+  z-index: 1;
+  filter: brightness(0.92);
+}
+
+.ii-real-card {
+  z-index: 2;
+  inset: 7% 9% 18%;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #f7f2e8;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.65) inset,
+    0 14px 36px rgba(40, 30, 15, 0.28),
+    0 2px 4px rgba(40, 30, 15, 0.12);
+  transform: translateY(22%) translateZ(1px);
+  display: flex;
+  flex-direction: column;
+}
+
+.ii-real-card-art {
+  width: 100%;
+  height: 62%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+  user-select: none;
+}
+
+.ii-real-card-copy {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.55rem 0.7rem 0.75rem;
+  background:
+    linear-gradient(180deg, rgba(247, 242, 232, 0.2), #f7f2e8 30%),
+    url("/interactive-invites/lunar-silk/paper-grain.webp");
+  background-size: cover;
+}
+
+.ii-real-card-kicker {
+  margin: 0;
+  font-size: 0.62rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: #7a6b5c;
+}
+
+.ii-real-card-names {
+  margin: 0.15rem 0 0;
+  font-family: var(--ii-font-script);
+  font-size: clamp(1.35rem, 6vw, 1.75rem);
+  line-height: 1;
+  color: #2a2430;
+}
+
+.ii-real-card-date {
+  margin: 0.35rem 0 0;
+  font-family: var(--ii-font-display);
+  font-size: 0.78rem;
+  color: #4a3f35;
+}
+
+.ii-real-card-venue {
+  margin: 0.15rem 0 0;
+  font-size: 0.68rem;
+  color: #8a7a68;
+}
+
+.ii-real-pocket {
+  z-index: 3;
+  clip-path: polygon(0 38%, 50% 68%, 100% 38%, 100% 100%, 0 100%);
+}
+
+.ii-real-pocket-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(80, 60, 35, 0.22) 35%,
+    transparent 62%,
+    rgba(60, 45, 25, 0.08) 100%
+  );
+  pointer-events: none;
+}
+
+.ii-real-flap {
+  z-index: 4;
+  height: 58%;
+  bottom: auto;
+  transform-origin: top center;
+  backface-visibility: hidden;
+}
+
+.ii-real-flap img {
+  border-radius: 10px 10px 0 0;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  filter: drop-shadow(0 10px 14px rgba(50, 35, 20, 0.22));
+}
+
+.ii-real-flap-edge {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 72%;
+  height: 2px;
+  margin-left: -36%;
+  background: linear-gradient(90deg, transparent, rgba(90, 70, 40, 0.35), transparent);
+  pointer-events: none;
+}
+
+.ii-real-ribbon {
+  position: absolute;
+  left: -6%;
+  right: -6%;
+  top: 44%;
+  z-index: 5;
+  width: 112%;
+  height: auto;
+  max-height: 72px;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  filter: drop-shadow(0 6px 10px rgba(40, 50, 30, 0.25));
+  mix-blend-mode: multiply;
+  opacity: 0.92;
+}
+
+.ii-real-seal {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  z-index: 7;
+  width: min(22vw, 86px);
+  height: min(22vw, 86px);
+  margin-left: calc(min(22vw, 86px) / -2);
+  margin-top: calc(min(22vw, 86px) / -2);
+  pointer-events: none;
+  filter: drop-shadow(0 10px 16px rgba(40, 50, 30, 0.35));
+}
+
+.ii-real-seal img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+}
+
+.ii-real-monogram {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: var(--ii-font-script);
+  font-size: clamp(0.95rem, 3.8vw, 1.25rem);
+  color: #f3eee2;
+  text-shadow: 0 1px 2px rgba(30, 40, 25, 0.45);
+  padding-bottom: 2px;
+}
+
+.ii-real-sprig {
+  position: absolute;
+  left: 54%;
+  top: 28%;
+  z-index: 6;
+  width: min(18vw, 70px);
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+  transform: rotate(18deg);
+  filter: drop-shadow(0 6px 8px rgba(40, 50, 30, 0.25));
+  opacity: 0.92;
+}
+
+.ii-real-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -4.6rem;
+  text-align: center;
+  z-index: 8;
+  pointer-events: none;
+}
+
+.ii-real-hint-date {
+  font-family: var(--ii-font-display);
+  font-size: 0.78rem;
+  letter-spacing: 0.22em;
+  color: rgba(60, 50, 40, 0.72);
+  margin-bottom: 0.35rem;
+}
+
+.ii-real-hint-pulse {
+  font-size: 0.9rem;
+  letter-spacing: 0.12em;
+  color: rgba(45, 38, 30, 0.82);
+}
+
+.ii-real-hint-names {
+  margin-top: 0.35rem;
+  font-family: var(--ii-font-script);
+  font-size: 1.15rem;
+  color: rgba(45, 38, 30, 0.7);
+}
+
+@media (max-width: 420px) {
+  .ii-real-wrap {
+    width: min(92vw, 340px);
+  }
+
+  .ii-real-hint {
+    bottom: -4.2rem;
+  }
+}
+
+/* Scrapbook photo corners for lunar silk */
+.ii-scrap-photo {
+  position: relative;
+  background: #fffdf8;
+  padding: 0.55rem 0.55rem 1.35rem;
+  box-shadow: 0 14px 34px rgba(40, 30, 18, 0.16);
+}
+
+.ii-scrap-photo::before,
+.ii-scrap-photo::after {
+  content: "";
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  z-index: 2;
+}
+
+.ii-scrap-photo::before {
+  top: 6px;
+  left: 6px;
+  border-width: 14px 14px 0 0;
+  border-color: color-mix(in srgb, var(--ii-accent) 85%, #8a7340) transparent transparent transparent;
+  filter: drop-shadow(1px 1px 1px rgba(0, 0, 0, 0.12));
+}
+
+.ii-scrap-photo::after {
+  top: 6px;
+  right: 6px;
+  border-width: 14px 0 0 14px;
+  border-color: color-mix(in srgb, var(--ii-accent) 85%, #8a7340) transparent transparent transparent;
+  filter: drop-shadow(-1px 1px 1px rgba(0, 0, 0, 0.12));
+}
+
+.ii-hero-invite {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  overflow: hidden;
+  background: var(--ii-paper);
+}
+
+.ii-hero-invite-art {
+  position: absolute;
+  inset: 0 0 28%;
+  width: 100%;
+  height: auto;
+  min-height: 58%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.ii-hero-invite-fade {
+  position: absolute;
+  inset: 45% 0 0;
+  background: linear-gradient(180deg, transparent, var(--ii-paper) 42%);
+  pointer-events: none;
+}
+
+.ii-hero-invite-copy {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 0 1.25rem 3.5rem;
+  width: 100%;
+}
+
+.ii-scroll-chevrons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin-top: 1.25rem;
+  color: var(--ii-accent);
+  opacity: 0.85;
+}
+
+.ii-scroll-chevrons span {
+  display: block;
+  line-height: 0.55;
+  font-size: 1.1rem;
+  animation: ii-chevron 1.4s ease-in-out infinite;
+}
+
+.ii-scroll-chevrons span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.ii-scroll-chevrons span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes ii-chevron {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(3px);
+  }
 }
 
 .ii-envelope-wrap {

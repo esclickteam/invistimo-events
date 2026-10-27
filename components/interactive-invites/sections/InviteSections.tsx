@@ -58,6 +58,71 @@ export function HeroSection({
   event: InteractiveInviteEventDetails;
   motion: ScrollMotionStyle;
 }) {
+  const stationeryHero = motion === "star-parallax";
+
+  if (stationeryHero) {
+    return (
+      <section id="hero" className="ii-hero-invite ii-grain">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={event.heroImage}
+          alt=""
+          className="ii-hero-invite-art"
+          data-ii-parallax="36"
+          loading="eager"
+          decoding="async"
+        />
+        <div className="ii-hero-invite-fade" aria-hidden />
+        {(motion === "star-parallax" || motion === "petal-float") && (
+          <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+            {Array.from({ length: 12 }).map((_, i) => (
+              <span
+                key={i}
+                data-ii-float
+                style={{
+                  position: "absolute",
+                  left: `${8 + ((i * 17) % 84)}%`,
+                  top: `${8 + ((i * 23) % 55)}%`,
+                  width: 2 + (i % 3),
+                  height: 2 + (i % 3),
+                  borderRadius: "50%",
+                  background: "var(--ii-accent)",
+                  opacity: 0.28 + (i % 4) * 0.08,
+                }}
+              />
+            ))}
+          </div>
+        )}
+        <div className="ii-hero-invite-copy">
+          <p className="ii-kicker" data-ii-reveal>
+            {event.headline}
+          </p>
+          <h1 className="ii-script mb-2 text-5xl leading-none sm:text-6xl" data-ii-reveal>
+            {event.coupleNames}
+          </h1>
+          <p className="ii-lede" data-ii-reveal>
+            {event.subheadline}
+          </p>
+          <p className="ii-display text-xl" data-ii-reveal>
+            {event.weddingDateLabel}
+          </p>
+          <p className="mt-2 text-sm opacity-65" data-ii-reveal>
+            {event.venueName}
+          </p>
+          <a href="#rsvp" className="ii-btn ii-btn-primary mt-7" data-ii-reveal>
+            אישור הגעה
+          </a>
+          <div className="ii-scroll-chevrons" aria-hidden data-ii-reveal>
+            <div className="mb-1 text-[0.7rem] tracking-[0.28em] text-[color:var(--ii-muted)]">גללו</div>
+            <span>⌄</span>
+            <span>⌄</span>
+            <span>⌄</span>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
   return (
     <section id="hero" className="relative min-h-[100svh] overflow-hidden">
       <div className="absolute inset-0">
@@ -206,6 +271,8 @@ export function CountdownSection({ event }: { event: InteractiveInviteEventDetai
 }
 
 export function StorySection({ event }: { event: InteractiveInviteEventDetails }) {
+  const storyArt = event.galleryImages.find((src) => src.includes("/story.")) || null;
+
   return (
     <section id="story" className="ii-section">
       <div className="text-center">
@@ -219,6 +286,17 @@ export function StorySection({ event }: { event: InteractiveInviteEventDetails }
           {event.storyIntro}
         </p>
       </div>
+      {storyArt ? (
+        <figure
+          className="ii-scrap-photo mx-auto mt-6 max-w-sm overflow-hidden"
+          data-ii-reveal
+          data-ii-photo
+          style={{ transform: "rotate(-1.5deg)" }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={storyArt} alt="" className="ii-photo" loading="lazy" decoding="async" />
+        </figure>
+      ) : null}
       <div className="relative mx-auto mt-8 max-w-md space-y-8">
         <div
           data-ii-timeline
@@ -261,39 +339,41 @@ export function GallerySection({
         </h2>
       </div>
       <div className="mt-8 grid grid-cols-2 gap-3">
-        {event.galleryImages.map((src, i) => (
-          <figure
-            key={src}
-            data-ii-photo
-            data-ii-reveal
-            className="overflow-hidden"
-            style={{
-              borderRadius: "var(--ii-radius)",
-              transform:
-                motion === "scrapbook-stack"
-                  ? `rotate(${i % 2 === 0 ? -2.5 : 2.5}deg)`
-                  : undefined,
-              boxShadow:
-                motion === "scrapbook-stack"
-                  ? "0 10px 28px rgba(0,0,0,0.18)"
-                  : "var(--ii-shadow)",
-              background: "var(--ii-paper)",
-              padding: motion === "scrapbook-stack" ? "8px 8px 18px" : 0,
-              gridColumn: i === 0 || i === 5 ? "span 2" : undefined,
-              aspectRatio: i === 0 || i === 5 ? "16/10" : "4/5",
-            }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={src}
-              alt=""
-              className="ii-photo"
-              loading="lazy"
-              decoding="async"
-              style={{ borderRadius: motion === "scrapbook-stack" ? 4 : undefined }}
-            />
-          </figure>
-        ))}
+        {event.galleryImages
+          .filter((src) => !src.includes("/story.") && !src.includes("/venue."))
+          .map((src, i) => {
+            const scrap = motion === "scrapbook-stack" || motion === "star-parallax";
+            return (
+              <figure
+                key={src}
+                data-ii-photo
+                data-ii-reveal
+                className={scrap ? "ii-scrap-photo overflow-hidden" : "overflow-hidden"}
+                style={{
+                  borderRadius: scrap ? undefined : "var(--ii-radius)",
+                  transform: scrap
+                    ? `rotate(${i % 2 === 0 ? -2.8 : 2.4}deg)`
+                    : undefined,
+                  boxShadow: scrap ? undefined : "var(--ii-shadow)",
+                  background: scrap ? undefined : "var(--ii-paper)",
+                  padding: scrap ? undefined : 0,
+                  gridColumn: i === 0 ? "span 2" : undefined,
+                  aspectRatio: i === 0 ? "16/10" : "4/5",
+                  marginTop: scrap && i > 0 ? (i % 2 === 0 ? "0.5rem" : "1.1rem") : undefined,
+                }}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={src}
+                  alt=""
+                  className="ii-photo"
+                  loading="lazy"
+                  decoding="async"
+                  style={{ borderRadius: scrap ? 3 : undefined }}
+                />
+              </figure>
+            );
+          })}
       </div>
     </section>
   );
@@ -351,6 +431,8 @@ export function ScheduleSection({ event }: { event: InteractiveInviteEventDetail
 }
 
 export function LocationSection({ event }: { event: InteractiveInviteEventDetails }) {
+  const venueArt = event.galleryImages.find((src) => src.includes("/venue.")) || null;
+
   return (
     <section id="location" className="ii-section">
       <div className="text-center">
@@ -374,9 +456,29 @@ export function LocationSection({ event }: { event: InteractiveInviteEventDetail
           background:
             "linear-gradient(145deg, color-mix(in srgb, var(--ii-accent-soft) 35%, var(--ii-paper)), var(--ii-bg-deep))",
           boxShadow: "var(--ii-shadow)",
+          position: "relative",
         }}
       >
-        <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center">
+        {venueArt ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={venueArt}
+            alt=""
+            className="ii-photo absolute inset-0"
+            loading="lazy"
+            decoding="async"
+            style={{ opacity: 0.92 }}
+          />
+        ) : null}
+        <div
+          className="relative z-[1] flex h-full flex-col items-center justify-end gap-1 p-6 text-center"
+          style={{
+            background: venueArt
+              ? "linear-gradient(180deg, transparent 20%, color-mix(in srgb, var(--ii-paper) 88%, transparent) 75%, var(--ii-paper))"
+              : undefined,
+            minHeight: "100%",
+          }}
+        >
           <div className="ii-display text-2xl">{event.venueName}</div>
           <div className="text-sm opacity-70">{event.venueAddress}</div>
           <div

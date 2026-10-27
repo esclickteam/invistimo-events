@@ -43,12 +43,34 @@ test("preview routes and engine exist without touching production invite APIs", 
     /InteractiveInviteSite/
   );
   assert.match(read("components/interactive-invites/envelopes/EnvelopeOpening.tsx"), /gsap/);
+  assert.match(read("components/interactive-invites/envelopes/RealisticEnvelope.tsx"), /wax-seal/);
+  assert.match(read("components/interactive-invites/envelopes/RealisticEnvelope.tsx"), /gsap/);
   assert.match(read("components/interactive-invites/engine/ScrollMotion.tsx"), /ScrollTrigger/);
   assert.match(read("components/interactive-invites/engine/MusicController.tsx"), /audio/);
   assert.match(read("components/interactive-invites/sections/InviteSections.tsx"), /Preview בלבד/);
+  assert.match(
+    read("components/interactive-invites/InteractiveInviteSite.tsx"),
+    /RealisticEnvelope/
+  );
 
   const inviteApi = read("app/api/wedding-website/route.ts");
   assert.doesNotMatch(inviteApi, /interactive-invites/);
+});
+
+test("lunar-silk ships original local media assets (not stock URLs)", () => {
+  const event = DEMO_EVENTS["lunar-silk"];
+  assert.match(event.heroImage, /^\/interactive-invites\/lunar-silk\//);
+  assert.ok(event.galleryImages.every((src) => src.startsWith("/interactive-invites/lunar-silk/")));
+  const required = [
+    "public/interactive-invites/lunar-silk/envelope-photo.webp",
+    "public/interactive-invites/lunar-silk/wax-seal.webp",
+    "public/interactive-invites/lunar-silk/silk-ribbon.webp",
+    "public/interactive-invites/lunar-silk/invite-card.webp",
+    "public/interactive-invites/lunar-silk/hero.webp",
+  ];
+  for (const rel of required) {
+    assert.ok(readFileSync(join(root, rel)).byteLength > 1000, `${rel} missing or empty`);
+  }
 });
 
 test("preview path is marked noindex in next config", () => {

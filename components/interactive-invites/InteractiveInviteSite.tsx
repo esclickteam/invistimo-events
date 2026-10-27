@@ -6,6 +6,7 @@ import { getInteractiveInviteTemplate } from "@/config/interactiveInvites/templa
 import { DEMO_EVENTS } from "@/config/interactiveInvites/demoEvents";
 import { INTERACTIVE_INVITE_MUSIC } from "@/config/interactiveInvites/musicLibrary";
 import EnvelopeOpening from "./envelopes/EnvelopeOpening";
+import RealisticEnvelope from "./envelopes/RealisticEnvelope";
 import SmoothScroll from "./engine/SmoothScroll";
 import ScrollMotion from "./engine/ScrollMotion";
 import MusicController from "./engine/MusicController";
@@ -46,11 +47,29 @@ export default function InteractiveInviteSite({
   };
 
   return (
-    <div className="ii-root ii-desktop-frame" style={cssVars} dir="rtl" lang="he">
+    <div
+      className="ii-root ii-desktop-frame"
+      data-template-shell={templateId}
+      style={cssVars}
+      dir="rtl"
+      lang="he"
+    >
       {/* eslint-disable-next-line @next/next/no-page-custom-font */}
       <link rel="stylesheet" href={FONT_HREF} />
 
-      {!opened && (
+      {!opened && templateId === "lunar-silk" && (
+        <RealisticEnvelope
+          monogram={event.monogram}
+          dateLabel={event.weddingDateLabel}
+          coupleNames={event.coupleNames}
+          partnerA={event.partnerA}
+          partnerB={event.partnerB}
+          venueName={event.venueName}
+          onOpened={onOpened}
+        />
+      )}
+
+      {!opened && templateId !== "lunar-silk" && (
         <EnvelopeOpening
           variant={template.envelope}
           monogram={event.monogram}

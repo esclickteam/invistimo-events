@@ -12,10 +12,18 @@ export default function TemplateAtmosphere({
     return (
       <div className="pointer-events-none absolute inset-0 z-[1] overflow-hidden" aria-hidden>
         <div
-          className="absolute -top-20 start-1/2 h-64 w-64 -translate-x-1/2 rounded-full opacity-30 blur-3xl"
+          className="absolute inset-0 opacity-[0.35]"
+          style={{
+            backgroundImage: 'url("/interactive-invites/lunar-silk/stage-linen.webp")',
+            backgroundSize: "420px",
+            mixBlendMode: "multiply",
+          }}
+        />
+        <div
+          className="absolute -top-24 start-1/2 h-72 w-72 -translate-x-1/2 rounded-full opacity-40 blur-3xl"
           style={{ background: "radial-gradient(circle, #c9d4e8, transparent 70%)" }}
         />
-        {Array.from({ length: 18 }).map((_, i) => (
+        {Array.from({ length: 14 }).map((_, i) => (
           <span
             key={i}
             data-ii-float
@@ -26,8 +34,8 @@ export default function TemplateAtmosphere({
               width: 2 + (i % 3),
               height: 2 + (i % 3),
               borderRadius: "50%",
-              background: "#E8EEF8",
-              opacity: 0.25 + (i % 5) * 0.08,
+              background: "#8FA3C7",
+              opacity: 0.18 + (i % 5) * 0.05,
             }}
           />
         ))}

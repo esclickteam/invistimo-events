@@ -76,16 +76,16 @@ export default function ScrollMotion({
         );
       });
 
-      if (style === "scrapbook-stack") {
+      if (style === "scrapbook-stack" || style === "star-parallax") {
         gsap.utils.toArray<HTMLElement>("[data-ii-photo]").forEach((photo, i) => {
           gsap.fromTo(
             photo,
             { rotate: i % 2 === 0 ? -8 : 8, y: 40, opacity: 0 },
             {
-              rotate: i % 2 === 0 ? -3 : 3,
+              rotate: i % 2 === 0 ? -2.5 : 2.2,
               y: 0,
               opacity: 1,
-              duration: 0.85,
+              duration: 0.9,
               ease: "power2.out",
               scrollTrigger: {
                 trigger: photo,
