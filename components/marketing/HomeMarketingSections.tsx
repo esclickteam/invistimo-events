@@ -166,14 +166,14 @@ const SERVICES = [
     icon: Heart,
   },
   {
-    href: "/rsvp/guest-list",
+    href: "/info/guides/guest-list",
     title: "ניהול מוזמנים",
     body: "רשימה אחת מסודרת, עם פרטי האורחים, סטטוסים ועדכונים.",
     cta: "ניהול מוזמנים",
     icon: Users,
   },
   {
-    href: "/rsvp/reminders",
+    href: "/rsvp/whatsapp",
     title: "תזכורות והודעות",
     body: "מזכירים לאורחים את הפרטים החשובים ושומרים על קשר גם אחרי האירוע.",
     cta: "תזכורות והודעות",
@@ -662,7 +662,7 @@ export default function HomeMarketingSections() {
               </p>
             </Link>
             <Link
-              href="/rsvp/sms"
+              href="/rsvp/whatsapp"
               className="rounded-[28px] border border-[#E7D3B0] bg-[#FFFDF8] p-6 shadow-[0_18px_40px_rgba(44,36,28,0.06)] transition hover:-translate-y-1 hover:border-[#C9A45C]"
             >
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FFF9EF] ring-1 ring-[#E7D3B0]">

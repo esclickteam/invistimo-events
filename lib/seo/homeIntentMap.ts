@@ -36,7 +36,7 @@ export const HOME_INTENT_MAP: IntentBucket[] = [
     ],
     primaryPath: "/rsvp/whatsapp",
     homepageRole:
-      "הסבר קצר: סבבי אישור בוואטסאפ; SMS לתזכורת/תודה — פירוט ב־/rsvp/whatsapp ו־/rsvp/sms.",
+      "הסבר קצר: סבבי אישור בוואטסאפ; SMS לתזכורת/תודה — פירוט ב־/rsvp/whatsapp.",
   },
   {
     theme: "הזמנות דיגיטליות לחתונה ולאירועים",
@@ -78,7 +78,7 @@ export const HOME_INTENT_MAP: IntentBucket[] = [
     ],
     primaryPath: "/event-management",
     homepageRole:
-      "סקירת דשבורד ורשימה אחת; פירוט ב־/rsvp/guest-list ו־/event-management.",
+      "סקירת דשבורד ורשימה אחת; פירוט ב־/info/guides/guest-list ו־/event-management.",
   },
 ];
 
