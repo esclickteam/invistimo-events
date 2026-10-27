@@ -61,7 +61,7 @@ const faqs = [
   },
   {
     q: "כמה עולה מערכת הניהול?",
-    a: "המחיר מוצג במחשבון החבילות לפי מה שמסמנים. ליווי וניהול באולם מתומחרים בהצעה נפרדת אחרי בדיקת התאמה. אין מחיר אחיד בעמוד זה.",
+    a: "ליווי וניהול באולם מתומחרים בהצעה אחרי פנייה לצוות. אין מחיר אחיד בעמוד זה. מחשבון החבילות מחשב אישורי הגעה, ומערכת הניהול העצמאית מופיעה שם כתוספת לחבילה — לא כמחיר של ליווי או ניהול באולם.",
   },
   {
     q: "האם אפשר להתנסות לפני רכישה?",
@@ -142,18 +142,18 @@ export default function Page() {
           </div>
           <div className="mt-10 flex flex-col gap-3 sm:flex-row">
             <TrackedCtaLink
-              href="/try/event-management"
+              href="#contact"
               location="footer_cta:/event-management"
               className="inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3 text-base font-black text-white"
             >
-              התנסו במערכת
+              לבדיקת התאמה
             </TrackedCtaLink>
             <TrackedCtaLink
-              href="/pricing"
+              href="/try/event-management"
               location="footer_cta:/event-management"
               className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white px-8 py-3 text-base font-black text-[#5E4735]"
             >
-              למחשבון החבילות
+              התנסו במערכת
             </TrackedCtaLink>
           </div>
         </div>

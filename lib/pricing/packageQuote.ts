@@ -12,6 +12,8 @@ import { calculateBase, getRate } from "@/lib/adminPackages";
 export const RECORD_MIN = 0;
 export const RECORD_MAX = 1000;
 export const SEATING_ADDON_ILS = 100;
+/** Opening record count on the public calculator, and the example used on service pages. */
+export const EXAMPLE_RECORD_COUNT = 200;
 
 /** Same business number used by the contact page, footer, and support bot. */
 export const INVISTIMO_WHATSAPP_PHONE = "972555039072";

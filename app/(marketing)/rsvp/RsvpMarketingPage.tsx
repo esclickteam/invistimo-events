@@ -17,6 +17,13 @@ import { CHANNEL_ICONS, HOW_ICONS } from "./components/RsvpIcons";
 import DashboardDemo from "./components/DashboardDemo";
 import JourneyDemo from "./components/JourneyDemo";
 import MarketingVideo from "./components/MarketingVideo";
+import {
+  calculateQuote,
+  EMPTY_ADDONS,
+  EXAMPLE_RECORD_COUNT,
+  formatIls,
+  type PackageId,
+} from "@/lib/pricing/packageQuote";
 
 const display = Frank_Ruhl_Libre({
   subsets: ["hebrew", "latin"],
@@ -51,6 +58,14 @@ function PrimaryCta({ href, children }: { href: string; children: React.ReactNod
       {children}
     </Link>
   );
+}
+
+function exampleTotal(packageId: PackageId) {
+  return calculateQuote({
+    packageId,
+    records: EXAMPLE_RECORD_COUNT,
+    addons: EMPTY_ADDONS,
+  }).total;
 }
 
 function SecondaryCta({ href, children }: { href: string; children: React.ReactNode }) {
@@ -94,9 +109,15 @@ export default function RSVPPage() {
               אתם מתרגשים לקראת האירוע. אנחנו עוזרים לכם לדעת מי מגיע.
             </p>
             <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row lg:justify-start">
-              <PrimaryCta href="/pricing">בואו נתחיל</PrimaryCta>
+              <PrimaryCta href="/pricing">לקבלת הצעת מחיר</PrimaryCta>
+              <SecondaryCta href="/contact">יצירת קשר</SecondaryCta>
               <SecondaryCta href="#rsvp-journey">לצפייה בתהליך</SecondaryCta>
             </div>
+            <p className="mt-4 max-w-xl text-sm font-semibold leading-6 text-[#6D5B4A]">
+              הזמנה דיגיטלית כלולה. ל־{EXAMPLE_RECORD_COUNT.toLocaleString("he-IL")} רשומות, חבילת
+              הודעות {formatIls(exampleTotal("messages"))}. בוחרים חבילה, פונים לצוות ומשלימים מול
+              נציג.
+            </p>
           </motion.div>
 
           <motion.div
@@ -361,7 +382,8 @@ export default function RSVPPage() {
             </h2>
             <p className="mt-5 text-base leading-8 text-[#D9CBB8] md:text-lg">
               כל אירוע שונה, ולכן אפשר לבחור את אופן ניהול אישורי ההגעה בהתאם למספר המוזמנים ולשירותים
-              הרצויים.
+              הרצויים. הסכומים לדוגמה הם ל־{EXAMPLE_RECORD_COUNT.toLocaleString("he-IL")} רשומות, בלי
+              תוספות, כמו במחשבון.
             </p>
           </div>
 
@@ -382,6 +404,12 @@ export default function RSVPPage() {
                 ) : null}
                 <h3 className="text-xl font-black text-[#FBF6EE] md:text-2xl">{pkg.title}</h3>
                 <p className="mt-3 text-sm leading-7 text-[#D9CBB8] md:text-base">{pkg.blurb}</p>
+                <p className="mt-4 text-lg font-black text-[#FBF6EE]">
+                  {formatIls(exampleTotal(pkg.id))}
+                  <span className="mr-2 text-sm font-semibold text-[#D9CBB8]">
+                    ל־{EXAMPLE_RECORD_COUNT.toLocaleString("he-IL")} רשומות
+                  </span>
+                </p>
                 <ul className="mt-5 flex-1 space-y-2.5">
                   {pkg.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2 text-sm leading-6 text-[#E8DCCB]">
@@ -394,7 +422,7 @@ export default function RSVPPage() {
                   href={pkg.href}
                   className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-[#FBF6EE] px-5 text-sm font-black text-[#35281F] transition hover:bg-white"
                 >
-                  לצפייה במחשבון ולבחירה
+                  לקבלת הצעת מחיר
                 </Link>
               </li>
             ))}
@@ -438,11 +466,11 @@ export default function RSVPPage() {
             מוכנים לדעת מי מגיע — בלי לרדוף אחרי תשובות?
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-[#6D5B4A]">
-            בחרו חבילה במחשבון, או צפו שוב בתהליך מהודעת WhatsApp ועד אישור ההגעה.
+            בחרו חבילה במחשבון ופנו לצוות. ההזמנה מושלמת מול נציג, ב־WhatsApp או ביצירת קשר.
           </p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <PrimaryCta href="/pricing">בואו נתחיל</PrimaryCta>
-            <SecondaryCta href="#rsvp-journey">לצפייה בתהליך</SecondaryCta>
+            <PrimaryCta href="/pricing">לקבלת הצעת מחיר</PrimaryCta>
+            <SecondaryCta href="/contact">יצירת קשר</SecondaryCta>
           </div>
           <nav aria-label="מדריכים קשורים" className="mt-10 flex flex-wrap justify-center gap-3">
             {[
