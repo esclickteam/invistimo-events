@@ -73,26 +73,24 @@ export function HeroSection({
           decoding="async"
         />
         <div className="ii-hero-invite-fade" aria-hidden />
-        {(motion === "star-parallax" || motion === "petal-float") && (
-          <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-            {Array.from({ length: 12 }).map((_, i) => (
-              <span
-                key={i}
-                data-ii-float
-                style={{
-                  position: "absolute",
-                  left: `${8 + ((i * 17) % 84)}%`,
-                  top: `${8 + ((i * 23) % 55)}%`,
-                  width: 2 + (i % 3),
-                  height: 2 + (i % 3),
-                  borderRadius: "50%",
-                  background: "var(--ii-accent)",
-                  opacity: 0.28 + (i % 4) * 0.08,
-                }}
-              />
-            ))}
-          </div>
-        )}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+          {Array.from({ length: 12 }).map((_, i) => (
+            <span
+              key={i}
+              data-ii-float
+              style={{
+                position: "absolute",
+                left: `${8 + ((i * 17) % 84)}%`,
+                top: `${8 + ((i * 23) % 55)}%`,
+                width: 2 + (i % 3),
+                height: 2 + (i % 3),
+                borderRadius: "50%",
+                background: "var(--ii-accent)",
+                opacity: 0.28 + (i % 4) * 0.08,
+              }}
+            />
+          ))}
+        </div>
         <div className="ii-hero-invite-copy">
           <p className="ii-kicker" data-ii-reveal>
             {event.headline}
@@ -131,7 +129,7 @@ export function HeroSection({
           src={event.heroImage}
           alt=""
           className="ii-photo"
-          data-ii-parallax={motion === "star-parallax" ? "60" : "30"}
+          data-ii-parallax="30"
           loading="eager"
           decoding="async"
         />
@@ -143,7 +141,7 @@ export function HeroSection({
           }}
         />
       </div>
-      {(motion === "star-parallax" || motion === "petal-float") && (
+      {motion === "petal-float" && (
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
           {Array.from({ length: 10 }).map((_, i) => (
             <span
@@ -153,13 +151,10 @@ export function HeroSection({
                 position: "absolute",
                 left: `${8 + ((i * 17) % 84)}%`,
                 top: `${12 + ((i * 23) % 70)}%`,
-                width: motion === "petal-float" ? 14 + (i % 3) * 4 : 3 + (i % 3),
-                height: motion === "petal-float" ? 18 + (i % 3) * 4 : 3 + (i % 3),
-                borderRadius: motion === "petal-float" ? "60% 40% 60% 40%" : "50%",
-                background:
-                  motion === "petal-float"
-                    ? "color-mix(in srgb, var(--ii-accent) 70%, white)"
-                    : "var(--ii-accent)",
+                width: 14 + (i % 3) * 4,
+                height: 18 + (i % 3) * 4,
+                borderRadius: "60% 40% 60% 40%",
+                background: "color-mix(in srgb, var(--ii-accent) 70%, white)",
                 opacity: 0.35 + (i % 4) * 0.08,
               }}
             />
