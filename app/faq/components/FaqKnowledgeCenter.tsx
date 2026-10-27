@@ -15,7 +15,6 @@ import { ChevronDown, Link2, Search, X } from "lucide-react";
 import FaqAnswerMedia from "./FaqAnswerMedia";
 import {
   FAQ_CATEGORIES,
-  FAQ_CONTENT_UPDATED,
   type FaqItem,
   faqSearchHaystack,
   faqTextMatches,
@@ -35,12 +34,6 @@ const STICKY_OFFSET_PX = 96;
 type Props = {
   items: FaqItem[];
 };
-
-function formatUpdated(iso: string) {
-  const [y, m, d] = iso.split("-");
-  if (!y || !m || !d) return iso;
-  return `${d}.${m}.${y}`;
-}
 
 function HighlightedText({ text, query }: { text: string; query: string }) {
   const parts = highlightFaqMatch(text, query);
@@ -255,7 +248,7 @@ export default function FaqKnowledgeCenter({ items }: Props) {
               ? filtered.length === 0
                 ? "לא נמצאו תוצאות"
                 : `${filtered.length} תוצאות`
-              : `עודכן לאחרונה: ${formatUpdated(FAQ_CONTENT_UPDATED)} · ${items.length} שאלות`}
+              : `${items.length} שאלות`}
           </p>
 
           {!searching ? (
@@ -268,7 +261,7 @@ export default function FaqKnowledgeCenter({ items }: Props) {
                       setQuery(example);
                       inputRef.current?.focus();
                     }}
-                    className="rounded-full border border-[#EADDC8] bg-white/80 px-3 py-1.5 text-sm text-[#5E4735] transition hover:border-[#C7A56B] hover:bg-white"
+                    className="rounded-full border border-[#EADDC8] bg-white/80 px-3 py-1.5 text-sm leading-snug text-[#5E4735] transition hover:border-[#C7A56B] hover:bg-white"
                   >
                     {example}
                   </button>
@@ -278,7 +271,7 @@ export default function FaqKnowledgeCenter({ items }: Props) {
           ) : null}
 
           <div
-            className="mt-6 -mx-1 flex gap-2 overflow-x-auto scroll-px-3 px-3 pb-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+            className="mt-6 flex flex-wrap gap-2"
             role="tablist"
             aria-label="קטגוריות שאלות"
           >
@@ -473,12 +466,6 @@ export default function FaqKnowledgeCenter({ items }: Props) {
                               <Link2 className="h-4 w-4" aria-hidden />
                               {copiedId === item.id ? "הקישור הועתק" : "העתקת קישור לשאלה"}
                             </button>
-                            <span aria-hidden className="text-[#DCC7A6]">
-                              ·
-                            </span>
-                            <time dateTime={item.updatedAt}>
-                              עודכן {formatUpdated(item.updatedAt)}
-                            </time>
                           </div>
                         </div>
                       </article>

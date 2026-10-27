@@ -106,8 +106,7 @@ export default function FAQPage() {
               ושירותי {SITE_NAME} — עם הסברים ברורים, דוגמאות והדרכות.
             </p>
             <p className="mt-3 text-sm text-[#7A6042]">
-              {FAQ_CATEGORIES.length} קטגוריות · {ALL_FAQ_ITEMS.length} שאלות · עודכן{" "}
-              {FAQ_CONTENT_UPDATED.split("-").reverse().join(".")}
+              {FAQ_CATEGORIES.length} קטגוריות · {ALL_FAQ_ITEMS.length} שאלות
             </p>
           </div>
         </section>
