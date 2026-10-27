@@ -31,7 +31,7 @@ const LUNAR_ASSETS = {
   proposal: "/interactive-invites/lunar-silk/proposal-art.webp",
 };
 
-const GALLERY_TILT = [-2.6, 2.2, -1.5, 2.8, -2.1];
+const GALLERY_TILT = [-3.2, 2.8, -1.8, 3.4, -2.6];
 
 export default function InteractiveWeddingSite({
   themeId,

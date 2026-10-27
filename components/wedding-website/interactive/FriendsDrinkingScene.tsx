@@ -29,21 +29,40 @@ export default function FriendsDrinkingScene({
     const liquid = root.querySelector<HTMLElement>("[data-drink-liquid]");
     if (!liquid) return;
 
+    const meniscus = root.querySelector<HTMLElement>(".iw-drink-meniscus");
+
     const ctx = gsap.context(() => {
       gsap.fromTo(
         liquid,
         { scaleY: 1 },
         {
-          scaleY: 0.05,
+          scaleY: 0.06,
           ease: "none",
           scrollTrigger: {
             trigger: root,
-            start: "top 75%",
-            end: "bottom 35%",
-            scrub: 0.85,
+            start: "top 80%",
+            end: "bottom 30%",
+            scrub: 0.7,
           },
         }
       );
+      if (meniscus) {
+        gsap.fromTo(
+          meniscus,
+          { top: "12%", opacity: 0.85 },
+          {
+            top: "86%",
+            opacity: 0.2,
+            ease: "none",
+            scrollTrigger: {
+              trigger: root,
+              start: "top 80%",
+              end: "bottom 30%",
+              scrub: 0.7,
+            },
+          }
+        );
+      }
     }, root);
 
     return () => {
