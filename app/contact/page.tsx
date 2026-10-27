@@ -156,10 +156,12 @@ export default function ContactPage() {
         throw new Error("שליחת ההודעה נכשלה");
       }
       setSubmitted(true);
-      trackPublicEvent("generate_lead", {
-        method: "contact",
-        page_path: window.location.pathname,
-      });
+      if (!data.blocked) {
+        trackPublicEvent("generate_lead", {
+          method: "contact",
+          page_path: window.location.pathname,
+        });
+      }
       setName("");
       setEmail("");
       setSubject("");

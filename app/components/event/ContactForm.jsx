@@ -87,10 +87,12 @@ export default function ContactForm({
       if (!res.ok || !data.success) throw new Error();
 
       setSuccess("הפנייה נשלחה בהצלחה! ניצור קשר לבדיקת התאמה וזמינות.");
-      trackPublicEvent("generate_lead", {
-        method: "event_management_fit",
-        page_path: window.location.pathname,
-      });
+      if (!data.blocked) {
+        trackPublicEvent("generate_lead", {
+          method: "event_management_fit",
+          page_path: window.location.pathname,
+        });
+      }
       setName("");
       setEmail("");
       setPhone("");
