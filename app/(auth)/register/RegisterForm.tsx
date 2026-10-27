@@ -5,6 +5,7 @@ import { trackSignupConversion } from "@/lib/seo/analytics";
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
+import { Eye, EyeOff } from "lucide-react";
 
 type FormState = {
   name: string;
@@ -298,27 +299,33 @@ function RegisterFormInner() {
                         placeholder={field.placeholder}
                         autoComplete={field.autoComplete}
                         required
-                        className="
+                        className={`
                           w-full rounded-[18px] border border-[#DDCBB3]
                           bg-white/90 px-4 py-3.5
                           text-[#3E2D20] shadow-sm outline-none transition
                           placeholder:text-[#AF9B87]
                           focus:border-[#C9A46A]
                           focus:ring-4 focus:ring-[#D8B16A]/15
-                        "
+                          ${isPassword ? "pl-11" : ""}
+                        `}
                       />
 
                       {isPassword && (
                         <button
                           type="button"
                           onClick={() => setShowPass((prev) => !prev)}
+                          aria-label={showPass ? "הסתרת סיסמה" : "הצגת סיסמה"}
                           className="
                             absolute left-4 top-1/2 -translate-y-1/2
-                            text-xs font-bold text-[#9C7545]
+                            text-[#9C7545]
                             transition hover:text-[#7E5A30]
                           "
                         >
-                          {showPass ? "הסתר" : "הצג"}
+                          {showPass ? (
+                            <EyeOff size={18} strokeWidth={2} />
+                          ) : (
+                            <Eye size={18} strokeWidth={2} />
+                          )}
                         </button>
                       )}
                     </div>

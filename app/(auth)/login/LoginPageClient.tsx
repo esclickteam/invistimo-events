@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export default function LoginPageClient() {
@@ -167,7 +168,7 @@ export default function LoginPageClient() {
                     autoComplete="current-password"
                     className="
                       w-full rounded-[18px] border border-[#DDCBB3]
-                      bg-white/90 px-4 py-3.5 pl-16
+                      bg-white/90 px-4 py-3.5 pl-11
                       text-base text-[#3E2D20] shadow-sm outline-none transition
                       placeholder:text-[#AF9B87]
                       focus:border-[#C9A46A]
@@ -178,13 +179,14 @@ export default function LoginPageClient() {
                   <button
                     type="button"
                     onClick={() => setShowPass((prev) => !prev)}
+                    aria-label={showPass ? "הסתרת סיסמה" : "הצגת סיסמה"}
                     className="
                       absolute left-4 top-1/2 -translate-y-1/2
-                      text-xs font-bold text-[#9C7545]
+                      text-[#9C7545]
                       transition hover:text-[#7E5A30]
                     "
                   >
-                    {showPass ? "הסתר" : "הצג"}
+                    {showPass ? <EyeOff size={18} strokeWidth={2} /> : <Eye size={18} strokeWidth={2} />}
                   </button>
                 </div>
               </div>
