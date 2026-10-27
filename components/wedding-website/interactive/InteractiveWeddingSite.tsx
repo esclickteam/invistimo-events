@@ -35,6 +35,13 @@ const NAV = [
   { id: "faq", label: "שאלות" },
 ];
 
+const LUNAR_ASSETS = {
+  closed: "/interactive-invites/lunar-silk/envelope-photo.webp",
+  card: "/interactive-invites/lunar-silk/invite-card.webp",
+  friends: "/interactive-invites/lunar-silk/friends-drink.webp",
+  proposal: "/interactive-invites/lunar-silk/proposal-art.webp",
+};
+
 export default function InteractiveWeddingSite({
   themeId,
   template,
@@ -72,6 +79,10 @@ export default function InteractiveWeddingSite({
     DEMO.coupleNames.split(/[&ו]/)[1]?.trim()?.[0] || "ב"
   }`;
   const dateLabel = formatHebrewDate(DEMO.weddingDate);
+  const closedImage = themeId === "lunar-silk" ? LUNAR_ASSETS.closed : LUNAR_ASSETS.closed;
+  const cardImage = theme.heroImage || LUNAR_ASSETS.card;
+  const friendsArt = LUNAR_ASSETS.friends;
+  const proposalArt = LUNAR_ASSETS.proposal;
 
   return (
     <div className="iw-root wedding-website-root" style={cssVars} dir="rtl" lang="he" data-template={themeId}>
@@ -89,6 +100,8 @@ export default function InteractiveWeddingSite({
           ribbon={theme.css.ribbon}
           paper={theme.css.paper}
           ink={theme.css.ink}
+          closedImage={closedImage}
+          cardImage={cardImage}
           onOpened={() => setOpened(true)}
         />
       )}
@@ -103,40 +116,37 @@ export default function InteractiveWeddingSite({
             ))}
           </nav>
 
-          <section id="hero" className="relative min-h-[100svh] overflow-hidden">
-            <div className="absolute inset-0">
-              <WeddingMedia
-                slot="hero"
-                src={template.heroImage}
-                alt=""
-                className="h-full w-full object-cover"
-              />
-              <div
-                className="absolute inset-0"
-                style={{
-                  background:
-                    "linear-gradient(180deg, transparent 25%, color-mix(in srgb, var(--iw-paper) 55%, transparent) 62%, var(--iw-paper))",
-                }}
-              />
-            </div>
-            <div className="relative z-[2] flex min-h-[100svh] flex-col items-center justify-end px-5 pb-14 text-center">
-              <p className="iw-kicker" data-ii-reveal>
-                {DEMO.heroSubtitle || "מתחתנים"}
+          <section id="hero" className="iw-hero">
+            <WeddingMedia
+              slot="hero"
+              src={template.heroImage}
+              alt=""
+              className="iw-hero-art"
+            />
+            <div className="iw-hero-fade" aria-hidden />
+            <div className="iw-hero-copy">
+              <p className="iw-kicker">{DEMO.heroSubtitle ? "מתחתנים" : "מתחתנים"}</p>
+              <h1 className="iw-script text-5xl leading-none sm:text-6xl">{DEMO.coupleNames}</h1>
+              <div className="iw-divider" />
+              <p className="iw-lede" style={{ marginBottom: "0.6rem" }}>
+                {DEMO.heroSubtitle}
               </p>
-              <h1 className="iw-script mb-2 text-5xl leading-none sm:text-6xl">{DEMO.coupleNames}</h1>
-              <p className="iw-lede">{DEMO.invitationText}</p>
               <p className="iw-display text-xl">
-                {dateLabel} · {DEMO.weddingTime}
+                {dateLabel}
               </p>
-              <p className="mt-2 text-sm opacity-65">{DEMO.venueName}</p>
+              <p className="mt-1 text-sm opacity-65">
+                {DEMO.weddingTime} · {DEMO.venueName}
+              </p>
               {showRsvp ? (
                 <a href="#rsvp" className="iw-btn mt-7">
                   אישור הגעה
                 </a>
               ) : null}
-              <div className="mt-8 text-sm opacity-70" aria-hidden>
+              <div className="iw-scroll-hint" aria-hidden>
                 גללו
-                <div>⌄</div>
+                <span>⌄</span>
+                <span>⌄</span>
+                <span>⌄</span>
               </div>
             </div>
           </section>
@@ -144,14 +154,16 @@ export default function InteractiveWeddingSite({
           <section id="countdown" className="iw-section text-center">
             <p className="iw-kicker">ספירה לאחור</p>
             <h2 className="iw-title">עד החתונה</h2>
-            <WeddingCountdownGrid className="mx-auto mt-6 grid max-w-md grid-cols-4 gap-2">
+            <div className="iw-divider" />
+            <WeddingCountdownGrid className="mx-auto mt-2 grid max-w-md grid-cols-4 gap-2">
               {(u) => (
                 <div
                   key={u.label}
-                  className="rounded-2xl px-2 py-4"
+                  className="rounded-xl px-2 py-4"
                   style={{
-                    background: "color-mix(in srgb, var(--iw-paper) 90%, white)",
-                    boxShadow: "0 12px 30px rgba(0,0,0,0.06)",
+                    background: "color-mix(in srgb, var(--iw-paper) 88%, white)",
+                    boxShadow: "0 14px 32px rgba(50,35,18,0.08)",
+                    border: "1px solid color-mix(in srgb, var(--iw-accent) 18%, transparent)",
                   }}
                 >
                   <div className="iw-display text-2xl font-semibold tabular-nums sm:text-3xl">
@@ -166,66 +178,66 @@ export default function InteractiveWeddingSite({
           <section id="invitation" className="iw-section text-center">
             <p className="iw-kicker">הזמנה</p>
             <h2 className="iw-title">מוזמנים לחגוג איתנו</h2>
+            <div className="iw-divider" />
             <p className="iw-lede">{DEMO.invitationText}</p>
           </section>
 
           <section id="our-story" className="iw-section">
             <p className="iw-kicker">הסיפור שלנו</p>
             <h2 className="iw-title">איך הכל התחיל</h2>
-            <div className="mx-auto mt-4 max-w-md space-y-5">
+            <div className="iw-divider" />
+            <div className="mx-auto max-w-md space-y-5">
               {DEMO.storyParagraphs.map((p, i) => (
-                <p key={i} className="text-sm leading-7 opacity-80">
+                <p key={i} className="text-center text-[0.98rem] leading-8 opacity-85">
                   {p}
                 </p>
               ))}
             </div>
-            <FriendsDrinkingScene
-              accent={theme.css.accent}
-              ink={theme.css.ink}
-              caption="חברים סביב השולחן — גללו ותראו איך הבקבוק מתרוקן"
-            />
+            <FriendsDrinkingScene artSrc={friendsArt} />
           </section>
 
           <section id="how-we-met" className="iw-section">
             <p className="iw-kicker">Chapter I</p>
             <h2 className="iw-title">איך נפגשנו</h2>
-            <div className="mx-auto mt-4 max-w-sm overflow-hidden rounded-2xl" style={{ boxShadow: "0 14px 40px rgba(0,0,0,0.1)" }}>
+            <div className="iw-divider" />
+            <figure className="iw-scrap mx-auto max-w-sm" style={{ transform: "rotate(-1.4deg)" }}>
               <WeddingMedia
                 slot="how-we-met"
                 src={template.galleryImages[0]}
                 alt=""
                 className="aspect-[4/5] w-full object-cover"
               />
-            </div>
-            <p className="iw-lede mt-5">{DEMO.howWeMet}</p>
+            </figure>
+            <p className="iw-lede mt-6">{DEMO.howWeMet}</p>
           </section>
 
           <section id="proposal" className="iw-section">
             <p className="iw-kicker">Chapter II</p>
             <h2 className="iw-title">ההצעה</h2>
-            <div className="mx-auto mt-4 max-w-sm overflow-hidden rounded-2xl" style={{ boxShadow: "0 14px 40px rgba(0,0,0,0.1)" }}>
-              <WeddingMedia
-                slot="proposal"
-                src={template.galleryImages[1] || template.galleryImages[0]}
-                alt=""
-                className="aspect-[4/5] w-full object-cover"
-              />
-            </div>
-            <p className="iw-lede mt-5">{DEMO.proposalStory}</p>
+            <div className="iw-divider" />
+            <figure className="iw-scrap mx-auto max-w-sm overflow-hidden" style={{ transform: "rotate(1.2deg)" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={proposalArt} alt="ההצעה" className="aspect-[4/3] w-full object-cover" loading="lazy" />
+            </figure>
+            <p className="iw-lede mt-6">{DEMO.proposalStory}</p>
+            <p className="iw-script mt-2 text-center text-2xl" style={{ color: "var(--iw-accent)" }}>
+              and she said YES
+            </p>
           </section>
 
           <section id="gallery" className="iw-section">
             <p className="iw-kicker">רגעים</p>
             <h2 className="iw-title">גלריה</h2>
-            <div className="mt-6 grid grid-cols-2 gap-3">
+            <div className="iw-divider" />
+            <div className="mt-2 grid grid-cols-2 gap-4">
               {template.galleryImages.map((src, i) => (
                 <figure
                   key={src}
-                  className="overflow-hidden bg-white p-1.5 pb-4"
+                  className="iw-scrap"
                   style={{
-                    transform: `rotate(${i % 2 === 0 ? -2.2 : 2}deg)`,
-                    boxShadow: "0 12px 28px rgba(0,0,0,0.12)",
+                    transform: `rotate(${i % 2 === 0 ? -2.4 : 2.1}deg)`,
                     gridColumn: i === 0 ? "span 2" : undefined,
+                    marginTop: i > 0 ? (i % 2 === 0 ? "0.35rem" : "1rem") : undefined,
                   }}
                 >
                   <WeddingMedia
@@ -243,7 +255,8 @@ export default function InteractiveWeddingSite({
           <section id="event-details" className="iw-section text-center">
             <p className="iw-kicker">פרטים</p>
             <h2 className="iw-title">פרטי האירוע</h2>
-            <div className="mx-auto mt-4 grid max-w-md gap-3">
+            <div className="iw-divider" />
+            <div className="mx-auto grid max-w-md gap-3">
               {[
                 { label: "תאריך", value: dateLabel },
                 { label: "שעה", value: DEMO.weddingTime },
@@ -252,9 +265,12 @@ export default function InteractiveWeddingSite({
                 <div
                   key={item.label}
                   className="rounded-2xl px-4 py-4"
-                  style={{ background: "color-mix(in srgb, var(--iw-accent) 10%, var(--iw-paper))" }}
+                  style={{
+                    background: "color-mix(in srgb, var(--iw-accent) 9%, var(--iw-paper))",
+                    boxShadow: "0 10px 28px rgba(50,35,18,0.06)",
+                  }}
                 >
-                  <div className="text-xs opacity-60">{item.label}</div>
+                  <div className="text-xs tracking-wide opacity-55">{item.label}</div>
                   <div className="iw-display mt-1 text-lg">{item.value}</div>
                 </div>
               ))}
@@ -264,20 +280,31 @@ export default function InteractiveWeddingSite({
           <section id="schedule" className="iw-section">
             <p className="iw-kicker">לוח האירועים</p>
             <h2 className="iw-title">סדר היום</h2>
-            <ol className="relative mx-auto mt-6 max-w-md space-y-4">
+            <div className="iw-divider" />
+            <ol className="relative mx-auto mt-2 max-w-md space-y-4">
               <div
-                className="absolute start-4 top-2 bottom-2 w-px origin-top"
-                style={{ background: "var(--iw-accent)" }}
+                className="absolute start-4 top-2 bottom-2 w-px"
+                style={{ background: "linear-gradient(180deg, var(--iw-accent), transparent)" }}
                 aria-hidden
               />
               {DEMO.schedule.map((item) => (
-                <li key={item.time} className="relative rounded-2xl py-3 pe-3 ps-10" style={{ background: "color-mix(in srgb, var(--iw-paper) 92%, white)" }}>
+                <li
+                  key={item.time}
+                  className="relative rounded-2xl py-3 pe-3 ps-10"
+                  style={{
+                    background: "color-mix(in srgb, var(--iw-paper) 92%, white)",
+                    boxShadow: "0 10px 26px rgba(50,35,18,0.06)",
+                  }}
+                >
                   <span
                     className="absolute start-[0.7rem] top-5 h-3 w-3 rounded-full"
-                    style={{ background: "var(--iw-accent)" }}
+                    style={{
+                      background: "var(--iw-accent)",
+                      boxShadow: "0 0 0 4px color-mix(in srgb, var(--iw-accent) 20%, transparent)",
+                    }}
                     aria-hidden
                   />
-                  <div className="text-xs opacity-60" style={{ direction: "ltr" }}>
+                  <div className="text-xs opacity-55" style={{ direction: "ltr" }}>
                     {item.time}
                   </div>
                   <div className="iw-display text-lg">{item.title}</div>
@@ -290,8 +317,9 @@ export default function InteractiveWeddingSite({
           <section id="location" className="iw-section text-center">
             <p className="iw-kicker">איך מגיעים</p>
             <h2 className="iw-title">{DEMO.venueName}</h2>
+            <div className="iw-divider" />
             <p className="iw-lede">{DEMO.venueAddress}</p>
-            <div className="mt-4 flex flex-wrap justify-center gap-2">
+            <div className="mt-2 flex flex-wrap justify-center gap-2">
               <a className="iw-btn" href={getVenueWazeLink()} target="_blank" rel="noreferrer">
                 ניווט ב־Waze
               </a>
@@ -299,14 +327,12 @@ export default function InteractiveWeddingSite({
                 Google Maps
               </a>
             </div>
-            {DEMO.dressCode ? (
-              <p className="mt-6 text-sm opacity-70">לבוש מומלץ: {DEMO.dressCode}</p>
-            ) : null}
           </section>
 
           <section id="dress-code" className="iw-section text-center">
             <p className="iw-kicker">לבוש</p>
             <h2 className="iw-title">קוד לבוש</h2>
+            <div className="iw-divider" />
             <p className="iw-lede">{DEMO.dressCode}</p>
           </section>
 
@@ -314,7 +340,8 @@ export default function InteractiveWeddingSite({
             <section id="rsvp" className="iw-section">
               <p className="iw-kicker">אישור הגעה</p>
               <h2 className="iw-title">נשמח לדעת אם תגיעו</h2>
-              <div className="mx-auto mt-4 max-w-md">
+              <div className="iw-divider" />
+              <div className="mx-auto mt-2 max-w-md">
                 <WeddingTemplateRsvp templateId={template.id} controller={rsvpController} />
               </div>
             </section>
@@ -323,7 +350,8 @@ export default function InteractiveWeddingSite({
           <section id="faq" className="iw-section">
             <p className="iw-kicker">שאלות נפוצות</p>
             <h2 className="iw-title">כל מה שחשוב לדעת</h2>
-            <div className="mx-auto mt-4 max-w-md divide-y" style={{ borderColor: "color-mix(in srgb, var(--iw-ink) 10%, transparent)" }}>
+            <div className="iw-divider" />
+            <div className="mx-auto max-w-md divide-y" style={{ borderColor: "color-mix(in srgb, var(--iw-ink) 10%, transparent)" }}>
               {DEMO.faq.map((item, i) => {
                 const isOpen = openFaq === i;
                 return (
@@ -349,6 +377,7 @@ export default function InteractiveWeddingSite({
           <section id="gifts" className="iw-section text-center">
             <p className="iw-kicker">מתנות</p>
             <h2 className="iw-title">ברכה ומתנה</h2>
+            <div className="iw-divider" />
             <p className="iw-lede">{DEMO.giftsNote}</p>
           </section>
 

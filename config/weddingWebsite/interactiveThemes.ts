@@ -58,13 +58,14 @@ export const INTERACTIVE_WEDDING_THEMES: InteractiveWeddingTheme[] = [
     tagline: "מעטפת משי, חותם ירח וגלילת כסף",
     description: "פתיחת מעטפה פיזית, שליפת הזמנה ואפקטי גלילה ליליים רכים.",
     mood: "romantic",
-    previewImage: "/interactive-invites/lunar-silk/invite-card.webp",
+    previewImage: "/interactive-invites/lunar-silk/envelope-photo.webp",
     heroImage: "/interactive-invites/lunar-silk/invite-card.webp",
     galleryImages: [
-      "/interactive-invites/lunar-silk/gallery-1.webp",
       "/interactive-invites/lunar-silk/gallery-2.webp",
+      "/interactive-invites/lunar-silk/gallery-1.webp",
       "/interactive-invites/lunar-silk/gallery-3.webp",
       "/interactive-invites/lunar-silk/gallery-4.webp",
+      "/interactive-invites/lunar-silk/hero.webp",
     ],
     css: {
       bg: "#F3EEE4",
