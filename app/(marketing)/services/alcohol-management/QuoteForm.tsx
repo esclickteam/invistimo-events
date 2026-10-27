@@ -64,16 +64,18 @@ export default function QuoteForm() {
         });
         const data = await res.json();
         if (!res.ok || !data.success) throw new Error("send failed");
-        trackPublicEvent("generate_lead", {
-          method: "alcohol_management_quote",
-          page_path: window.location.pathname,
-        });
+        if (!data.blocked) {
+          trackPublicEvent("generate_lead", {
+            method: "alcohol_management_quote",
+            page_path: window.location.pathname,
+          });
+        }
         setSuccess(true);
       } else {
         const wa = `https://wa.me/972555039072?text=${encodeURIComponent(message)}`;
         window.open(wa, "_blank", "noopener,noreferrer");
-        trackPublicEvent("whatsapp_inquiry", {
-          method: "alcohol_quote",
+        trackPublicEvent("click_whatsapp", {
+          placement: "alcohol_quote",
           page_path: window.location.pathname,
         });
         setSuccess(true);

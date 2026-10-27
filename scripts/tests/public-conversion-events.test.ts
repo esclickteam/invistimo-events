@@ -90,12 +90,18 @@ test("completed inquiries stay separate from button clicks in the public handler
   const quote = read("app/(marketing)/services/alcohol-management/QuoteForm.tsx");
   assert.match(quote, /generate_lead/);
   assert.match(quote, /alcohol_management_quote/);
-  assert.match(quote, /whatsapp_inquiry/);
+  assert.match(quote, /if \(!data\.blocked\)/);
+  assert.match(quote, /placement: "alcohol_quote"/);
+  assert.doesNotMatch(quote, /whatsapp_inquiry/);
   assert.doesNotMatch(quote, /alcohol_management_whatsapp/);
 
   const contact = read("app/contact/page.tsx");
   assert.match(contact, /method: "contact"/);
+  assert.match(contact, /if \(!data\.blocked\)/);
   assert.doesNotMatch(callBlock(contact, 'trackPublicEvent("generate_lead"'), /\b(name|email|phone|message)\b/);
+
+  const eventFit = read("app/components/event/ContactForm.jsx");
+  assert.match(eventFit, /if \(!data\.blocked\)/);
 
   const support = read("app/components/SupportBot.jsx");
   assert.match(support, /method: "support_widget"/);
