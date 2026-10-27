@@ -169,13 +169,13 @@
 
 .ii-real-wrap {
   position: relative;
-  width: min(88vw, 360px);
-  aspect-ratio: 5 / 3.75;
+  width: min(92vw, 420px);
+  aspect-ratio: 1 / 1;
   perspective: 1600px;
   cursor: pointer;
   transform-style: preserve-3d;
-  filter: drop-shadow(0 28px 40px rgba(60, 45, 25, 0.28))
-    drop-shadow(0 8px 14px rgba(60, 45, 25, 0.18));
+  filter: drop-shadow(0 32px 48px rgba(55, 40, 22, 0.32))
+    drop-shadow(0 10px 18px rgba(55, 40, 22, 0.18));
 }
 
 .ii-real-closed-plate {
@@ -191,12 +191,15 @@
   object-fit: contain;
   display: block;
   user-select: none;
+  border-radius: 4px;
 }
 
 .ii-real-stack {
   position: absolute;
-  inset: 6% 4% 8%;
+  inset: 14% 10% 18%;
   transform-style: preserve-3d;
+  visibility: hidden;
+  opacity: 0;
 }
 
 .ii-real-back,
@@ -207,23 +210,22 @@
   inset: 0;
   transform-style: preserve-3d;
   will-change: transform, opacity;
-  visibility: hidden;
 }
 
-.ii-real-back img,
-.ii-real-pocket img,
-.ii-real-flap img {
+.ii-real-paper-body {
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  display: block;
   border-radius: 10px 10px 14px 14px;
-  user-select: none;
+  background-color: #e8dfd0;
+  background-size: cover;
+  box-shadow:
+    0 18px 40px rgba(50, 35, 18, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45);
 }
 
 .ii-real-back {
   z-index: 1;
-  filter: brightness(0.92);
+  filter: brightness(0.94);
 }
 
 .ii-real-card {
@@ -295,7 +297,11 @@
 
 .ii-real-pocket {
   z-index: 3;
-  clip-path: polygon(0 38%, 50% 68%, 100% 38%, 100% 100%, 0 100%);
+  clip-path: polygon(0 36%, 50% 66%, 100% 36%, 100% 100%, 0 100%);
+}
+
+.ii-real-pocket-face {
+  filter: brightness(0.97);
 }
 
 .ii-real-pocket-shade {
@@ -303,25 +309,29 @@
   inset: 0;
   background: linear-gradient(
     180deg,
-    rgba(80, 60, 35, 0.22) 35%,
-    transparent 62%,
-    rgba(60, 45, 25, 0.08) 100%
+    rgba(80, 60, 35, 0.28) 34%,
+    transparent 64%,
+    rgba(60, 45, 25, 0.1) 100%
   );
   pointer-events: none;
 }
 
 .ii-real-flap {
   z-index: 4;
-  height: 58%;
+  height: 56%;
   bottom: auto;
   transform-origin: top center;
   backface-visibility: hidden;
 }
 
-.ii-real-flap img {
-  border-radius: 10px 10px 0 0;
+.ii-real-flap-face {
+  width: 100%;
+  height: 100%;
+  background-color: #e2d7c6;
+  background-size: cover;
   clip-path: polygon(0 0, 100% 0, 50% 100%);
-  filter: drop-shadow(0 10px 14px rgba(50, 35, 20, 0.22));
+  box-shadow: 0 12px 20px rgba(50, 35, 18, 0.22);
+  filter: brightness(1.02);
 }
 
 .ii-real-flap-edge {
@@ -335,34 +345,36 @@
   pointer-events: none;
 }
 
-.ii-real-ribbon {
+/* Overlays start invisible — photo already includes seal/ribbon.
+   On open they flash in and break away as the plate fades. */
+.ii-real-ribbon-overlay {
   position: absolute;
-  left: -6%;
-  right: -6%;
+  left: -4%;
+  right: -4%;
   top: 44%;
-  z-index: 5;
-  width: 112%;
+  z-index: 6;
+  width: 108%;
   height: auto;
-  max-height: 72px;
+  max-height: 78px;
   object-fit: contain;
   pointer-events: none;
   user-select: none;
-  filter: drop-shadow(0 6px 10px rgba(40, 50, 30, 0.25));
-  mix-blend-mode: multiply;
-  opacity: 0.92;
+  opacity: 0;
+  filter: drop-shadow(0 8px 12px rgba(40, 50, 30, 0.28));
 }
 
 .ii-real-seal {
   position: absolute;
   left: 50%;
-  top: 46%;
-  z-index: 7;
-  width: min(22vw, 86px);
-  height: min(22vw, 86px);
-  margin-left: calc(min(22vw, 86px) / -2);
-  margin-top: calc(min(22vw, 86px) / -2);
+  top: 48%;
+  z-index: 8;
+  width: min(24vw, 96px);
+  height: min(24vw, 96px);
+  margin-left: calc(min(24vw, 96px) / -2);
+  margin-top: calc(min(24vw, 96px) / -2);
   pointer-events: none;
-  filter: drop-shadow(0 10px 16px rgba(40, 50, 30, 0.35));
+  opacity: 0;
+  filter: drop-shadow(0 12px 18px rgba(40, 50, 30, 0.38));
 }
 
 .ii-real-seal img {
@@ -387,16 +399,16 @@
 
 .ii-real-sprig {
   position: absolute;
-  left: 54%;
-  top: 28%;
-  z-index: 6;
-  width: min(18vw, 70px);
+  left: 56%;
+  top: 30%;
+  z-index: 7;
+  width: min(18vw, 72px);
   height: auto;
   pointer-events: none;
   user-select: none;
   transform: rotate(18deg);
   filter: drop-shadow(0 6px 8px rgba(40, 50, 30, 0.25));
-  opacity: 0.92;
+  opacity: 0;
 }
 
 .ii-real-hint {
@@ -432,11 +444,17 @@
 
 @media (max-width: 420px) {
   .ii-real-wrap {
-    width: min(92vw, 340px);
+    width: min(94vw, 360px);
   }
 
   .ii-real-hint {
     bottom: -4.2rem;
+  }
+}
+
+@media (min-width: 900px) {
+  .ii-real-wrap {
+    width: min(46vw, 460px);
   }
 }
 
