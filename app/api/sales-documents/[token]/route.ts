@@ -6,6 +6,7 @@ import {
   QUOTE_TERMS_VERSION,
   buildAgreementTermsUpdate,
   buildQuoteTermsUpdate,
+  ensureVenueSeatingServiceDetails,
   withCurrentQuoteTerms,
   withRepairedAgreementTerms,
 } from "@/lib/quoteCustomerTerms";
@@ -166,8 +167,13 @@ function normalizeDocumentForClient(document: any) {
       ? withRepairedAgreementTerms(typed)
       : withCurrentQuoteTerms(typed);
 
+  const withServiceDetails = {
+    ...withTerms,
+    upsells: ensureVenueSeatingServiceDetails(withTerms.upsells),
+  };
+
   const normalized = sanitizeSalesDocumentForCustomer(
-    withTerms,
+    withServiceDetails,
   ) as Record<string, unknown> | null;
 
   if (normalized) {

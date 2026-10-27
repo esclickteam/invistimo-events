@@ -267,10 +267,13 @@ export function seatingServiceStartDisplay(
   };
 }
 
+/** View-mode schedules section: only when venue seating is included and at least one hour was set. */
 export function hasVisibleSeatingScheduleContent(
   schedule: CustomerSeatingSchedule | Partial<SeatingScheduleTimes> | null | undefined,
   includesVenueSeating: boolean,
 ) {
   if (!includesVenueSeating) return false;
-  return true;
+  return SEATING_SCHEDULE_FIELDS.some((field) =>
+    Boolean(normalizeClockTime(schedule?.[field.key])),
+  );
 }

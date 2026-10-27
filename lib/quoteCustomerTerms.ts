@@ -408,29 +408,42 @@ function agreementHasRequiredLegalTerms(document: Record<string, unknown>) {
   return hasEngagement && hasCancellation && hasAccountDeletion && hasSeatingLegal;
 }
 
-/** Unsigned agreements that lost legal terms after quote commercialization can be repaired. */
-export function needsAgreementTermsRepair(document: Record<string, unknown>) {
-  if (String(document.type || "") !== "agreement") return false;
+function isEffectivelySignedAgreement(document: Record<string, unknown>) {
   const status = String(document.status || "");
-  if (status === "signed") return false;
-  if (document.signedAt) return false;
+  if (status === "signed") return true;
+  if (document.signedAt) return true;
   const signature = document.signature;
   const agreement = document.agreement;
   if (signature && typeof signature === "object" && !Array.isArray(signature)) {
-    if ((signature as { signedAt?: unknown }).signedAt) return false;
+    if ((signature as { signedAt?: unknown }).signedAt) return true;
   }
   if (agreement && typeof agreement === "object" && !Array.isArray(agreement)) {
-    if ((agreement as { signedAt?: unknown }).signedAt) return false;
+    if ((agreement as { signedAt?: unknown }).signedAt) return true;
   }
+  return false;
+}
+
+/** Persist repair only for unsigned agreements. */
+export function needsAgreementTermsRepair(document: Record<string, unknown>) {
+  if (String(document.type || "") !== "agreement") return false;
+  if (isEffectivelySignedAgreement(document)) return false;
   return !agreementHasRequiredLegalTerms(document);
 }
 
+/**
+ * Display/persist rebuild when agreement legal terms are incomplete.
+ * Always repairs for view (including signed) so customers never see a hollow agreement.
+ * Persistence is gated separately by buildAgreementTermsUpdate.
+ */
 export function withRepairedAgreementTerms<T extends Record<string, unknown>>(
   document: T,
 ): T {
-  if (!needsAgreementTermsRepair(document)) return document;
+  if (String(document.type || "") !== "agreement") return document;
+  if (agreementHasRequiredLegalTerms(document)) return document;
 
-  const upsells = stripLegalTermsFromUpsells(document.upsells);
+  const upsells = ensureVenueSeatingServiceDetails(
+    stripLegalTermsFromUpsells(document.upsells),
+  );
   const terms = buildAgreementDocumentTerms({
     upsells,
     paymentTerms: document.paymentTerms,
@@ -460,6 +473,68 @@ export function buildAgreementTermsUpdate(document: Record<string, unknown>) {
     additionalTerms: repaired.additionalTerms,
     quoteTermsVersion: QUOTE_TERMS_VERSION,
   };
+}
+
+const SEATING_LEGAL_TITLES = new Set(
+  VENUE_SEATING_AGREEMENT_TERM_SECTIONS.map((section) => section.title),
+);
+
+/** Split agreement additionalTerms into general / seating-legal / account-deletion for clear UI. */
+export function splitAgreementAdditionalTerms(sections: DetailSection[] | undefined | null) {
+  const all = Array.isArray(sections) ? sections : [];
+  const seatingLegal = all.filter((section) => SEATING_LEGAL_TITLES.has(section.title));
+  const accountDeletion = all.filter(
+    (section) => section.title === ACCOUNT_USAGE_AND_DELETION_SECTION.title,
+  );
+  const general = all.filter(
+    (section) =>
+      !SEATING_LEGAL_TITLES.has(section.title) &&
+      section.title !== ACCOUNT_USAGE_AND_DELETION_SECTION.title,
+  );
+
+  return {
+    general,
+    seatingLegal:
+      seatingLegal.length > 0 ? seatingLegal : ([] as DetailSection[]),
+    accountDeletion:
+      accountDeletion.length > 0
+        ? accountDeletion
+        : ([] as DetailSection[]),
+  };
+}
+
+export function agreementSeatingLegalTermsForDisplay(input: {
+  upsells?: unknown;
+  additionalTerms?: DetailSection[] | null;
+}) {
+  if (!orderIncludesVenueSeating(input.upsells)) return [] as DetailSection[];
+  const split = splitAgreementAdditionalTerms(input.additionalTerms);
+  return split.seatingLegal.length > 0
+    ? split.seatingLegal
+    : VENUE_SEATING_AGREEMENT_TERM_SECTIONS;
+}
+
+export function agreementAccountDeletionTermsForDisplay(
+  additionalTerms?: DetailSection[] | null,
+) {
+  const split = splitAgreementAdditionalTerms(additionalTerms);
+  return split.accountDeletion.length > 0
+    ? split.accountDeletion
+    : [ACCOUNT_USAGE_AND_DELETION_SECTION];
+}
+
+/** Ensure venue-seating upsells always keep commercial service details. */
+export function ensureVenueSeatingServiceDetails(upsells: unknown): unknown[] {
+  if (!Array.isArray(upsells)) return [];
+  return upsells.map((upsell) => {
+    if (!upsell || typeof upsell !== "object") return upsell;
+    const record = upsell as Record<string, unknown>;
+    if (!isVenueSeatingUpsell(record)) return upsell;
+    return {
+      ...record,
+      customerDetails: syncVenueSeatingServiceDetails(record.customerDetails),
+    };
+  });
 }
 
 /**
