@@ -267,7 +267,7 @@ export async function PATCH(
         return NextResponse.json(
           {
             success: false,
-            error: `חסרות שעות הושבה: ${parsedSchedule.missing.join(", ")}`,
+            error: `שעות הושבה לא תקינות: ${parsedSchedule.missing.join(", ")}`,
           },
           { status: 400 }
         );

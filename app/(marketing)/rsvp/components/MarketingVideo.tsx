@@ -9,6 +9,8 @@ type Props = {
   className?: string;
   /** Eager for hero; lazy for below-fold */
   eager?: boolean;
+  /** cover (default) for hero crops; contain preserves native aspect ratio */
+  objectFit?: "cover" | "contain";
   videoRef?: RefObject<HTMLVideoElement | null>;
   onTimeUpdate?: (currentTime: number) => void;
   onSeeked?: (currentTime: number) => void;
@@ -32,6 +34,7 @@ export default function MarketingVideo({
   title,
   className = "",
   eager = false,
+  objectFit = "cover",
   videoRef,
   onTimeUpdate,
   onSeeked,
@@ -94,7 +97,11 @@ export default function MarketingVideo({
         autoPlay={!reducedMotion}
         controls
         preload={eager ? "metadata" : "none"}
-        className="h-full w-full object-cover object-top"
+        className={
+          objectFit === "contain"
+            ? "h-full w-full object-contain"
+            : "h-full w-full object-cover object-top"
+        }
         onTimeUpdate={(e) => onTimeUpdate?.(e.currentTarget.currentTime)}
         onSeeked={(e) => onSeeked?.(e.currentTarget.currentTime)}
         onPlay={() => setPausedByUser(false)}

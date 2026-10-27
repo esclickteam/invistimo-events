@@ -59,6 +59,10 @@ export const PILLARS: ContentPillar[] = [
         label: "סידורי הושבה לחתונה — המדריך המלא",
       },
       { path: "/info/guides/seating-plan", label: "איך מכינים הושבה במערכת" },
+      {
+        path: "/info/guides/seating-cards-vs-qr",
+        label: "פתקיות הושבה או QR דיגיטלי",
+      },
       { path: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },
     ],
   },

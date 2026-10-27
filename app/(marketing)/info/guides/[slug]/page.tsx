@@ -27,6 +27,7 @@ export function generateStaticParams() {
     "bit-paybox-wedding-invitation",
     "send-digital-invitation",
     "save-the-date-vs-invitation",
+    "seating-cards-vs-qr",
   ]);
   return GUIDES.filter((guide) => !dedicated.has(guide.slug)).map((guide) => ({
     slug: guide.slug,
