@@ -395,8 +395,15 @@ export default function ChatunaInvitationsPage() {
               </p>
             </div>
 
+            <p className="mt-4 max-w-xl text-sm font-semibold leading-6 text-[#6D5B4A]">
+              הזמנה דיגיטלית מלאה כלולה בחבילות אישורי ההגעה. עיצוב אישי הוא תוספת {designMessages} ₪
+              בחבילת הודעות, או {designCalls} ₪ בחבילות שיחות. ההזמנה מושלמת מול נציג.
+            </p>
             <div className="mt-7 flex flex-wrap gap-3 md:mt-8">
-              <button type="button" onClick={scrollToGallery} className={primaryCta}>
+              <Link href="/pricing" className={primaryCta}>
+                לקבלת הצעת מחיר
+              </Link>
+              <button type="button" onClick={scrollToGallery} className={secondaryCta}>
                 לגלות את עיצובי ההזמנות
               </button>
               <Link href="#full-example" className={secondaryCta}>

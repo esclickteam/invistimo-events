@@ -227,11 +227,17 @@ export default function EventManagementPage() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <a
-                href={EVENT_MANAGEMENT_DEMO_URL}
+                href="#contact"
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-[#2C241C] via-[#3F3025] to-[#35281F] px-8 py-3.5 text-base font-extrabold text-white shadow-[0_18px_40px_rgba(44,36,28,0.25)] transition hover:-translate-y-0.5"
               >
-                התנסו במערכת
+                לבדיקת התאמה
                 <ArrowLeft size={18} aria-hidden />
+              </a>
+              <a
+                href={EVENT_MANAGEMENT_DEMO_URL}
+                className="inline-flex min-h-12 items-center justify-center rounded-2xl border border-[#C7A56B] bg-white/90 px-8 py-3.5 text-base font-extrabold text-[#2C241C] transition hover:bg-white"
+              >
+                התנסו במערכת
               </a>
               <button
                 type="button"
@@ -243,6 +249,10 @@ export default function EventManagementPage() {
             </div>
             <p className="mt-4 text-sm text-[#7A6042]">
               התצוגות להמחשה מתוך מערכת Invistimo. ליווי וניהול באולם — רק אם סוכמו.
+            </p>
+            <p className="mt-3 max-w-xl text-sm font-semibold leading-6 text-[#5C4A3A]">
+              המחיר של ליווי ושל ניהול באולם נקבע בהצעה אחרי הפנייה. מחשבון חבילות אישורי ההגעה
+              מציג מחיר של שירות אחר, ומערכת הניהול העצמאית מופיעה שם רק כתוספת לחבילה.
             </p>
           </motion.div>
 
@@ -573,17 +583,17 @@ export default function EventManagementPage() {
           </ol>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <a
-              href={EVENT_MANAGEMENT_DEMO_URL}
+              href="#contact"
               className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#35281F] px-8 text-base font-black text-white"
+            >
+              לבדיקת התאמה
+            </a>
+            <a
+              href={EVENT_MANAGEMENT_DEMO_URL}
+              className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white px-8 text-base font-black text-[#5E4735]"
             >
               התנסו במערכת
             </a>
-            <Link
-              href="/pricing"
-              className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white px-8 text-base font-black text-[#5E4735]"
-            >
-              למחשבון החבילות
-            </Link>
           </div>
         </div>
       </section>
@@ -616,7 +626,7 @@ export default function EventManagementPage() {
 
       <ContactForm
         title="רוצים לבדוק התאמה למסלול שלכם?"
-        lede="השאירו פרטים לבדיקת מערכת עצמאית, ליווי או ניהול ביום האירוע — בהתאם לזמינות ולהצעה."
+        lede="השאירו פרטים לבדיקת מערכת עצמאית, ליווי או ניהול ביום האירוע. ההצעה נסגרת מול הצוות. המחיר במחשבון חבילות אישורי ההגעה אינו המחיר של השירות הזה."
       />
 
       {lightbox ? (

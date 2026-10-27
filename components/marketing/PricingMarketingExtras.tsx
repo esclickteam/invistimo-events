@@ -234,7 +234,7 @@ export default function PricingMarketingExtras() {
               מהרכישה ועד לאירוע — כך זה עובד
             </h2>
             <p className="mt-3 leading-8 text-[#5C4A3A]">
-              ציר זמן של פעולות שקיימות במערכת ובמסלול הרכישה הנוכחי.
+              בוחרים חבילה, פונים לצוות, ומשלימים את ההזמנה מול נציג. אין תשלום עצמאי באתר.
             </p>
             <div className="mt-8">
               <ProcessTimeline />

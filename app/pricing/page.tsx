@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Frank_Ruhl_Libre } from "next/font/google";
 import { Check, Users } from "lucide-react";
 import GuestRecordSlider from "@/app/pricing/GuestRecordSlider";
@@ -24,6 +24,7 @@ import {
   ADDON_ORDER,
   CALL_PACKAGES,
   EMPTY_ADDONS,
+  EXAMPLE_RECORD_COUNT,
   PACKAGES,
   addonPrice,
   applyRecordDraft,
@@ -230,8 +231,9 @@ function PackageCard({
 }
 
 export default function PricingPage() {
-  const [records, setRecords] = useState(200);
-  const [recordText, setRecordText] = useState("200");
+  const [records, setRecords] = useState(EXAMPLE_RECORD_COUNT);
+  const [recordText, setRecordText] = useState(String(EXAMPLE_RECORD_COUNT));
+  const [calculatorInView, setCalculatorInView] = useState(true);
   const [addons, setAddons] = useState<SelectedAddons>(EMPTY_ADDONS);
   const [selectedPackage, setSelectedPackage] = useState<PackageId | null>(null);
   const [priceFlash, setPriceFlash] = useState(false);
@@ -276,10 +278,21 @@ export default function PricingPage() {
     window.setTimeout(() => setPriceFlash(false), 420);
   }
 
+  useEffect(() => {
+    const node = document.getElementById("pricing-calculator");
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setCalculatorInView(entry.isIntersecting),
+      { rootMargin: "0px 0px -72px 0px", threshold: 0 }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <main
       dir="rtl"
-      className={`pricing-page relative min-h-screen overflow-x-clip bg-[#F7EFE6] pb-20 text-[#3E2D20] md:pb-0 ${display.variable}`}
+      className={`pricing-page relative min-h-screen overflow-x-clip bg-[#F7EFE6] text-[#3E2D20] md:pb-0 ${display.variable} ${calculatorInView ? "pb-6" : "pb-24"}`}
     >
       <div className="absolute inset-0 -z-30 bg-[radial-gradient(circle_at_top,#fffaf4_0%,#f7efe6_42%,#efe2d2_100%)]" />
       <div className="pointer-events-none absolute -top-24 right-[7%] -z-20 h-72 w-72 rounded-full bg-[#DAB273]/20 blur-3xl" />
@@ -298,7 +311,8 @@ export default function PricingPage() {
             בחרו את כמות הרשומות וגלו את החבילה המתאימה לאירוע שלכם.
           </p>
           <p className="mx-auto mt-2 max-w-2xl text-sm leading-7 text-[#7B6754] sm:text-base sm:leading-8">
-            המחיר משתנה לפי מספר הרשומות, סוג החבילה והתוספות — ומוצג במחשבון לפני התשלום.
+            המחיר משתנה לפי מספר הרשומות, סוג החבילה והתוספות, ומוצג כאן לפני הפנייה. בוחרים
+            חבילה, פונים לצוות ב־WhatsApp או ביצירת קשר, ומשלימים את ההזמנה מול נציג.
           </p>
         </div>
       </section>
@@ -372,6 +386,10 @@ export default function PricingPage() {
                 בחרו חבילה
               </h2>
             </div>
+            <p className="mb-4 text-sm leading-6 text-[#7B6754]">
+              „אני רוצה את החבילה” פותח WhatsApp עם שם החבילה ומספר הרשומות שנבחר. ההזמנה מושלמת
+              מול נציג.
+            </p>
             {records <= 0 ? (
               <p className="mb-4 text-sm leading-6 text-[#9C866D]">
                 בחרו לפחות רשומה אחת כדי לשלוח בקשה.
@@ -532,14 +550,16 @@ export default function PricingPage() {
 
       <ServiceLinks current="/pricing" />
 
-      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#E5D3B8] bg-[#FFFDF9]/95 p-3 backdrop-blur md:hidden">
-        <a
-          href="#pricing-calculator"
-          className="pricing-gold-cta flex min-h-12 w-full items-center justify-center rounded-[18px] text-sm font-black text-white"
-        >
-          למחשבון החבילות
-        </a>
-      </div>
+      {calculatorInView ? null : (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#E5D3B8] bg-[#FFFDF9]/95 p-3 backdrop-blur md:hidden">
+          <a
+            href="#pricing-calculator"
+            className="pricing-gold-cta flex min-h-12 w-full items-center justify-center rounded-[18px] text-sm font-black text-white"
+          >
+            חזרה למחשבון
+          </a>
+        </div>
+      )}
     </main>
   );
 }

@@ -23,6 +23,7 @@ import {
   TIMELINE,
   WHY_POINTS,
 } from "./content";
+import { SEATING_ADDON_ILS } from "@/lib/pricing/packageQuote";
 
 const display = Frank_Ruhl_Libre({
   subsets: ["hebrew", "latin"],
@@ -206,8 +207,13 @@ export default function SeatingMarketingPage() {
               מתכננים את השולחנות מראש, מקבלים את האורחים בצורה מסודרת ומנהלים את המקומות
               הפנויים בזמן אמת.
             </p>
+            <p className="mt-4 max-w-xl text-sm font-semibold leading-6 text-[#5C4A3A]">
+              הושבה דיגיטלית היא תוספת של {SEATING_ADDON_ILS} ₪ במחשבון חבילות אישורי ההגעה. ניהול
+              LIVE וצוות באולם מתומחרים בהצעה, ולא לפי הסכום הזה.
+            </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <PrimaryCta href="#digital-system">לגלות את מערכת ההושבה</PrimaryCta>
+              <SecondaryCta href="/contact">יצירת קשר</SecondaryCta>
               <SecondaryCta href="#live">איך עובד ניהול LIVE?</SecondaryCta>
             </div>
           </motion.div>
