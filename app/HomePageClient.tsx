@@ -339,7 +339,7 @@ export default function HomePageClient() {
                 href="/pricing"
                 className="inline-flex w-full min-w-0 items-center justify-center rounded-full border border-[#2C241C]/25 bg-[#F7F1E8]/95 px-6 py-4 text-[16px] font-extrabold text-[#2C241C] shadow-[0_14px_32px_rgba(28,22,18,0.12)] transition hover:bg-white sm:w-auto sm:min-w-[220px] sm:px-9"
               >
-                לגלות את החבילות
+                החבילות שלנו
               </Link>
             </div>
           </motion.div>
