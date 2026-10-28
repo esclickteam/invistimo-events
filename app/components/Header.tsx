@@ -585,8 +585,8 @@ export default function Header() {
               </h2>
 
               <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-[#7A6A5E]">
-                אפשר לבחור בין מערכת אישורי הגעה והושבה לבין מערכת ניהול והפקת
-                אירוע.
+                אפשר לבחור בין מערכת אישורי הגעה והושבה לבין פלטפורמה לניהול
+                האירוע.
               </p>
             </div>
 
@@ -670,7 +670,7 @@ export default function Header() {
                 </div>
 
                 <h3 className="text-lg font-black text-[#2B2118]">
-                  ניהול והפקת אירוע
+                  ניהול האירוע
                 </h3>
 
                 <p className="mt-2 text-sm font-semibold leading-6 text-[#7A6A5E]">

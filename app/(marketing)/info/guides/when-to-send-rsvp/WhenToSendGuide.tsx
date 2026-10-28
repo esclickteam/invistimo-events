@@ -533,6 +533,7 @@ export default function WhenToSendGuide() {
               { href: "/rsvp/hina", label: "אישורי הגעה לחינה" },
               { href: "/rsvp/calls", label: "שיחות אישורי הגעה" },
               { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
+              { href: "/info/guides/how-to-choose-rsvp-company", label: "איך בוחרים חברת אישורי הגעה" },
               { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות לאולם" },
               { href: "/info/guides/event-day-checklist", label: "צ'קליסט לפני יום האירוע" },
               { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },

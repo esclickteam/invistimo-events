@@ -219,10 +219,10 @@ export default function EventManagementPage() {
             <h1
               className={`${display.className} mt-4 max-w-2xl text-[2rem] font-bold leading-[1.2] text-[#2C241C] md:text-[2.75rem]`}
             >
-              האירוע שלכם. כל הפרטים במקום אחד.
+              ניהול האירוע שלכם. כל הפרטים במקום אחד.
             </h1>
             <p className="mt-5 max-w-xl text-base leading-8 text-[#5C4A3A] md:text-lg">
-              מערכת חכמה לניהול והפקת אירועים — משימות, ספקים, תקציב, תשלומים ולוח זמנים, עם
+              פלטפורמה לניהול האירוע — משימות, ספקים, תקציב, תשלומים ולוח זמנים, עם
               אפשרות להוסיף ליווי מקצועי וניהול ביום האירוע.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -777,7 +777,7 @@ function DemoChoiceModal({ onClose, onRsvp, onEvent }) {
             className="rounded-2xl border border-[#E6D2AA] bg-white p-5 text-right transition hover:border-[#C7A56B]"
           >
             <LayoutDashboard className="text-[#A67C3D]" />
-            <p className="mt-3 font-black text-[#2C241C]">ניהול והפקת אירוע</p>
+            <p className="mt-3 font-black text-[#2C241C]">ניהול האירוע</p>
             <p className="mt-2 text-sm leading-7 text-[#5C4A3A]">משימות, ספקים, תקציב ולו״ז</p>
           </button>
           <button

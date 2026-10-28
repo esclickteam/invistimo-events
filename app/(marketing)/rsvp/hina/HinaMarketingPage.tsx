@@ -733,7 +733,7 @@ export default function HinaMarketingPage() {
             </div>
             <div className="mt-8">
               <CtaLink href={LINKS.eventManagement} variant="light">
-                לניהול יום האירוע
+                לניהול האירוע
               </CtaLink>
             </div>
           </div>

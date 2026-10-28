@@ -31,7 +31,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { href: "/seating-explained", label: "סידורי הושבה" },
       { href: "/invitations/chatuna", label: "הזמנות דיגיטליות" },
       { href: "/rsvp/save-the-date", label: "Save the Date" },
-      { href: "/event-management", label: "ניהול והפקת אירוע" },
+      { href: "/event-management", label: "ניהול אירוע" },
       { href: "/wedding-website", label: "אתרי חתונה" },
       { href: "/services/alcohol-management", label: "ניהול אלכוהול" },
       { href: "/credit-gifts", label: "מתנות באשראי" },

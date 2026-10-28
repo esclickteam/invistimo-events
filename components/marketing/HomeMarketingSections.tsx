@@ -148,14 +148,14 @@ const SERVICES = [
     href: "/rsvp",
     title: "אישורי הגעה",
     body: "יודעים מי מגיע, מי עדיין מתלבט וממי עוד מחכים לתשובה.",
-    cta: "כך זה עובד",
+    cta: "איך עובדים אישורי ההגעה",
     icon: CheckCircle2,
   },
   {
     href: "/seating-explained",
     title: "סידורי הושבה",
     body: "מסדרים את השולחנות, משבצים אורחים ורואים את התמונה המלאה לפני האירוע.",
-    cta: "סידורי הושבה",
+    cta: "סידורי הושבה לחתונה",
     icon: Armchair,
   },
   {
@@ -181,9 +181,9 @@ const SERVICES = [
   },
   {
     href: "/event-management",
-    title: "ניהול יום האירוע",
-    body: "עוקבים אחר הגעת האורחים ומנהלים את המתרחש בזמן אמת, בהתאם לשירותים שנבחרו.",
-    cta: "ניהול יום האירוע",
+    title: "ניהול האירוע",
+    body: "משימות, ספקים, תקציב ולוח זמנים במקום אחד, לפני יום האירוע.",
+    cta: "לפלטפורמת ניהול האירוע",
     icon: Sparkles,
   },
 ] as const;
@@ -687,7 +687,7 @@ export default function HomeMarketingSections() {
             </Link>
           </div>
           <div className="mt-10">
-            <GoldCta href="/rsvp">כך זה עובד</GoldCta>
+            <GoldCta href="/rsvp">איך עובדים אישורי ההגעה</GoldCta>
           </div>
         </div>
       </section>
@@ -709,11 +709,14 @@ export default function HomeMarketingSections() {
             </h2>
             <p className="mt-5 text-lg leading-8 text-[#C9BDAE]">
               אחרי שמתחילות להגיע התשובות, אפשר להפוך את רשימת המוזמנים למפת הושבה ברורה —
-              ליצור שולחנות, לשבץ אורחים ולבדוק תפוסה בלי ללכת לאיבוד בין קבצים.
+              ליצור שולחנות, לשבץ אורחים ולבדוק תפוסה בלי ללכת לאיבוד בין קבצים.{" "}
+              <Link href="/info/guides/wedding-seating-arrangements" className="font-bold text-[#E8D1A5] underline-offset-4 hover:underline">מדריך לסידורי הושבה לחתונה</Link>{" "}
+              מסביר את הסדר לפני שנכנסים למערכת, ו<Link href="/info/guides/seating-plan" className="font-bold text-[#E8D1A5] underline-offset-4 hover:underline">מדריך הכנת ההושבה</Link>{" "}
+              מראה איך בונים את המפה בפועל.
             </p>
             <div className="mt-8">
               <GoldCta href="/seating-explained" dark>
-                סידורי הושבה
+                סידורי הושבה לחתונה
               </GoldCta>
             </div>
           </div>
