@@ -20,7 +20,7 @@ export const metadata = pageMetadata({
 
 const faqs = [
   {
-    q: "מהי מערכת לניהול והפקת אירועים?",
+    q: "מהי פלטפורמה לניהול אירועים?",
     a: "מערכת דיגיטלית שמרכזת משימות, ספקים, תקציב, תשלומים ולוח זמנים סביב האירוע. ב־Invistimo אפשר לנהל את אלה במקום אחד, ולהוסיף ליווי או ניהול באולם רק אם סוכמו.",
   },
   {
@@ -93,10 +93,10 @@ export default function Page() {
           breadcrumbNode(breadcrumbs),
           softwareNode(route.description, "/event-management"),
           serviceNode({
-            name: "מערכת לניהול והפקת אירועים",
+            name: "פלטפורמה לניהול אירועים",
             description: route.description,
             path: "/event-management",
-            serviceType: "ניהול והפקת אירועים",
+            serviceType: "ניהול אירועים",
           }),
           {
             "@type": "WebPage",
@@ -129,7 +129,7 @@ export default function Page() {
       <section dir="rtl" className="bg-[#FFFDF8] px-6 py-14 text-[#3F3025]">
         <div className="mx-auto max-w-3xl">
           <p className="text-sm font-black tracking-wide text-[#A67C3D]">שאלות נפוצות</p>
-          <h2 className="mt-2 text-3xl font-black text-[#35281F]">שאלות על ניהול והפקת אירוע</h2>
+          <h2 className="mt-2 text-3xl font-black text-[#35281F]">שאלות על ניהול האירוע</h2>
           <div className="mt-8 space-y-4">
             {faqs.map((faq) => (
               <details key={faq.q} className="rounded-[24px] border border-[#E6D2AA] bg-white px-5 py-4">

@@ -103,7 +103,7 @@ export default function RSVPPage() {
               Invistimo
             </p>
             <h1 className="mt-5 font-[family-name:var(--font-rsvp-display)] text-3xl font-bold leading-[1.2] text-[#35281F] md:text-5xl">
-              אישורי הגעה לאירוע, בלי לרדוף אחרי האורחים
+              אישורי הגעה לחתונה ולאירועים, בלי לרדוף אחרי האורחים
             </h1>
             <p className="mt-5 text-lg font-semibold leading-8 text-[#5C4A3A] md:text-xl md:leading-9">
               אתם מתרגשים לקראת האירוע. אנחנו עוזרים לכם לדעת מי מגיע.
@@ -143,8 +143,8 @@ export default function RSVPPage() {
 
         <p className="mx-auto mt-12 max-w-3xl text-center text-base leading-8 text-[#6D5B4A] md:mt-16 md:text-lg md:leading-9">
           עם Invistimo שולחים לאורחים הודעות WhatsApp עם קישור אישי לאישור הגעה, עוקבים אחרי
-          התשובות בזמן אמת ומרכזים את כל המידע במקום אחד. אפשר לשלב סבבי הודעות, שיחות טלפוניות,
-          תזכורות, סידורי הושבה וניהול מוזמנים — כדי להגיע ליום האירוע הרבה יותר מסודרים.
+          התשובות בזמן אמת ומרכזים את כל המידע במקום אחד. אפשר לשלב סבבי הודעות, שיחות טלפוניות
+          ותזכורות, ואחר כך להמשיך ל<Link href="/seating-explained" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">סידורי הושבה</Link>, ל<Link href="/info/guides/guest-list" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">רשימת המוזמנים</Link> ול<Link href="/event-management" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">ניהול האירוע</Link>.
         </p>
       </section>
 

@@ -181,7 +181,7 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
   },
   {
     path: "/event-management",
-    title: "מערכת לניהול והפקת אירועים עצמאית | Invistimo",
+    title: "פלטפורמה לניהול אירועים | Invistimo",
     description:
       "נהלו את האירוע במקום אחד עם Invistimo: משימות, ספקים, תקציב, תשלומים ולוח זמנים. מערכת עצמאית עם אפשרות לליווי מקצועי וניהול ביום האירוע.",
     changeFrequency: "monthly",
