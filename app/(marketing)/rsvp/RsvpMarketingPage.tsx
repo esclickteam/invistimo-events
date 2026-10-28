@@ -163,6 +163,11 @@ export default function RSVPPage() {
               {HOW_IT_WORKS.title}
             </h2>
             <p className="mt-5 text-base leading-8 text-[#6D5B4A] md:text-lg">{HOW_IT_WORKS.lede}</p>
+            <p className="mt-4 text-base leading-8 text-[#6D5B4A] md:text-lg">
+              ב־WhatsApp כל אורח מקבל קישור אישי, והתשובה נרשמת על שמו: מי מגיע, מי לא מגיע ומי
+              עדיין לא השיב. כשהחבילה כוללת תזכורת SMS או שיחה, הן ממשיכות את המעקב הזה לאורח
+              שעדיין לא ענה.
+            </p>
           </div>
 
           <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -214,6 +219,16 @@ export default function RSVPPage() {
               {CHANNELS.title}
             </h2>
             <p className="mt-5 text-base leading-8 text-[#D9CBB8] md:text-lg">{CHANNELS.lede}</p>
+            <p className="mt-4 text-base leading-8 text-[#D9CBB8] md:text-lg">
+              לפני שבוחרים ערוץ, אפשר לקרוא{" "}
+              <Link
+                href="/info/guides/how-to-choose-rsvp-company"
+                className="font-bold text-[#E8D1A5] underline-offset-4 hover:underline"
+              >
+                איך בוחרים חברה לאישורי הגעה
+              </Link>
+              .
+            </p>
           </div>
 
           <ul className="mt-12 grid gap-5 md:grid-cols-3">
@@ -384,6 +399,16 @@ export default function RSVPPage() {
               כל אירוע שונה, ולכן אפשר לבחור את אופן ניהול אישורי ההגעה בהתאם למספר המוזמנים ולשירותים
               הרצויים. הסכומים לדוגמה הם ל־{EXAMPLE_RECORD_COUNT.toLocaleString("he-IL")} רשומות, בלי
               תוספות, כמו במחשבון.
+            </p>
+            <p className="mt-4 text-base leading-8 text-[#D9CBB8] md:text-lg">
+              הסכום נקבע במחשבון לפי מספר הרשומות, החבילה והתוספות.{" "}
+              <Link
+                href="/info/guides/cost-rsvp-wedding"
+                className="font-bold text-[#E8D1A5] underline-offset-4 hover:underline"
+              >
+                מדריך עלות אישורי הגעה לחתונה
+              </Link>{" "}
+              מפרט את השיקולים.
             </p>
           </div>
 

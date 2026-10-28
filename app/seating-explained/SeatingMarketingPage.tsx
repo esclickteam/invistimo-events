@@ -294,6 +294,15 @@ export default function SeatingMarketingPage() {
           חשוב: תכנון הושבה מפחית בלבול ועומס, אבל אינו מבטיח שלא יהיו טעויות או עיכובים ביום
           האירוע.
         </p>
+        <p className="mt-4 max-w-3xl text-base leading-8 text-[#5C4A3A]">
+          חלוקה לפי משפחה, חברים, ילדים ונגישות מוסברת ב<Link
+            href={`${LINKS.weddingSeatingGuide}#groups`}
+            className="font-black text-[#8A642E] underline-offset-4 hover:underline"
+          >
+            מדריך סידורי הושבה לחתונה
+          </Link>
+          .
+        </p>
       </Section>
 
       {/* Free seating contrast */}
@@ -462,6 +471,15 @@ export default function SeatingMarketingPage() {
           </Link>
           .
         </p>
+        <p className="mt-4 max-w-3xl text-base leading-8 text-[#5C4A3A]">
+          איך מחליטים כמה מקומות להשאיר, ומה ההבדל בין כיסא פנוי למנת רזרבה, מוסבר ב<Link
+            href={`${LINKS.weddingSeatingGuide}#reserves-vs-meals`}
+            className="font-black text-[#8A642E] underline-offset-4 hover:underline"
+          >
+            מדריך סידורי הושבה לחתונה
+          </Link>
+          .
+        </p>
       </Section>
 
       {/* LIVE */}
@@ -604,6 +622,15 @@ export default function SeatingMarketingPage() {
             <p className="mt-6 rounded-2xl border border-[#E6D2AA] bg-[#FFFDF8] px-4 py-4 text-sm leading-6 text-[#5C4A3A]">
               יש להבחין בין מערכת הושבה בשימוש עצמי, מערכת עם LIVE, ושירות הכולל אנשי צוות
               פיזיים. אנשי צוות אינם כלולים בכל חבילת הושבה — והמחיר נקבע בהצעה.
+            </p>
+            <p className="mt-4 text-sm leading-7 text-[#5C4A3A]">
+              איך האורח מקבל את מספר השולחן — פתקית, הודעה או QR — מוסבר ב<Link
+                href={LINKS.seatingCardsVsQr}
+                className="font-black text-[#8A642E] underline-offset-4 hover:underline"
+              >
+                מדריך פתקיות הושבה או QR
+              </Link>
+              .
             </p>
           </div>
         </div>

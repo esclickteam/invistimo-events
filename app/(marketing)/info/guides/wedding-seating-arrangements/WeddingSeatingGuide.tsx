@@ -65,11 +65,7 @@ const GROUPS = [
 
 const GROUP_PRINCIPLES = [
   "לא לפצל זוגות ללא צורך.",
-  "לא להפריד ילדים מהוריהם בלי סיבה מתאימה.",
   "להתחשב בקשרים ובמתחים משפחתיים.",
-  "לשאול מראש על צרכים מיוחדים.",
-  "להתחשב במיקום הרמקולים ובנגישות.",
-  "להימנע מהושבת אורחים בודדים בשולחן שבו אינם מכירים איש.",
 ] as const;
 
 const VENUE_QUESTIONS = [
@@ -335,10 +331,8 @@ export default function WeddingSeatingGuide() {
                 <Link href="/info/guides/guest-list" className="font-black text-[#8A642E] underline-offset-4 hover:underline">
                   מדריך רשימת המוזמנים
                 </Link>
-                , ולמעקב אחרי תשובות — את{" "}
-                <Link href="/rsvp/chatuna" className="font-black text-[#8A642E] underline-offset-4 hover:underline">
-                  עמוד אישורי ההגעה לחתונה
-                </Link>
+                . את התשובות אוספים ב<Link href="/rsvp" className="font-black text-[#8A642E] underline-offset-4 hover:underline">אישורי הגעה</Link>
+                , ובחתונה גם ב<Link href="/rsvp/chatuna" className="font-black text-[#8A642E] underline-offset-4 hover:underline">עמוד אישורי ההגעה לחתונה</Link>
                 .
               </p>
             </Prose>
@@ -597,6 +591,29 @@ export default function WeddingSeatingGuide() {
                 </li>
               ))}
             </ul>
+            <h3 id="groups-kids" className="mt-8 scroll-mt-24 text-xl font-black text-[#2C241C]">
+              איך מתכננים שולחנות לילדים?
+            </h3>
+            <p className="mt-3 text-base leading-8 text-[#5C4A3A]">
+              ילדים צעירים בדרך כלל יושבים עם ההורים. לפעמים מתאים שולחן ילדים או נוער נפרד
+              לגילאים מתאימים, בתיאום עם ההורים ועם מדיניות האולם. חשוב לוודא נגישות להורים,
+              בטיחות ומיקום נוח יחסית לשירותים ולרעש.
+            </p>
+            <h3 id="groups-access" className="mt-8 scroll-mt-24 text-xl font-black text-[#2C241C]">
+              איך מתחשבים באורחים מבוגרים ובנגישות?
+            </h3>
+            <p className="mt-3 text-base leading-8 text-[#5C4A3A]">
+              שואלים מראש על צרכים מיוחדים: מרחק מהכניסה, קרבה לשירותים, הימנעות מרמקולים חזקים,
+              מקום לכיסא גלגלים או מלווה. משבצים בהתאם במפה, לא רק במקום שנשאר פנוי.
+            </p>
+            <h3 id="groups-solo" className="mt-8 scroll-mt-24 text-xl font-black text-[#2C241C]">
+              איך מושיבים אורחים שמגיעים לבד?
+            </h3>
+            <p className="mt-3 text-base leading-8 text-[#5C4A3A]">
+              נמנעים מהשארת אורח בודד בשולחן שבו אינו מכיר איש. מחברים אותו לקבוצה שיש לה נקודת
+              מגע משותפת — חברים משותפים, קרובי משפחה רחוקים או קולגות — או לשולחן עם אנשים
+              פתוחים ודומים בגיל או בהקשר.
+            </p>
           </section>
 
           {/* 10 No reply */}
