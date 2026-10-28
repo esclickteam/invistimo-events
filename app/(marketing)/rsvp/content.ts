@@ -117,7 +117,7 @@ export const CHANNELS = {
     {
       title: "SMS — תזכורת לפני האירוע והודעת תודה",
       body: "תזכורת עם פרטי האירוע והניווט, ובהתאם לשירות גם הודעת תודה לאחר האירוע. דרך נעימה לשמור על קשר עם האורחים לאורך הדרך.",
-      href: "/rsvp/whatsapp",
+      href: "/info/guides/whatsapp-vs-sms-rsvp",
       icon: "sms" as const,
     },
     {
