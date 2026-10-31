@@ -21,13 +21,9 @@ export const dynamic = "force-dynamic";
 const QUOTE_VALIDITY_DAYS = 4;
 
 type RouteContext = {
-  params:
-    | {
-        token: string;
-      }
-    | Promise<{
-        token: string;
-      }>;
+  params: Promise<{
+    token: string;
+  }>;
 };
 
 function cleanStr(value: unknown) {
