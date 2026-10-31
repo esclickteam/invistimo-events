@@ -8,6 +8,7 @@
     "prebuild": "node scripts/generate-rsvp-calls-demo-audio.mjs",
     "build": "next build",
     "start": "next start",
+    "test:contact-inquiry-measurement": "npx tsx --test scripts/tests/contact-inquiry-measurement.test.ts scripts/tests/public-conversion-events.test.ts scripts/tests/contact-lead.test.ts",
     "test:telnyx-webrtc-security": "node --test scripts/test-telnyx-webrtc-security.mjs",
     "test:inbound-bridge-idempotency": "node --test scripts/test-inbound-bridge-idempotency.mjs",
     "test:inbound-bridge-mongo": "node --test scripts/test-inbound-bridge-mongo.mjs",
