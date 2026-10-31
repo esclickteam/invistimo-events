@@ -18,6 +18,7 @@ const ContactInquiryMeasurementSchema = new Schema(
         "skipped_config",
         "failed",
         "failed_unconfirmed",
+        "timed_out",
       ],
     },
     attempts: {

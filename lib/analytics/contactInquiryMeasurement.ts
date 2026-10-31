@@ -3,6 +3,8 @@ import { isGaMeasurementId } from "@/lib/seo/analytics";
 /** A contact-page success is counted once. GA4 is a separate, optional send. */
 export const CLAIM_STALE_MS = 60_000;
 export const MAX_GA_ATTEMPTS = 3;
+/** Bound the visitor's wait. A silent Google endpoint must not hold the form. */
+export const GA4_MP_TIMEOUT_MS = 2_000;
 export const CONTACT_PAGE_CLIENT = "contact_page";
 export const ANALYTICS_CONSENT_COOKIE = "invistimo_analytics";
 export const CONTACT_PAGE_LOCATION = "https://www.invistimo.com/contact";
@@ -18,7 +20,8 @@ export type InquiryMeasurementStatus =
   | "skipped_consent"
   | "skipped_config"
   | "failed"
-  | "failed_unconfirmed";
+  | "failed_unconfirmed"
+  | "timed_out";
 
 export type MeasurementRecord = {
   submissionId: string;
@@ -70,6 +73,13 @@ export class Ga4MeasurementNetworkError extends Error {
   constructor() {
     super("GA4_MP_NETWORK");
     this.name = "Ga4MeasurementNetworkError";
+  }
+}
+
+export class Ga4MeasurementTimeoutError extends Error {
+  constructor() {
+    super("GA4_MP_TIMEOUT");
+    this.name = "Ga4MeasurementTimeoutError";
   }
 }
 
@@ -173,7 +183,8 @@ export function decideClaim(
     existing.status === "sent" ||
     existing.status === "skipped_consent" ||
     existing.status === "skipped_config" ||
-    existing.status === "failed_unconfirmed"
+    existing.status === "failed_unconfirmed" ||
+    existing.status === "timed_out"
   ) {
     return "skip";
   }
@@ -202,6 +213,7 @@ export function summarizeInquiryMeasurements(records: MeasurementRecord[]) {
     failedUnconfirmed: records.filter(
       (record) => record.status === "failed_unconfirmed"
     ).length,
+    timedOut: records.filter((record) => record.status === "timed_out").length,
   };
 }
 
@@ -229,7 +241,8 @@ async function rememberSkip(
     existing.status === "sent" ||
     existing.status === "skipped_consent" ||
     existing.status === "skipped_config" ||
-    existing.status === "failed_unconfirmed"
+    existing.status === "failed_unconfirmed" ||
+    existing.status === "timed_out"
   ) {
     return existing.status;
   }
@@ -351,8 +364,12 @@ export async function measureContactPageInquiry(input: {
     });
     return { outcome: "sent" as const };
   } catch (error) {
-    const unconfirmed = !(error instanceof Ga4MeasurementHttpError);
-    const status = unconfirmed ? "failed_unconfirmed" : "failed";
+    const status =
+      error instanceof Ga4MeasurementHttpError
+        ? "failed"
+        : error instanceof Ga4MeasurementTimeoutError
+          ? "timed_out"
+          : "failed_unconfirmed";
     await input.store.update(submissionId, { status, hadClientId, hadSessionId });
     return { outcome: status };
   }

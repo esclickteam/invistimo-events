@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  GA4_MP_TIMEOUT_MS,
   Ga4MeasurementHttpError,
   Ga4MeasurementNetworkError,
+  Ga4MeasurementTimeoutError,
   buildGenerateLeadPayload,
   createAnonymousClientId,
   decideClaim,
@@ -140,6 +142,7 @@ test("a successful contact inquiry sends one generate_lead without personal data
     skippedConfig: 0,
     failed: 0,
     failedUnconfirmed: 0,
+    timedOut: 0,
   });
 });
 
@@ -217,6 +220,26 @@ test("a network failure is not retried, because the hit may already have arrived
   assert.equal(sends, 1);
   assert.equal(summarizeInquiryMeasurements(store.records).inquiries, 1);
   assert.equal(summarizeInquiryMeasurements(store.records).sentToGa4, 0);
+  assert.equal(store.records[0]?.status, "failed_unconfirmed");
+});
+
+test("a GA timeout is not marked sent, does not throw, and is not retried", async () => {
+  const store = memoryStore();
+  let sends = 0;
+  const input = allowedInput(store, {
+    send: async () => {
+      sends += 1;
+      throw new Ga4MeasurementTimeoutError();
+    },
+  });
+  const first = await measureContactPageInquiry(input);
+  const second = await measureContactPageInquiry({ ...input, now: input.now! + CLAIM_GAP });
+  assert.equal(first.outcome, "timed_out");
+  assert.equal(second.outcome, "deduped");
+  assert.equal(sends, 1);
+  assert.equal(store.records[0]?.status, "timed_out");
+  assert.equal(summarizeInquiryMeasurements(store.records).sentToGa4, 0);
+  assert.equal(summarizeInquiryMeasurements(store.records).timedOut, 1);
 });
 
 test("consent, DNT, and GPC skip GA4 and still count the inquiry", async () => {
@@ -315,6 +338,57 @@ test("the collect request keeps the secret out of the body", async () => {
   for (const value of PII) assert.equal(capturedBody.includes(value), false);
 });
 
+test("a hanging Google request times out and does not stay open", async () => {
+  const started = Date.now();
+  await assert.rejects(
+    () =>
+      sendGa4GenerateLead({
+        measurementId: MEASUREMENT_ID,
+        apiSecret: SECRET,
+        payload: buildGenerateLeadPayload({ clientId: "123.456" }),
+        timeoutMs: 40,
+        fetchImpl: () => new Promise(() => {}),
+      }),
+    (error: unknown) => error instanceof Ga4MeasurementTimeoutError
+  );
+  assert.ok(Date.now() - started < 1_000);
+  assert.equal(GA4_MP_TIMEOUT_MS, 2_000);
+});
+
+test("a network failure from collect is not an HTTP success", async () => {
+  await assert.rejects(
+    () =>
+      sendGa4GenerateLead({
+        measurementId: MEASUREMENT_ID,
+        apiSecret: SECRET,
+        payload: buildGenerateLeadPayload({ clientId: "123.456" }),
+        fetchImpl: async () => {
+          throw new Error("ECONNRESET");
+        },
+      }),
+    (error: unknown) => error instanceof Ga4MeasurementNetworkError
+  );
+});
+
+test("HTTP 204 is the only collect success, and HTTP 500 is not sent", async () => {
+  await sendGa4GenerateLead({
+    measurementId: MEASUREMENT_ID,
+    apiSecret: SECRET,
+    payload: buildGenerateLeadPayload({ clientId: "123.456" }),
+    fetchImpl: async () => new Response(null, { status: 204 }),
+  });
+  await assert.rejects(
+    () =>
+      sendGa4GenerateLead({
+        measurementId: MEASUREMENT_ID,
+        apiSecret: SECRET,
+        payload: buildGenerateLeadPayload({ clientId: "123.456" }),
+        fetchImpl: async () => new Response("no", { status: 500 }),
+      }),
+    (error: unknown) => error instanceof Ga4MeasurementHttpError && error.status === 500
+  );
+});
+
 test("claim decisions stop retries after a send, an uncertain failure, or three attempts", () => {
   const base: MeasurementRecord = {
     submissionId: SUBMISSION,
@@ -328,6 +402,7 @@ test("claim decisions stop retries after a send, an uncertain failure, or three 
   assert.equal(decideClaim(null, 100), "insert");
   assert.equal(decideClaim(base, 200), "skip");
   assert.equal(decideClaim({ ...base, status: "failed_unconfirmed" }, 10_000), "skip");
+  assert.equal(decideClaim({ ...base, status: "timed_out" }, 10_000), "skip");
   assert.equal(
     decideClaim({ ...base, status: "pending", claimedAt: 90_000 }, 100_000),
     "skip"
