@@ -272,6 +272,10 @@ function getLeadSourceLabel(source?: string, provider?: string) {
     return "Make";
   }
 
+  if (cleanProvider === "contact_form" || cleanSource === "contact_form") {
+    return "טופס יצירת קשר";
+  }
+
   if (cleanSource) return source || "-";
   if (cleanProvider) return provider || "-";
 

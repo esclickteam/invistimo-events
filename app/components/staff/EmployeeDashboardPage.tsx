@@ -1312,6 +1312,9 @@ function getLeadSourceLabel(source?: string, provider?: string) {
 
   if (cleanSource === "facebook") return "Facebook";
   if (cleanProvider === "make") return "Make";
+  if (cleanProvider === "contact_form" || cleanSource === "contact_form") {
+    return "טופס יצירת קשר";
+  }
   if (cleanSource === "whatsapp") return "WhatsApp";
 
   return source || provider || "—";

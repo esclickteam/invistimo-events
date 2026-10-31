@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { assertExternalSendAllowed } from "@/lib/env/externalSends";
+import { openContactFormLead } from "@/lib/contact/openContactLead";
+import {
+  isValidContactPhone,
+  normalizeContactPhone,
+} from "@/lib/contact/contactPhone";
 
 /** Lazy client — module-level `new Resend()` throws during build when the key is unset. */
 function getResend() {
@@ -9,6 +14,14 @@ function getResend() {
     throw new Error("Missing RESEND_API_KEY");
   }
   return new Resend(key);
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 export async function POST(req: Request) {
@@ -23,9 +36,14 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
-    const { name, email, subject, message } = body;
+    const name = String(body?.name || "").trim();
+    const email = String(body?.email || "").trim();
+    const subject = String(body?.subject || "").trim();
+    const message = String(body?.message || "").trim();
+    const phoneRaw = String(body?.phone || "").trim();
+    const phone = phoneRaw ? normalizeContactPhone(phoneRaw) : "";
 
-    if (!name || !email || !message) {
+    if (!name || !message) {
       return NextResponse.json(
         {
           success: false,
@@ -33,6 +51,48 @@ export async function POST(req: Request) {
         },
         { status: 400 }
       );
+    }
+
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "כתובת הדוא״ל אינה תקינה",
+        },
+        { status: 400 }
+      );
+    }
+
+    if (phoneRaw && !isValidContactPhone(phone)) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "נא להזין מספר טלפון ישראלי תקין",
+        },
+        { status: 400 }
+      );
+    }
+
+    // A phone number opens a CRM lead only. Nothing is sent to that number.
+    if (phone) {
+      try {
+        await openContactFormLead({
+          name,
+          email,
+          phone,
+          subject,
+          message,
+        });
+      } catch (leadError) {
+        console.error("CONTACT FORM LEAD ERROR:", leadError);
+        return NextResponse.json(
+          {
+            success: false,
+            error: "לא הצלחנו לשמור את הפנייה. נסו שוב.",
+          },
+          { status: 500 }
+        );
+      }
     }
 
     // ✅ ניקוי רווחים – קריטי לשליחה לכמה נמענים
@@ -61,17 +121,11 @@ export async function POST(req: Request) {
     const resend = getResend();
 
     await resend.emails.send({
-      // ✅ שולח מדומיין מאומת
+      // נשלח רק לצוות. הפונה לא מקבל עותק.
       from: "Invistimo <support@invistimo.com>",
-
-      // ✅ מיילי התמיכה
       to: recipients,
-
-      // ✅ גם Gmail יקבל עותק
       bcc: ["invistimo9@gmail.com"],
-
-      // ✅ תשובה חוזרת ללקוח
-      replyTo: email,
+      ...(email ? { replyTo: email } : {}),
 
       subject: subject
         ? `פנייה חדשה: ${subject}`
@@ -81,23 +135,28 @@ export async function POST(req: Request) {
         <div style="font-family: Arial, sans-serif; direction: rtl; line-height:1.6">
           <h2>פנייה חדשה מהאתר</h2>
 
-          <p><strong>שם:</strong> ${name}</p>
-          <p><strong>אימייל:</strong> ${email}</p>
+          <p><strong>שם:</strong> ${escapeHtml(name)}</p>
+          <p><strong>אימייל:</strong> ${email ? escapeHtml(email) : "לא הושאר"}</p>
+          ${
+            phone
+              ? `<p><strong>טלפון:</strong> ${escapeHtml(phone)}</p>`
+              : ""
+          }
 
           ${
             subject
-              ? `<p><strong>נושא:</strong> ${subject}</p>`
+              ? `<p><strong>נושא:</strong> ${escapeHtml(subject)}</p>`
               : ""
           }
 
           <p><strong>הודעה:</strong></p>
 
-          <p>${message.replace(/\n/g, "<br />")}</p>
+          <p>${escapeHtml(message).replace(/\n/g, "<br />")}</p>
 
           <hr />
 
           <p style="font-size:12px;color:#666">
-            נשלח אוטומטית מטופס יצירת קשר באתר Invistimo
+            נשלח אוטומטית מטופס יצירת קשר באתר Invistimo. לא נשלחה הודעה לפונה.
           </p>
         </div>
       `,

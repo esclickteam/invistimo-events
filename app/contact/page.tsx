@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Frank_Ruhl_Libre } from "next/font/google";
 import { motion, useReducedMotion } from "framer-motion";
 import { trackPublicEvent } from "@/lib/seo/analytics";
+import { isValidContactPhone } from "@/lib/contact/contactPhone";
 import {
   BUSINESS_HOURS,
   CONTACT_DIRECT_ANSWER,
@@ -103,6 +104,7 @@ export default function ContactPage() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -124,9 +126,12 @@ export default function ContactPage() {
   function validate() {
     const next: Record<string, string> = {};
     if (!name.trim()) next.name = "נא למלא שם מלא";
-    if (!email.trim()) next.email = "נא למלא כתובת דוא״ל";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       next.email = "כתובת הדוא״ל אינה תקינה";
+    }
+    if (!phone.trim()) next.phone = "נא למלא מספר טלפון";
+    else if (!isValidContactPhone(phone)) {
+      next.phone = "נא להזין מספר טלפון ישראלי תקין";
     }
     if (!message.trim()) next.message = "נא לכתוב את תוכן הפנייה";
     setFieldErrors(next);
@@ -147,13 +152,18 @@ export default function ContactPage() {
         body: JSON.stringify({
           name: name.trim(),
           email: email.trim(),
+          phone: phone.trim(),
           subject: subject.trim(),
           message: message.trim(),
         }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error("שליחת ההודעה נכשלה");
+        throw new Error(
+          typeof data?.error === "string" && data.error !== "Server error"
+            ? data.error
+            : "שליחת ההודעה נכשלה"
+        );
       }
       setSubmitted(true);
       if (!data.blocked) {
@@ -164,12 +174,22 @@ export default function ContactPage() {
       }
       setName("");
       setEmail("");
+      setPhone("");
       setSubject("");
       setMessage("");
       setFieldErrors({});
     } catch (err) {
       console.error("Contact error:", err);
-      setError("אירעה שגיאה בעת שליחת הפנייה. אנא נסו שוב מאוחר יותר.");
+      const message = err instanceof Error ? err.message : "";
+      const known =
+        message === "נא להזין מספר טלפון ישראלי תקין" ||
+        message === "כתובת הדוא״ל אינה תקינה" ||
+        message === "לא הצלחנו לשמור את הפנייה. נסו שוב.";
+      setError(
+        known
+          ? message
+          : "אירעה שגיאה בעת שליחת הפנייה. אנא נסו שוב מאוחר יותר."
+      );
     } finally {
       setLoading(false);
     }
@@ -343,7 +363,7 @@ export default function ContactPage() {
                       ספרו לנו איך אפשר לעזור
                     </h2>
                     <p className="mt-2 text-[15px] leading-7 text-[#6B5745]">
-                      נשמח לשמוע מכם ולחזור אליכם דרך כתובת הדוא״ל שתשאירו.
+                      נשמח לשמוע מכם ולחזור אליכם לפי הפרטים שתשאירו.
                     </p>
                   </div>
 
@@ -377,6 +397,7 @@ export default function ContactPage() {
                       <div className="flex flex-col gap-1.5">
                         <label htmlFor={`${formId}-email`} className={labelClass}>
                           דוא״ל
+                          <span className="font-semibold text-[#9A8164]"> (לא חובה)</span>
                         </label>
                         <input
                           id={`${formId}-email`}
@@ -385,7 +406,6 @@ export default function ContactPage() {
                           inputMode="email"
                           autoComplete="email"
                           dir="ltr"
-                          required
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           aria-invalid={Boolean(fieldErrors.email)}
@@ -401,7 +421,41 @@ export default function ContactPage() {
                           </p>
                         ) : (
                           <p id={`${formId}-email-hint`} className="text-xs text-[#9A8164]">
-                            מענה יינתן לכתובת זו
+                            אופציונלי
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="flex flex-col gap-1.5">
+                        <label htmlFor={`${formId}-phone`} className={labelClass}>
+                          טלפון
+                        </label>
+                        <input
+                          id={`${formId}-phone`}
+                          name="phone"
+                          type="tel"
+                          inputMode="tel"
+                          autoComplete="tel"
+                          dir="ltr"
+                          required
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          aria-invalid={Boolean(fieldErrors.phone)}
+                          aria-describedby={
+                            fieldErrors.phone ? `${formId}-phone-err` : `${formId}-phone-hint`
+                          }
+                          className={`${fieldClass} text-start`}
+                          placeholder="050-000-0000"
+                        />
+                        {fieldErrors.phone ? (
+                          <p id={`${formId}-phone-err`} className="text-xs font-semibold text-[#9B3B2E]">
+                            {fieldErrors.phone}
+                          </p>
+                        ) : (
+                          <p id={`${formId}-phone-hint`} className="text-xs text-[#9A8164]">
+                            נחזור אליכם למספר הזה
                           </p>
                         )}
                       </div>
