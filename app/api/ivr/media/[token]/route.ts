@@ -13,7 +13,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type RouteContext = {
-  params: { token?: string } | Promise<{ token?: string }>;
+  params: Promise<{ token?: string }>;
 };
 
 const CORS_HEADERS: Record<string, string> = {

@@ -13,13 +13,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type RouteContext = {
-  params:
-    | {
-        token: string;
-      }
-    | Promise<{
-        token: string;
-      }>;
+  params: Promise<{
+    token: string;
+  }>;
 };
 
 function cleanStr(value: unknown) {

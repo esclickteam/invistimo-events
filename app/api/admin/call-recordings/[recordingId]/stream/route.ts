@@ -25,13 +25,9 @@ type MongoCache = {
 };
 
 type RouteContext = {
-  params:
-    | {
-        recordingId?: string;
-      }
-    | Promise<{
-        recordingId?: string;
-      }>;
+  params: Promise<{
+    recordingId?: string;
+  }>;
 };
 
 const globalCache = globalThis as typeof globalThis & {

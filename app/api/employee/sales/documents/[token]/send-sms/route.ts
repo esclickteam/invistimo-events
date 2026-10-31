@@ -25,13 +25,9 @@ const SMS4FREE_API_URL =
   "https://api.sms4free.co.il/ApiSMS/v2/SendSMS";
 
 type RouteContext = {
-  params:
-    | {
-        token: string;
-      }
-    | Promise<{
-        token: string;
-      }>;
+  params: Promise<{
+    token: string;
+  }>;
 };
 
 type Sms4FreeResult = {
