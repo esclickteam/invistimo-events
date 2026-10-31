@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { assertExternalSendAllowed } from "@/lib/env/externalSends";
 import { openContactFormLead } from "@/lib/contact/openContactLead";
+import { recordContactPageLead } from "@/lib/analytics/recordContactPageLead";
 import {
   isValidContactPhone,
   normalizeContactPhone,
@@ -160,6 +161,11 @@ export async function POST(req: Request) {
           </p>
         </div>
       `,
+    });
+
+    await recordContactPageLead(req, {
+      inquiryClient: body?.inquiryClient,
+      submissionId: body?.submissionId,
     });
 
     return NextResponse.json({

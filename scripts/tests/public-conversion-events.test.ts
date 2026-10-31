@@ -96,9 +96,16 @@ test("completed inquiries stay separate from button clicks in the public handler
   assert.doesNotMatch(quote, /alcohol_management_whatsapp/);
 
   const contact = read("app/contact/page.tsx");
-  assert.match(contact, /method: "contact"/);
-  assert.match(contact, /if \(!data\.blocked\)/);
-  assert.doesNotMatch(callBlock(contact, 'trackPublicEvent("generate_lead"'), /\b(name|email|phone|message)\b/);
+  assert.doesNotMatch(contact, /generate_lead/);
+  assert.doesNotMatch(contact, /trackPublicEvent/);
+  assert.match(contact, /inquiryClient: "contact_page"/);
+  assert.match(contact, /submissionId: submissionIdRef\.current/);
+
+  const contactRoute = read("app/api/contact/route.ts");
+  const blockedAt = contactRoute.indexOf("blocked: true");
+  const emailAt = contactRoute.indexOf("resend.emails.send");
+  const measureAt = contactRoute.indexOf("await recordContactPageLead");
+  assert.ok(blockedAt > -1 && emailAt > blockedAt && measureAt > emailAt);
 
   const eventFit = read("app/components/event/ContactForm.jsx");
   assert.match(eventFit, /if \(!data\.blocked\)/);

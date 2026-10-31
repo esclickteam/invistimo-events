@@ -5,7 +5,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { Frank_Ruhl_Libre } from "next/font/google";
 import { motion, useReducedMotion } from "framer-motion";
-import { trackPublicEvent } from "@/lib/seo/analytics";
 import { isValidContactPhone } from "@/lib/contact/contactPhone";
 import {
   BUSINESS_HOURS,
@@ -101,6 +100,7 @@ export default function ContactPage() {
   const formId = useId();
   const formRef = useRef<HTMLFormElement>(null);
   const nameRef = useRef<HTMLInputElement>(null);
+  const submissionIdRef = useRef("");
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -145,6 +145,9 @@ export default function ContactPage() {
     if (!validate()) return;
 
     setLoading(true);
+    if (!submissionIdRef.current) {
+      submissionIdRef.current = crypto.randomUUID();
+    }
     try {
       const res = await fetch("/api/contact", {
         method: "POST",
@@ -155,6 +158,8 @@ export default function ContactPage() {
           phone: phone.trim(),
           subject: subject.trim(),
           message: message.trim(),
+          submissionId: submissionIdRef.current,
+          inquiryClient: "contact_page",
         }),
       });
       const data = await res.json();
@@ -165,13 +170,8 @@ export default function ContactPage() {
             : "שליחת ההודעה נכשלה"
         );
       }
+      submissionIdRef.current = "";
       setSubmitted(true);
-      if (!data.blocked) {
-        trackPublicEvent("generate_lead", {
-          method: "contact",
-          page_path: window.location.pathname,
-        });
-      }
       setName("");
       setEmail("");
       setPhone("");
