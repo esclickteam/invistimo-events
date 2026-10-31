@@ -1,0 +1,763 @@
+/* Premium interactive wedding stationery — paper-first, reference-level polish */
+
+.iw-root {
+  --iw-bg: #f3eee4;
+  --iw-bg-deep: #e6ddd0;
+  --iw-paper: #fffbf4;
+  --iw-ink: #3a3530;
+  --iw-muted: #7a6e60;
+  --iw-accent: #b8956a;
+  --iw-accent-soft: #d8c4a4;
+  --iw-seal: #7a2b31;
+  --iw-ribbon: #9daa8f;
+  --iw-envelope: #e8e0d2;
+  --iw-envelope-flap: #ddd4c4;
+  --iw-font-display: "Cormorant Garamond", "Noto Serif Hebrew", serif;
+  --iw-font-body: "Heebo", sans-serif;
+  --iw-font-script: "Great Vibes", "Cormorant Garamond", cursive;
+  --iw-paper-texture: url("/interactive-invites/lunar-silk/stage-linen.webp");
+  color: var(--iw-ink);
+  background-color: var(--iw-bg-deep);
+  background-image:
+    radial-gradient(ellipse at 50% 12%, rgba(255, 252, 245, 0.62), transparent 52%),
+    var(--iw-paper-texture);
+  background-size: auto, 480px;
+  font-family: var(--iw-font-body);
+  min-height: 100svh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.iw-column {
+  width: min(100%, 420px);
+  margin-inline: auto;
+  background-color: var(--iw-paper);
+  background-image:
+    linear-gradient(180deg, rgba(253, 251, 247, 0.94), rgba(255, 251, 244, 0.97)),
+    url("/interactive-invites/lunar-silk/paper-grain.webp");
+  background-size: auto, 280px;
+  position: relative;
+  min-height: 100svh;
+  box-shadow:
+    0 40px 90px rgba(55, 40, 20, 0.26),
+    0 8px 24px rgba(55, 40, 20, 0.1),
+    0 2px 0 rgba(255, 255, 255, 0.55) inset;
+}
+
+@media (min-width: 900px) {
+  .iw-root {
+    display: flex;
+    justify-content: center;
+  }
+
+  .iw-column {
+    box-shadow:
+      0 48px 110px rgba(55, 40, 20, 0.3),
+      0 0 0 1px rgba(120, 95, 60, 0.08);
+  }
+}
+
+.iw-grain::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  opacity: 0.055;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ——— Envelope scene ——— */
+
+.pe-scene {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  background-color: #e8dfd2;
+  background-image:
+    radial-gradient(ellipse at 50% 42%, rgba(255, 252, 245, 0.78), transparent 58%),
+    url("/interactive-invites/lunar-silk/stage-linen.webp");
+  background-size: auto, 520px;
+  overflow: hidden;
+}
+
+.pe-glow {
+  position: absolute;
+  width: min(70vw, 420px);
+  height: min(70vw, 420px);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 250, 235, 0.55), transparent 68%);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.pe-skip {
+  position: fixed;
+  top: 1rem;
+  inset-inline-start: 1rem;
+  z-index: 90;
+  border: 1px solid rgba(90, 70, 45, 0.18);
+  background: rgba(255, 251, 244, 0.82);
+  color: #3a2f24;
+  border-radius: 999px;
+  padding: 0.45rem 0.95rem;
+  font-size: 0.75rem;
+  backdrop-filter: blur(8px);
+}
+
+.pe-stage {
+  position: relative;
+  width: min(92vw, 400px);
+  aspect-ratio: 1;
+  cursor: pointer;
+  perspective: 1800px;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+  filter: drop-shadow(0 28px 48px rgba(50, 35, 18, 0.28))
+    drop-shadow(0 8px 18px rgba(50, 35, 18, 0.14));
+  z-index: 2;
+}
+
+.pe-closed {
+  position: absolute;
+  inset: -2%;
+  z-index: 4;
+  will-change: transform, opacity, filter;
+  /* Soft-edge the photoreal plate so the square frame dissolves into the linen stage */
+  -webkit-mask-image: radial-gradient(
+    ellipse 78% 78% at 50% 48%,
+    #000 52%,
+    rgba(0, 0, 0, 0.85) 68%,
+    transparent 86%
+  );
+  mask-image: radial-gradient(
+    ellipse 78% 78% at 50% 48%,
+    #000 52%,
+    rgba(0, 0, 0, 0.85) 68%,
+    transparent 86%
+  );
+}
+
+.pe-closed img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  user-select: none;
+}
+
+.pe-rise-card {
+  position: absolute;
+  left: 13%;
+  right: 13%;
+  top: 9%;
+  bottom: 13%;
+  z-index: 2;
+  visibility: hidden;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #fffdf8;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.85) inset,
+    0 4px 10px rgba(40, 30, 15, 0.12),
+    0 32px 70px rgba(40, 30, 15, 0.34);
+  display: flex;
+  flex-direction: column;
+  will-change: transform, opacity, filter;
+}
+
+.pe-rise-card-art {
+  width: 100%;
+  height: 62%;
+  object-fit: cover;
+  object-position: center top;
+  display: block;
+}
+
+.pe-rise-card-copy {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0.55rem 0.75rem 0.95rem;
+  background:
+    linear-gradient(180deg, rgba(255, 253, 248, 0.15), #fffdf8 28%),
+    url("/interactive-invites/lunar-silk/paper-grain.webp");
+  background-size: cover;
+}
+
+.pe-card-kicker {
+  margin: 0;
+  font-size: 0.58rem;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: #7a6b5c;
+}
+
+.pe-card-names {
+  margin: 0.15rem 0 0;
+  font-family: var(--iw-font-script);
+  font-size: clamp(1.35rem, 5.8vw, 1.85rem);
+  line-height: 1;
+  color: #3a3530;
+}
+
+.pe-card-rule {
+  width: 2.4rem;
+  height: 1px;
+  margin: 0.4rem 0;
+  background: var(--pe-accent, var(--iw-accent));
+}
+
+.pe-card-date {
+  margin: 0;
+  font-family: var(--iw-font-display);
+  font-size: 0.78rem;
+  color: #3f342a;
+}
+
+.pe-card-venue {
+  margin: 0.15rem 0 0;
+  font-size: 0.65rem;
+  color: #8a7a68;
+}
+
+.pe-hint {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -5rem;
+  text-align: center;
+  z-index: 9;
+  pointer-events: none;
+}
+
+.pe-hint-date {
+  font-family: var(--iw-font-display);
+  letter-spacing: 0.22em;
+  font-size: 0.78rem;
+  color: rgba(55, 45, 35, 0.68);
+  margin-bottom: 0.3rem;
+}
+
+.pe-hint-cta {
+  font-size: 0.92rem;
+  letter-spacing: 0.12em;
+  color: rgba(45, 38, 30, 0.85);
+}
+
+.pe-hint-names {
+  margin-top: 0.35rem;
+  font-family: var(--iw-font-script);
+  font-size: 1.25rem;
+  color: rgba(45, 38, 30, 0.72);
+}
+
+@media (min-width: 900px) {
+  .pe-stage {
+    width: min(44vw, 460px);
+  }
+}
+
+/* ——— Site sections ——— */
+
+.iw-section {
+  position: relative;
+  z-index: 2;
+  padding: 3.75rem 1.35rem 2.75rem;
+}
+
+.iw-kicker {
+  font-size: 0.68rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--iw-muted);
+  margin: 0 0 0.55rem;
+  text-align: center;
+}
+
+.iw-title {
+  font-family: var(--iw-font-display);
+  font-size: clamp(1.85rem, 6.2vw, 2.55rem);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-align: center;
+  margin: 0 0 0.7rem;
+  line-height: 1.15;
+  color: var(--iw-ink);
+}
+
+.iw-lede {
+  text-align: center;
+  color: var(--iw-muted);
+  line-height: 1.75;
+  font-size: 0.98rem;
+  max-width: 28rem;
+  margin: 0 auto 1.2rem;
+}
+
+.iw-script {
+  font-family: var(--iw-font-script);
+}
+
+.iw-display {
+  font-family: var(--iw-font-display);
+}
+
+.iw-divider {
+  width: 3.2rem;
+  height: 1px;
+  margin: 0.85rem auto 1.25rem;
+  background: linear-gradient(90deg, transparent, var(--iw-accent), transparent);
+}
+
+.iw-ornament {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  margin: 0.4rem auto 1.5rem;
+}
+
+.iw-ornament span {
+  width: 2.4rem;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--iw-accent));
+}
+
+.iw-ornament span:last-child {
+  background: linear-gradient(90deg, var(--iw-accent), transparent);
+}
+
+.iw-ornament i {
+  width: 0.55rem;
+  height: 0.55rem;
+  border: 1px solid var(--iw-accent);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--iw-accent) 35%, transparent);
+}
+
+.iw-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+  border-radius: 999px;
+  padding: 0.85rem 1.4rem;
+  font-weight: 600;
+  font-size: 0.92rem;
+  background: var(--iw-ink);
+  color: var(--iw-paper);
+  box-shadow: 0 14px 30px rgba(40, 30, 20, 0.16);
+}
+
+.iw-btn-ghost {
+  background: transparent;
+  color: var(--iw-ink);
+  border: 1px solid color-mix(in srgb, var(--iw-ink) 22%, transparent);
+  box-shadow: none;
+}
+
+/* Hero invite card */
+.iw-hero {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  overflow: hidden;
+}
+
+.iw-hero-art {
+  position: absolute;
+  inset: 0 0 24%;
+  width: 100%;
+  height: 76%;
+  object-fit: cover;
+  object-position: center top;
+  filter: drop-shadow(0 22px 44px rgba(40, 30, 18, 0.2));
+}
+
+.iw-hero-fade {
+  position: absolute;
+  inset: 46% 0 0;
+  background: linear-gradient(180deg, transparent, var(--iw-paper) 44%);
+  pointer-events: none;
+}
+
+.iw-hero-copy {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 0 1.25rem 3.2rem;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+.iw-hero-names {
+  font-size: clamp(2.6rem, 11vw, 3.6rem);
+  line-height: 0.95;
+  margin: 0;
+  color: var(--iw-ink);
+}
+
+.iw-hero-sub {
+  margin-bottom: 0.55rem;
+}
+
+.iw-hero-date {
+  font-size: 1.25rem;
+  letter-spacing: 0.04em;
+  margin: 0;
+}
+
+.iw-hero-meta {
+  margin-top: 0.35rem;
+  font-size: 0.86rem;
+  opacity: 0.65;
+}
+
+.iw-scroll-hint {
+  margin-top: 1.2rem;
+  color: var(--iw-accent);
+  font-size: 0.7rem;
+  letter-spacing: 0.28em;
+}
+
+.iw-scroll-hint span {
+  display: block;
+  line-height: 0.55;
+  font-size: 1.1rem;
+  animation: iw-chev 1.4s ease-in-out infinite;
+}
+
+.iw-scroll-hint span:nth-child(2) {
+  animation-delay: 0.12s;
+}
+.iw-scroll-hint span:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+@keyframes iw-chev {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(3px);
+  }
+}
+
+/* Countdown — typography, not boxes */
+.iw-count-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.35rem;
+  max-width: 22rem;
+  margin: 0 auto;
+}
+
+.iw-count-cell {
+  text-align: center;
+  padding: 0.35rem 0.15rem;
+}
+
+.iw-count-value {
+  font-size: clamp(1.7rem, 6vw, 2.15rem);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  tabular-nums: true;
+  font-variant-numeric: tabular-nums;
+  color: var(--iw-ink);
+}
+
+.iw-count-label {
+  margin-top: 0.35rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.62;
+}
+
+/* Scrapbook photos + metallic gold corners */
+.iw-gallery {
+  margin-top: 0.35rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.1rem 0.85rem;
+}
+
+.iw-scrap {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(255, 253, 248, 0.92), rgba(255, 251, 244, 0.96)),
+    url("/interactive-invites/lunar-silk/paper-grain.webp");
+  background-size: auto, 220px;
+  padding: 0.6rem 0.6rem 1.45rem;
+  box-shadow:
+    0 1px 2px rgba(50, 35, 18, 0.04),
+    0 10px 22px rgba(50, 35, 18, 0.1),
+    0 28px 55px rgba(50, 35, 18, 0.18);
+  transform-origin: center center;
+}
+
+.iw-scrap::before,
+.iw-scrap::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  width: 24px;
+  height: 24px;
+  z-index: 3;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      152deg,
+      #f3e6c0 0%,
+      #e0c48a 22%,
+      #c9a96e 48%,
+      #9e7a3d 72%,
+      #d4b66f 100%
+    );
+  box-shadow:
+    0 1.5px 0 rgba(255, 248, 220, 0.75) inset,
+    0 -1px 1px rgba(80, 50, 10, 0.22) inset,
+    0 2px 4px rgba(60, 40, 15, 0.32);
+  filter: saturate(0.92);
+}
+
+.iw-scrap::before {
+  left: 3px;
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+
+.iw-scrap::after {
+  right: 3px;
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
+
+.iw-scrap img,
+.iw-scrap .iw-media,
+.iw-scrap [data-ww-slot] {
+  width: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.iw-yes {
+  margin-top: 0.55rem;
+  text-align: center;
+  font-size: 1.65rem;
+  color: color-mix(in srgb, var(--iw-ink) 62%, var(--iw-accent));
+}
+
+/* Details / timeline — soft paper rows, not plastic cards */
+.iw-detail-list {
+  display: grid;
+  gap: 0.85rem;
+  max-width: 22rem;
+  margin: 0 auto;
+}
+
+.iw-detail-row {
+  padding: 0.85rem 0.35rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--iw-accent) 28%, transparent);
+}
+
+.iw-detail-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.55;
+}
+
+.iw-detail-value {
+  margin-top: 0.25rem;
+  font-size: 1.15rem;
+}
+
+.iw-timeline {
+  position: relative;
+  margin: 0.35rem auto 0;
+  max-width: 22rem;
+  padding: 0;
+  list-style: none;
+}
+
+.iw-timeline-line {
+  position: absolute;
+  inset-inline-start: 0.7rem;
+  top: 0.4rem;
+  bottom: 0.4rem;
+  width: 1px;
+  background: linear-gradient(180deg, var(--iw-accent), transparent);
+}
+
+.iw-timeline-item {
+  position: relative;
+  padding: 0.85rem 0.25rem 0.85rem 2.1rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--iw-ink) 8%, transparent);
+}
+
+.iw-timeline-dot {
+  position: absolute;
+  inset-inline-start: 0.45rem;
+  top: 1.15rem;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--iw-accent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--iw-accent) 18%, transparent);
+}
+
+.iw-timeline-time {
+  font-size: 0.72rem;
+  opacity: 0.55;
+  letter-spacing: 0.06em;
+}
+
+.iw-timeline-title {
+  font-size: 1.15rem;
+}
+
+.iw-timeline-desc {
+  font-size: 0.88rem;
+  opacity: 0.7;
+  margin-top: 0.15rem;
+}
+
+.iw-faq {
+  max-width: 22rem;
+  margin: 0 auto;
+}
+
+.iw-faq-item {
+  padding: 0.85rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--iw-ink) 10%, transparent);
+}
+
+.iw-faq-q {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  text-align: start;
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.iw-faq-q span:last-child {
+  color: var(--iw-accent);
+}
+
+.iw-faq-a {
+  margin: 0.55rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.7;
+  opacity: 0.75;
+}
+
+/* Drinking scene */
+.iw-drink {
+  position: relative;
+  margin: 1.75rem auto 0;
+  max-width: 340px;
+}
+
+.iw-drink-art {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 2px;
+  box-shadow:
+    0 4px 10px rgba(50, 35, 18, 0.06),
+    0 18px 40px rgba(50, 35, 18, 0.12);
+}
+
+.iw-drink-bottle {
+  position: absolute;
+  /* Covers the painted bottle body so scroll liquid can read clearly */
+  left: 63.2%;
+  top: 20.5%;
+  width: 8.6%;
+  height: 34%;
+  transform: rotate(24deg);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.iw-drink-bottle-glass {
+  position: absolute;
+  inset: 0;
+  border-radius: 40% 40% 18% 18% / 8% 8% 22% 22%;
+  overflow: hidden;
+  /* Opaque paper fill hides baked-in liquid in the illustration */
+  background: color-mix(in srgb, var(--iw-paper) 88%, #f0e8d8);
+  box-shadow:
+    inset 0 0 0 1.25px rgba(70, 50, 30, 0.45),
+    inset 2px 0 4px rgba(255, 255, 255, 0.35),
+    0 2px 4px rgba(40, 25, 15, 0.12);
+}
+
+.iw-drink-liquid {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 6%;
+  height: 82%;
+  border-radius: 2px 2px 10px 10px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(170, 80, 95, 0.55) 0%,
+      rgba(139, 90, 95, 0.82) 22%,
+      rgba(90, 30, 42, 0.95) 100%
+    );
+  transform-origin: bottom center;
+  box-shadow: inset 0 0 10px rgba(40, 10, 15, 0.28);
+  z-index: 1;
+}
+
+.iw-drink-meniscus {
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  height: 4px;
+  border-radius: 50%;
+  background: rgba(190, 110, 120, 0.45);
+  pointer-events: none;
+  z-index: 2;
+  /* rides the liquid top via shared transform parent */
+  top: 12%;
+  opacity: 0.85;
+  mix-blend-mode: multiply;
+}
+
+.iw-drink-caption {
+  text-align: center;
+  margin-top: 0.85rem;
+  font-size: 0.86rem;
+  color: var(--iw-muted);
+  font-family: var(--iw-font-display);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iw-scroll-hint span {
+    animation: none !important;
+  }
+}

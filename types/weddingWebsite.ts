@@ -31,7 +31,13 @@ export type WeddingTemplateId =
   | "royal-ivory"
   | "sunset-blush"
   | "forest-enchanted"
-  | "modern-glass";
+  | "modern-glass"
+  | "lunar-silk"
+  | "olive-clay"
+  | "noir-champagne"
+  | "garden-mist"
+  | "coastal-pearl"
+  | "amber-archive";
 
 export type WeddingTheme = {
   bg: string;

@@ -32,6 +32,12 @@ const TEMPLATE_FILES: Record<string, string> = {
   "sunset-blush": "SunsetBlushSite.tsx",
   "forest-enchanted": "ForestEnchantedSite.tsx",
   "modern-glass": "ModernGlassSite.tsx",
+  "lunar-silk": "LunarSilkSite.tsx",
+  "olive-clay": "OliveClaySite.tsx",
+  "noir-champagne": "NoirChampagneSite.tsx",
+  "garden-mist": "GardenMistSite.tsx",
+  "coastal-pearl": "CoastalPearlSite.tsx",
+  "amber-archive": "AmberArchiveSite.tsx",
 };
 
 const TEMPLATES_DIR = path.join(process.cwd(), "components/wedding-website/templates");

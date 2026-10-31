@@ -20,6 +20,12 @@ export async function generateStaticParams() {
     { templateId: "sunset-blush" },
     { templateId: "forest-enchanted" },
     { templateId: "modern-glass" },
+    { templateId: "lunar-silk" },
+    { templateId: "olive-clay" },
+    { templateId: "noir-champagne" },
+    { templateId: "garden-mist" },
+    { templateId: "coastal-pearl" },
+    { templateId: "amber-archive" },
   ];
 }
 
