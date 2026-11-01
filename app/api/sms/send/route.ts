@@ -6,7 +6,7 @@ import Invitation from "@/models/Invitation";
 import User from "@/models/User";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import Event from "@/models/Event";
-import { toSmsDigits } from "@/lib/phones/international";
+import { toIsraeliSmsDigits } from "@/lib/phones/international";
 
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
@@ -382,7 +382,7 @@ if (isDirectSmsRequest) {
     );
   }
 
-  const phone = toSmsDigits(directPhone);
+  const phone = toIsraeliSmsDigits(directPhone);
 
   if (!phone) {
     return NextResponse.json(
@@ -947,7 +947,7 @@ if (inv.shareId) {
             ? `שולחן ${freshGuest.tableNumber}`
             : "");
 
-        const phone = toSmsDigits(freshGuest.phone);
+        const phone = toIsraeliSmsDigits(freshGuest.phone);
 
         if (!phone) return null;
 

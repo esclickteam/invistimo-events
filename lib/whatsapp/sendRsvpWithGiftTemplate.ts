@@ -1,3 +1,5 @@
+import { toWhatsappDigits } from "@/lib/phones/international";
+
 export type SendRsvpWithGiftInput = {
   to: string;
 
@@ -20,8 +22,12 @@ const D360_ENDPOINT = "https://waba-v2.360dialog.io/messages";
 export async function sendRsvpWithGiftTemplate(
   input: SendRsvpWithGiftInput
 ) {
+  const to = toWhatsappDigits(input.to);
+  if (!to) {
+    throw new Error("INVALID_PHONE");
+  }
+
   const {
-    to,
     eventTitle,
     eventDate,
     eventLocation,

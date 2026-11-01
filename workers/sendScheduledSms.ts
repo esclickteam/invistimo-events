@@ -7,7 +7,7 @@ import User from "@/models/User";
 import Event from "@/models/Event";
 import { shortenUrl } from "@/lib/shortenUrl";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
-import { toSmsDigits, toWhatsappDigits } from "@/lib/phones/international";
+import { toIsraeliSmsDigits, toWhatsappDigits } from "@/lib/phones/international";
 import {
   buildRsvpRoundSentMarkState,
   getRsvpRoundSentSnapshot,
@@ -801,7 +801,7 @@ export async function sendScheduledSms() {
           break;
         }
 
-        const phone = toSmsDigits(guest.phone);
+        const phone = toIsraeliSmsDigits(guest.phone);
         if (!phone) continue;
 
         const liveGuest =

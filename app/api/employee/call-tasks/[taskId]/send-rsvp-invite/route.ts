@@ -8,7 +8,7 @@ import { getHighQualityCloudinaryImageUrl } from "@/lib/cloudinary";
 import { shortenUrl } from "@/lib/shortenUrl";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { sendRsvpTemplateMedia } from "@/lib/whatsapp/sendRsvpTemplateMedia";
-import { toSmsDigits, toWhatsappDigits } from "@/lib/phones/international";
+import { toIsraeliSmsDigits, toWhatsappDigits } from "@/lib/phones/international";
 import { buildInvitationLocationLabel } from "@/lib/messages/invitationOnlyDetails";
 
 import InvitationGuest from "@/models/InvitationGuest";
@@ -148,7 +148,9 @@ async function requireEmployee() {
 }
 
 function normalizePhone(phoneRaw: unknown, channel: Channel) {
-  return channel === "sms" ? toSmsDigits(phoneRaw) : toWhatsappDigits(phoneRaw);
+  return channel === "sms"
+    ? toIsraeliSmsDigits(phoneRaw)
+    : toWhatsappDigits(phoneRaw);
 }
 
 function formatEventDateTime(dateString?: string, timeString?: string) {

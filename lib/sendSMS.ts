@@ -1,7 +1,7 @@
-import { toSmsDigits } from "@/lib/phones/international";
+import { toIsraeliSmsDigits } from "@/lib/phones/international";
 
 export function normalizeSmsPhone(value: string) {
-  return toSmsDigits(value);
+  return toIsraeliSmsDigits(value);
 }
 
 export function isSendableSmsPhone(value: string) {
@@ -103,6 +103,21 @@ export async function sendSmsDetailed({
   const sender = process.env.SMS4FREE_SENDER;
 
   const recipient = normalizeSmsPhone(to);
+
+  if (!recipient.startsWith("972")) {
+    return {
+      ok: false,
+      provider: "sms4free",
+      errorCode: "INVALID_PHONE",
+      errorMessage: "sms4free accepts Israeli numbers only",
+      providerStatus: null,
+      retryable: false,
+      outcomeUnknown: false,
+      recipient,
+      httpStatus: null,
+      rawResponse: null,
+    };
+  }
 
   if (!key || !user || !pass || !sender) {
     return {
@@ -223,7 +238,7 @@ export async function sendSMS({
 
   const recipient = normalizeSmsPhone(to);
 
-  if (!recipient || recipient.length < 11) {
+  if (!recipient.startsWith("972") || recipient.length < 11) {
     throw new Error("Invalid SMS recipient phone");
   }
 

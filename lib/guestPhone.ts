@@ -107,7 +107,7 @@ export function guestPhoneSaveError(
     country: options?.country,
     countryExplicit: Boolean(options?.countryExplicit && options?.country),
   });
-  if (parsed.ok || isIsraeliMobileLengthInvalid(displayed)) return "";
+  if (parsed.ok || normalizePhoneKey(displayed).startsWith("05")) return "";
   return "מספר הטלפון אינו תקין. בחרו את המדינה הנכונה, או הקלידו מספר מלא עם קידומת בינלאומית כמו +1.";
 }
 

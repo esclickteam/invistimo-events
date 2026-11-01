@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import { sendSMS } from "@/lib/sendSMS";
-import { toSmsDigits } from "@/lib/phones/international";
+import { toIsraeliSmsDigits } from "@/lib/phones/international";
 import { buildMessage } from "@/lib/messageTemplates";
 import MessageLog from "@/models/MessageLog";
 import Invitation from "@/models/Invitation";
@@ -190,7 +190,7 @@ export async function POST(req: Request) {
         customText,
       });
 
-      const phone = toSmsDigits(guest.phone);
+      const phone = toIsraeliSmsDigits(guest.phone);
       if (!phone) continue;
 
       await sendSMS({ to: phone, message: text });

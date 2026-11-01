@@ -1,6 +1,5 @@
 // lib/whatsapp/sendTableNumberTemplate.ts
 import { toWhatsappDigits } from "@/lib/phones/international";
-import { toWhatsappDigits } from "@/lib/phones/international";
 
 type SendTableNumberTemplateInput = {
   to: string;
