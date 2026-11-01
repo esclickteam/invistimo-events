@@ -13,6 +13,7 @@ import {
   CHANNEL_FILTER_LABELS,
   countChannelFilters,
   getGuestChannelView,
+  isWhatsappOnlyMessageType,
   matchesChannelFilter,
   SMS_NO_DELIVERY_RECEIPTS_NOTE,
   type ChannelFilter,
@@ -319,7 +320,34 @@ function getSmsStatusClass(status?: string) {
   return "border-violet-200 bg-violet-50 text-violet-700";
 }
 
-function SmsBadge({ sms }: { sms?: SmsFallbackState | null }) {
+const SMS_NOT_REQUIRED_LABEL = "SMS — לא נדרש";
+
+function smsReachedProvider(status?: string | null) {
+  const normalized = String(status || "").toUpperCase();
+  return (
+    normalized === "SENT" ||
+    normalized === "DELIVERED" ||
+    normalized === "FAILED" ||
+    normalized === "OUTCOME_UNKNOWN"
+  );
+}
+
+function SmsBadge({
+  sms,
+  notRequired = false,
+}: {
+  sms?: SmsFallbackState | null;
+  notRequired?: boolean;
+}) {
+  if (notRequired && !smsReachedProvider(sms?.status)) {
+    return (
+      <span
+        className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${getSmsChannelClass("NOT_NEEDED")}`}
+      >
+        {SMS_NOT_REQUIRED_LABEL}
+      </span>
+    );
+  }
   if (!sms) return <span className="text-xs font-bold text-[#B6A28C]">—</span>;
 
   return (
@@ -383,6 +411,7 @@ function ChannelStatusCell({
   caption,
   channelLabel,
   tooltip,
+  badgeText,
 }: {
   status: string;
   label: string;
@@ -393,6 +422,7 @@ function ChannelStatusCell({
   caption?: string | null;
   channelLabel: string;
   tooltip?: string;
+  badgeText?: string;
 }) {
   const time = at ? formatDateTime(String(at instanceof Date ? at.toISOString() : at)) : "";
 
@@ -402,8 +432,8 @@ function ChannelStatusCell({
         title={tooltip || status}
         className={`inline-flex rounded-full border px-3 py-1 text-xs font-black ${className}`}
       >
-        {status === "NONE" ? label : `${channelLabel}: ${label}`}
-        {status !== "NONE" && (
+        {badgeText || (status === "NONE" ? label : `${channelLabel}: ${label}`)}
+        {status !== "NONE" && !badgeText && (
           <span className="ms-1.5 text-[10px] opacity-60" dir="ltr">
             {status}
           </span>
@@ -547,7 +577,11 @@ function RoundChip({ chip }: { chip: RoundStatusChip }) {
         `${chip.title}: ${chip.statusLabel}`,
         chip.notSentReason || (chip.status === "failed" ? chip.reasonText : null),
         chip.errorCode ? `קוד ${chip.errorCode}` : null,
-        chip.sms ? `SMS: ${chip.sms.statusLabel}` : null,
+        isWhatsappOnlyMessageType(chip.roundKey) && !smsReachedProvider(chip.sms?.status)
+          ? SMS_NOT_REQUIRED_LABEL
+          : chip.sms
+            ? `SMS: ${chip.sms.statusLabel}`
+            : null,
       ]
         .filter(Boolean)
         .join(" · ")}
@@ -1599,6 +1633,11 @@ function GuestRows({
           <ChannelStatusCell
             {...view.sms}
             channelLabel="SMS"
+            badgeText={
+              view.sms.status === "NOT_NEEDED" && isWhatsappOnlyMessageType(view.roundKey)
+                ? SMS_NOT_REQUIRED_LABEL
+                : undefined
+            }
             className={getSmsChannelClass(view.sms.status)}
             tooltip={
               view.sms.status === "SENT" && !smsDeliveryReceipts
@@ -1790,7 +1829,10 @@ function DeliveryAuditLog({ deliveries }: { deliveries: GuestDelivery[] }) {
                 status={String(delivery.whatsapp.status || "").toLowerCase()}
                 label={`WhatsApp · ${delivery.whatsapp.status || "—"}`}
               />
-              <SmsBadge sms={delivery.sms} />
+              <SmsBadge
+                sms={delivery.sms}
+                notRequired={isWhatsappOnlyMessageType(delivery.roundKey)}
+              />
             </div>
           </div>
 
@@ -1813,7 +1855,11 @@ function DeliveryAuditLog({ deliveries }: { deliveries: GuestDelivery[] }) {
                 </div>
               )}
             </div>
-            {delivery.sms && (
+            {delivery.sms &&
+              !(
+                isWhatsappOnlyMessageType(delivery.roundKey) &&
+                !smsReachedProvider(delivery.sms.status)
+              ) && (
               <div>
                 {delivery.sms.reasonText
                   ? `SMS: ${delivery.sms.reasonText}`
@@ -1847,7 +1893,10 @@ function DeliveryAuditLog({ deliveries }: { deliveries: GuestDelivery[] }) {
                         status={String(group.summary.whatsapp.status || "").toLowerCase()}
                         label={`WhatsApp · ${group.summary.whatsapp.status || "—"}`}
                       />
-                      <SmsBadge sms={group.summary.sms} />
+                      <SmsBadge
+                        sms={group.summary.sms}
+                        notRequired={isWhatsappOnlyMessageType(delivery.roundKey)}
+                      />
                     </>
                   )}
                 </div>

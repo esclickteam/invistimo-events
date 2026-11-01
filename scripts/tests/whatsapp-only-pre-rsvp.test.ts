@@ -86,4 +86,10 @@ test("fallback and scheduled SMS do not open an SMS task for those two types", (
     /WHATSAPP_ONLY_NO_SMS/
   );
   assert.match(fallback, /"rsvp", "reminder", "table", "thankyou", "custom"/);
+
+  const report = read("app/components/WhatsappRoundsReportModal.tsx");
+  assert.match(report, /const SMS_NOT_REQUIRED_LABEL = "SMS — לא נדרש"/);
+  assert.match(report, /isWhatsappOnlyMessageType\(view\.roundKey\)/);
+  assert.match(report, /isWhatsappOnlyMessageType\(chip\.roundKey\)/);
+  assert.match(report, /isWhatsappOnlyMessageType\(delivery\.roundKey\)/);
 });
