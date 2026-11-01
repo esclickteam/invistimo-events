@@ -8,6 +8,7 @@ import Event from "@/models/Event";
 import { shortenUrl } from "@/lib/shortenUrl";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { toWhatsappDigits } from "@/lib/phones/international";
+import { isWhatsappOnlyMessageType } from "@/lib/whatsapp/guestChannelView";
 import {
   buildRsvpRoundSentMarkState,
   getRsvpRoundSentSnapshot,
@@ -670,6 +671,22 @@ export async function sendScheduledSms() {
 
       const type = normalizeType(msg.type || msg.templateKey);
       const round = normalizeRound(msg.round ?? msg.roundNumber);
+
+      if (isWhatsappOnlyMessageType(type)) {
+        await ScheduledMessage.updateOne(
+          { _id: msg._id },
+          {
+            $set: {
+              status: "cancelled",
+              cancelledAt: new Date(),
+              lockedAt: null,
+              lockedBy: null,
+              error: "WHATSAPP_ONLY_NO_SMS",
+            },
+          }
+        );
+        continue;
+      }
 
       const { isPurgedOperationalTarget } = await import(
         "@/lib/customers/purgedCustomerGuard"

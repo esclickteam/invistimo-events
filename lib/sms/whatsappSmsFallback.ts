@@ -22,6 +22,7 @@ import {
   getRsvpSmsRoundTemplate,
 } from "@/lib/sms/roundSmsTemplates";
 import { getSmsReasonLabel } from "@/lib/whatsapp/roundDeliveryTracking";
+import { isWhatsappOnlyMessageType } from "@/lib/whatsapp/guestChannelView";
 import {
   applyLiveEventPlaceholders,
   resolveLiveEventMessageDetails,
@@ -287,6 +288,10 @@ async function evaluateRecord(
     }
   }
 
+  if (isWhatsappOnlyMessageType(record.type)) {
+    return { action: "skip", reasonCode: "SMS_NOT_REQUIRED" };
+  }
+
   if (!FALLBACK_TYPES.has(String(record.type))) {
     return { action: "skip", reasonCode: "NO_SMS_TEMPLATE" };
   }
@@ -487,6 +492,7 @@ export async function processWhatsappSmsFallbacks(
     const record: any = await RoundGuestDelivery.findOneAndUpdate(
       {
         "whatsapp.status": { $in: ["FAILED", "NOT_SENT"] },
+        type: { $nin: ["save_the_date", "invitation_only"] },
         "sms.status": null,
         $or: [{ "sms.notBefore": null }, { "sms.notBefore": { $lte: now } }],
       },
