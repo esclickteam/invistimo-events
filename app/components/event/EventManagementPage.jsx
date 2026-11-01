@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Frank_Ruhl_Libre } from "next/font/google";
+import localFont from "next/font/local";
 import { motion, useReducedMotion } from "framer-motion";
 import {
   ArrowLeft,
@@ -19,10 +19,11 @@ import {
 } from "lucide-react";
 import ContactForm from "@/app/components/event/ContactForm";
 
-const display = Frank_Ruhl_Libre({
-  subsets: ["hebrew", "latin"],
-  weight: ["500", "700"],
+const display = localFont({
+  src: "../../../lib/fonts/FrankRuhlLibre-wght.ttf",
+  weight: "500 700",
   display: "swap",
+  adjustFontFallback: "Times New Roman",
   variable: "--font-event-mgmt-display",
 });
 

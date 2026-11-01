@@ -1,6 +1,6 @@
 "use client";
 
-import { Frank_Ruhl_Libre } from "next/font/google";
+import localFont from "next/font/local";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import {
@@ -25,10 +25,11 @@ import {
   type PackageId,
 } from "@/lib/pricing/packageQuote";
 
-const display = Frank_Ruhl_Libre({
-  subsets: ["hebrew", "latin"],
-  weight: ["500", "700"],
+const display = localFont({
+  src: "../../../lib/fonts/FrankRuhlLibre-wght.ttf",
+  weight: "500 700",
   display: "swap",
+  adjustFontFallback: "Times New Roman",
   variable: "--font-rsvp-display",
 });
 

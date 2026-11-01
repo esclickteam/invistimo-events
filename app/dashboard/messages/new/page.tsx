@@ -1161,7 +1161,7 @@ function PreRsvpTab({
             audienceFilter === "never_invited" ||
             audienceFilter === "failed" ||
             audienceFilter === "not_sent" ||
-            invitationPhoneActive))
+            invitationPhoneActive)
           ? "true"
           : "false"
       );

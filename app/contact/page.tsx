@@ -3,7 +3,7 @@
 import { FormEvent, useId, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Frank_Ruhl_Libre } from "next/font/google";
+import localFont from "next/font/local";
 import { motion, useReducedMotion } from "framer-motion";
 import { isValidContactPhone } from "@/lib/contact/contactPhone";
 import {
@@ -16,10 +16,11 @@ import {
   WHATSAPP_URL,
 } from "./contactContent";
 
-const display = Frank_Ruhl_Libre({
-  subsets: ["hebrew", "latin"],
-  weight: ["500", "700"],
+const display = localFont({
+  src: "../../lib/fonts/FrankRuhlLibre-wght.ttf",
+  weight: "500 700",
   display: "swap",
+  adjustFontFallback: "Times New Roman",
   variable: "--font-contact-display",
 });
 
