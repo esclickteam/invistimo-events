@@ -405,26 +405,6 @@ export function toSmsDigits(phone: unknown, options?: PhoneParseOptions) {
   return parsed.ok ? parsed.digits : "";
 }
 
-function legacyIsraeliMobileDigits(phone: unknown) {
-  let digits = String(phone ?? "").replace(/\D/g, "");
-  if (digits.startsWith("00")) digits = digits.slice(2);
-  if (/^05\d{8}$/.test(digits)) return `972${digits.slice(1)}`;
-  if (/^9725\d{8}$/.test(digits)) return digits;
-  if (/^5\d{8}$/.test(digits)) return `972${digits}`;
-  return "";
-}
-
-/**
- * Digits for the Israeli sms4free provider.
- * A foreign number is not a recipient. A well-formed Israeli mobile is kept
- * even when libphonenumber rejects the specific range.
- */
-export function toIsraeliSmsDigits(phone: unknown, options?: PhoneParseOptions) {
-  const parsed = parseGuestPhone(phone, options);
-  if (parsed.ok) return parsed.callingCode === "972" ? parsed.digits : "";
-  return legacyIsraeliMobileDigits(phone);
-}
-
 export function guestRawPhone(guest: {
   phone?: unknown;
   phoneNumber?: unknown;

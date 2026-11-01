@@ -7,7 +7,7 @@ import User from "@/models/User";
 import Event from "@/models/Event";
 import { shortenUrl } from "@/lib/shortenUrl";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
-import { toIsraeliSmsDigits, toWhatsappDigits } from "@/lib/phones/international";
+import { toWhatsappDigits } from "@/lib/phones/international";
 import {
   buildRsvpRoundSentMarkState,
   getRsvpRoundSentSnapshot,
@@ -161,6 +161,20 @@ function getReminderScheduledField(channel: Channel) {
 
 function getThankYouScheduledField(channel: Channel) {
   return channel === "sms" ? "thankYouSmsScheduledAt" : "thankYouScheduledAt";
+}
+
+function normalizePhone(phoneRaw: any) {
+  let phone = String(phoneRaw || "").replace(/\D/g, "");
+
+  if (!phone) return "";
+
+  if (phone.startsWith("0")) {
+    phone = "972" + phone.slice(1);
+  } else if (!phone.startsWith("972")) {
+    phone = "972" + phone;
+  }
+
+  return phone;
 }
 
 function isRsvpRoundSent(invitation: any, round: RoundNumber) {
@@ -801,7 +815,7 @@ export async function sendScheduledSms() {
           break;
         }
 
-        const phone = toIsraeliSmsDigits(guest.phone);
+        const phone = normalizePhone(guest.phone);
         if (!phone) continue;
 
         const liveGuest =

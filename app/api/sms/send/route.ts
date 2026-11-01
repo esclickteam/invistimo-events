@@ -6,7 +6,6 @@ import Invitation from "@/models/Invitation";
 import User from "@/models/User";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import Event from "@/models/Event";
-import { toIsraeliSmsDigits } from "@/lib/phones/international";
 
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
@@ -382,13 +381,19 @@ if (isDirectSmsRequest) {
     );
   }
 
-  const phone = toIsraeliSmsDigits(directPhone);
+  let phone = String(directPhone).replace(/\D/g, "");
 
   if (!phone) {
     return NextResponse.json(
       { success: false, error: "INVALID_PHONE" },
       { status: 400 }
     );
+  }
+
+  if (phone.startsWith("0")) {
+    phone = "972" + phone.slice(1);
+  } else if (!phone.startsWith("972")) {
+    phone = "972" + phone;
   }
 
   const parts = countBusinessSms(directMessage);
@@ -947,9 +952,15 @@ if (inv.shareId) {
             ? `שולחן ${freshGuest.tableNumber}`
             : "");
 
-        const phone = toIsraeliSmsDigits(freshGuest.phone);
+        let phone = (freshGuest.phone || "").replace(/\D/g, "");
 
         if (!phone) return null;
+
+        if (phone.startsWith("0")) {
+          phone = "972" + phone.slice(1);
+        } else if (!phone.startsWith("972")) {
+          phone = "972" + phone;
+        }
 
         const personalRsvpUrl = buildGuestInviteUrl({
           shareId: inv.shareId,

@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import db from "@/lib/db";
 import { sendSMS } from "@/lib/sendSMS";
-import { toIsraeliSmsDigits } from "@/lib/phones/international";
 import { buildMessage } from "@/lib/messageTemplates";
 import MessageLog from "@/models/MessageLog";
 import Invitation from "@/models/Invitation";
@@ -190,8 +189,9 @@ export async function POST(req: Request) {
         customText,
       });
 
-      const phone = toIsraeliSmsDigits(guest.phone);
-      if (!phone) continue;
+      const phone = guest.phone.startsWith("972")
+        ? guest.phone
+        : `972${guest.phone.replace(/^0/, "")}`;
 
       await sendSMS({ to: phone, message: text });
 

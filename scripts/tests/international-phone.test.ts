@@ -12,7 +12,6 @@ import {
   prepareGuestImportPhone,
   sameGuestPhone,
   selectWhatsappRecipients,
-  toIsraeliSmsDigits,
   toSmsDigits,
   toWhatsappDigits,
   toWhatsappRecipient,
@@ -214,11 +213,6 @@ test("stored international forms stay valid and are not rewritten to Israel", ()
 
   assert.equal(toWhatsappDigits("12109444809"), "12109444809");
   assert.equal(toWhatsappDigits("0526850711"), "972526850711");
-  assert.equal(toIsraeliSmsDigits("12109444809"), "");
-  assert.equal(toIsraeliSmsDigits("+447911123456"), "");
-  assert.equal(toIsraeliSmsDigits("+33612345678"), "");
-  assert.equal(toIsraeliSmsDigits("052-685-0711"), "972526850711");
-  assert.equal(toIsraeliSmsDigits("0521234567"), "972521234567");
   assert.equal(sameGuestPhone("+12109444809", "12109444809"), true);
   assert.equal(sameGuestPhone("+33612345678", "33612345678"), true);
   assert.equal(sameGuestPhone("+972526850711", "0526850711"), true);
@@ -245,21 +239,47 @@ test("send paths use the shared normalizer instead of an Israeli-only filter", (
   const smsSend = read("app/api/sms/send/route.ts");
   const messagesSend = read("app/api/messages/send/route.ts");
   const fallback = read("lib/sms/whatsappSmsFallback.ts");
+  const sendSms = read("lib/sendSMS.ts");
+  const smsReport = read("lib/sms4free/roundReport.ts");
+  const employee = read(
+    "app/api/employee/call-tasks/[taskId]/send-rsvp-invite/route.ts"
+  );
 
   assert.match(preRsvp, /selectWhatsappRecipients/);
   assert.doesNotMatch(preRsvp, /\^05\\d\{8\}/);
   assert.match(sendTemplate, /toWhatsappDigits/);
   assert.match(worker, /toWhatsappDigits/);
-  assert.match(worker, /toIsraeliSmsDigits/);
-  assert.doesNotMatch(worker, /toSmsDigits\(guest\.phone\)/);
+  assert.match(worker, /const phone = normalizePhone\(guest\.phone\)/);
+  assert.doesNotMatch(worker, /toIsraeliSmsDigits/);
+  assert.match(worker, /import \{ toWhatsappDigits \} from "@\/lib\/phones\/international"/);
   assert.match(media, /toWhatsappDigits/);
   assert.match(thankYou, /toWhatsappDigits/);
   assert.match(table, /toWhatsappDigits/);
   assert.match(gift, /toWhatsappDigits/);
   assert.match(cron, /sendRsvpTemplateMedia/);
-  assert.match(smsSend, /toIsraeliSmsDigits/);
-  assert.match(messagesSend, /toIsraeliSmsDigits/);
-  assert.match(fallback, /\^9725\\d\{8\}/);
+  assert.doesNotMatch(smsSend, /lib\/phones\/international|toIsraeliSmsDigits/);
+  assert.doesNotMatch(messagesSend, /lib\/phones\/international|toIsraeliSmsDigits/);
+  assert.doesNotMatch(sendSms, /lib\/phones\/international|toIsraeliSmsDigits/);
+  assert.doesNotMatch(smsReport, /lib\/phones\/international|toIsraeliSmsDigits/);
+  assert.doesNotMatch(fallback, /lib\/phones\/international|toIsraeliSmsDigits/);
+  assert.match(fallback, /phone\.length === 12 && phone\.startsWith\("9725"\)/);
+  assert.match(employee, /normalizeIsraeliSmsPhone/);
+  assert.match(employee, /toWhatsappDigits/);
   assert.doesNotMatch(media, /972\$\{p\.slice\(1\)\}/);
   assert.equal((table.match(/import \{ toWhatsappDigits \}/g) || []).length, 1);
+});
+
+test("existing Israeli SMS checks do not accept an international number", async () => {
+  const { normalizeSmsPhone } = await import("../../lib/sendSMS");
+  const { isValidSmsPhone } = await import("../../lib/sms/whatsappSmsFallback");
+
+  assert.equal(normalizeSmsPhone("0521234567"), "972521234567");
+  assert.equal(normalizeSmsPhone("052-685-0711"), "972526850711");
+  assert.equal(isValidSmsPhone("0521234567"), true);
+  assert.equal(isValidSmsPhone("052-685-0711"), true);
+  assert.equal(isValidSmsPhone("12109444809"), false);
+  assert.equal(isValidSmsPhone("+447911123456"), false);
+  assert.equal(isValidSmsPhone("+33612345678"), false);
+  assert.equal(isValidSmsPhone("+4915123456789"), false);
+  assert.equal(isValidSmsPhone("+393331234567"), false);
 });
