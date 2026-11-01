@@ -30,6 +30,10 @@ import {
   renderEventInvitationPreview,
   resolveEventInvitationVariables,
 } from "@/lib/whatsapp/approvedTemplates";
+import {
+  selectWhatsappRecipients,
+  unsupportedWhatsappSummary,
+} from "@/lib/phones/international";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,28 +57,6 @@ function toObjectId(value: unknown) {
   const id = cleanString(value);
   if (!mongoose.Types.ObjectId.isValid(id)) return null;
   return new mongoose.Types.ObjectId(id);
-}
-
-function normalizeIsraeliPhone(value: unknown) {
-  const raw = cleanString(value);
-  const digits = raw.replace(/\D/g, "");
-
-  if (!digits) return "";
-  if (/^05\d{8}$/.test(digits)) return digits;
-  if (/^9725\d{8}$/.test(digits)) return `0${digits.slice(3)}`;
-  if (/^5\d{8}$/.test(digits)) return `0${digits}`;
-  return digits;
-}
-
-function getGuestPhone(guest: any) {
-  return normalizeIsraeliPhone(
-    guest?.phone ||
-      guest?.phoneNumber ||
-      guest?.mobile ||
-      guest?.whatsapp ||
-      guest?.contactPhone ||
-      ""
-  );
 }
 
 /**
@@ -212,14 +194,11 @@ export async function POST(
         guests,
         filter: audienceFilter,
         phone: phoneFromBody,
+        phoneCountry: body?.phoneCountry,
       });
 
-    const validGuests = audienceGuests
-      .map((guest: any) => ({
-        guest,
-        phone: getGuestPhone(guest),
-      }))
-      .filter((item) => /^05\d{8}$/.test(item.phone));
+    const { accepted: validGuests, rejected: rejectedGuests } =
+      selectWhatsappRecipients(audienceGuests);
 
     if (phoneFromBody && audienceGuests.length === 0) {
       return NextResponse.json(
@@ -233,6 +212,18 @@ export async function POST(
     }
 
     if (validGuests.length === 0) {
+      const unsupportedMessage = unsupportedWhatsappSummary(rejectedGuests);
+      if (unsupportedMessage) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "UNSUPPORTED_WHATSAPP_COUNTRY",
+            message: unsupportedMessage,
+          },
+          { status: 400 }
+        );
+      }
+
       const emptyErrors: Record<string, { error: string; message: string }> = {
         never_invited: {
           error: "NO_NEVER_INVITED_GUESTS",
@@ -270,7 +261,7 @@ export async function POST(
 
     const decisionAt = new Date();
     const decisions: RoundDecision[] = [];
-    const queueDocs = validGuests.map(({ guest, phone }) => {
+    const queueDocs = validGuests.map(({ guest, to: phone }) => {
       const guestId = String(guest._id);
       const idempotencyKey = [
         "whatsapp",
@@ -332,7 +323,7 @@ export async function POST(
       if (!guest) continue;
       decisions.push({
         invitationId,
-        guest: { ...guest.guest, phone: guest.phone },
+        guest: { ...guest.guest, phone: guest.to },
         type: "invitation_only",
         round: 1,
         source: "pre_rsvp",
@@ -342,7 +333,7 @@ export async function POST(
           kind: "queued",
           queueId: doc._id,
           idempotencyKey: doc.idempotencyKey,
-          phone: guest.phone,
+          phone: guest.to,
         },
       });
     }

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useSeatingStore } from "@/store/seatingStore";
 import GuestPhoneField from "@/app/components/GuestPhoneField";
+import type { CountryCode } from "@/lib/phones/international";
 import {
   PHONE_DUPLICATE_MESSAGE,
   normalizePhoneKey,
@@ -31,6 +32,7 @@ type GuestRow = {
   id: string;
   name: string;
   phone: string;
+  phoneCountry: string;
   relation: string;
   guestsCount: number;
 };
@@ -52,6 +54,7 @@ function createRow(): GuestRow {
     id: crypto.randomUUID(),
     name: "",
     phone: "",
+    phoneCountry: "IL",
     relation: "",
     guestsCount: 1,
   };
@@ -201,6 +204,7 @@ export default function AddGuestModal({
           body: JSON.stringify({
             name: row.name,
             phone: row.phone,
+            phoneCountry: row.phoneCountry,
             relation: row.relation || null,
             rsvp: "pending",
             guestsCount: row.guestsCount,
@@ -527,7 +531,13 @@ export default function AddGuestModal({
                 />
 
                 <GuestPhoneField
+                  id={`add-guest-phone-${row.id}`}
+                  stacked
                   value={row.phone}
+                  country={row.phoneCountry as CountryCode}
+                  onCountryChange={(country) =>
+                    updateRow(row.id, "phoneCountry", country)
+                  }
                   onChange={(value) => updateRow(row.id, "phone", value)}
                   invitationId={invitationId}
                   otherPhones={[

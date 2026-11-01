@@ -13,6 +13,7 @@ import {
   formatScheduleTime,
 } from "@/lib/formatScheduleDateTime";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
+import { toWhatsappDigits } from "@/lib/phones/international";
 import { composeGuestLocationLabel } from "@/lib/messages/locationText";
 
 /* ================= TYPES ================= */
@@ -648,17 +649,12 @@ ${meta.giftCreditUrl ? "למתנה באשראי:\nלחצו על הכפתור ל�
 
     if (!invitation) return;
 
-    const cleanPhone =
-      typeof guest.phone === "string"
-        ? guest.phone.replace(/\D/g, "").replace(/^0/, "")
-        : "";
+    const to = toWhatsappDigits(guest.phone);
 
-    if (!cleanPhone) {
+    if (!to) {
       alert("מספר טלפון לא תקין");
       return;
     }
-
-    const to = `972${cleanPhone}`;
 
     let selectedTemplateName = "";
 

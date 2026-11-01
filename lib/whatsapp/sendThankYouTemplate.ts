@@ -1,4 +1,5 @@
 // lib/whatsapp/sendThankYouTemplate.ts
+import { toWhatsappDigits } from "@/lib/phones/international";
 type SendThankYouTemplateInput = {
   to: string;
   name: string; // {{1}}
@@ -15,11 +16,7 @@ function isNonEmptyString(v: unknown): v is string {
 }
 
 function normalizePhoneIL(phone: string): string {
-  const p = String(phone || "").replace(/[^\d]/g, "");
-  if (!p) return "";
-  if (p.startsWith("972")) return p;
-  if (p.startsWith("0")) return `972${p.slice(1)}`;
-  return p;
+  return toWhatsappDigits(phone);
 }
 
 function assertRequired(input: SendThankYouTemplateInput) {

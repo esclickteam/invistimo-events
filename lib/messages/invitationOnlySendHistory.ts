@@ -9,20 +9,10 @@ import {
   filterGuestsByInvitationAudience,
   type InvitationOnlyAudienceFilter,
 } from "@/lib/messages/invitationOnlyDetails";
+import { sameGuestPhone } from "@/lib/phones/international";
 
 function cleanString(value: unknown) {
   return String(value ?? "").trim();
-}
-
-function phoneSuffix(value: unknown) {
-  const digits = String(value || "").replace(/\D/g, "");
-  if (!digits) return "";
-  const local = digits.startsWith("972")
-    ? digits.slice(3)
-    : digits.startsWith("0")
-      ? digits.slice(1)
-      : digits;
-  return local.slice(-9);
 }
 
 /**
@@ -90,7 +80,7 @@ export async function findGuestIdsWithInvitationDeliveryStatus(
 
 /**
  * Resolve invitation_only audience from filter and/or a single phone.
- * Phone wins when provided (exact guest match by last 9 digits).
+ * Phone wins when provided (same E.164 guest, including +1 and 1).
  */
 export async function resolveInvitationOnlyAudienceGuests<
   T extends { _id?: unknown; phone?: unknown; phoneNumber?: unknown; mobile?: unknown; whatsapp?: unknown; contactPhone?: unknown },
@@ -99,19 +89,19 @@ export async function resolveInvitationOnlyAudienceGuests<
   guests,
   filter,
   phone,
+  phoneCountry,
 }: {
   invitationId: string;
   guests: T[];
   filter: InvitationOnlyAudienceFilter;
   phone?: unknown;
+  phoneCountry?: unknown;
 }): Promise<{ guests: T[]; resolvedFilter: InvitationOnlyAudienceFilter | "phone" }> {
   const phoneRaw = cleanString(phone);
   if (phoneRaw) {
-    const suffix = phoneSuffix(phoneRaw);
-    if (!suffix) {
-      return { guests: [], resolvedFilter: "phone" };
-    }
-
+    const queryOptions = phoneCountry
+      ? { country: String(phoneCountry), countryExplicit: true }
+      : undefined;
     const matched = guests.filter((guest) => {
       const candidates = [
         guest?.phone,
@@ -120,7 +110,9 @@ export async function resolveInvitationOnlyAudienceGuests<
         guest?.whatsapp,
         guest?.contactPhone,
       ];
-      return candidates.some((value) => phoneSuffix(value) === suffix);
+      return candidates.some((value) =>
+        sameGuestPhone(value, phoneRaw, queryOptions)
+      );
     });
 
     return { guests: matched, resolvedFilter: "phone" };

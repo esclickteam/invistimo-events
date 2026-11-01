@@ -1,9 +1,11 @@
 /**
  * Event-level phone identity and Israeli mobile length review.
- * Display value stays as entered. Comparison uses the normalized key.
+ * A valid number is stored as E.164. Comparison uses the normalized key.
  * 0501234567, 050-1234567 and +972501234567 share one key.
  * The 10-digit rule applies only to numbers that start with 05.
  */
+
+import { parseGuestPhone } from "@/lib/phones/international";
 
 export const PHONE_DUPLICATE_MESSAGE = "מספר הטלפון כבר קיים באירוע זה";
 
@@ -95,13 +97,36 @@ export function restoreIsraeliTrunkZero(value: unknown): string {
   return phone;
 }
 
+export function guestPhoneSaveError(
+  value: unknown,
+  options?: { country?: string | null; countryExplicit?: boolean }
+) {
+  const displayed = displayPhone(value);
+  if (!phoneDigits(displayed)) return "";
+  const parsed = parseGuestPhone(displayed, {
+    country: options?.country,
+    countryExplicit: Boolean(options?.countryExplicit && options?.country),
+  });
+  if (parsed.ok || normalizePhoneKey(displayed).startsWith("05")) return "";
+  return "מספר הטלפון אינו תקין. בחרו את המדינה הנכונה, או הקלידו מספר מלא עם קידומת בינלאומית כמו +1.";
+}
+
 export function phoneFieldsForStorage(
   value: unknown,
-  options?: { keepApproval?: boolean }
+  options?: {
+    keepApproval?: boolean;
+    country?: string | null;
+    countryExplicit?: boolean;
+  }
 ) {
-  const phone = displayPhone(value);
+  const displayed = displayPhone(value);
+  const parsed = parseGuestPhone(displayed, {
+    country: options?.country,
+    countryExplicit: Boolean(options?.countryExplicit && options?.country),
+  });
+  const phone = parsed.ok ? parsed.e164 : displayed;
   const phoneNormalized = normalizePhoneKey(phone);
-  const invalid = isIsraeliMobileLengthInvalid(phone);
+  const invalid = isIsraeliMobileLengthInvalid(displayed);
   const approved = options?.keepApproval === true;
   return {
     phone,

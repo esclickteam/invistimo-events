@@ -1,4 +1,5 @@
 import type { Guest, Invitation } from "@/src/api";
+import { whatsappWaMeDigits } from "@/src/phones";
 
 const PUBLIC_ORIGIN = "https://www.invistimo.com";
 
@@ -133,10 +134,10 @@ export function getGuestInvitationUrl(invitation: Invitation | null | undefined,
 }
 
 export function whatsappInviteUrl(guest: Guest, inviteLink: string) {
-  const digits = String(guest.phone || "").replace(/\D/g, "").replace(/^0/, "");
+  const digits = whatsappWaMeDigits(String(guest.phone || ""));
   if (!digits) return "";
   const message = `היי ${guest.name}! 💛\nהזמנה אישית מחכה לך 🎉\n${inviteLink}`;
-  return `https://wa.me/972${digits}?text=${encodeURIComponent(message)}`;
+  return `https://wa.me/${digits}?text=${encodeURIComponent(message)}`;
 }
 
 function toDate(value: unknown): Date | null {

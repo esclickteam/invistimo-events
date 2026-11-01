@@ -4,6 +4,10 @@ import WhatsappQueue from "@/models/WhatsappQueue";
 import CustomerFile from "@/models/CustomerFile";
 import CustomerLeadMessage from "@/models/CustomerLeadMessage";
 import { applyWhatsappWebhookStatus } from "@/lib/whatsapp/roundDeliveryTracking";
+import {
+  guestPhoneQueryValues,
+  toWhatsappDigits,
+} from "@/lib/phones/international";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -13,45 +17,17 @@ function cleanString(value: unknown) {
 }
 
 function normalizePhoneForWhatsapp(value: unknown) {
-  const digits = cleanString(value).replace(/\D/g, "");
-
-  if (!digits) return "";
-
-  if (digits.startsWith("972")) return digits;
-
-  if (digits.startsWith("0")) {
-    return `972${digits.slice(1)}`;
-  }
-
-  return digits;
+  return toWhatsappDigits(value);
 }
 
 function toLocalIsraeliPhone(value: unknown) {
   const digits = normalizePhoneForWhatsapp(value);
-
-  if (!digits) return "";
-
-  if (digits.startsWith("972")) {
-    return `0${digits.slice(3)}`;
-  }
-
-  return digits;
+  if (digits.startsWith("972")) return `0${digits.slice(3)}`;
+  return digits ? `+${digits}` : "";
 }
 
 function getPhoneCandidates(value: unknown) {
-  const whatsappPhone = normalizePhoneForWhatsapp(value);
-  const localPhone = toLocalIsraeliPhone(value);
-
-  return Array.from(
-    new Set(
-      [
-        cleanString(value),
-        whatsappPhone,
-        localPhone,
-        whatsappPhone ? `+${whatsappPhone}` : "",
-      ].filter(Boolean)
-    )
-  );
+  return guestPhoneQueryValues(value);
 }
 
 function getTimestamp(value: unknown) {

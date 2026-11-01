@@ -245,6 +245,10 @@ export default function ImportExcelModal({
 
             // טלפון אופציונלי
             phone: phoneDisplay || null,
+            country:
+              normalizeText(
+                normalizedRow["מדינה"] || normalizedRow["קידומת"] || ""
+              ) || null,
 
             relation: relationRaw || null,
             group: groupRaw || null,

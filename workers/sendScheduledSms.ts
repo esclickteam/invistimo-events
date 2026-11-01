@@ -7,6 +7,7 @@ import User from "@/models/User";
 import Event from "@/models/Event";
 import { shortenUrl } from "@/lib/shortenUrl";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
+import { toWhatsappDigits } from "@/lib/phones/international";
 import {
   buildRsvpRoundSentMarkState,
   getRsvpRoundSentSnapshot,
@@ -162,13 +163,6 @@ function getThankYouScheduledField(channel: Channel) {
   return channel === "sms" ? "thankYouSmsScheduledAt" : "thankYouScheduledAt";
 }
 
-function isRsvpRoundSent(invitation: any, round: RoundNumber) {
-  return Boolean(
-    getRsvpRoundSentSnapshot(invitation, round).done ||
-      invitation?.adminMessageRoundLocks?.[`rsvp_${round}`]
-  );
-}
-
 function normalizePhone(phoneRaw: any) {
   let phone = String(phoneRaw || "").replace(/\D/g, "");
 
@@ -181,6 +175,13 @@ function normalizePhone(phoneRaw: any) {
   }
 
   return phone;
+}
+
+function isRsvpRoundSent(invitation: any, round: RoundNumber) {
+  return Boolean(
+    getRsvpRoundSentSnapshot(invitation, round).done ||
+      invitation?.adminMessageRoundLocks?.[`rsvp_${round}`]
+  );
 }
 
 async function buildNavigationLink(
@@ -1235,9 +1236,14 @@ export async function sendScheduledWhatsapp() {
           break;
         }
 
-        const phone = normalizePhone(guest.phone);
+        const phone = toWhatsappDigits(guest.phone);
         if (!phone) {
-          await decide(guest, { kind: "not_sent", reasonCode: "MISSING_PHONE" });
+          await decide(guest, {
+            kind: "not_sent",
+            reasonCode: String(guest.phone || "").trim()
+              ? "INVALID_PHONE"
+              : "MISSING_PHONE",
+          });
           continue;
         }
 

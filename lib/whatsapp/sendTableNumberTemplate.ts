@@ -1,4 +1,5 @@
 // lib/whatsapp/sendTableNumberTemplate.ts
+import { toWhatsappDigits } from "@/lib/phones/international";
 
 type SendTableNumberTemplateInput = {
   to: string;
@@ -28,17 +29,7 @@ function isNonEmptyString(v: unknown): v is string {
 }
 
 function normalizePhoneIL(phone: string): string {
-  const digits = String(phone ?? "").replace(/[^\d+]/g, "").trim();
-  if (!digits) return "";
-
-  const noPlus = digits.replace(/^\+/, "");
-  const p = noPlus.replace(/\D/g, "");
-
-  if (!p) return "";
-  if (p.startsWith("972")) return p;
-  if (p.startsWith("0")) return `972${p.slice(1)}`;
-
-  return p;
+  return toWhatsappDigits(phone);
 }
 
 function assertRequired(input: SendTableNumberTemplateInput): void {

@@ -1,12 +1,19 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   PHONE_DUPLICATE_MESSAGE,
   PHONE_LENGTH_REVIEW_MESSAGE,
   normalizePhoneKey,
 } from "@/lib/guestPhone";
 import { usePhoneAvailability } from "@/app/components/usePhoneAvailability";
+import InternationalPhoneField, {
+  DEFAULT_PHONE_COUNTRY,
+} from "@/app/components/InternationalPhoneField";
+import {
+  parseGuestPhone,
+  type CountryCode,
+} from "@/lib/phones/international";
 
 type Props = {
   value: string;
@@ -18,6 +25,10 @@ type Props = {
   placeholder?: string;
   className?: string;
   onDuplicateChange?: (duplicate: boolean) => void;
+  country?: CountryCode;
+  onCountryChange?: (country: CountryCode) => void;
+  stacked?: boolean;
+  id?: string;
 };
 
 export default function GuestPhoneField({
@@ -30,7 +41,17 @@ export default function GuestPhoneField({
   placeholder = "מספר טלפון",
   className = "",
   onDuplicateChange,
+  country,
+  onCountryChange,
+  stacked = false,
+  id,
 }: Props) {
+  const detected = parseGuestPhone(value);
+  const [innerCountry, setInnerCountry] = useState<CountryCode>(
+    country || (detected.ok && detected.country ? detected.country : DEFAULT_PHONE_COUNTRY)
+  );
+  const selectedCountry = country || innerCountry;
+  const [touched, setTouched] = useState(false);
   const status = usePhoneAvailability({
     invitationId,
     phone: value,
@@ -44,22 +65,21 @@ export default function GuestPhoneField({
   }, [onDuplicateChange, status.duplicate]);
 
   return (
-    <div>
-      <input
+    <div className={`${className} ${disabled ? "pointer-events-none opacity-80" : ""}`}>
+      <InternationalPhoneField
+        id={id}
         value={value}
+        country={selectedCountry}
         disabled={disabled}
-        readOnly={disabled}
+        stacked={stacked}
         placeholder={placeholder}
-        inputMode="tel"
-        dir="ltr"
-        onChange={(event) => onChange(event.target.value)}
-        className={`${className} text-left${
-          status.duplicate
-            ? " border-red-500 focus:border-red-500"
-            : status.needsReview
-              ? " border-amber-500 focus:border-amber-500"
-              : ""
-        }${disabled ? " cursor-not-allowed bg-[#F4EEE6] opacity-80" : ""}`}
+        touched={touched && !status.needsReview}
+        onBlur={() => setTouched(true)}
+        onChange={onChange}
+        onCountryChange={(next) => {
+          setInnerCountry(next);
+          onCountryChange?.(next);
+        }}
       />
       {status.duplicate ? (
         <p className="mt-1 text-[11px] font-bold text-red-600">

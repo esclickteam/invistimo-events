@@ -31,6 +31,10 @@ import {
   resolveSaveTheDateVariables,
   saveTheDateBodyParameters,
 } from "@/lib/whatsapp/approvedTemplates";
+import {
+  selectWhatsappRecipients,
+  unsupportedWhatsappSummary,
+} from "@/lib/phones/international";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -130,27 +134,6 @@ function toObjectId(value: unknown) {
   return new mongoose.Types.ObjectId(id);
 }
 
-function normalizeIsraeliPhone(value: unknown) {
-  const raw = cleanString(value);
-  const digits = raw.replace(/\D/g, "");
-
-  if (!digits) return "";
-
-  if (/^05\d{8}$/.test(digits)) {
-    return digits;
-  }
-
-  if (/^9725\d{8}$/.test(digits)) {
-    return `0${digits.slice(3)}`;
-  }
-
-  if (/^5\d{8}$/.test(digits)) {
-    return `0${digits}`;
-  }
-
-  return digits;
-}
-
 function parseJsonObject(value: unknown): Record<string, any> {
   const raw = cleanString(value);
 
@@ -171,17 +154,6 @@ function parseJsonObject(value: unknown): Record<string, any> {
 
 function buildEventLocationFromInvitation(invitation: any) {
   return buildInvitationHallDisplayName(invitation);
-}
-
-function getGuestPhone(guest: any) {
-  return normalizeIsraeliPhone(
-    guest?.phone ||
-      guest?.phoneNumber ||
-      guest?.mobile ||
-      guest?.whatsapp ||
-      guest?.contactPhone ||
-      ""
-  );
 }
 
 function getTemplateNameByType(messageType: PreRsvpMessageType) {
@@ -707,6 +679,7 @@ export async function POST(req: NextRequest) {
       formData.get("filter") || formData.get("audienceFilter")
     );
     const phoneFromForm = cleanString(formData.get("phone"));
+    const phoneCountryFromForm = cleanString(formData.get("phoneCountry"));
     const allowResend =
       cleanString(formData.get("allowResend")) === "true" ||
       cleanString(formData.get("allowResend")) === "1" ||
@@ -1081,21 +1054,20 @@ export async function POST(req: NextRequest) {
         guests,
         filter: audienceFilter,
         phone: phoneFromForm,
+        phoneCountry: phoneCountryFromForm,
       });
       audienceGuests = resolved.guests;
       resolvedAudienceFilter = resolved.resolvedFilter;
     }
 
-    const validGuests = audienceGuests
-      .map((guest: any) => ({
-        guest,
-        phone: getGuestPhone(guest),
-      }))
-      .filter((item) => /^05\d{8}$/.test(item.phone));
+    const { accepted: validGuests, rejected: rejectedGuests } =
+      selectWhatsappRecipients(audienceGuests);
 
     if (validGuests.length === 0) {
+      const unsupportedMessage = unsupportedWhatsappSummary(rejectedGuests);
       const emptyMessage =
-        messageType === "invitation_only" && resolvedAudienceFilter === "never_invited"
+        unsupportedMessage ||
+        (messageType === "invitation_only" && resolvedAudienceFilter === "never_invited"
           ? "לא נמצאו אורחים שלא נשלחה אליהם הזמנה מהמערכת (עם מספר תקין)."
           : messageType === "invitation_only" && resolvedAudienceFilter === "failed"
             ? "לא נמצאו אורחים שנכשלה להם שליחת ההזמנה."
@@ -1105,7 +1077,7 @@ export async function POST(req: NextRequest) {
                 ? phoneFromForm
                   ? "לא נמצא אורח ברשימה עם מספר הטלפון שהוזן, או שהמספר אינו תקין."
                   : "לא נמצאו מספרי טלפון תקינים לשליחה בוואטסאפ."
-                : "לא נמצאו מספרי טלפון תקינים לשליחה בוואטסאפ.";
+                : "לא נמצאו מספרי טלפון תקינים לשליחה בוואטסאפ.");
 
       return NextResponse.json(
         {
@@ -1211,7 +1183,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const queueDocs = validGuests.map(({ guest, phone }) => {
+    const queueDocs = validGuests.map(({ guest, to: phone }) => {
       const guestId = String(guest._id);
 
       return {
@@ -1268,13 +1240,22 @@ export async function POST(req: NextRequest) {
       validGuests.map(({ guest }) => String(guest._id))
     );
     const decisionAt = new Date();
+    const rejectedByGuestId = new Map(
+      rejectedGuests.map((item) => [String((item.guest as { _id?: unknown })?._id), item])
+    );
     const decisions: RoundDecision[] = audienceGuests
       .filter((guest: any) => !validGuestIds.has(String(guest._id)))
       .map((guest: any) => {
-        const phone = getGuestPhone(guest);
+        const rejected = rejectedByGuestId.get(String(guest._id));
+        const reasonCode =
+          rejected?.reason === "unsupported_country"
+            ? "UNSUPPORTED_WHATSAPP_COUNTRY"
+            : rejected?.reason === "missing"
+              ? "MISSING_PHONE"
+              : "INVALID_PHONE";
         return {
           invitationId,
-          guest: { ...guest, phone },
+          guest,
           type: messageType,
           round: 1,
           source: "pre_rsvp" as const,
@@ -1282,13 +1263,14 @@ export async function POST(req: NextRequest) {
           at: decisionAt,
           outcome: {
             kind: "not_sent" as const,
-            reasonCode: phone ? "INVALID_PHONE" : "MISSING_PHONE",
+            reasonCode,
+            errorMessage: rejected?.message || "",
           },
         };
       });
 
     const guestById = new Map(
-      validGuests.map(({ guest, phone }) => [String(guest._id), { guest, phone }])
+      validGuests.map(({ guest, to }) => [String(guest._id), { guest, phone: to }])
     );
 
     let inserted: any[];
