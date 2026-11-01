@@ -18,6 +18,7 @@ import {
   type ChannelFilter,
   type GuestChannelView,
 } from "@/lib/whatsapp/guestChannelView";
+import { phoneSearchMatches } from "@/lib/phones/international";
 
 /* =========================
    Types
@@ -781,7 +782,7 @@ export default function WhatsappRoundsReportModal({
 
         const matchText = q ? haystack.includes(q) : false;
         const matchPhone = qDigits
-          ? onlyDigits(guest.phone).includes(qDigits)
+          ? phoneSearchMatches(guest.phone, search)
           : false;
 
         if (!(matchText || matchPhone)) return false;

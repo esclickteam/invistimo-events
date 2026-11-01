@@ -79,11 +79,9 @@ const defaultDeps: SmsFallbackDeps = {
 
 export function isValidSmsPhone(phoneRaw: unknown) {
   const phone = normalizeSmsPhone(String(phoneRaw || ""));
-  if (!phone) return false;
-  if (phone.startsWith("972")) {
-    return phone.length === 12 && phone.startsWith("9725");
-  }
-  return phone.length >= 10 && phone.length <= 15;
+  // sms4free delivers Israeli mobiles. International guests stay on WhatsApp
+  // so a failed WhatsApp send does not open a new SMS charge.
+  return /^9725\d{8}$/.test(phone);
 }
 
 /** One SMS per delivery attempt. Attempt 1 keeps the original key shape. */

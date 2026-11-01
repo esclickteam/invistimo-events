@@ -44,6 +44,7 @@ import {
 import { mergeGuestActivity } from "@/lib/dashboardGuestActivity";
 import { countGuestsTowardRecordQuota } from "@/lib/guestRecordQuota";
 import { phoneNeedsReview } from "@/lib/guestPhone";
+import { phoneSearchMatches, toWhatsappDigits } from "@/lib/phones/international";
 import PhoneReviewMark from "@/app/components/PhoneReviewMark";
 import KosherPhoneBadge from "@/app/components/KosherPhoneBadge";
 import { summarizeCheckIn } from "@/lib/checkIn/status";
@@ -1667,10 +1668,7 @@ const pending = guests.filter(
 
     const message = `היי ${guest.name}! 💛\nהזמנה אישית מחכה לך 🎉\n${inviteLink}`;
 
-    const cleanPhone =
-      typeof guest.phone === "string"
-        ? guest.phone.replace(/\D/g, "").replace(/^0/, "")
-        : "";
+    const cleanPhone = toWhatsappDigits(guest.phone);
 
     if (!cleanPhone) return;
 
@@ -1692,7 +1690,7 @@ const pending = guests.filter(
       return;
     }
 
-    const phone = `972${cleanPhone}`;
+    const phone = cleanPhone;
 
     window.open(
       `https://wa.me/${phone}?text=${encodeURIComponent(message)}`,
@@ -2171,11 +2169,9 @@ function normalizeGuestForDashboard(guest: Guest): Guest {
 
       list = list.filter((g) => {
         const name = (g.name || "").toLowerCase();
-        const phoneDigits = (g.phone || "").replace(/\D/g, "");
-
         const nameMatch = name.includes(q);
         const phoneMatch = qDigits
-          ? phoneDigits.includes(qDigits)
+          ? phoneSearchMatches(g.phone, q)
           : false;
 
         return nameMatch || phoneMatch;

@@ -1,19 +1,7 @@
+import { toSmsDigits } from "@/lib/phones/international";
+
 export function normalizeSmsPhone(value: string) {
-  let phone = String(value || "").replace(/\D/g, "");
-
-  if (!phone) return "";
-
-  if (phone.startsWith("00")) {
-    phone = phone.slice(2);
-  }
-
-  if (phone.startsWith("0")) {
-    phone = `972${phone.slice(1)}`;
-  } else if (!phone.startsWith("972")) {
-    phone = `972${phone}`;
-  }
-
-  return phone;
+  return toSmsDigits(value);
 }
 
 export function isSendableSmsPhone(value: string) {

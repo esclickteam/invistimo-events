@@ -10,7 +10,11 @@ import {
   billableGuestMatch,
   guestCountsTowardRecordQuota,
 } from "@/lib/guestRecordQuota";
-import { restoreIsraeliTrunkZero } from "@/lib/guestPhone";
+import {
+  guestPhoneSaveError,
+  phoneFieldsForStorage,
+  restoreIsraeliTrunkZero,
+} from "@/lib/guestPhone";
 import {
   commitGuestPhoneImport,
   countImportedPhoneReviews,
@@ -231,6 +235,7 @@ export async function POST(req: NextRequest) {
       phone: string;
       payload: Record<string, unknown>;
     }> = [];
+    const rejectedInvalid: Array<{ name: string; phone: string }> = [];
 
     for (const [index, g] of guests.entries()) {
       console.log("====================================");
@@ -251,7 +256,20 @@ export async function POST(req: NextRequest) {
 
       console.log("➡️ GROUP ID:", groupId);
 
-      const phone = restoreIsraeliTrunkZero(g.phone || g["טלפון"] || "");
+      const countryHint =
+        g.country || g.phoneCountry || g["מדינה"] || g["קידומת"] || "";
+      const restoredPhone = restoreIsraeliTrunkZero(
+        g.phone || g["טלפון"] || ""
+      );
+      const phoneOptions = {
+        country: countryHint,
+        countryExplicit: Boolean(String(countryHint || "").trim()),
+      };
+      if (guestPhoneSaveError(restoredPhone, phoneOptions)) {
+        rejectedInvalid.push({ name, phone: String(restoredPhone) });
+        continue;
+      }
+      const phone = phoneFieldsForStorage(restoredPhone, phoneOptions).phone;
 
       const tableNumber = normalizeTableNumber(
         g.tableNumber ??
@@ -289,7 +307,11 @@ export async function POST(req: NextRequest) {
         {
           success: false,
           error: "NO_VALID_GUESTS",
-          message: "לא נמצאו רשומות תקינות לייבוא.",
+          message:
+            rejectedInvalid.length > 0
+              ? "לא נמצאו רשומות תקינות לייבוא. מספרי הטלפון אינם תקינים."
+              : "לא נמצאו רשומות תקינות לייבוא.",
+          rejectedInvalid,
         },
         { status: 400 }
       );
@@ -367,7 +389,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       count: importedCount,
-      message: `✅ יובאו ${importedCount} מוזמנים בהצלחה`,
+      message:
+        rejectedInvalid.length > 0
+          ? `✅ יובאו ${importedCount} מוזמנים בהצלחה. ${rejectedInvalid.length} שורות דולגו כי מספר הטלפון אינו תקין.`
+          : `✅ יובאו ${importedCount} מוזמנים בהצלחה`,
+      rejectedInvalid,
       summary: {
         fileCount: phonePlan.fileCount,
         importedCount,

@@ -347,10 +347,11 @@ export async function deleteClaimsForInvitation(invitationId: unknown) {
 
 export async function reserveNewGuestPhone(
   invitationId: unknown,
-  rawPhone: unknown
+  rawPhone: unknown,
+  options?: { country?: string | null; countryExplicit?: boolean }
 ) {
   await ensureInvitationPhoneClaims(invitationId);
-  const fields = phoneFieldsForStorage(rawPhone);
+  const fields = phoneFieldsForStorage(rawPhone, options);
   const guestId = new mongoose.Types.ObjectId();
   const phoneNormalized = fields.phoneNormalized || "";
 
@@ -391,6 +392,8 @@ export async function planPhoneChange(input: {
   currentPhoneNormalized?: unknown;
   currentApproved?: unknown;
   nextPhone: unknown;
+  country?: string | null;
+  countryExplicit?: boolean;
 }) {
   await ensureInvitationPhoneClaims(input.invitationId);
 
@@ -398,6 +401,8 @@ export async function planPhoneChange(input: {
     input.currentPhoneNormalized || input.currentPhone
   );
   const fields = phoneFieldsForStorage(input.nextPhone, {
+    country: input.country,
+    countryExplicit: input.countryExplicit,
     keepApproval:
       normalizePhoneKey(input.nextPhone) === prevKey &&
       input.currentApproved === true,

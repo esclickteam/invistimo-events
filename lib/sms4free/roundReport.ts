@@ -3,6 +3,8 @@
  * Statuses reflect what the system actually stores — no WhatsApp "read"/fake delivery.
  */
 
+import { toSmsDigits } from "@/lib/phones/international";
+
 export type SmsReportStatusKey =
   | "not_sent"
   | "scheduled"
@@ -61,22 +63,14 @@ export function getTimestamp(value: unknown) {
 }
 
 export function normalizePhoneDigits(phoneRaw: unknown) {
-  let phone = String(phoneRaw || "").replace(/\D/g, "");
-  if (!phone) return "";
-  if (phone.startsWith("0")) phone = "972" + phone.slice(1);
-  else if (!phone.startsWith("972") && phone.length <= 10) {
-    phone = "972" + phone;
-  }
-  return phone;
+  return toSmsDigits(phoneRaw);
 }
 
 export function isValidSmsPhone(phoneRaw: unknown) {
   const phone = normalizePhoneDigits(phoneRaw);
   if (!phone) return false;
-  if (phone.startsWith("972")) {
-    return phone.length === 12 && phone.startsWith("9725");
-  }
-  return phone.length >= 10 && phone.length <= 15;
+  if (phone.startsWith("972")) return /^9725\d{8}$/.test(phone);
+  return phone.length >= 8 && phone.length <= 15;
 }
 
 export function mapRsvpLabel(rsvp: unknown) {

@@ -13,7 +13,7 @@ import {
   countGuestsTowardRecordQuota,
   guestCountsTowardRecordQuota,
 } from "@/lib/guestRecordQuota";
-import { PHONE_DUPLICATE_MESSAGE } from "@/lib/guestPhone";
+import { PHONE_DUPLICATE_MESSAGE, guestPhoneSaveError } from "@/lib/guestPhone";
 import {
   isPhoneDuplicateError,
   reserveNewGuestPhone,
@@ -919,6 +919,7 @@ export async function POST(req: NextRequest) {
       rsvpStatus = "pending",
       quantity = 1,
       notes = "",
+      phoneCountry = null,
       groupId = null,
       source = "manual",
       tags = [],
@@ -989,7 +990,22 @@ export async function POST(req: NextRequest) {
       "@/lib/checkIn/ensureEventTokens"
     );
     const checkInToken = await checkInTokenForInvitation(invitation);
-    const reservedPhone = await reserveNewGuestPhone(invitationId, phone);
+    const phoneOptions = {
+      country: phoneCountry,
+      countryExplicit: Boolean(phoneCountry),
+    };
+    const phoneError = guestPhoneSaveError(phone, phoneOptions);
+    if (phoneError) {
+      return NextResponse.json(
+        { success: false, error: phoneError },
+        { status: 400 }
+      );
+    }
+    const reservedPhone = await reserveNewGuestPhone(
+      invitationId,
+      phone,
+      phoneOptions
+    );
 
     let created;
     try {

@@ -13,6 +13,11 @@ import {
   buildInvitationLocationLabel,
   type InvitationOnlyAudienceFilter,
 } from "@/lib/messages/invitationOnlyDetails";
+import type { CountryCode } from "@/lib/phones/international";
+import InternationalPhoneField, {
+  DEFAULT_PHONE_COUNTRY,
+} from "@/app/components/InternationalPhoneField";
+import { phoneFieldError } from "@/lib/phones/international";
 import {
   EVENT_INVITATION_TEMPLATE_NAME,
   SAVE_THE_DATE_TEMPLATE_NAME,
@@ -738,6 +743,15 @@ function PreRsvpTab({
   const [invitationAudience, setInvitationAudience] =
     useState<InvitationOnlyAudienceFilter>("never_invited");
   const [invitationPhone, setInvitationPhone] = useState("");
+  const [invitationPhoneCountry, setInvitationPhoneCountry] =
+    useState<CountryCode>(DEFAULT_PHONE_COUNTRY);
+  const [invitationPhoneTouched, setInvitationPhoneTouched] = useState(false);
+  const invitationPhoneActive = useMemo(
+    () =>
+      invitationPhone.replace(/\D/g, "").length > 0 &&
+      !phoneFieldError(invitationPhone, invitationPhoneCountry),
+    [invitationPhone, invitationPhoneCountry]
+  );
 
   const [savedSaveTheDateImageUrl, setSavedSaveTheDateImageUrl] = useState("");
   const [savedInvitationOnlyImageUrl, setSavedInvitationOnlyImageUrl] =
@@ -1017,7 +1031,7 @@ function PreRsvpTab({
       if (
         !isSaveTheDate &&
         sendTiming === "scheduled" &&
-        invitationPhone.replace(/\D/g, "").length >= 9
+        invitationPhoneActive
       ) {
         alert(
           "שליחה למספר בודד היא מיידית בלבד — נקו את שדה הטלפון או בחרי שליחה מיידית."
@@ -1128,7 +1142,17 @@ function PreRsvpTab({
       formData.append("previewMessage", payload.previewMessage);
       formData.append("filter", audienceFilter);
       if (!isSaveTheDate && invitationPhone.trim()) {
+        const phoneError = phoneFieldError(
+          invitationPhone,
+          invitationPhoneCountry
+        );
+        if (phoneError) {
+          setInvitationPhoneTouched(true);
+          alert(phoneError);
+          return;
+        }
         formData.append("phone", invitationPhone.trim());
+        formData.append("phoneCountry", invitationPhoneCountry);
       }
       formData.append(
         "allowResend",
@@ -1137,7 +1161,7 @@ function PreRsvpTab({
             audienceFilter === "never_invited" ||
             audienceFilter === "failed" ||
             audienceFilter === "not_sent" ||
-            Boolean(invitationPhone.trim()))
+            invitationPhoneActive))
           ? "true"
           : "false"
       );
@@ -1366,24 +1390,26 @@ function PreRsvpTab({
                 <label className="block text-sm font-black text-[#3A3028]">
                   מספר טלפון (אופציונלי — שולח רק אליו, מיידי בלבד)
                 </label>
-                <input
-                  type="tel"
-                  dir="ltr"
+                <InternationalPhoneField
+                  id="invitation-target-phone"
                   value={invitationPhone}
-                  onChange={(e) => setInvitationPhone(e.target.value)}
-                  placeholder="05xxxxxxxx"
-                  className="w-full rounded-[22px] border border-[#E4D3BC] bg-white px-4 py-3 text-sm font-bold text-[#2D241D] outline-none"
+                  country={invitationPhoneCountry}
+                  touched={invitationPhoneTouched}
+                  onChange={setInvitationPhone}
+                  onCountryChange={setInvitationPhoneCountry}
+                  onBlur={() => setInvitationPhoneTouched(true)}
+                  placeholder="05xxxxxxxx או +1..."
                 />
 
                 <label className="block text-sm font-black text-[#3A3028]">
                   למי לשלוח את ההזמנה
-                  {invitationPhone.replace(/\D/g, "").length >= 9
+                  {invitationPhoneActive
                     ? " (לא בשימוש כשמזינים טלפון)"
                     : ""}
                 </label>
                 <select
                   value={invitationAudience}
-                  disabled={invitationPhone.replace(/\D/g, "").length >= 9}
+                  disabled={invitationPhoneActive}
                   onChange={(e) => {
                     const value = e.target.value;
                     if (

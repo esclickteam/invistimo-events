@@ -22,7 +22,11 @@ import {
   GUEST_PHONE_LOCKED_ERROR,
   guestCountsTowardRecordQuota,
 } from "@/lib/guestRecordQuota";
-import { PHONE_DUPLICATE_MESSAGE, normalizePhoneKey } from "@/lib/guestPhone";
+import {
+  PHONE_DUPLICATE_MESSAGE,
+  guestPhoneSaveError,
+  normalizePhoneKey,
+} from "@/lib/guestPhone";
 import {
   isPhoneDuplicateError,
   planPhoneChange,
@@ -90,9 +94,21 @@ export async function POST(
     const producerId = (userDoc as any)?.createdByProducer || null;
 
     const body = await req.json();
-    const { name, phone, relation, rsvp, guestsCount, tableNumber, groupId } = body || {};
+    const { name, phone, relation, rsvp, guestsCount, tableNumber, groupId, phoneCountry } =
+      body || {};
 
     const safeName = String(name || "").trim();
+    const phoneOptions = {
+      country: phoneCountry,
+      countryExplicit: Boolean(phoneCountry),
+    };
+    const phoneError = guestPhoneSaveError(phone, phoneOptions);
+    if (phoneError) {
+      return NextResponse.json(
+        { success: false, error: phoneError },
+        { status: 400 }
+      );
+    }
     const normalizedPhone = normalizePhone(phone);
 
     if (!safeName) {
@@ -265,7 +281,8 @@ const checkInToken = await checkInTokenForInvitation(invitation as any);
 
 reservedPhone = await reserveNewGuestPhone(
   (invitation as any)._id,
-  phone
+  phone,
+  phoneOptions
 );
 
 let guest;
@@ -507,6 +524,8 @@ export async function PUT(
     delete normalizedUpdates._id;
     delete normalizedUpdates.id;
     delete normalizedUpdates.shareId;
+    const phoneCountry = normalizedUpdates.phoneCountry;
+    delete normalizedUpdates.phoneCountry;
 
     if ("relation" in normalizedUpdates) {
   normalizedUpdates.relation = normalizeGroupName(normalizedUpdates.relation);
@@ -567,6 +586,20 @@ export async function PUT(
         );
       }
 
+      const phoneOptions = {
+        country: phoneCountry,
+        countryExplicit: Boolean(phoneCountry),
+      };
+      const phoneError = guestPhoneSaveError(
+        normalizedUpdates.phone,
+        phoneOptions
+      );
+      if (phoneError) {
+        return NextResponse.json(
+          { success: false, error: phoneError },
+          { status: 400 }
+        );
+      }
       const phonePlan = await planPhoneChange({
         invitationId,
         guestId,
@@ -574,6 +607,7 @@ export async function PUT(
         currentPhoneNormalized: (before as any)?.phoneNormalized,
         currentApproved: (before as any)?.phoneLengthApproved === true,
         nextPhone: normalizedUpdates.phone,
+        ...phoneOptions,
       });
       normalizedUpdates.phone = phonePlan.fields.phone;
       normalizedUpdates.phoneNormalized = phonePlan.fields.phoneNormalized;

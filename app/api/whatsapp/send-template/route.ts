@@ -13,6 +13,7 @@ import WhatsappQueue from "@/models/WhatsappQueue";
 import User from "@/models/User";
 import { getHighQualityCloudinaryImageUrl } from "@/lib/cloudinary";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
+import { toWhatsappDigits } from "@/lib/phones/international";
 import {
   buildRsvpRoundSentMarkState,
   getActiveRsvpRoundExecutionId,
@@ -181,17 +182,7 @@ function formatEventDateTime(dateString?: string, timeString?: string): string {
 }
 
 function normalizePhone(phoneRaw: any) {
-  let phone = String(phoneRaw || "").replace(/\D/g, "");
-
-  if (!phone) return "";
-
-  if (phone.startsWith("0")) {
-    phone = "972" + phone.slice(1);
-  } else if (!phone.startsWith("972")) {
-    phone = "972" + phone;
-  }
-
-  return phone;
+  return toWhatsappDigits(phoneRaw);
 }
 
 function buildGuestQuery({

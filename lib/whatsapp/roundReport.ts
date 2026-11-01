@@ -3,6 +3,8 @@
  * Aggregation only — does not change send/webhook/RSVP flows.
  */
 
+import { toSmsDigits, toWhatsappDigits } from "@/lib/phones/international";
+
 export const ROUND_TYPE_ORDER = [
   "save_the_date",
   "invitation_only",
@@ -88,26 +90,11 @@ export function getTimestamp(value: unknown) {
 }
 
 export function normalizePhoneDigits(phoneRaw: unknown) {
-  let phone = String(phoneRaw || "").replace(/\D/g, "");
-  if (!phone) return "";
-
-  if (phone.startsWith("0")) {
-    phone = "972" + phone.slice(1);
-  } else if (!phone.startsWith("972") && phone.length <= 10) {
-    phone = "972" + phone;
-  }
-
-  return phone;
+  return toWhatsappDigits(phoneRaw) || toSmsDigits(phoneRaw);
 }
 
 export function isValidWhatsappPhone(phoneRaw: unknown) {
-  const phone = normalizePhoneDigits(phoneRaw);
-  // Israeli mobile: 9725xxxxxxxx (12 digits) or similar international length
-  if (!phone) return false;
-  if (phone.startsWith("972")) {
-    return phone.length === 12 && phone.startsWith("9725");
-  }
-  return phone.length >= 10 && phone.length <= 15;
+  return Boolean(toWhatsappDigits(phoneRaw));
 }
 
 export function normalizeRoundType(item: any): RoundType {

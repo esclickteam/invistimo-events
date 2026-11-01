@@ -17,6 +17,14 @@ export function phonesMatch(a: string, b: string) {
   return Boolean(left) && left === right;
 }
 
+export function whatsappWaMeDigits(value: string) {
+  let digits = digitsOnly(value);
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (!digits) return "";
+  if (digits.startsWith("0")) return `972${digits.slice(1)}`;
+  return digits;
+}
+
 export function displayPhone(value: string) {
   const digits = digitsOnly(value);
   if (!digits) return "";

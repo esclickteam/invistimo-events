@@ -8,6 +8,7 @@ import { getHighQualityCloudinaryImageUrl } from "@/lib/cloudinary";
 import { shortenUrl } from "@/lib/shortenUrl";
 import { buildGuestInviteUrl, getInvitationRsvpSiteMode } from "@/lib/guestInviteUrl";
 import { sendRsvpTemplateMedia } from "@/lib/whatsapp/sendRsvpTemplateMedia";
+import { toSmsDigits, toWhatsappDigits } from "@/lib/phones/international";
 import { buildInvitationLocationLabel } from "@/lib/messages/invitationOnlyDetails";
 
 import InvitationGuest from "@/models/InvitationGuest";
@@ -146,12 +147,8 @@ async function requireEmployee() {
   };
 }
 
-function normalizePhone(phoneRaw: unknown) {
-  let phone = String(phoneRaw || "").replace(/\D/g, "");
-  if (!phone) return "";
-  if (phone.startsWith("0")) phone = "972" + phone.slice(1);
-  else if (!phone.startsWith("972")) phone = "972" + phone;
-  return phone;
+function normalizePhone(phoneRaw: unknown, channel: Channel) {
+  return channel === "sms" ? toSmsDigits(phoneRaw) : toWhatsappDigits(phoneRaw);
 }
 
 function formatEventDateTime(dateString?: string, timeString?: string) {
@@ -279,9 +276,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     const phone =
-      normalizePhone(guest.phone) ||
-      normalizePhone(task.guestPhone) ||
-      normalizePhone(task.phone);
+      normalizePhone(guest.phone, channel) ||
+      normalizePhone(task.guestPhone, channel) ||
+      normalizePhone(task.phone, channel);
 
     if (!phone) {
       return NextResponse.json(

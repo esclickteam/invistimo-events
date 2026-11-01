@@ -8,6 +8,11 @@ import {
 } from "@/lib/guestLinkTracking";
 import GuestPhoneField from "@/app/components/GuestPhoneField";
 import { PHONE_DUPLICATE_MESSAGE } from "@/lib/guestPhone";
+import {
+  parseGuestPhone,
+  type CountryCode,
+} from "@/lib/phones/international";
+import { DEFAULT_PHONE_COUNTRY } from "@/app/components/InternationalPhoneField";
 
 interface EditGuestModalProps {
   guest: any;
@@ -26,6 +31,9 @@ export default function EditGuestModal({
 }: EditGuestModalProps) {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [phoneCountry, setPhoneCountry] = useState<CountryCode>(
+    DEFAULT_PHONE_COUNTRY
+  );
   const [relation, setRelation] = useState("");
   const [rsvp, setRsvp] = useState<"pending" | "yes" | "no" | "maybe">("pending");
   const [guestsCount, setGuestsCount] = useState<number>(1);
@@ -42,6 +50,10 @@ export default function EditGuestModal({
 
     setName(guest.name || "");
     setPhone(guest.phone || "");
+    const parsed = parseGuestPhone(guest.phone || "");
+    setPhoneCountry(
+      parsed.ok && parsed.country ? parsed.country : DEFAULT_PHONE_COUNTRY
+    );
     setRelation(guest.relation || "");
     setRsvp(guest.rsvp || "pending");
     setGuestsCount(guest.guestsCount || 1);
@@ -71,6 +83,7 @@ export default function EditGuestModal({
       const payload = {
         name,
         phone: phoneLocked ? guest.phone || "" : phone,
+        phoneCountry,
         relation,
         rsvp,
         status: rsvp,
@@ -274,7 +287,10 @@ export default function EditGuestModal({
 
             <Field label="טלפון">
               <GuestPhoneField
+                id="edit-guest-phone"
                 value={phone}
+                country={phoneCountry}
+                onCountryChange={setPhoneCountry}
                 onChange={setPhone}
                 invitationId={invitationId || guest?.invitationId}
                 excludeGuestId={guest?._id}

@@ -69,6 +69,7 @@ export default function ExcelImportScreen() {
           return {
             name,
             phone: phone || null,
+            country: clean(row["מדינה"] || row["קידומת"] || row.country) || null,
             relation: clean(row["קרבה"]) || null,
             group: clean(row["קבוצה"]) || null,
             rsvp: RSVP_MAP[status] || "pending",

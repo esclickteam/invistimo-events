@@ -5,6 +5,7 @@ import GuestsMobileList from "@/app/dashboard/components/GuestsMobileList";
 import { RSVP_LABELS } from "@/lib/rsvp";
 import { guestLinkWasOpened } from "@/lib/guestLinkTracking";
 import { getGuestInvitationUrl } from "@/lib/guestInviteUrl";
+import { phoneSearchMatches } from "@/lib/phones/international";
 
 /* ============================================================
    Types
@@ -100,8 +101,7 @@ export default function GuestsTable({
       const qDigits = q.replace(/\D/g, "");
       list = list.filter((g) => {
         const name = g.name?.toLowerCase() || "";
-        const phone = g.phone?.replace(/\D/g, "") || "";
-        return name.includes(q) || (qDigits && phone.includes(qDigits));
+        return name.includes(q) || (qDigits && phoneSearchMatches(g.phone, q));
       });
     }
 

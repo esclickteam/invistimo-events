@@ -16,7 +16,11 @@ import {
   canAssignPhoneToGuest,
   GUEST_PHONE_LOCKED_ERROR,
 } from "@/lib/guestRecordQuota";
-import { PHONE_DUPLICATE_MESSAGE, normalizePhoneKey } from "@/lib/guestPhone";
+import {
+  PHONE_DUPLICATE_MESSAGE,
+  guestPhoneSaveError,
+  normalizePhoneKey,
+} from "@/lib/guestPhone";
 import {
   isPhoneDuplicateError,
   planPhoneChange,
@@ -1452,6 +1456,18 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       const beforeKey = normalizePhoneKey(
         guest.phoneNormalized || guest.phone
       );
+      const phoneOptions = {
+        country: data.phoneCountry,
+        countryExplicit: Boolean(data.phoneCountry),
+      };
+      const phoneError = guestPhoneSaveError(data.phone, phoneOptions);
+      if (phoneError) {
+        return NextResponse.json(
+          { success: false, error: phoneError },
+          { status: 400 }
+        );
+      }
+      delete data.phoneCountry;
       const phonePlan = await planPhoneChange({
         invitationId: guest.invitationId,
         guestId: guest._id,
@@ -1459,6 +1475,7 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
         currentPhoneNormalized: guest.phoneNormalized,
         currentApproved: guest.phoneLengthApproved === true,
         nextPhone: data.phone,
+        ...phoneOptions,
       });
       guest.phone = phonePlan.fields.phone;
       guest.phoneNormalized = phonePlan.fields.phoneNormalized;

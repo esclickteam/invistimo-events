@@ -8,6 +8,7 @@ import {
   resolveWhatsappSendTemplateName,
   saveTheDateBodyParameters,
 } from "@/lib/whatsapp/approvedTemplates";
+import { toWhatsappDigits } from "@/lib/phones/international";
 
 export type SendRsvpTemplateMediaInput = {
   to: string;
@@ -119,13 +120,7 @@ function isValidHttpsUrl(url: string): boolean {
 }
 
 function normalizePhoneIL(phone: string): string {
-  const p = String(phone || "").replace(/[^\d]/g, "");
-
-  if (!p) return "";
-  if (p.startsWith("972")) return p;
-  if (p.startsWith("0")) return `972${p.slice(1)}`;
-
-  return p;
+  return toWhatsappDigits(phone);
 }
 
 function isPreRsvpTemplate(templateName: string) {
