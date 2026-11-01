@@ -2,15 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Frank_Ruhl_Libre } from "next/font/google";
+import localFont from "next/font/local";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import { ALCOHOL_SERVICE_FAQS } from "./guideFaqs";
 import QuoteForm from "./QuoteForm";
 
-const display = Frank_Ruhl_Libre({
-  subsets: ["hebrew", "latin"],
-  weight: ["500", "700"],
+const display = localFont({
+  src: "../../../../lib/fonts/FrankRuhlLibre-wght.ttf",
+  weight: "500 700",
   display: "swap",
+  adjustFontFallback: "Times New Roman",
 });
 
 const PATH = "/services/alcohol-management";

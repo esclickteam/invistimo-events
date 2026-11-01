@@ -1,6 +1,6 @@
 import "./globals.css";
 import type { ReactNode } from "react";
-import { Heebo } from "next/font/google";
+import localFont from "next/font/local";
 
 import Providers from "./providers";
 import AccessibilityScript from "./components/AccessibilityScript";
@@ -9,10 +9,11 @@ import GlobalSoftphoneMount from "./components/staff/GlobalSoftphoneMount";
 import PrivateChromeHider from "./components/staff/PrivateChromeHider";
 import { defaultPublicIndexable } from "@/lib/seo/site";
 
-const heebo = Heebo({
-  subsets: ["hebrew", "latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+const heebo = localFont({
+  src: "../lib/fonts/Heebo-wght.ttf",
+  weight: "300 800",
   display: "swap",
+  adjustFontFallback: "Arial",
   variable: "--font-heebo",
 });
 

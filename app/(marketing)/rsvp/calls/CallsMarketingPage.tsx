@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { Frank_Ruhl_Libre } from "next/font/google";
+import localFont from "next/font/local";
 import { motion, useReducedMotion } from "framer-motion";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import CallDemoPlayer from "./components/CallDemoPlayer";
@@ -84,10 +84,11 @@ function PathIcon({ kind }: { kind: "ai" | "human" | "hybrid" }) {
   );
 }
 
-const display = Frank_Ruhl_Libre({
-  subsets: ["hebrew", "latin"],
-  weight: ["500", "700"],
+const display = localFont({
+  src: "../../../../lib/fonts/FrankRuhlLibre-wght.ttf",
+  weight: "500 700",
   display: "swap",
+  adjustFontFallback: "Times New Roman",
   variable: "--font-calls-display",
 });
 

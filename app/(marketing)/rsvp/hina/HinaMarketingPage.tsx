@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, type CSSProperties, type ReactNode } from "react";
-import { Noto_Serif_Hebrew } from "next/font/google";
+import localFont from "next/font/local";
 import { motion, useReducedMotion } from "framer-motion";
 import { HINA_FAQS } from "./hinaFaqs";
 import {
@@ -24,10 +24,11 @@ import {
   WORKFLOW_STEPS,
 } from "./content";
 
-const display = Noto_Serif_Hebrew({
-  subsets: ["hebrew", "latin"],
-  weight: ["500", "600", "700"],
+const display = localFont({
+  src: "../../../../lib/fonts/NotoSerifHebrew-wdth-wght.ttf",
+  weight: "500 700",
   display: "swap",
+  adjustFontFallback: "Times New Roman",
   variable: "--font-hina-display",
 });
 

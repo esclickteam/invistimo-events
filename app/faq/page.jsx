@@ -1,4 +1,4 @@
-import { Frank_Ruhl_Libre } from "next/font/google";
+import localFont from "next/font/local";
 import Link from "next/link";
 
 import FaqKnowledgeCenter from "./components/FaqKnowledgeCenter";
@@ -21,10 +21,11 @@ import {
   SITE_URL,
 } from "@/lib/seo/site";
 
-const display = Frank_Ruhl_Libre({
-  subsets: ["hebrew", "latin"],
-  weight: ["500", "600", "700"],
+const display = localFont({
+  src: "../../lib/fonts/FrankRuhlLibre-wght.ttf",
+  weight: "500 700",
   display: "swap",
+  adjustFontFallback: "Times New Roman",
   variable: "--font-faq-display",
 });
 
