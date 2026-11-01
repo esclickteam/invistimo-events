@@ -45,6 +45,7 @@ export const SMS_REASON_LABELS: Record<string, string> = {
   WHATSAPP_ALREADY_SENT: "WhatsApp כבר נשלח לאורח בסבב זה",
   ROUND_CANCELLED: "הסבב בוטל",
   NO_SMS_TEMPLATE: "אין נוסח SMS לסוג סבב זה",
+  SMS_NOT_REQUIRED: "SMS — לא נדרש",
   MISSING_PERSONAL_LINK: "חסר קישור אישי לאורח – לא נשלח קישור כללי",
   MESSAGE_TOO_LONG: "ההודעה ארוכה מ-2 חלקי SMS",
   NO_SMS_BALANCE: "אין יתרת הודעות SMS",

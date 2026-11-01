@@ -53,6 +53,12 @@ export const WHATSAPP_CHANNEL_LABELS: Record<WhatsappChannelStatus, string> = {
   NOT_IN_ROUND: "לא בסבב",
 };
 
+/** Save The Date and the digital invitation are WhatsApp-only. */
+export function isWhatsappOnlyMessageType(type: unknown) {
+  const value = String(type || "").split(":")[0];
+  return value === "save_the_date" || value === "invitation_only";
+}
+
 export const SMS_CHANNEL_LABELS: Record<SmsChannelStatus, string> = {
   NOT_NEEDED: "לא נדרש",
   PENDING: "ממתין",
@@ -275,6 +281,17 @@ function getSmsChannel(chip: RoundChipLike, waStatus: WhatsappChannelStatus): Gu
     at,
     evidence: status === "SENT" || status === "FAILED" || status === "OUTCOME_UNKNOWN" ? evidence : null,
   });
+
+  if (isWhatsappOnlyMessageType(chip.roundKey)) {
+    if (
+      raw !== "SENT" &&
+      raw !== "DELIVERED" &&
+      raw !== "FAILED" &&
+      raw !== "OUTCOME_UNKNOWN"
+    ) {
+      return build("NOT_NEEDED");
+    }
+  }
 
   if (raw === "SKIPPED" && sms?.reasonCode === "WHATSAPP_SUCCEEDED") {
     return build("NOT_NEEDED", sms.reasonText || null, sms.skippedAt || null);
