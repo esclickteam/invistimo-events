@@ -1,0 +1,98 @@
+{
+  "generatedAt": "2026-11-02T15:15:00+02:00",
+  "timezone": "Asia/Jerusalem",
+  "phase": "D",
+  "site": "https://www.invistimo.com",
+  "bing": {
+    "verified": true,
+    "sitemapStatus": "Success",
+    "sitemapUrl": "https://www.invistimo.com/sitemap.xml",
+    "lastSubmit": "2026-11-02",
+    "lastCrawl": "2026-11-02",
+    "urlsDiscovered": 60,
+    "errors": 0,
+    "warnings": 0,
+    "resubmittedInStageD": false,
+    "siteExplorerIndexedUrls": "no_data_available",
+    "reportsProcessingBanner": true,
+    "homeSearchPerformanceSample": {
+      "window": "2026-10-28..2026-10-31",
+      "clicks": 1,
+      "impressions": 10
+    },
+    "aiPerformanceCitations": 0,
+    "aiPerformanceNote": "UI accessible; empty citations for 3M"
+  },
+  "gscIndex": {
+    "urlInspectionConfirmedIndexed": 14,
+    "urlInspectionUnknown": 5,
+    "notVerifiedYet": 20,
+    "impressionsOnlyNotProof": 21,
+    "pagesAggregateStale": { "indexed": 8, "notIndexed": 53, "lastUpdate": "2026-10-23" },
+    "priorityUnknownRechecked2026_11_02_afternoon": [
+      "/rsvp/chatuna",
+      "/info/guides/wedding-website-guide"
+    ],
+    "priorityUnknownStill": [
+      "/rsvp/chatuna",
+      "/rsvp/bar-bat-mitzvah",
+      "/info/guides/how-phone-rsvp-works",
+      "/info/guides/personal-rsvp-link",
+      "/info/guides/wedding-website-guide"
+    ]
+  },
+  "top10CommercialOpportunity28d": [
+    { "rank": 1, "query": "חברת אישורי הגעה", "impressions": 36, "clicks": 2, "avgPosition": 35.81 },
+    { "rank": 2, "query": "אישורי הגעה לחתונה", "impressions": 33, "clicks": 4, "avgPosition": 38.27 },
+    { "rank": 3, "query": "אישורי הגעה", "impressions": 40, "clicks": 3, "avgPosition": 28.1 },
+    { "rank": 4, "query": "אישורי הגעה לאירוע", "impressions": 24, "clicks": 0, "avgPosition": 34.12 },
+    { "rank": 5, "query": "הזמנה דיגיטלית לחתונה", "impressions": 15, "clicks": 0, "avgPosition": 44 },
+    { "rank": 6, "query": "אישורי הגעה לאירועים", "impressions": 10, "clicks": 0, "avgPosition": 29.9 },
+    { "rank": 7, "query": "אישורי הגעה בוואטסאפ", "impressions": 8, "clicks": 0, "avgPosition": 24.25 },
+    { "rank": 8, "query": "אישורי הגעה לחתונה מחיר", "impressions": 8, "clicks": 0, "avgPosition": 10.38 },
+    { "rank": 9, "query": "סידורי הושבה לחתונה", "impressions": 5, "clicks": 0, "avgPosition": 29.8 },
+    { "rank": 10, "query": "כמה עולה אישורי הגעה לחתונה", "impressions": 4, "clicks": 0, "avgPosition": 11.25 }
+  ],
+  "nonBrand28dTopQueriesExport": {
+    "brandClicks": 118,
+    "brandImpressions": 211,
+    "nonBrandClicks": 11,
+    "nonBrandImpressions": 446
+  },
+  "aiVisibility": {
+    "formalBingAiCitations": 0,
+    "serpNonBrandCommercialMentionsInvistimo": false,
+    "serpBrandQueryShowsInvistimo": true,
+    "manualEnginePass30x4": "incomplete_this_cycle",
+    "perplexityAnonymousSubmit": "blocked_or_signin_required",
+    "note": "Do not equate empty Bing AI report with completed manual engine runs"
+  },
+  "conversions": {
+    "ga4Property": "INVISTIMO p561016940",
+    "ga4Home7d": {
+      "activeUsers": 82,
+      "views": 268,
+      "eventCountApprox": 7000,
+      "keyEvents": 19,
+      "window": "2026-10-27..2026-11-01"
+    },
+    "ga4TrafficAcquisitionExport": "not_completed_this_cycle",
+    "mongoLeadQuery28d": "failed_dns_econnrefused_atlas",
+    "codeEvents": [
+      "click_whatsapp",
+      "click_package",
+      "click_contact",
+      "generate_lead"
+    ],
+    "measurementGapsDocumented": true
+  },
+  "croDiagnosisOnly": true,
+  "topCroBlockers": [
+    "primary_cta_to_demo_/try",
+    "quote_cta_to_multi_step_pricing",
+    "missing_direct_whatsapp_on_product_heroes",
+    "supportbot_off_on_key_rsvp_paths"
+  ],
+  "noMergeDeploy": true,
+  "noContentOrDesignChanges": true
+}

@@ -20,8 +20,9 @@
 | Performance 28d (תרשים) | קליקים **173** · הופעות **1,012** · CTR **17.1%** · מיקום ממוצע **17.0** |
 | Performance 3mo (תרשים) | קליקים **607** · הופעות **1,811** · CTR **33.5%** · מיקום ממוצע **12.3** |
 | מותג מול לא־מותג | מבוסס **ייצוא שאילתות מובילות בלבד** (לא כל היקום) · 28d: מותג 118/211 · לא־מותג 11/446 |
-| Bing Webmaster | `bizuply@outlook.com` · נכס נוסף · **Not verified** · Import GSC תקוע ב־OAuth (chooser פתוח ל־`invistimo9@gmail.com`) · sitemap / AI **לא הוגשו** |
-| AI Performance רשמי | GSC: באנר בלבד · Bing AI: חסום עד אימות |
+| Bing Webmaster | `bizuply@outlook.com` · **מאומת** · Sitemap **Success** · 60 URLs · Last crawl 2.11 · דוחות Indexed/Keywords עדיין בעיבוד (עד 48ש׳) |
+| AI Performance רשמי | GSC: באנר בלבד · Bing AI: נגיש, **0 Citations** |
+| שלב ד׳ | ראו `stage-d-report-2026-11-02.md` — Top-10 מסחרי, CRO, GA4 Home 7d (82 users / 19 key events), פערי מדידה |
 
 ---
 
@@ -83,23 +84,15 @@
 
 ## 2) Bing Webmaster Tools
 
-### עדכון סשן חי (2026-11-02 ~14:16)
-- מחובר כ־`bizuply@outlook.com`.
-- נכס `https://www.invistimo.com/` **נוסף** · **Not verified**.
-- **Import from GSC** נפתח → Continue → Google account chooser פתוח.
-- אוטומציה הצליחה למקד `invistimo9@gmail.com` ב־Tab, אך **לא השלימה** Select → המשך → אישור הרשאות.
-- Sitemaps / Index / AI Performance: **לא נגישים** עד אימות.
+### עדכון סשן חי (2026-11-02 ~15:06 — אחרי אימות Meta)
+- מחובר כ־`bizuply@outlook.com` · נכס **מאומת**.
+- Sitemap: **Success** · `https://www.invistimo.com/sitemap.xml` · Discovered **60** · Last submit/crawl **11/2/2026**.
+- לא הוגש מחדש בשלב ד׳ (כבר Success).
+- Site Explorer Indexed URLs: **No data** · באנר עיבוד עד 48ש׳.
+- Home Search Performance (דגימה): **1 click / 10 impressions** (28–31.10).
+- AI Performance: נגיש · **0 Citations**.
 
-| בדיקה | תוצאה |
-| --- | --- |
-| התחברות | **כן** — `bizuply@outlook.com` |
-| הוספת נכס | **כן** — 2 Nov 2026 |
-| אימות נכס | **לא** — Not verified |
-| Import מ־GSC | **לא הושלם** — OAuth chooser פתוח |
-| הגשת sitemap | **לא** |
-| AI Performance | **לא נגיש** |
-
-**נדרש מהבעלים (פעולה מדויקת אחת):** בטאב Chrome «כניסה - חשבונות Google» לבחור **`invistimo9@gmail.com`** → **המשך** → לאשר View-Only ל־Bing. לאחר מכן אוכל להגיש sitemap ולבדוק AI Performance.
+פירוט שלב ד׳: [`stage-d-report-2026-11-02.md`](./stage-d-report-2026-11-02.md).
 
 ---
 
