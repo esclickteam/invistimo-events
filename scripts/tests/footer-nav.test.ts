@@ -56,3 +56,30 @@ test("footer does not duplicate hrefs inside a single column", () => {
     );
   }
 });
+
+test("footer link set stays aligned with the published public IA on main", () => {
+  const hrefs = collectFooterHrefs();
+  assert.deepEqual(
+    hrefs,
+    [
+      "/accessibility",
+      "/contact",
+      "/credit-gifts",
+      "/event-management",
+      "/faq",
+      "/info/about",
+      "/info/guides",
+      "/info/guides/seating-plan",
+      "/info/guides/when-to-send-rsvp",
+      "/invitations/chatuna",
+      "/pricing",
+      "/privacy",
+      "/rsvp",
+      "/rsvp/save-the-date",
+      "/seating-explained",
+      "/services/alcohol-management",
+      "/terms",
+      "/wedding-website",
+    ]
+  );
+});

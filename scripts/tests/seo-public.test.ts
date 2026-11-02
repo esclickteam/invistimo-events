@@ -23,6 +23,7 @@ import {
   softwareNode,
   websiteNode,
 } from "../../lib/seo/jsonld";
+import { ROUTE_CONTENT_DATES } from "../../lib/seo/contentDates";
 import { CORE_PUBLIC_ROUTES, OG_IMAGE, pageMetadata } from "../../lib/seo/site";
 import { SERVICE_PAGES } from "../../lib/seo/services";
 import robots from "../../app/robots";
@@ -156,6 +157,59 @@ test("sitemap lists public guides and omits private or auth URLs", () => {
   }
 });
 
+test("every sitemap route has a content-date row so lastmod never throws", () => {
+  const required = [
+    ...CORE_PUBLIC_ROUTES.map((route) => route.path),
+    ...GUIDES.map((guide) => guidePath(guide.slug)),
+  ];
+  for (const pathKey of required) {
+    assert.ok(
+      ROUTE_CONTENT_DATES[pathKey],
+      `missing ROUTE_CONTENT_DATES for ${pathKey}`
+    );
+  }
+  // Calling sitemap() must remain resilient even if a future route is forgotten —
+  // coverage above is the CI guard; runtime catch is in app/sitemap.ts.
+  assert.equal(sitemap().length, required.length);
+});
+
+test("sitemap URLs are not blocked by robots.txt disallow rules", () => {
+  const rules = robots();
+  const list = Array.isArray(rules.rules) ? rules.rules : [rules.rules];
+  const disallow = new Set(
+    list.flatMap((rule) => {
+      const value = Array.isArray(rule.disallow) ? rule.disallow : [rule.disallow];
+      return value.filter((item): item is string => Boolean(item));
+    })
+  );
+  for (const item of sitemap()) {
+    const pathname = new URL(item.url).pathname || "/";
+    for (const prefix of disallow) {
+      if (prefix === "/") continue;
+      assert.equal(
+        pathname === prefix || pathname.startsWith(prefix.endsWith("/") ? prefix : `${prefix}/`),
+        false,
+        `${item.url} conflicts with robots disallow ${prefix}`
+      );
+    }
+  }
+});
+
+test("mega menus keep hrefs mounted for crawlers instead of unmounting when closed", () => {
+  const source = read("app/components/header/MarketingHeaderNav.tsx");
+  assert.match(source, /Keep every mega\/dropdown href in the initial HTML/);
+  assert.doesNotMatch(
+    source,
+    /\{\s*openItem\s*\?\s*\(/,
+    "desktop mega panel must stay mounted when closed"
+  );
+  assert.doesNotMatch(
+    source,
+    /\{\s*isOpen\s*\?\s*\(\s*<div id=\{panelId\}/,
+    "mobile mega panel must stay mounted when closed"
+  );
+});
+
 test("robots.txt allows guest links and search crawlers, and blocks private apps", () => {
   const rules = robots();
   const list = Array.isArray(rules.rules) ? rules.rules : [rules.rules];
@@ -264,7 +318,7 @@ test("marketing pages no longer point the RSVP call to action at a missing short
   assert.match(rsvp, /\/pricing/);
   assert.match(video, /preload=\{eager \? "metadata" : "none"\}/);
   assert.match(video, /prefers-reduced-motion/);
-  assert.match(read("app/layout.tsx"), /next\/font\/google/);
+  assert.match(read("app/layout.tsx"), /next\/font\/local/);
   assert.match(read("app/layout.tsx"), /Heebo/);
   assert.doesNotMatch(read("app/layout.tsx"), /fonts\.googleapis\.com\/css2/);
   assert.doesNotMatch(read("app/layout.tsx"), /maps\.googleapis/);
@@ -440,6 +494,7 @@ test("seo documentation deliverables exist", () => {
     "docs/seo/post-publish-owner-runbook.md",
     "docs/seo/baseline-index-report.md",
     "docs/seo/directory-profiles-mit4mit-mazalday.md",
+    "docs/seo/crawled-not-indexed-diagnosis-2026-11-02.md",
   ]) {
     assert.ok(fs.existsSync(path.join(root, rel)), rel);
   }

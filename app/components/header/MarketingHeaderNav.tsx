@@ -275,9 +275,9 @@ export function DesktopMarketingNav({
     }
   };
 
-  const openItem = HEADER_PRIMARY.find(
+  const megaItems = HEADER_PRIMARY.filter(
     (item): item is Extract<HeaderNavItem, { kind: "mega" | "dropdown" }> =>
-      item.kind !== "link" && item.id === openId
+      item.kind !== "link"
   );
 
   return (
@@ -343,22 +343,35 @@ export function DesktopMarketingNav({
         })}
       </nav>
 
-      {openItem ? (
-        <div
-          className="absolute left-1/2 top-full z-50 -translate-x-1/2 pt-3"
-          onMouseEnter={() => openMenu(openItem.id)}
-        >
-          <MegaPanel
-            item={openItem}
-            pathname={pathname}
-            onNavigate={() => {
-              closeMenu();
-              onNavigate?.();
-            }}
-            id={`${baseId}-${openItem.id}-panel`}
-          />
-        </div>
-      ) : null}
+      {/*
+        Keep every mega/dropdown href in the initial HTML for crawlers.
+        Visibility still follows openId — closed panels are hidden, not unmounted.
+      */}
+      {megaItems.map((item) => {
+        const isOpen = openId === item.id;
+        return (
+          <div
+            key={item.id}
+            className={
+              isOpen
+                ? "absolute left-1/2 top-full z-50 -translate-x-1/2 pt-3"
+                : "hidden"
+            }
+            hidden={!isOpen}
+            onMouseEnter={() => openMenu(item.id)}
+          >
+            <MegaPanel
+              item={item}
+              pathname={pathname}
+              onNavigate={() => {
+                closeMenu();
+                onNavigate?.();
+              }}
+              id={`${baseId}-${item.id}-panel`}
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -421,55 +434,59 @@ export function MobileMarketingNav({
               />
             </button>
 
-            {isOpen ? (
-              <div id={panelId} className="space-y-4 bg-[#FFFDF8] px-4 pb-4">
-                {item.columns.map((column) => (
-                  <div key={column.id}>
-                    <p className="mb-2 px-2 text-[12px] font-black tracking-[0.06em] text-[#9A6E24]">
-                      {column.title}
-                    </p>
-                    <ul className="space-y-1">
-                      {column.links.map((link) => {
-                        const active = isHeaderPathActive(pathname, link.href);
-                        return (
-                          <li key={`${column.id}-${link.href}`}>
-                            <Link
-                              href={link.href}
-                              onClick={onNavigate}
-                              aria-current={active ? "page" : undefined}
-                              className={`
-                                block rounded-xl px-3 py-2.5 text-[15px] font-bold
-                                ${
-                                  active
-                                    ? "bg-[#F7EBD4] text-[#9A6E24]"
-                                    : "text-[#4A3A2A] hover:bg-[#FAF3E7]"
-                                }
-                              `}
-                            >
-                              {link.label}
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </div>
-                ))}
+            <div
+              id={panelId}
+              hidden={!isOpen}
+              className={
+                isOpen ? "space-y-4 bg-[#FFFDF8] px-4 pb-4" : "hidden"
+              }
+            >
+              {item.columns.map((column) => (
+                <div key={column.id}>
+                  <p className="mb-2 px-2 text-[12px] font-black tracking-[0.06em] text-[#9A6E24]">
+                    {column.title}
+                  </p>
+                  <ul className="space-y-1">
+                    {column.links.map((link) => {
+                      const active = isHeaderPathActive(pathname, link.href);
+                      return (
+                        <li key={`${column.id}-${link.href}`}>
+                          <Link
+                            href={link.href}
+                            onClick={onNavigate}
+                            aria-current={active ? "page" : undefined}
+                            className={`
+                              block rounded-xl px-3 py-2.5 text-[15px] font-bold
+                              ${
+                                active
+                                  ? "bg-[#F7EBD4] text-[#9A6E24]"
+                                  : "text-[#4A3A2A] hover:bg-[#FAF3E7]"
+                              }
+                            `}
+                          >
+                            {link.label}
+                          </Link>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+              ))}
 
-                {item.footerLink ? (
-                  <Link
-                    href={item.footerLink.href}
-                    onClick={onNavigate}
-                    className="
-                      mt-1 block rounded-xl border border-[#E7D8BD]
-                      bg-[#FBF6EE] px-3 py-3 text-center
-                      text-[15px] font-extrabold text-[#8A642E]
-                    "
-                  >
-                    {item.footerLink.label}
-                  </Link>
-                ) : null}
-              </div>
-            ) : null}
+              {item.footerLink ? (
+                <Link
+                  href={item.footerLink.href}
+                  onClick={onNavigate}
+                  className="
+                    mt-1 block rounded-xl border border-[#E7D8BD]
+                    bg-[#FBF6EE] px-3 py-3 text-center
+                    text-[15px] font-extrabold text-[#8A642E]
+                  "
+                >
+                  {item.footerLink.label}
+                </Link>
+              ) : null}
+            </div>
           </div>
         );
       })}
