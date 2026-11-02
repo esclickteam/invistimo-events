@@ -1,12 +1,15 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import ProductTour from "@/components/demo/ProductTour";
 import { writeDemoCheckInState, DEMO_CHECKIN_CHANNEL, readDemoCheckInState } from "@/lib/checkIn/demoCheckIn";
 import { installDemoFetchBridge } from "@/lib/demo/interactive/clientBridge";
 import { DEMO_TOUR_STEPS } from "@/lib/demo/interactive/tour";
 import type { DemoActivity, DemoSession } from "@/lib/demo/interactive/types";
+import { FOOTER_WHATSAPP_HREF } from "@/lib/marketing/footerNav";
+import { trackFunnelClick } from "@/lib/seo/analytics";
 import { useSeatingStore } from "@/store/seatingStore";
 
 type Props = {
@@ -15,6 +18,7 @@ type Props = {
 
 export default function DemoExperience({ children }: Props) {
   const router = useRouter();
+  const pathname = usePathname() || "/try/dashboard";
   const [session, setSession] = useState<DemoSession | null>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [lead, setLead] = useState({ name: "", phone: "", email: "" });
@@ -175,7 +179,7 @@ export default function DemoExperience({ children }: Props) {
         dir="rtl"
         className="pointer-events-none fixed inset-x-0 bottom-3 z-[100] flex justify-center px-3"
       >
-        <div className="pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-2 rounded-full border border-[#E7D3B0] bg-[#FFFDF8]/95 px-3 py-1.5 text-[11px] font-black text-[#5C4A38] shadow-sm backdrop-blur">
+        <div className="pointer-events-auto flex max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full border border-[#E7D3B0] bg-[#FFFDF8]/95 px-3 py-1.5 text-[11px] font-black text-[#5C4A38] shadow-sm backdrop-blur">
           <span>דמו מבודד · בלי שליחה אמיתית</span>
           {mode === "guided" && (
             <span>
@@ -195,6 +199,24 @@ export default function DemoExperience({ children }: Props) {
           <button type="button" className="underline" onClick={() => setSummaryOpen(true)}>
             סיום והשארת פרטים
           </button>
+          <Link
+            href="/pricing"
+            className="underline"
+            data-conversion-tracked="1"
+            onClick={() => void trackFunnelClick("/pricing", pathname, "try_demo_bar_pricing")}
+          >
+            לצפייה בחבילות
+          </Link>
+          <a
+            href={FOOTER_WHATSAPP_HREF}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+            data-conversion-tracked="1"
+            onClick={() => void trackFunnelClick(FOOTER_WHATSAPP_HREF, pathname, "try_demo_bar_whatsapp")}
+          >
+            WhatsApp
+          </a>
         </div>
       </div>
 
@@ -227,6 +249,7 @@ export default function DemoExperience({ children }: Props) {
       {summaryOpen && (
         <SummaryCard
           activity={session?.activity || []}
+          pagePath={pathname}
           lead={lead}
           setLead={setLead}
           message={leadMessage}
@@ -278,6 +301,7 @@ function WelcomeChoice({
 
 function SummaryCard({
   activity,
+  pagePath,
   lead,
   setLead,
   message,
@@ -286,6 +310,7 @@ function SummaryCard({
   onKeepGoing,
 }: {
   activity: DemoActivity[];
+  pagePath: string;
   lead: { name: string; phone: string; email: string };
   setLead: (value: { name: string; phone: string; email: string }) => void;
   message: string;
@@ -298,13 +323,33 @@ function SummaryCard({
       <div className="max-h-[88vh] w-full max-w-lg overflow-y-auto rounded-[28px] border border-[#E7D3B0] bg-[#FFFDF8] p-5 shadow-2xl">
         <h2 className="text-xl font-black text-[#2B2118]">רוצים לנהל כך גם את האירוע שלכם?</h2>
         <p className="mt-2 text-sm font-semibold leading-6 text-[#6B5A48]">
-          אלה הפעולות שביצעתם בדמו. אפשר להמשיך להתנסות, או להשאיר פרטים לקבלת הצעה.
+          אלה הפעולות שביצעתם בדמו. אפשר להמשיך להתנסות, לצפות בחבילות, או לפנות בוואטסאפ.
         </p>
         <ul className="mt-3 space-y-1 text-sm font-bold text-[#3F3328]">
           {(activity || []).slice(0, 6).map((item) => (
             <li key={item.id}>• {item.label}</li>
           ))}
         </ul>
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+          <Link
+            href="/pricing"
+            className="inline-flex min-h-11 items-center justify-center rounded-2xl bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220] px-4 py-3 text-sm font-black text-white"
+            data-conversion-tracked="1"
+            onClick={() => void trackFunnelClick("/pricing", pagePath, "try_summary_pricing")}
+          >
+            לצפייה בחבילות
+          </Link>
+          <a
+            href={FOOTER_WHATSAPP_HREF}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex min-h-11 items-center justify-center rounded-2xl border border-[#E7D3B0] bg-white px-4 py-3 text-sm font-black text-[#2B2118]"
+            data-conversion-tracked="1"
+            onClick={() => void trackFunnelClick(FOOTER_WHATSAPP_HREF, pagePath, "try_summary_whatsapp")}
+          >
+            פנייה ב־WhatsApp
+          </a>
+        </div>
         <form className="mt-4 space-y-2" onSubmit={onSubmit}>
           <input
             className="w-full rounded-xl border border-[#E7D3B0] px-3 py-2 text-sm"

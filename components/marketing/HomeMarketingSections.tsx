@@ -13,6 +13,7 @@ import {
   Sparkles,
   Users,
 } from "lucide-react";
+import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import { EVENT_INVITATION_BODY } from "@/lib/whatsapp/approvedTemplates";
 import { HOME_FAQS } from "@/lib/seo/homeIntentMap";
 
@@ -87,14 +88,17 @@ function GoldCta({
   href,
   children,
   dark = false,
+  location = "home_gold_cta",
 }: {
   href: string;
   children: React.ReactNode;
   dark?: boolean;
+  location?: string;
 }) {
   return (
-    <Link
+    <TrackedCtaLink
       href={href}
+      location={location}
       className={
         dark
           ? "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full bg-[#C9A45C] px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black !text-[#1C1612] transition hover:bg-[#D4B06A]"
@@ -102,7 +106,7 @@ function GoldCta({
       }
     >
       {children}
-    </Link>
+    </TrackedCtaLink>
   );
 }
 
@@ -110,14 +114,17 @@ function SoftCta({
   href,
   children,
   light = false,
+  location = "home_soft_cta",
 }: {
   href: string;
   children: React.ReactNode;
   light?: boolean;
+  location?: string;
 }) {
   return (
-    <Link
+    <TrackedCtaLink
       href={href}
+      location={location}
       className={
         light
           ? "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full border border-[#F7F1E8]/50 bg-[#F7F1E8] px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black !text-[#1C1612] transition hover:bg-white"
@@ -125,7 +132,7 @@ function SoftCta({
       }
     >
       {children}
-    </Link>
+    </TrackedCtaLink>
   );
 }
 
@@ -807,7 +814,7 @@ export default function HomeMarketingSections() {
             סידורי ההושבה ויום האירוע. ב־Invistimo תוכלו לבחור את השירותים שמתאימים לכם.
           </p>
           <div className="mt-10 flex justify-center">
-            <GoldCta href="/pricing" dark>
+            <GoldCta href="/pricing" dark location="home_pricing_section">
               לצפייה בחבילות
             </GoldCta>
           </div>
@@ -872,11 +879,11 @@ export default function HomeMarketingSections() {
             מסודרים, מוכנים ועם הרבה יותר מקום להתרגשות.
           </p>
           <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <GoldCta href="/try" dark>
+            <GoldCta href="/pricing" dark location="home_final_primary">
               בואו נתחיל
             </GoldCta>
-            <SoftCta href="/pricing" light>
-              לצפייה בחבילות
+            <SoftCta href="/try" light location="home_final_demo">
+              נסו דמו
             </SoftCta>
           </div>
         </div>

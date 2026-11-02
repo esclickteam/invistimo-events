@@ -22,6 +22,7 @@ export default function TrackedCtaLink({ href, className, children, location }: 
           trackPublicEvent(decision.name, decision.params);
           return;
         }
+        // Non-classified CTAs (e.g. /try, anchors) — still funnel-only, never purchase.
         trackPublicEvent("select_cta", { location, destination: href });
       }}
     >
