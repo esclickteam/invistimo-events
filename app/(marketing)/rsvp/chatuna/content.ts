@@ -263,6 +263,7 @@ export const LINKS = {
   calls: "/rsvp/calls",
   invitations: "/invitations/chatuna",
   seating: "/seating-explained",
+  barBatMitzvah: "/rsvp/bar-bat-mitzvah",
   whenToSend: "/info/guides/when-to-send-rsvp",
   noReply: "/info/guides/guests-who-dont-reply",
   whatsappVsSms: "/info/guides/whatsapp-vs-sms-rsvp",

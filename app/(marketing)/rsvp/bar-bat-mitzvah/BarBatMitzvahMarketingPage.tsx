@@ -601,6 +601,12 @@ export default function BarBatMitzvahMarketingPage() {
           <Link href={LINKS.invitations} className="font-bold text-[#9A7B2F] underline-offset-4 hover:underline">
             הזמנות דיגיטליות
           </Link>
+          <Link href={LINKS.whatsapp} className="font-bold text-[#9A7B2F] underline-offset-4 hover:underline">
+            אישורי הגעה ב־WhatsApp
+          </Link>
+          <Link href={LINKS.seating} className="font-bold text-[#9A7B2F] underline-offset-4 hover:underline">
+            סידורי הושבה
+          </Link>
           <Link href={LINKS.pricing} className="font-bold text-[#9A7B2F] underline-offset-4 hover:underline">
             מחירים
           </Link>

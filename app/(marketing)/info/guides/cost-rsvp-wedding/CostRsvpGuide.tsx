@@ -668,6 +668,7 @@ export default function CostRsvpGuide() {
             {[
               { href: "/rsvp", label: "אישורי הגעה" },
               { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
+              { href: "/rsvp/bar-bat-mitzvah", label: "אישורי הגעה לבר ובת מצווה" },
               { href: "/rsvp/save-the-date", label: "Save the Date" },
               { href: "/invitations/chatuna", label: "הזמנות דיגיטליות" },
               { href: "/seating-explained", label: "סידורי הושבה" },

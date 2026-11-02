@@ -255,6 +255,7 @@ const INVISTIMO_BENEFITS = [
 const RELATED = [
   { href: "/rsvp", label: "אישורי הגעה" },
   { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+  { href: "/rsvp/bar-bat-mitzvah", label: "אישורי הגעה לבר ובת מצווה" },
   { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
   { href: "/rsvp/calls", label: "שיחות מוקלטות ומוקד אנושי" },
   { href: "/rsvp/save-the-date", label: "Save the Date" },

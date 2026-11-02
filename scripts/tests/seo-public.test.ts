@@ -350,6 +350,10 @@ test("marketing pages no longer point the RSVP call to action at a missing short
   assert.equal(SERVICE_PAGES.length, 5);
   assert.match(read("lib/marketing/footerNav.ts"), /href: "\/pricing"/);
   assert.match(read("lib/marketing/footerNav.ts"), /href: "\/rsvp"/);
+  assert.match(
+    read("components/marketing/ServiceLinks.tsx"),
+    /href: "\/rsvp\/bar-bat-mitzvah"/
+  );
 });
 
 test("marketing RSVP service pages keep the public pre-login header and footer", () => {
