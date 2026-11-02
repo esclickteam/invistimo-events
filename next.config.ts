@@ -7,11 +7,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: ["ffmpeg-static", "web-push", "@hebcal/core"],
   async redirects() {
     return [
-      {
-        source: "/info/guides/reduce-meal-waste",
-        destination: "/info/guides/wedding-venue-guest-guarantee",
-        permanent: true,
-      },
+      // /info/guides/reduce-meal-waste is a live Phase C guide — do not redirect it.
       {
         source: "/for/henna",
         destination: "/rsvp/hina",
