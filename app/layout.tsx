@@ -21,7 +21,9 @@ const heebo = localFont({
    METADATA – Title + Description + Canonical + Favicon
 ====================================================== */
 const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION?.trim();
-const bingVerification = process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION?.trim();
+const bingVerification =
+  process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION?.trim() ||
+  "7127CD5F1C688F94204753B026DA56A2";
 
 export const metadata = {
   metadataBase: new URL("https://www.invistimo.com"),
