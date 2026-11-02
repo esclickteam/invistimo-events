@@ -23,6 +23,7 @@
 | Bing Webmaster | `bizuply@outlook.com` · **מאומת** · Sitemap **Success** · 60 URLs · Last crawl 2.11 · דוחות Indexed/Keywords עדיין בעיבוד (עד 48ש׳) |
 | AI Performance רשמי | GSC: באנר בלבד · Bing AI: נגיש, **0 Citations** |
 | שלב ד׳ | ראו `stage-d-report-2026-11-02.md` — Top-10 מסחרי, CRO, GA4 Home 7d (82 users / 19 key events), פערי מדידה |
+| שלב ה׳ | ראו `stage-e-report-2026-11-02.md` — chatuna + bar-bat-mitzvah: Crawled–not indexed · Live OK · Request Indexing התקבלה; משפך `/try` דולף; הצעות CTA לאישור |
 
 ---
 
