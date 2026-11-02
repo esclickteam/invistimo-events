@@ -157,6 +157,21 @@ test("sitemap lists public guides and omits private or auth URLs", () => {
   }
 });
 
+test("next.config must not permanently redirect a live guide URL", () => {
+  const config = read("next.config.ts");
+  for (const guide of GUIDES) {
+    const source = guidePath(guide.slug);
+    const redirectSource = new RegExp(
+      `source:\\s*["']${source.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")}["']`
+    );
+    assert.equal(
+      redirectSource.test(config),
+      false,
+      `${source} must remain a real guide page, not a redirect source`
+    );
+  }
+});
+
 test("every sitemap route has a content-date row so lastmod never throws", () => {
   const required = [
     ...CORE_PUBLIC_ROUTES.map((route) => route.path),
