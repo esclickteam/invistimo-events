@@ -28,6 +28,10 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
     title: "השירותים שלנו",
     links: [
       { href: "/rsvp", label: "אישורי הגעה" },
+      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/rsvp/hina", label: "אישורי הגעה לחינה" },
+      { href: "/rsvp/bar-bat-mitzvah", label: "אישורי הגעה לבר ובת מצווה" },
+      { href: "/rsvp/brit-brita", label: "אישורי הגעה לברית ובריתה" },
       { href: "/seating-explained", label: "סידורי הושבה" },
       { href: "/invitations/chatuna", label: "הזמנות דיגיטליות" },
       { href: "/rsvp/save-the-date", label: "Save the Date" },
@@ -43,7 +47,11 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
     links: [
       { href: "/info/guides", label: "מרכז המדריכים" },
       { href: "/info/guides/when-to-send-rsvp", label: "מדריך אישורי הגעה" },
+      { href: "/info/guides/how-to-choose-rsvp-company", label: "איך בוחרים חברת אישורי הגעה" },
+      { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
       { href: "/info/guides/seating-plan", label: "מדריך סידורי הושבה" },
+      { href: "/info/guides/wedding-planning", label: "תכנון חתונה" },
+      { href: "/info/guides/event-day-checklist", label: "צ׳קליסט ליום האירוע" },
       { href: "/faq", label: "שאלות נפוצות" },
       { href: "/pricing", label: "חבילות ומחירים" },
     ],

@@ -56,3 +56,20 @@ test("footer does not duplicate hrefs inside a single column", () => {
     );
   }
 });
+
+test("footer exposes crawl paths for priority crawled-not-indexed hubs", () => {
+  const hrefs = new Set(collectFooterHrefs());
+  for (const required of [
+    "/rsvp/chatuna",
+    "/rsvp/hina",
+    "/rsvp/bar-bat-mitzvah",
+    "/rsvp/brit-brita",
+    "/info/guides/how-to-choose-rsvp-company",
+    "/info/guides/guest-list",
+    "/info/guides/seating-plan",
+    "/info/guides/wedding-planning",
+    "/info/guides/event-day-checklist",
+  ]) {
+    assert.ok(hrefs.has(required), `footer missing crawl path: ${required}`);
+  }
+});
