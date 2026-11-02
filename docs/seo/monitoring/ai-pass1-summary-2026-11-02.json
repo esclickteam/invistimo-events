@@ -70,12 +70,26 @@
       "topics_to_strengthen": ["whatsapp_rsvp", "pricing"]
     },
     "google_ai_mode": {
-      "status": "not_appeared_in_sample",
-      "brand_hits": 0,
-      "citation_hits": 0,
-      "samples": 3,
-      "appeared_on_question_ids": [],
-      "topics_to_strengthen": ["pricing", "seating", "bar_bat_mitzvah"]
+      "status": "partial_appear_in_sample",
+      "brand_hits": 1,
+      "citation_hits": 2,
+      "samples": 10,
+      "appeared_on_question_ids": [22, 17],
+      "topics_appeared": ["rsvp_tracking", "calls"],
+      "topics_to_strengthen": [
+        "pricing",
+        "seating",
+        "bar_bat_mitzvah",
+        "table_number",
+        "credit_gifts",
+        "personal_rsvp",
+        "packages"
+      ],
+      "serp_ai_overview_spot_checks": {
+        "samples": 3,
+        "invistimo_in_ai_summary_ids": [22, 17],
+        "organic_invistimo_ids": [5, 22, 17]
+      }
     },
     "perplexity": {
       "status": "not_tested",
@@ -83,7 +97,7 @@
     },
     "microsoft_copilot": {
       "status": "not_tested",
-      "reason": "sign_in_wall",
+      "reason": "microsoft_sign_in_wall",
       "supporting_signal": "bing_ai_citations_0"
     }
   },
@@ -92,6 +106,10 @@
     "pricing",
     "seating",
     "bar_bat_mitzvah",
+    "table_number",
+    "credit_gifts",
+    "personal_rsvp",
+    "packages",
     "whatsapp_rsvp_beyond_chatgpt",
     "bing_copilot_citations"
   ],

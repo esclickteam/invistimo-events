@@ -20,10 +20,11 @@
 
 1. **GSC Generative AI פעיל ומוכיח חשיפה אמיתית** — **266 הופעות / 3 חודשים** בדוח `…/performance/search-analytics/ai` (הנתיב `…/performance/generative-ai` מחזיר 404).  
 2. **החשיפה מרוכזת בדף הבית** (217/266) — דפי מוצר מסחריים `/rsvp/chatuna` ו־`/rsvp/bar-bat-mitzvah` **אינם** ברשימת 18 הדפים עם הופעות AI.  
-3. **ChatGPT Search** — דגימה חיובית יחידה מובהקת: שאילתת WhatsApp RSVP ניטרלית → **מותג + ציטוט + לינק** ל־Invistimo.  
-4. **Gemini + Google AI Mode** — בדגימות מסחריות (WhatsApp / מחיר / הושבה / בר מצווה) Invistimo **לא** הופיע; מתחרים כן.  
-5. **Bing AI Performance** — **0 Citations / 0 Avg Cited Pages** (3M); Copilot.com ו־Perplexity — **Not tested** (חומת התחברות).  
-6. **GA4** — ב־User Acquisition 28d לפי Default Channel Group מופיעים רק Organic Social / Direct / Organic Search; **אין שורת Referral** → אין עדות ברמת ערוץ להפניות מ־AI בדגימה זו.
+3. **ChatGPT Search** — דגימה חיובית: שאילתת WhatsApp RSVP ניטרלית → **מותג + ציטוט + לינק** ל־Invistimo.  
+4. **Google AI Mode (10 שאילתות ניטרליות)** — Invistimo ב־**2/10**: Q22 מעקב RSVP (**מותג+ציטוט**), Q17 שיחות מוקלטות מול מוקד (**ציטוט בלבד**); ב־8/10 אין (מחיר/הושבה/בר מצווה/מתנות/חבילות וכו׳).  
+5. **Gemini** — בדגימות WhatsApp + מחיר: אין Invistimo.  
+6. **Bing AI Performance** — **0 Citations**; Copilot + Perplexity — **Not tested** (auth).  
+7. **GA4** — User Acquisition 28d: רק Organic Social / Direct / Organic Search; **אין שורת Referral**.
 
 ---
 
@@ -119,32 +120,43 @@
 
 ### 4.1 טבלת דגימות מתועדות
 
-| id | נושא | שאילתה ניטרלית (תמצית) | מנוע | Brand | Citation | Linked URL | הערה |
-| ---: | --- | --- | --- | :---: | :---: | --- | --- |
-| 2 | whatsapp_rsvp | איך שולחים אישורי הגעה לחתונה בוואטסאפ | **ChatGPT Search** | **כן** | **כן** | כן (אתר Invistimo) | הוצג כפתרון מוביל בין מערכות ישראליות |
-| 2 | whatsapp_rsvp | אותו | **Gemini** (Flash-Lite, לא מחובר) | לא | לא | — | Easy / Weddoo / Eventify / PicAEvent |
-| 5 | pricing | כמה עולים אישורי הגעה… | **Gemini** | לא | לא | — | My Invite / Wedly / Vitoo ואחרים |
-| 5 | pricing | אותו | **Google AI Mode** | לא | לא | — | My Invite / השושבין / Mit4Mit |
-| 6 | seating | סידורי הושבה דיגיטליים | **Google AI Mode** | לא | לא | — | ללא Invistimo בטקסט שנצפה |
-| 7 | bar_bat_mitzvah | מערכות גם לבר/בת מצווה | **Google AI Mode** | לא | לא | — | ללא Invistimo בטקסט שנצפה |
-| * | * | * | **Perplexity** | — | — | — | **Not tested** — חומת Google sign-in |
-| * | * | * | **Microsoft Copilot** (copilot.com) | — | — | — | **Not tested** — Sign in; נתמך ב־Bing AI Performance = 0 |
+| id | נושא | מנוע | Brand | Citation | Linked URL | הערה |
+| ---: | --- | --- | :---: | :---: | --- | --- |
+| 2 | whatsapp_rsvp | **ChatGPT Search** | **כן** | **כן** | כן | פתרון מוביל + לינק אתר |
+| 2 | whatsapp_rsvp | **Gemini** | לא | לא | — | Easy / Weddoo / Eventify / PicAEvent |
+| 5 | pricing | **Gemini** | לא | לא | — | My Invite / Wedly / Vitoo |
+| 5 | pricing | **Google AI Mode** | לא | לא | — | My Invite / השושבין / Mit4Mit וכו׳ |
+| 6 | seating | **Google AI Mode** | לא | לא | — | תשובה כללית |
+| 7 | bar_bat_mitzvah | **Google AI Mode** | לא | לא | — | תשובה כללית |
+| 13 | table_number | **Google AI Mode** | לא | לא | — | תשובה כללית |
+| 19 | credit_gifts | **Google AI Mode** | לא | לא | — | תשובה כללית |
+| **22** | **rsvp_tracking** | **Google AI Mode** | **כן** | **כן** | כן (`› rsvp`) | מותג בטקסט + כרטיס מקור WhatsApp RSVP; גם Attending / Diginet |
+| **17** | **calls** | **Google AI Mode** | לא (בפרוזה) | **כן** | כן | כרטיס מקור «שיחות AI ומוקד אנושי - Invistimo» בלבד |
+| 15 | seating | **Google AI Mode** | לא | לא | — | ציטוט קתדרה |
+| 30 | personal_rsvp | **Google AI Mode** | לא | לא | — | Ceremo / RSVPd / Fotify / Paperlust |
+| 3 | packages | **Google AI Mode** | לא | לא | — | DIGINET / My Invite / vixsolutions |
+| * | * | **Perplexity** | — | — | — | **Not tested** — Google sign-in |
+| * | * | **Microsoft Copilot** | — | — | — | **Not tested** — Microsoft sign-in; Bing Citations=0 |
 
 ### 4.2 שיעורי הופעה (על בסיס דגימות בלבד)
 
-| מנוע | דגימות עם Brand | דגימות עם Citation | סטטוס כללי |
+| מנוע | Brand | Citation | סטטוס |
 | --- | --- | --- | --- |
-| ChatGPT Search | 1/1 (Q2) | 1/1 (Q2) | **מופיע** בדגימת WhatsApp מסחרית |
-| Gemini | 0/2 (Q2,Q5) | 0/2 | **לא מופיע** בדגימות |
-| Google AI Mode | 0/3 (Q5–Q7) | 0/3 | **לא מופיע** בדגימות |
+| ChatGPT Search | 1/1 (Q2) | 1/1 | **מופיע** |
+| Gemini | 0/2 (Q2,Q5) | 0/2 | **לא מופיע** |
+| Google AI Mode | **1/10** (Q22) | **2/10** (Q22, Q17) | **מופיע חלקית** — לא כפוקוס יחיד |
 | Perplexity | — | — | **Not tested** |
 | Copilot | — | — | **Not tested** (+ Bing Citations=0) |
 
-**אזהרה:** n קטן. אין להסיק דירוג יציב מ־6 דגימות UI.
+**אזהרה:** דגימת UI; אין להסיק דירוג יציב.
 
-### 4.3 הפרדה מ־Organic WebSearch
+### 4.3 SERP AI Overview (3 שאילתות נפרדות — לא נספר כ־AI Mode matrix)
 
-בחיפוש אורגני רגיל (לא AI Mode) לשאילתת WhatsApp RSVP — Invistimo הופיע חזק ב־SERP. זה **אינו** נספר כהופעת AI Mode/Gemini/ChatGPT אלא כרקע SEO אורגני.
+| id | AI Overview עם Invistimo | Organic invistimo.com |
+| ---: | :---: | :---: |
+| 5 pricing | לא | כן |
+| 22 rsvp_tracking | כן | כן |
+| 17 calls | כן («מדריך של Invistimo») | כן (#1) |
 
 ---
 
@@ -154,9 +166,9 @@
 | --- | --- | --- | --- |
 | **GSC AI Overviews / AI Mode (מדידה)** | חשיפה קיימת, מרוכזת בבית | לא לפי שאילתה בדוח Pages — בעיקר `/` | דפי מוצר מסחריים (`/rsvp/chatuna`, `/rsvp/bar-bat-mitzvah`, `/pricing`); מדריכי בחירה/מחיר כבר עם הופעות מיקרו |
 | **ChatGPT Search** | חיובי בדגימה | Q2 WhatsApp RSVP | להרחיב דגימה ל־pricing / seating / bar-mitzvah / credit-gifts |
-| **Gemini** | שלילי בדגימה | אף אחת מ־Q2/Q5 | תוכן/אזכורים ש־Gemini מצטט בקטגוריה; WhatsApp + מחיר |
-| **Google AI Mode** | שלילי בדגימה | אף אחת מ־Q5–Q7 | מחיר, הושבה, בר/בת מצווה |
-| **Copilot / Bing AI** | אין ציטוטים רשמיים | — | תוכן ש־Bing מצטט; אימות אחרי עיבוד נתונים Bing |
+| **Gemini** | שלילי בדגימה | אף אחת מ־Q2/Q5 | WhatsApp + מחיר בקטגוריה ש־Gemini מצטט |
+| **Google AI Mode** | חיובי חלקי (2/10) | **Q22** מעקב RSVP (מותג+ציטוט); **Q17** שיחות (ציטוט בלבד) | מחיר, הושבה, בר מצווה, מספר שולחן, מתנות אשראי, RSVP אישי, חבילות הודעות |
+| **Copilot / Bing AI** | Not tested + Citations=0 | — | תוכן ש־Bing מצטט; הרצה אחרי sign-in |
 | **Perplexity** | Not tested | — | להריץ אחרי התחברות |
 
 ---
@@ -184,8 +196,9 @@
 
 ## 8) מה לא בוצע / מגבלות
 
-- לא הורצו כל 30 השאלות × 5 מנועים.  
-- Perplexity + Copilot UI = Not tested.  
+- לא הורצו כל 30 השאלות × 5 מנועים (Google AI Mode: 10/30; ChatGPT/Gemini: דגימות חלקיות).  
+- Perplexity + Copilot UI = Not tested (auth).  
+
 - GA4: לא נפתח פירוט Source/Medium לכל דומיין AI.  
 - GSC AI inclusion settings בממשק = לא אומתו ויזואלית.  
 - אין השוואות אתרים מתחרים מעבר לציון שמות שהופיעו בתשובות AI שנצפו.

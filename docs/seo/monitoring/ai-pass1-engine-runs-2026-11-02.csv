@@ -1,9 +1,19 @@
 run_date,question_id,topic_cluster,neutral_query_he,engine,access,brand_mention,citation,linked_url,competitors_or_notes
 2026-11-02,2,whatsapp_rsvp,איך שולחים אישורי הגעה לחתונה בוואטסאפ,chatgpt_search,ok,yes,yes,yes,Invistimo shown as leading Israeli WhatsApp RSVP option with site link
 2026-11-02,2,whatsapp_rsvp,איך שולחים אישורי הגעה לחתונה בוואטסאפ,gemini,ok,no,no,no,Easy Weddoo Eventify PicAEvent; Gemini Flash-Lite unsigned
-2026-11-02,5,pricing,כמה עולים אישורי הגעה דיגיטליים לחתונה בישראל,gemini,ok,no,no,no,My Invite Wedly Vitoo
-2026-11-02,5,pricing,כמה עולים אישורי הגעה דיגיטליים לחתונה בישראל,google_ai_mode,ok,no,no,no,My Invite השושבין Mit4Mit
-2026-11-02,6,seating,סידורי הושבה דיגיטליים לחתונה,google_ai_mode,ok,no,no,no,No Invistimo in observed answer text
-2026-11-02,7,bar_bat_mitzvah,מערכת אישורי הגעה שמתאימה גם לבר מצווה ובת מצווה,google_ai_mode,ok,no,no,no,No Invistimo in observed answer text
+2026-11-02,5,pricing,כמה עולים אישורי הגעה לחתונה ומה משפיע על המחיר?,gemini,ok,no,no,no,My Invite Wedly Vitoo
+2026-11-02,5,pricing,כמה עולים אישורי הגעה לחתונה ומה משפיע על המחיר?,google_ai_mode,ok,no,no,no,My Invite / מי אינוויט; השושבין; Mit4Mit; מתחתנים למען מתחתנים; מאורסים מאורסות
+2026-11-02,6,seating,איך עובדים סידורי הושבה דיגיטליים לחתונה?,google_ai_mode,ok,no,no,no,Generic process; no brand names / Invistimo cites
+2026-11-02,7,bar_bat_mitzvah,האם מערכות אישורי הגעה מתאימות גם לבר ובת מצווה?,google_ai_mode,ok,no,no,no,Generic; no Invistimo
+2026-11-02,13,table_number,איך שולחים מספר שולחן לאורחים בחתונה?,google_ai_mode,ok,no,no,no,Generic; no Invistimo
+2026-11-02,19,credit_gifts,איך מקבלים מתנות לחתונה באשראי דרך הזמנה דיגיטלית?,google_ai_mode,ok,no,no,no,Generic product flow; no Invistimo
+2026-11-02,22,rsvp_tracking,איך עוקבים אחרי מי אישר הגעה לחתונה?,google_ai_mode,ok,yes,yes,yes,Brand in answer + cite card WhatsApp RSVP Invistimo / invistimo.com›rsvp; also Attending Diginet Save The Date
+2026-11-02,17,calls,מה ההבדל בין שיחות מוקלטות למוקד אנושי באישורי הגעה?,google_ai_mode,ok,no,yes,yes,Source card only: אישורי הגעה בשיחות טלפון | שיחות AI ומוקד אנושי - Invistimo; prose generic
+2026-11-02,15,seating,איך אורחים יודעים איפה לשבת בחתונה?,google_ai_mode,ok,no,no,no,Cite observed: קתדרה / cathedraevents.com; no Invistimo
+2026-11-02,30,personal_rsvp,איך עובד קישור RSVP אישי לכל אורח?,google_ai_mode,ok,no,no,no,Ceremo RSVPd Fotify Paperlust
+2026-11-02,3,packages,מה כוללת חבילת הודעות לאישורי הגעה לחתונה?,google_ai_mode,ok,no,no,no,DIGINET My Invite / מי אינוויט vixsolutions.co.il
+2026-11-02,5,pricing,כמה עולים אישורי הגעה לחתונה ומה משפיע על המחיר?,google_serp_ai_overview,ok,no,no,no,AI Overview present; Invistimo organic yes (מדריכים); AI named My Invite WiWi RSVPd מאורסים — not Invistimo
+2026-11-02,22,rsvp_tracking,איך עוקבים אחרי מי אישר הגעה לחתונה?,google_serp_ai_overview,ok,yes,yes,yes,AI Overview lists Invistimo among platforms; organic invistimo.com›rsvp
+2026-11-02,17,calls,מה ההבדל בין שיחות מוקלטות למוקד אנושי באישורי הגעה?,google_serp_ai_overview,ok,yes,yes,yes,AI text cites מדריך של Invistimo; organic #1 invistimo.com›אישורי הגעה
 2026-11-02,*,*,*,perplexity,not_tested,n/a,n/a,n/a,Google sign-in wall
-2026-11-02,*,*,*,microsoft_copilot,not_tested,n/a,n/a,n/a,Sign-in wall; Bing AI Performance citations=0
+2026-11-02,*,*,*,microsoft_copilot,not_tested,n/a,n/a,n/a,Sign-in wall at copilot.microsoft.com / bing.com/chat; Bing AI Performance citations=0
