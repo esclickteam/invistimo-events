@@ -1,0 +1,9 @@
+run_date,question_id,topic_cluster,neutral_query_he,engine,access,brand_mention,citation,linked_url,competitors_or_notes
+2026-11-02,2,whatsapp_rsvp,איך שולחים אישורי הגעה לחתונה בוואטסאפ,chatgpt_search,ok,yes,yes,yes,Invistimo shown as leading Israeli WhatsApp RSVP option with site link
+2026-11-02,2,whatsapp_rsvp,איך שולחים אישורי הגעה לחתונה בוואטסאפ,gemini,ok,no,no,no,Easy Weddoo Eventify PicAEvent; Gemini Flash-Lite unsigned
+2026-11-02,5,pricing,כמה עולים אישורי הגעה דיגיטליים לחתונה בישראל,gemini,ok,no,no,no,My Invite Wedly Vitoo
+2026-11-02,5,pricing,כמה עולים אישורי הגעה דיגיטליים לחתונה בישראל,google_ai_mode,ok,no,no,no,My Invite השושבין Mit4Mit
+2026-11-02,6,seating,סידורי הושבה דיגיטליים לחתונה,google_ai_mode,ok,no,no,no,No Invistimo in observed answer text
+2026-11-02,7,bar_bat_mitzvah,מערכת אישורי הגעה שמתאימה גם לבר מצווה ובת מצווה,google_ai_mode,ok,no,no,no,No Invistimo in observed answer text
+2026-11-02,*,*,*,perplexity,not_tested,n/a,n/a,n/a,Google sign-in wall
+2026-11-02,*,*,*,microsoft_copilot,not_tested,n/a,n/a,n/a,Sign-in wall; Bing AI Performance citations=0

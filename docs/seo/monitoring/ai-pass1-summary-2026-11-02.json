@@ -1,0 +1,105 @@
+{
+  "report_id": "ai-pass1-2026-11-02",
+  "date": "2026-11-02",
+  "timezone": "Asia/Jerusalem",
+  "pr": 480,
+  "branch": "docs/seo-monitoring-baseline-2026-11-02",
+  "scope": "monitoring_only_no_content_design_code_merge_deploy",
+  "gsc_generative_ai": {
+    "correct_url": "https://search.google.com/search-console/performance/search-analytics/ai?resource_id=sc-domain:invistimo.com",
+    "broken_user_url": "https://search.google.com/search-console/performance/generative-ai?resource_id=sc-domain:invistimo.com",
+    "broken_status": 404,
+    "window": "3_months",
+    "impressions": 266,
+    "pages_with_impressions": 18,
+    "top_page": { "url": "https://www.invistimo.com/", "impressions": 217 },
+    "missing_commercial_landings": ["/rsvp/chatuna", "/rsvp/bar-bat-mitzvah", "/pricing"],
+    "countries": {
+      "Israel": 259,
+      "Netherlands": 3,
+      "Cyprus": 1,
+      "France": 1,
+      "Russia": 1,
+      "United States": 1
+    },
+    "devices": { "mobile": 183, "desktop": 83 },
+    "inclusion_settings_ui": "not_verified_this_pass",
+    "robots_txt": {
+      "google_extended_blocked": false,
+      "oai_searchbot": "Allow:/ with same Disallows as Googlebot",
+      "login_disallow_but_ai_impressions": 27
+    }
+  },
+  "bing_ai_performance": {
+    "window": "3_months",
+    "citations": 0,
+    "avg_cited_pages": 0,
+    "grounding_queries": [],
+    "cited_pages": []
+  },
+  "ga4": {
+    "property": "a413670074p561016940",
+    "report": "user_acquisition",
+    "dimension": "first_user_primary_channel_group",
+    "date_range": "2026-10-05_to_2026-11-01",
+    "total_users": 82,
+    "channels_observed": {
+      "Organic Social": 39,
+      "Direct": 24,
+      "Organic Search": 19
+    },
+    "referral_channel_row": false,
+    "ai_source_filter": "not_run_this_pass",
+    "ai_referral_evidence": "none_at_default_channel_group"
+  },
+  "engine_status": {
+    "chatgpt_search": {
+      "status": "appears_in_sample",
+      "brand_hits": 1,
+      "citation_hits": 1,
+      "samples": 1,
+      "appeared_on_question_ids": [2],
+      "topics_appeared": ["whatsapp_rsvp"]
+    },
+    "gemini": {
+      "status": "not_appeared_in_sample",
+      "brand_hits": 0,
+      "citation_hits": 0,
+      "samples": 2,
+      "appeared_on_question_ids": [],
+      "topics_to_strengthen": ["whatsapp_rsvp", "pricing"]
+    },
+    "google_ai_mode": {
+      "status": "not_appeared_in_sample",
+      "brand_hits": 0,
+      "citation_hits": 0,
+      "samples": 3,
+      "appeared_on_question_ids": [],
+      "topics_to_strengthen": ["pricing", "seating", "bar_bat_mitzvah"]
+    },
+    "perplexity": {
+      "status": "not_tested",
+      "reason": "google_sign_in_wall"
+    },
+    "microsoft_copilot": {
+      "status": "not_tested",
+      "reason": "sign_in_wall",
+      "supporting_signal": "bing_ai_citations_0"
+    }
+  },
+  "topics_to_strengthen": [
+    "commercial_rsvp_landings_in_gsc_ai",
+    "pricing",
+    "seating",
+    "bar_bat_mitzvah",
+    "whatsapp_rsvp_beyond_chatgpt",
+    "bing_copilot_citations"
+  ],
+  "limitations": [
+    "partial_30x5_matrix",
+    "perplexity_copilot_auth",
+    "ga4_ai_hostname_source_not_filtered",
+    "gsc_inclusion_settings_ui_not_verified",
+    "small_n_ui_samples"
+  ]
+}
