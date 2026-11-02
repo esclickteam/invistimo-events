@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-02T13:51:00+02:00",
+  "generatedAt": "2026-11-02T14:20:00+02:00",
   "timezone": "Asia/Jerusalem",
   "site": "https://www.invistimo.com",
   "executionMode": "live_gsc_session_plus_exports",
@@ -11,12 +11,13 @@
     "match": true,
     "gscSubmittedUrl": "https://www.invistimo.com/sitemap.xml",
     "gscStatus": "Success",
-    "gscLastRead": "2026-10-27",
-    "gscDiscoveredPages": 42,
-    "gscDiscoveredVsLiveGap": 18,
+    "gscLastRead": "2026-11-02",
+    "gscSubmittedDate": "2026-11-02",
+    "gscDiscoveredPages": 60,
+    "gscDiscoveredVsLiveGap": 0,
     "gscResubmitAttempted2026_11_02": true,
-    "gscResubmitCompleted": false,
-    "gscResubmitBlocker": "UI input focus/injection failed in desktop automation; Submit button remained disabled. Existing submission still Success without read error."
+    "gscResubmitCompleted": true,
+    "gscResubmitNote": "Full URL https://www.invistimo.com/sitemap.xml accepted in GSC Sitemaps UI. Success modal confirmed. Table: Submitted 2 Nov 2026, Last read 2 Nov 2026, Discovered 60. Relative path sitemap.xml was previously rejected as invalid/partial."
   },
   "gscCoverageSnapshot": {
     "source": "GSC Pages UI + coverage xlsx export 2026-11-02",
@@ -32,8 +33,9 @@
     },
     "validation": "Passed",
     "crawledExamplesPage1Note": "First page of Crawled—currently not indexed examples were /_next/static assets (Jun–Jul 2026), not the 20 marketing watchlist URLs.",
-    "perUrlInspectionCompleted": false,
-    "note": "Aggregate Indexed=8 is NOT proof for individual URLs. Impressions in Performance do NOT equal Indexed."
+    "perUrlInspectionCompleted": "partial_20_urls",
+    "staleVsLiveNote": "Pages aggregate Indexed=8 is stale (last update 2026-10-23). Same-day URL Inspection confirmed many more URLs Indexed. Do not reconcile aggregate=8 with live inspection without Pages report refresh.",
+    "note": "Aggregate Indexed=8 is NOT proof for individual URLs. Impressions in Performance do NOT equal Indexed. Prefer per-URL Inspection rows in exports/gsc-url-inspection-2026-11-02.csv."
   },
   "gscPerformance": {
     "window28d": {
@@ -53,6 +55,7 @@
     "brandVsNonBrand28d": {
       "definition": "query contains invistimo|אינוויסטימו|אינבסטימו|invist (case-insensitive)",
       "source": "Top queries export (not full query universe)",
+      "dataBasis": "top_queries_export_only_not_all_queries",
       "brandClicks": 118,
       "brandImpressions": 211,
       "brandAvgPositionWeighted": 1.0,
@@ -62,6 +65,7 @@
     },
     "brandVsNonBrand3mo": {
       "source": "Top queries export (not full query universe)",
+      "dataBasis": "top_queries_export_only_not_all_queries",
       "brandClicks": 370,
       "brandImpressions": 520,
       "brandAvgPositionWeighted": 1.1,
@@ -77,12 +81,24 @@
     "file": "docs/seo/monitoring/url-tracking-baseline-2026-11-02.csv",
     "rows": 60,
     "withGscPerformance28d": 32,
-    "notVerifiedUrlInspection": 28,
+    "urlInspectionBatch2026_11_02": {
+      "inspectedInBatch": 20,
+      "ofWhichInTracked60": 19,
+      "extraNotInSitemapTracking": ["/invitations"],
+      "indexedConfirmedInBatch": 14,
+      "unknownToGoogleInBatch": 6,
+      "indexedInTracked60": 14,
+      "unknownInTracked60": 5,
+      "exportFile": "docs/seo/monitoring/exports/gsc-url-inspection-2026-11-02.csv"
+    },
     "watchlistCrawledNotIndexedOct2026": 20,
-    "watchlistWithImpressions28d": 13,
+    "watchlistInspectedToday": 8,
+    "watchlistIndexedToday": 5,
+    "watchlistStillUnknownToday": 3,
     "phaseCNewGuides": 18,
-    "phaseCNewWithImpressions28d": 0,
-    "indexedConfirmedViaUrlInspection": 0
+    "phaseCInspectedToday": 3,
+    "phaseCStillUnknownToday": 3,
+    "indexedConfirmedViaUrlInspection": 14
   },
   "keywordMap": {
     "observedAt": "2026-11-02",
@@ -91,7 +107,8 @@
     "commercialPriorityHigh": 80,
     "commercialHighWithGscRow": 7,
     "brandRows": 1,
-    "nonBrandRows": 151
+    "nonBrandRows": 151,
+    "brandNonBrandDataBasis": "top_queries_export_only_not_all_queries"
   },
   "aiMonitor": {
     "questions": 30,
@@ -113,19 +130,20 @@
     "gscImportModalOpened": true,
     "gscImportCompleted": false,
     "gscImportOauthAccountAttempted": "invistimo9@gmail.com",
-    "gscImportOauthResult": "access_denied_on_prior_attempt",
+    "gscImportOauthResult": "account_chooser_open_awaiting_owner_confirm_continue",
     "manualUrlEntered": "https://www.invistimo.com",
     "manualAddCompleted": true,
     "sitemapSubmitted": false,
     "sitemapsUiAccessible": false,
-    "blocker": "Site https://www.invistimo.com/ added to Bing under bizuply@outlook.com but Not verified. Sitemaps/Index/AI blocked until verification. Owner: Import from GSC (Continue→invistimo9@gmail.com→המשך, not Cancel) or DNS CNAME verify, then submit https://www.invistimo.com/sitemap.xml."
+    "aiPerformanceAccessible": false,
+    "blocker": "Site https://www.invistimo.com/ added under bizuply@outlook.com but Not verified. Google OAuth account chooser for Import from GSC is open; automation could focus invistimo9@gmail.com but could not complete select→Continue→consent. Owner action required: select invistimo9@gmail.com → המשך → approve View-Only. Then submit sitemap + check AI Performance."
   },
   "checkpoints": [
     {
       "id": "T0",
       "date": "2026-11-02",
       "status": "completed_partial",
-      "scope": "baseline exports + docs"
+      "scope": "GSC sitemap resubmit Success/60 + partial URL Inspection (20) + docs; Bing verify blocked on OAuth"
     },
     {
       "id": "T1",
@@ -147,5 +165,5 @@
     }
   ],
   "gscAccess": "live_desktop_chrome_session_sc-domain:invistimo.com",
-  "bingAccess": "signed_in_site_added_not_verified"
+  "bingAccess": "signed_in_site_added_not_verified_oauth_pending"
 }
