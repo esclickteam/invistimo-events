@@ -276,7 +276,12 @@ export default function BitPayboxGuide() {
                   רוצים לאפשר לאורחים לשלוח מתנה דרך bit או PayBox? אפשר להוסיף להזמנה הדיגיטלית את
                   פרטי התשלום הרלוונטיים, כך שהאורחים יוכלו לבחור בדרך הנוחה להם. ב־Invistimo ניתן
                   להגדיר קישור PayBox ומספר טלפון ל־bit, והאפשרויות שהופעלו יוצגו לאורחים בקישור
-                  ההזמנה.
+                  ההזמנה. זה אינו סליקה של Invistimo — ההעברה נשארת אצל ספק התשלום. שלוש אפשרויות
+                  המתנה, כולל אשראי, מרוכזות בעמוד{" "}
+                  <Link href="/credit-gifts" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                    מתנות באשראי, bit ו־PayBox
+                  </Link>
+                  .
                 </p>
                 <p>
                   חשוב לדעת שההעברה עצמה מתבצעת מחוץ ל־Invistimo, באמצעות שירות התשלום שבחר האורח. לכן
@@ -284,7 +289,14 @@ export default function BitPayboxGuide() {
                 </p>
                 <p>
                   במדריך הזה נראה איך מכינים את הפרטים, היכן מגדירים אותם, מה האורחים רואים ואילו
-                  בדיקות חשוב לבצע לפני ששולחים את ההזמנה.
+                  בדיקות חשוב לבצע לפני ששולחים את ההזמנה. לשליחת הקישור עצמו ראו את{" "}
+                  <Link
+                    href="/info/guides/send-digital-invitation"
+                    className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+                  >
+                    מדריך ההזמנה הדיגיטלית
+                  </Link>
+                  .
                 </p>
               </div>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">

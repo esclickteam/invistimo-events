@@ -211,6 +211,28 @@ export default function SaveTheDateMarketingPage() {
               Save the Date אינו אישור הגעה. הוא גם לא מחליף את ההזמנה הרשמית. הוא הרגע שבו מתחילים לשתף את
               האנשים החשובים לכם בשמחה.
             </p>
+            <p>
+              ב־Invistimo זו הודעת WhatsApp מוקדמת עם תמונה, כשהאפשרות פתוחה בחשבון. להבדל מול ההזמנה
+              הרשמית ראו את{" "}
+              <Link
+                href="/info/guides/save-the-date-vs-invitation"
+                className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+              >
+                מדריך Save the Date מול הזמנה
+              </Link>
+              , ולשליחת ההזמנה עצמה את{" "}
+              <Link href="/invitations/chatuna" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                הזמנות דיגיטליות לחתונה
+              </Link>
+              . לטווח החודשים לפני השליחה יש{" "}
+              <Link
+                href="/info/guides/when-to-send-save-the-date"
+                className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+              >
+                מדריך תזמון
+              </Link>
+              .
+            </p>
           </div>
         </div>
       </section>

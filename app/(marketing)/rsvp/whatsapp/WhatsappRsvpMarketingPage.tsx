@@ -433,6 +433,25 @@ export default function WhatsappRsvpMarketingPage() {
             שולחים קישור אישי שמוביל לתהליך אישור ברור. האורח יודע מה לעשות, ואתם לא צריכים לפענח מי
             כתב &quot;מגיעים&quot;, כמה אנשים הוא התכוון להביא ואם כבר עדכנתם את הרשימה.
           </p>
+          <p className="mt-4 max-w-3xl text-base leading-8 text-[#5C4A3A]">
+            העמוד הזה מתאר את שירות אישורי ההגעה ב־WhatsApp. להבדל בין כשל מסירה לבין אורח שלא השיב
+            ראו את{" "}
+            <Link href="/info/guides/whatsapp-vs-sms-rsvp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              מדריך WhatsApp ו־SMS
+            </Link>
+            , ולמי שעדיין לא ענה את{" "}
+            <Link href="/info/guides/guests-who-dont-reply" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              מדריך האורחים שלא עונים
+            </Link>
+            . לניסוח ההודעה עצמה יש{" "}
+            <Link
+              href="/info/guides/whatsapp-invitation-wording"
+              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+            >
+              מדריך נפרד
+            </Link>
+            .
+          </p>
           <div className="mt-12 grid gap-5 sm:grid-cols-2">
             {WHY_CARDS.map((c) => (
               <div
@@ -519,8 +538,16 @@ export default function WhatsappRsvpMarketingPage() {
               </li>
             ))}
           </ol>
-          <p className="mt-6 text-sm text-[#B8A890]">
-            שיחות אינן כלולות אוטומטית בכל חבילת WhatsApp — הן מסלולים נפרדים במחשבון.
+          <p className="mt-6 text-sm leading-7 text-[#B8A890]">
+            שיחות אינן כלולות אוטומטית בכל חבילת WhatsApp — הן מסלולים נפרדים במחשבון. להשלמה בשיחה:{" "}
+            <Link href="/rsvp/calls" className="font-bold text-[#E8C988] underline-offset-4 hover:underline">
+              אישורי הגעה בשיחות
+            </Link>
+            . Save the Date הוא שלב מוקדם ונפרד —{" "}
+            <Link href="/rsvp/save-the-date" className="font-bold text-[#E8C988] underline-offset-4 hover:underline">
+              לא סבב אישור
+            </Link>
+            .
           </p>
         </div>
       </section>

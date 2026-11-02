@@ -205,6 +205,24 @@ export default function WeddingWebsiteMarketingPage() {
                 במקום לשלוח שוב ושוב את אותן תשובות לגבי כתובת, שעות או ניווט, אפשר להפנות
                 את האורחים לעמוד אחד מסודר.
               </p>
+              <p>
+                אתר החתונה הוא קישור משותף. את{" "}
+                <Link href={WW_LINKS.invitations} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                  ההזמנה הדיגיטלית
+                </Link>{" "}
+                שולחים בנפרד, ואת התשובות אוספים בעמוד{" "}
+                <Link href={WW_LINKS.rsvpWedding} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                  אישורי הגעה לחתונה
+                </Link>{" "}
+                עם קישור אישי לרשומה. להכנת ההזמנה עצמה יש{" "}
+                <Link
+                  href="/info/guides/send-digital-invitation"
+                  className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+                >
+                  מדריך שליחה
+                </Link>
+                .
+              </p>
             </div>
             <ul className="mt-8 columns-1 gap-x-8 sm:columns-2">
               {SITE_ANATOMY.map((item) => (
@@ -774,6 +792,10 @@ export default function WeddingWebsiteMarketingPage() {
           >
             {[
               { href: WW_LINKS.invitations, label: "הזמנות דיגיטליות" },
+              { href: "/info/guides/wedding-website-guide", label: "איך מכינים אתר חתונה" },
+              { href: "/info/guides/wedding-website-vs-digital-invitation", label: "אתר מול הזמנה" },
+              { href: "/info/guides/send-digital-invitation", label: "איך שולחים הזמנה" },
+              { href: "/info/guides/save-the-date-vs-invitation", label: "Save the Date מול הזמנה" },
               { href: WW_LINKS.saveTheDate, label: "Save the Date" },
               { href: WW_LINKS.rsvpWedding, label: "אישורי הגעה" },
               { href: WW_LINKS.seating, label: "סידורי הושבה" },

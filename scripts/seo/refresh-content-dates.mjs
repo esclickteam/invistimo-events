@@ -30,6 +30,28 @@ const guides = [
   "event-day-checklist",
 ];
 
+/** Registry guides rendered by [slug]/page.tsx — no dedicated folder. */
+const registryGuides = [
+  "tracking-rsvp-responses",
+  "seating-live-day-of",
+  "wedding-website-guide",
+  "wedding-website-vs-digital-invitation",
+  "rsvp-corporate-events",
+  "how-phone-rsvp-works",
+  "import-guest-list",
+  "last-minute-guest-changes",
+  "whatsapp-invitation-wording",
+  "when-to-send-save-the-date",
+  "reduce-meal-waste",
+  "plus-ones-and-kids-rsvp",
+  "venue-guest-check-in",
+  "overseas-guests-rsvp",
+  "seating-families-groups",
+  "personal-rsvp-link",
+  "rsvp-reminder-rounds",
+  "manage-guests-after-rsvp",
+];
+
 const routeFiles = {
   "/": ["app/page.tsx", "app/HomePageClient.tsx"],
   "/rsvp": ["app/(marketing)/rsvp"],
@@ -61,6 +83,10 @@ const routeFiles = {
 
 for (const slug of guides) {
   routeFiles[`/info/guides/${slug}`] = [`app/(marketing)/info/guides/${slug}`];
+}
+
+for (const slug of registryGuides) {
+  routeFiles[`/info/guides/${slug}`] = ["lib/seo/phaseCGuides.ts"];
 }
 
 function day(iso) {

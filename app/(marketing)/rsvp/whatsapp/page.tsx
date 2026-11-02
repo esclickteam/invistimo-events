@@ -15,7 +15,7 @@ import { WHATSAPP_RSVP_FAQS } from "./whatsappFaqs";
 const PATH = "/rsvp/whatsapp";
 const TITLE = "אישורי הגעה בוואטסאפ לאירועים | Invistimo";
 const DESCRIPTION =
-  "אישורי הגעה ב־WhatsApp עם קישור אישי לאורחים, סבבי הודעות ומעקב תשובות במקום אחד. גלו איך Invistimo עוזרת לנהל את רשימת המוזמנים.";
+  "אישורי הגעה ב־WhatsApp עם קישור אישי, שני סבבים בחבילת ההודעות ומעקב תשובות. האישור בעמוד שנפתח מהקישור — לא בגוף ההודעה.";
 
 export const metadata = pageMetadata({
   title: TITLE,

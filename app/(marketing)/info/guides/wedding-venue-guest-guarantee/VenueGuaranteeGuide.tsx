@@ -91,7 +91,15 @@ export default function VenueGuaranteeGuide() {
               </p>
               <p>
                 לכן חשוב להבחין בין מספר המוזמנים, מספר האורחים שצפויים להגיע ומספר המנות שעליו
-                מתחייבים בהסכם.
+                מתחייבים בהסכם. הרשימה עצמה מוסברת{" "}
+                <Link href="/info/guides/guest-list" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                  במדריך רשימת המוזמנים
+                </Link>
+                , והתשובות שמעדכנות את הצפי מגיעות{" "}
+                <Link href="/rsvp/chatuna" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                  מאישורי הגעה לחתונה
+                </Link>
+                .
               </p>
               <p>
                 במדריך הזה נסביר איך לחשב התחייבות ראשונית, מה כדאי לבדוק לפני החתימה ואיך להשתמש

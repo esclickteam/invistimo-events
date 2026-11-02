@@ -10,15 +10,15 @@
     "/rsvp/hina": "אישורי הגעה לחינה ב־Invistimo מדגישים מעגל משפחתי קרוב, הושבה לפי קרבה ונוחות, ומעקב מגיעים גם באירוע קטן יותר מחתונה. אפשר לשלב הזמנה דיגיטלית, WhatsApp והושבה דיגיטלית לפי החבילה — בלי להעתיק את תהליך החתונה הגדולה.",
     "/rsvp/bar-bat-mitzvah": "אישורי הגעה לבר ובת מצווה ב־Invistimo: הזמנה דיגיטלית, קישור אישי להורים שמאשרים עבור ילדים, רשומות בלי טלפון שלא נגרעות מהמכסה, ומעקב משפחה מול חברים לכיתה. אין ייבוא אוטומטי מקבוצות WhatsApp. הושבה חיה — בהתאם לחבילה.",
     "/rsvp/brit-brita": "אישורי הגעה לברית ובריתה ב־Invistimo מותאמים לזמן קצר ולמעגל אינטימי: הזמנה דיגיטלית מהירה, קישור אישי ומספר מגיעים לבית/מסעדה/אולם קטן. בברית אל תציגו תאריך משוער כמחייב עד שהוא סגור; בבריתה לרוב יש יותר גמישות במועד.",
-    "/rsvp/whatsapp": "אישורי הגעה ב־WhatsApp ב־Invistimo: הודעה עם קישור אישי, אישור בעמוד שנפתח מהקישור (לא כבחירה בגוף ההודעה), שני סבבים בחבילת ההודעות, ומעקב תשובות במערכת. שיחות להשלמה הן חבילות נפרדות.",
-    "/rsvp/calls": "אישורי הגעה בשיחות טלפון ב־Invistimo: אפשר לבחור שיחות מוקלטות עם קריינות AI (מענה במקשים 1/2/3), מוקד אנושי, או שילוב — שלושה מסלולים לגיטימיים לפי האירוע. השיחות משלימות את WhatsApp ואת ה־SMS לפי החבילה, בלי הבטחת 100% מענה.",
+    "/rsvp/whatsapp": "עמוד השירות לאישורי הגעה ב־WhatsApp ב־Invistimo: הודעה עם קישור אישי, אישור בעמוד שנפתח מהקישור (לא כבחירה בגוף ההודעה), שני סבבים בחבילת ההודעות ומעקב תשובות. כשל מסירה שמפעיל SMS חלופי מוסבר במדריך הערוצים; שיחות להשלמה הן חבילות נפרדות.",
+    "/rsvp/calls": "עמוד השירות לאישורי הגעה בשיחות ב־Invistimo: שיחות מוקלטות עם קריינות AI (מענה במקשים 1/2/3), מוקד אנושי, או שילוב — שלושה מסלולים לפי האירוע. השיחות משלימות WhatsApp ו־SMS למי שלא השיב, בלי הבטחת 100% מענה, ואינן חבילת ההודעות עצמה.",
     "/invitations/chatuna": "הזמנה דיגיטלית לחתונה ב־Invistimo היא העיצוב והקישור האישי שהאורח פותח — לא אותו דבר כמו סבבי אישורי ההגעה. אפשר להעלות JPEG/PNG/WebP או להזמין עיצוב אישי כתוספת במחשבון. אפשר לחבר לאישורי הגעה; אתר חתונה נשאר רכיב נפרד.",
-    "/wedding-website": "אתר חתונה אישי ב־Invistimo הוא עמוד מעוצב לסיפור הזוגי, תמונות ופרטי האירוע — נפרד מהזמנה דיגיטלית ומקישור RSVP אישי. אפשר לבחור תבנית מוכנה או לבדוק עיצוב בהתאמה אישית מול הצוות, ולשתף קישור משותף עם האורחים.",
-    "/rsvp/save-the-date": "Save the Date ב־Invistimo הוא הודעת WhatsApp מוקדמת עם תמונה מעוצבת, שנשלחת מרשימת המוזמנים כשהאפשרות פתוחה בחשבון. היא לא אוספת אישורי הגעה ואינה נספרת כסבב אישור. מחיר בסיס לתוספת Pre‑RSVP: 150 ₪ ל־Save the Date בלבד, או 230 ₪ עם הזמנה מוקדמת.",
+    "/wedding-website": "אתר חתונה אישי ב־Invistimo הוא עמוד מעוצב לסיפור הזוגי, תמונות ופרטי האירוע בקישור משותף — נפרד מהזמנה דיגיטלית ומקישור RSVP אישי שנשלח לרשומה. אפשר לבחור תבנית מוכנה או לבדוק עיצוב בהתאמה אישית מול הצוות.",
+    "/rsvp/save-the-date": "Save the Date ב־Invistimo הוא הודעת WhatsApp מוקדמת עם תמונה מעוצבת, שנשלחת מרשימת המוזמנים כשהאפשרות פתוחה בחשבון. היא לא אוספת אישורי הגעה, אינה ההזמנה הרשמית, ואינה נספרת כסבב אישור. מחיר בסיס לתוספת Pre‑RSVP: 150 ₪ ל־Save the Date בלבד, או 230 ₪ עם הזמנה מוקדמת.",
     "/seating-explained": "עמוד השירות לסידורי הושבה ב־Invistimo: מפת שולחנות דיגיטלית, שיבוץ מאשרי הגעה, ו־LIVE ביום האירוע לפי החבילה. שחרור כיסאות עודפים נעשה בפעולה מפורשת אחרי בירור — לא אוטומטית. להחלטות לפני השיבוץ יש מדריך נפרד; לביצוע צעד־אחר־צעד במערכת יש מדריך מעשי נפרד.",
     "/credit-gifts": "ב־Invistimo יש שלוש אפשרויות מתנה דיגיטליות לאורחים: קישור מתנה באשראי שמתקבל אחרי פתיחת משתמש אצל ספק הסליקה החיצוני RSVP, קישור PayBox אישי שבעלי האירוע מזינים, ומספר טלפון להעתקה להעברה ב־bit. האורח בוחר מבין מה שהופעל באירוע; הסליקה באשראי אצל RSVP, ו־PayBox ו־bit מוצגים בלבד — בלי סליקה של Invistimo.",
     "/info/guides/bit-paybox-wedding-invitation": "אפשר להוסיף להזמנה הדיגיטלית קישור PayBox ומספר טלפון ל־bit. ב־Invistimo מפעילים את האפשרויות בפרטי האירוע, מדביקים קישור https תקף ל־PayBox ומזינים מספר 05XXXXXXXX ל־bit. האורח רואה כפתורים בקישור האישי — PayBox נפתח חיצונית ו־bit מעתיק את המספר. ההעברה מתבצעת מחוץ ל־Invistimo; אין בעורך קישור bit או QR bit.",
-    "/event-management": "הפלטפורמה של Invistimo לניהול אירועים מרכזת משימות, ספקים, תקציב, תשלומים ולוח זמנים במקום אחד. אפשר לנהל עצמאית, ולהוסיף ליווי מקצועי או ניהול באולם ביום האירוע רק אם סוכמו. אישורי הגעה והושבה משתלבים כשירותים נפרדים לפי החבילה.",
+    "/event-management": "עמוד השירות למערכת ניהול האירוע ב־Invistimo: משימות, ספקים, תקציב, תשלומים ולוח זמנים במקום אחד. אפשר לנהל עצמאית, ולהוסיף ליווי מקצועי או ניהול באולם רק אם סוכמו. זה אינו מדריך תכנון חתונה כללי; אישורי הגעה והושבה משתלבים כשירותים נפרדים לפי החבילה.",
     "/info/guides/event-management-vs-production": "מפיק אירועים עשוי ללוות תכנון רחב מההתחלה; מנהל אירוע חיצוני מתמקד לרוב בתיאום וביום האירוע מטעם הזוג; מנהל האולם אחראי בדרך כלל לתפעול שירותי המקום. הגבולות אינם אחידים — בודקים אחריות בהסכם. לא חייבים מפיק או מנהל חיצוני בכל חתונה.",
     "/pricing": "מחיר אישורי הגעה ב־Invistimo נקבע לפי מספר הרשומות, סוג החבילה (הודעות, שיחות מוקלטות, אנושיות או משולבות) והתוספות. אין מחיר אחיד לכל חתונה — הסכום מוצג במחשבון, וההזמנה מושלמת מול נציג אחרי פנייה ב־WhatsApp או ביצירת קשר.",
     "/faq": "מרכז השאלות והתשובות של Invistimo: אישורי הגעה, וואטסאפ, הזמנות דיגיטליות, Save the Date, רשימת מוזמנים, סידורי הושבה, צוות ו־QR, מחירים, אתר חתונה, פרטיות ותמיכה. התשובות מבוססות על יכולות המערכת בפועל. לשאלה שלא מופיעה כאן — עמוד יצירת הקשר.",
@@ -40,7 +40,25 @@
     "/info/guides/table-number-message": "מומלץ לשלוח מספרי שולחנות רק אחרי שהאולם אישר סקיצה ומספור והשיבוצים יציבים. ב־Invistimo אפשר לשלוח הודעת מספר שולחן (SMS/WhatsApp) לאורחים עם שולחן. בתזכורת SMS — בדרך כלל יום לפני או ביום האירוע — אורח משובץ מקבל מספר שולחן ואורח שלא משובץ מקבל תזכורת בלי מספר. עדכון במפה אינו מעדכן הודעה שכבר התקבלה.",
     "/info/guides/event-day-checklist": "לפני יום החתונה חשוב לוודא שכל הספקים אישרו את פרטי ההגעה וההסכמים, שהתשלומים והמקדמות מעודכנים, שלוח הזמנים סופי, שרשימת המוזמנים ואישורי ההגעה מעודכנים, שמפת ההושבה מוכנה ושהאולם קיבל את מספר האורחים לפי המועד שסוכם. בנוסף, יש להכין אנשי קשר, ציוד אישי, פתרונות למקרים בלתי צפויים וחלוקת אחריות ברורה ליום האירוע. המערכת לא מחליפה מפיק באולם אלא אם סוכם ליווי, ואינה שולחת מספר סופי לאולם אוטומטית.",
     "/info/guides/wedding-planning": "תכנון חתונה בישראל מתחיל ממסגרת תקציב, הערכת מספר מוזמנים והעדפות לאופי האירוע — ורק אחר כך סוגרים אולם ותאריך. משם ממשיכים לספקים מרכזיים, הזמנות ואישורי הגעה, הושבה ולוח זמנים עד יום האירוע. מתנות האורחים אינן הכנסה מובטחת, ולכן לא כדאי להתחייב להוצאות שתלויות בהן בלבד.",
-    "/info/guides/wedding-vendors-contracts": "לפני שסוגרים ספק לחתונה בודקים זהות נותן השירות, תיק עבודות, מה כלול בהצעה, תוכנית גיבוי וחוזה כתוב. מקדמה ודמי שריון אינם מונחים זהים; זכאות להחזר בביטול תלויה בסוג העסקה, במועד, בהסכם ובדין — ואין כלל גורף שלפיו כל תשלום אינו מוחזר או שכל עסקה ניתנת לביטול תוך 14 יום. המדריך הוא מידע כללי ואינו ייעוץ משפטי."
+    "/info/guides/wedding-vendors-contracts": "לפני שסוגרים ספק לחתונה בודקים זהות נותן השירות, תיק עבודות, מה כלול בהצעה, תוכנית גיבוי וחוזה כתוב. מקדמה ודמי שריון אינם מונחים זהים; זכאות להחזר בביטול תלויה בסוג העסקה, במועד, בהסכם ובדין — ואין כלל גורף שלפיו כל תשלום אינו מוחזר או שכל עסקה ניתנת לביטול תוך 14 יום. המדריך הוא מידע כללי ואינו ייעוץ משפטי.",
+    "/info/guides/tracking-rsvp-responses": "ב־Invistimo כל תשובה נשמרת על הרשומה של הקישור האישי: מגיע, לא מגיע, או ממתין, כולל כמה אנשים אושרו. אי־מענה אינו סירוב. דוח השליחה לפי מספר נפרד מדוח התשובות. כש־WhatsApp נכשל יכול לצאת SMS עם אותו קישור; שתיקה אינה מפעילה SMS.",
+    "/info/guides/seating-live-day-of": "הושבה דיגיטלית היא תוספת, ו־LIVE ביום האירוע נפתח לפי החבילה. בכניסה מסמנים הגעה בפועל בנפרד מאישור מראש. שחרור כיסא נעשה בפעולה מפורשת אחרי בירור, לא אוטומטית כשאורח מתעכב. הודעת שולחן שכבר נשלחה אינה מתעדכנת לבד.",
+    "/info/guides/wedding-website-guide": "אתר חתונה אישי ב־Invistimo הוא עמוד מעוצב לסיפור, לתמונות ולפרטי האירוע, עם תבנית מוכנה או עיצוב מול הצוות, וקישור משותף לשיתוף. הוא נפרד מהזמנה דיגיטלית ומקישור אישור ההגעה האישי, ואינו אוסף את סבבי ה־RSVP.",
+    "/info/guides/wedding-website-vs-digital-invitation": "אתר חתונה הוא קישור משותף למידע. הזמנה דיגיטלית היא העיצוב שנפתח מהקישור האישי של הרשומה. סבבי אישור ההגעה הם שליחה נפרדת: בחבילת ההודעות שני סבבי WhatsApp, והאורח מאשר בעמוד. Save the Date, כשהוא פתוח, אינו אוסף תשובה.",
+    "/info/guides/rsvp-corporate-events": "אירוע חברה ב־Invistimo רץ על אותו מודל: רשומה, קישור אישי, ושני סבבי WhatsApp בחבילת ההודעות. אין ייבוא אוטומטי מקבוצת WhatsApp. רשומה עם טלפון נגרעת מהמכסה; רשומה בלי טלפון נשארת ברשימה ובהושבה. שיחות הן חבילה נפרדת, בלי הבטחת מענה מלא.",
+    "/info/guides/how-phone-rsvp-works": "שיחות אישור ב־Invistimo הן שלושה מסלולים נפרדים מחבילת ההודעות: שיחה מוקלטת עם קריינות AI ומענה במקשים 1, 2 ו־3 (שלושה סבבים), מוקד אנושי (שלושה סבבים), או שילוב של שני סבבים מוקלטים וסבב אנושי אחד. כולן יושבות על בסיס ההודעות. אין הבטחת 100% מענה.",
+    "/info/guides/import-guest-list": "רשימת מוזמנים ב־Invistimo נבנית בהקלדה או בייבוא אקסל. בייבוא, מספר שכבר קיים באירוע מדולג. אין ייבוא אוטומטי מקבוצות WhatsApp. רק רשומה עם טלפון נגרעת מהמכסה; רשומה בלי טלפון נשארת ברשימה ובהושבה.",
+    "/info/guides/last-minute-guest-changes": "אפשר להוסיף ולערוך רשומות גם אחרי שהסבבים התחילו. האורח יכול לעדכן תשובה בקישור האישי, ובעל האירוע יכול לעדכן ידנית. שחרור כיסא אינו אוטומטי, והודעת שולחן שכבר נשלחה אינה משתנה לבד. המערכת אינה שולחת מספר סופי לאולם.",
+    "/info/guides/whatsapp-invitation-wording": "סבב האישור ב־WhatsApp יוצא כהודעת מערכת עם קישור אישי. האורח מאשר בעמוד שנפתח, לא בכפתור בתוך ההודעה. תאריך, שעה ומיקום צריכים להיות נכונים בהזמנה. SMS עם אותו קישור יכול לצאת רק כששליחת WhatsApp נכשלת.",
+    "/info/guides/when-to-send-save-the-date": "Save the Date ב־Invistimo הוא הודעת WhatsApp מוקדמת עם תמונה מעוצבת, פעם אחת, כשהאפשרות פתוחה — לפני ההזמנה ולפני סבבי האישור. הוא אינו אוסף תשובות. בתוספת Pre‑RSVP: 150 ₪ ל־Save the Date בלבד, או 230 ₪ עם הזמנה מוקדמת. אין יום שליחה קבוע במערכת.",
+    "/info/guides/reduce-meal-waste": "מספר המנות נשען על כמה אנשים אושרו, לא על מספר השמות או הרשומות. אי־מענה אינו סירוב. נקודות ייחוס מניסיון — כ־70% מהמוזמנים לפני אישורים וכ־90% מהמאשרים אחריהם — משתנות בין אירועים ואינן חישוב אוטומטי. המערכת אינה שולחת מספר סופי לאולם, ושחרור כיסא אינו אוטומטי.",
+    "/info/guides/plus-ones-and-kids-rsvp": "בן זוג או ילד יכולים להיכלל במספר המוזמנים על אותה רשומה. האורח מאשר כמה מגיעים, גם פחות מהמספר שהוזמן. רשומה עם טלפון נגרעת פעם אחת מהמכסה; ילד בלי טלפון משלו נשאר ברשימה ובהושבה ואינו נגרע.",
+    "/info/guides/venue-guest-check-in": "בקבלת פנים הצוות מאתר אורח במערכת, מסמן הגעה בפועל ומוסר מספר שולחן בעל פה. Invistimo אינה מחלקת פתקיות. במסלול QR, כשהמודול פתוח, אחרי אישור הצוות המספר יכול להופיע בטלפון. אישור מראש אינו הגעה בפועל, וכיסא אינו משתחרר אוטומטית באיחור.",
+    "/info/guides/overseas-guests-rsvp": "אורח מחו״ל מאשר באותו קישור אישי. מספר עם קידומת בינלאומית נשמר ואינו נכתב מחדש כמספר ישראלי. WhatsApp יוצא ליעד תקין; כשהשליחה נכשלת יכול לצאת SMS עם אותו קישור, ושתיקה אינה מפעילה SMS. רשומה עם טלפון נספרת במכסה. אין הבטחת מענה בשיחה.",
+    "/info/guides/seating-families-groups": "אחרי רכישת תוספת ההושבה משבצים ידנית או לפי קבוצות — משפחה, צד או צוות — על שולחן עם קיבולת. רשומה בלי טלפון נשארת בהושבה. זהו מדריך החלוקה לקבוצות, נפרד מההחלטות הכלליות על רזרבות וממדריך הביצוע המלא במערכת.",
+    "/info/guides/personal-rsvp-link": "קישור אישי ב־Invistimo מזהה רשומה אחת, נשלח בהודעת WhatsApp, ונפתח בלי אפליקציה. האישור נרשם בעמוד שנפתח, לא בתוך ההודעה. זה אינו קישור אתר החתונה ואינו Save the Date. רשומה בלי טלפון אינה מקבלת קישור ואינה נגרעת מהמכסה.",
+    "/info/guides/rsvp-reminder-rounds": "בחבילת ההודעות שני סבבי WhatsApp: השני למי שלא ענה. אחר כך תזכורת SMS לקראת האירוע — עם מספר שולחן רק למי שמשובץ — והודעת תודה ב־SMS. SMS חלופי יוצא כש־WhatsApp נכשל, לא כשאין תשובה. שיחות הן חבילה נפרדת, בלי הבטחת מענה מלא.",
+    "/info/guides/manage-guests-after-rsvp": "אחרי תחילת האישורים הרשימה נשארת פתוחה: מסננים מאשרים, מסרבים וממתינים, עורכים רשומות, מוסיפים חדשות ומייצאים לאקסל. אי־מענה אינו סירוב. המערכת אינה שולחת מספר סופי לאולם, ועדכון ברשימה אינו משנה הודעת שולחן שכבר נשלחה."
   },
   "packageComparison": {
     "caption": "מה כלול בכל חבילה ב־Invistimo. הסכום עצמו מופיע רק במחשבון.",
@@ -98,7 +116,16 @@
     "למה לשלב WhatsApp עם שיחות אישורי הגעה?",
     "איך מקבלים מתנות לחתונה באשראי ב־Invistimo?",
     "האם Invistimo סולקת מתנות באשראי בעצמה?",
-    "איך מוסיפים PayBox ו־bit להזמנה דיגיטלית ב־Invistimo?"
+    "איך מוסיפים PayBox ו־bit להזמנה דיגיטלית ב־Invistimo?",
+    "איך עוקבים אחרי מי אישר הגעה ב־Invistimo?",
+    "איך מייבאים רשימת מוזמנים מאקסל ל־Invistimo?",
+    "מה ההבדל בין אתר חתונה להזמנה דיגיטלית ב־Invistimo?",
+    "איך שולחים save the date ב־Invistimo ומתי?",
+    "איך עובדים אישורי הגעה בטלפון ב־Invistimo?",
+    "איך מנהלים שינויי אורחים אחרי שכבר נשלחו אישורים?",
+    "איך מפחיתים מנות מיותרות לפי אישורי הגעה?",
+    "איך מושיבים משפחות וחברים בחתונה במערכת?",
+    "איך עובד קישור RSVP אישי לכל אורח?"
   ],
   "keywordMap": [
     {
@@ -122,7 +149,8 @@
       "supportingPaths": [
         "/rsvp",
         "/pricing",
-        "/info/guides/guests-who-dont-reply"
+        "/info/guides/guests-who-dont-reply",
+        "/info/guides/how-phone-rsvp-works"
       ],
       "volume": null,
       "competition": null,
@@ -399,7 +427,9 @@
       "supportingPaths": [
         "/rsvp/chatuna",
         "/info/guides/guests-who-dont-reply",
-        "/info/guides/whatsapp-vs-sms-rsvp"
+        "/info/guides/whatsapp-vs-sms-rsvp",
+        "/info/guides/whatsapp-invitation-wording",
+        "/info/guides/rsvp-reminder-rounds"
       ],
       "volume": null,
       "competition": null,
@@ -411,11 +441,77 @@
       "primaryPath": "/info/guides/whatsapp-vs-sms-rsvp",
       "supportingPaths": [
         "/rsvp/whatsapp",
-        "/rsvp"
+        "/rsvp",
+        "/info/guides/how-to-choose-rsvp-company"
       ],
       "volume": null,
       "competition": null,
       "observation": "מדריך על ערוצי שליחה, גיבוי SMS אוטומטי ודוחות מסירה."
+    },
+    {
+      "query": "חברת אישורי הגעה לחתונה",
+      "intent": "commercial",
+      "primaryPath": "/info/guides/how-to-choose-rsvp-company",
+      "supportingPaths": [
+        "/rsvp",
+        "/rsvp/chatuna",
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מדריך השוואת חברות ושירותי אישורי הגעה; עמודי השירות נשארים נפרדים."
+    },
+    {
+      "query": "איך בוחרים חברת אישורי הגעה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/how-to-choose-rsvp-company",
+      "supportingPaths": [
+        "/rsvp",
+        "/info/guides/cost-rsvp-wedding",
+        "/info/guides/whatsapp-vs-sms-rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מדריך ייעודי לבחירת שירות — לא עמוד שירות כפול."
+    },
+    {
+      "query": "חברת אישורי הגעה מומלצת",
+      "intent": "commercial",
+      "primaryPath": "/info/guides/how-to-choose-rsvp-company",
+      "supportingPaths": [
+        "/rsvp",
+        "/pricing",
+        "/rsvp/chatuna"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "המדריך נמנע מדירוג «מספר 1» ללא ראיות; מציג קריטריונים להשוואה."
+    },
+    {
+      "query": "השוואת חברות אישורי הגעה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/how-to-choose-rsvp-company",
+      "supportingPaths": [
+        "/rsvp/calls",
+        "/info/guides/whatsapp-vs-sms-rsvp",
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "טבלת השוואת ערוצים וצ׳קליסט שאלות לפני רכישה."
+    },
+    {
+      "query": "שירות אישורי הגעה לחתונה",
+      "intent": "commercial",
+      "primaryPath": "/rsvp/chatuna",
+      "supportingPaths": [
+        "/info/guides/how-to-choose-rsvp-company",
+        "/rsvp",
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "עמוד שירות חתונה ראשי; המדריך תומך בהחלטת בחירה."
     },
     {
       "query": "הודעת WhatsApp נכשלה",
@@ -447,18 +543,45 @@
       "primaryPath": "/invitations/chatuna",
       "supportingPaths": [
         "/info/guides/send-digital-invitation",
-        "/wedding-website"
+        "/wedding-website",
+        "/info/guides/wedding-website-vs-digital-invitation"
       ],
       "volume": null,
       "competition": null,
       "observation": "חיפוש רחב ב־23 באוקטובר 2026 הציג גם את savethedate.co.il, savedate.co.il, ConfirMe ו־Evently. בלי דירוג ממוספר."
     },
     {
+      "query": "איך שולחים הזמנה דיגיטלית",
+      "intent": "informational",
+      "primaryPath": "/info/guides/send-digital-invitation",
+      "supportingPaths": [
+        "/invitations/chatuna",
+        "/rsvp",
+        "/info/guides/save-the-date-vs-invitation"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מדריך How-to; עמוד השירות המסחרי נשאר /invitations/chatuna."
+    },
+    {
+      "query": "איך שולחים הזמנה לחתונה בוואטסאפ",
+      "intent": "informational",
+      "primaryPath": "/info/guides/send-digital-invitation",
+      "supportingPaths": [
+        "/rsvp/whatsapp",
+        "/invitations/chatuna"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מדריך שליחה; לא מתחרה בעמוד שירות ההזמנות."
+    },
+    {
       "query": "Save the Date לחתונה",
       "intent": "informational",
       "primaryPath": "/rsvp/save-the-date",
       "supportingPaths": [
-        "/info/guides/save-the-date-vs-invitation"
+        "/info/guides/save-the-date-vs-invitation",
+        "/info/guides/when-to-send-save-the-date"
       ],
       "volume": null,
       "competition": null,
@@ -471,11 +594,119 @@
       "supportingPaths": [
         "/info/guides/wedding-seating-arrangements",
         "/info/guides/seating-plan",
+        "/info/guides/seating-cards-vs-qr",
         "/info/guides/table-number-message"
       ],
       "volume": null,
       "competition": null,
       "observation": "מתחרים מציגים הושבה בעמודי החתונה שלהם. אין כאן נתון על מיקום Invistimo."
+    },
+    {
+      "query": "פתקיות הושבה לחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/seating-cards-vs-qr",
+      "supportingPaths": [
+        "/seating-explained",
+        "/info/guides/seating-plan"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מדריך השוואה: פתקיות מול צוות דיגיטלי ומול QR. Invistimo אינה מחלקת פתקיות."
+    },
+    {
+      "query": "פתקיות הושבה או ברקוד",
+      "intent": "informational",
+      "primaryPath": "/info/guides/seating-cards-vs-qr",
+      "supportingPaths": [
+        "/seating-explained",
+        "/info/guides/table-number-message"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כוונת השוואת שיטות קבלת פנים."
+    },
+    {
+      "query": "QR לחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/seating-cards-vs-qr",
+      "supportingPaths": [
+        "/seating-explained",
+        "/rsvp/chatuna"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "QR אישי לכניסה/הושבה — לא הזמנה מודפסת."
+    },
+    {
+      "query": "ברקוד להושבה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/seating-cards-vs-qr",
+      "supportingPaths": [
+        "/seating-explained"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מקביל ל־QR אישי בכניסה."
+    },
+    {
+      "query": "איך אורחים יודעים איפה לשבת",
+      "intent": "informational",
+      "primaryPath": "/info/guides/seating-cards-vs-qr",
+      "supportingPaths": [
+        "/info/guides/table-number-message",
+        "/seating-explained"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "שאלה תפעולית על קבלת פנים ומספר שולחן."
+    },
+    {
+      "query": "קבלת פנים לחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/seating-cards-vs-qr",
+      "supportingPaths": [
+        "/seating-explained",
+        "/info/guides/event-day-checklist"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מדריך קבלת פנים והושבה; עמוד השירות נשאר /seating-explained."
+    },
+    {
+      "query": "צוות הושבה",
+      "intent": "commercial",
+      "primaryPath": "/seating-explained",
+      "supportingPaths": [
+        "/info/guides/seating-cards-vs-qr",
+        "/contact"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "צוות פיזי הוא הצעה; המדריך מסביר את תהליך הקבלה הדיגיטלי."
+    },
+    {
+      "query": "מערכת הושבה לחתונה",
+      "intent": "commercial",
+      "primaryPath": "/seating-explained",
+      "supportingPaths": [
+        "/info/guides/seating-plan",
+        "/info/guides/seating-cards-vs-qr",
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כוונת מוצר להושבה דיגיטלית."
+    },
+    {
+      "query": "סריקת QR בכניסה לאירוע",
+      "intent": "informational",
+      "primaryPath": "/info/guides/seating-cards-vs-qr",
+      "supportingPaths": [
+        "/seating-explained"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "תהליך Check-in עם QR אישי; טבלה מוצגת אחרי אישור צוות."
     },
     {
       "query": "חלוקת שולחנות לחתונה",
@@ -507,6 +738,7 @@
       "supportingPaths": [
         "/info/guides/wedding-seating-arrangements",
         "/info/guides/seating-plan",
+        "/info/guides/seating-cards-vs-qr",
         "/pricing"
       ],
       "volume": null,
@@ -567,7 +799,9 @@
       "supportingPaths": [
         "/rsvp",
         "/seating-explained",
-        "/info/guides/event-day-checklist"
+        "/info/guides/event-day-checklist",
+        "/info/guides/rsvp-corporate-events",
+        "/info/guides/manage-guests-after-rsvp"
       ],
       "volume": null,
       "competition": null,
@@ -584,6 +818,54 @@
       "volume": null,
       "competition": null,
       "observation": "כוונת מידע. אין נפח מאומת. העמוד לא מתיימר לדרג מתחרים."
+    },
+    {
+      "query": "מה בודקים לפני יום האירוע",
+      "intent": "informational",
+      "primaryPath": "/info/guides/event-day-checklist",
+      "supportingPaths": [
+        "/event-management",
+        "/info/guides/wedding-planning"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "וריאציה לשאילתת הצ׳קליסט לפני יום האירוע."
+    },
+    {
+      "query": "צ'קליסט לחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/event-day-checklist",
+      "supportingPaths": [
+        "/info/guides/wedding-planning",
+        "/event-management"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כוונת רשימת בדיקה לפני האירוע; תכנון מלא נשאר במדריך התכנון."
+    },
+    {
+      "query": "מה עושים שבוע לפני החתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/event-day-checklist",
+      "supportingPaths": [
+        "/info/guides/wedding-planning",
+        "/info/guides/when-to-send-rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כוונת לוח זמנים לשבוע האחרון — מכוסה בציר הזמן של מדריך יום האירוע."
+    },
+    {
+      "query": "מה עושים יום לפני החתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/event-day-checklist",
+      "supportingPaths": [
+        "/event-management",
+        "/rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כוונת רשימת 24 השעות האחרונות במדריך."
     },
     {
       "query": "כמה עולים אישורי הגעה לחתונה",
@@ -883,6 +1165,792 @@
       "volume": null,
       "competition": null,
       "observation": "חיפוש מותג. לא נמצאו פרופילים רשמיים מאומתים ברשתות, ולכן אין sameAs בסכמה."
+    },
+    {
+      "query": "מתנות באשראי לחתונה",
+      "intent": "commercial",
+      "primaryPath": "/credit-gifts",
+      "supportingPaths": [
+        "/pricing",
+        "/info/guides/bit-paybox-wedding-invitation"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "SERP צפוף מול RSVP Events, Lunsoul, Diginet, Welcome. עמוד /credit-gifts הוא ה־hub המסחרי; המחיר ב־/pricing."
+    },
+    {
+      "query": "מתנות לחתונה באשראי",
+      "intent": "commercial",
+      "primaryPath": "/credit-gifts",
+      "supportingPaths": [
+        "/pricing",
+        "/rsvp/chatuna"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "וריאציה של אותו כוונה מסחרית — לא לפיצול לעמוד נפרד."
+    },
+    {
+      "query": "מתנות דיגיטליות לחתונה",
+      "intent": "commercial",
+      "primaryPath": "/credit-gifts",
+      "supportingPaths": [
+        "/invitations/chatuna",
+        "/info/guides/bit-paybox-wedding-invitation"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כיסוי רחב לאשראי + PayBox + bit בעמוד השירות."
+    },
+    {
+      "query": "מתנות לחתונה בביט",
+      "intent": "commercial",
+      "primaryPath": "/credit-gifts",
+      "supportingPaths": [
+        "/info/guides/bit-paybox-wedding-invitation"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "H2/מדריך מעשי; לא עמוד שירות נפרד כדי למנוע קניבליזציה."
+    },
+    {
+      "query": "מתנות לחתונה בפייבוקס",
+      "intent": "commercial",
+      "primaryPath": "/credit-gifts",
+      "supportingPaths": [
+        "/info/guides/bit-paybox-wedding-invitation"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "אותו hub כמו bit; המדריך מסביר יצירת קישור."
+    },
+    {
+      "query": "קישור פייבוקס לחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/bit-paybox-wedding-invitation",
+      "supportingPaths": [
+        "/credit-gifts",
+        "/invitations/chatuna"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כוונת how-to — מדריך מעשי, לא העתק של עמוד השירות."
+    },
+    {
+      "query": "מספר ביט להזמנה לחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/bit-paybox-wedding-invitation",
+      "supportingPaths": [
+        "/credit-gifts"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מדריך how-to; העמוד המסחרי נשאר /credit-gifts."
+    },
+    {
+      "query": "מתנה לחתונה בהעברה בנקאית",
+      "intent": "informational",
+      "primaryPath": "/credit-gifts",
+      "supportingPaths": [
+        "/info/guides/bit-paybox-wedding-invitation"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מובהר ש־Invistimo מציגה אשראי/PayBox/bit; העברה בנקאית אינה מסלול במסך המתנות."
+    },
+    {
+      "query": "תשלום מתנה לחתונה",
+      "intent": "commercial",
+      "primaryPath": "/credit-gifts",
+      "supportingPaths": [
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "Hub מסחרי למתנות דיגיטליות."
+    },
+    {
+      "query": "קבלת מתנות לחתונה אונליין",
+      "intent": "commercial",
+      "primaryPath": "/credit-gifts",
+      "supportingPaths": [
+        "/pricing",
+        "/rsvp/chatuna"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "ממוקד ב־/credit-gifts כדי לא להתחרות במדריכי RSVP."
+    },
+    {
+      "query": "קישור לתשלום מתנה לחתונה",
+      "intent": "informational",
+      "primaryPath": "/credit-gifts",
+      "supportingPaths": [
+        "/info/guides/bit-paybox-wedding-invitation",
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מקשר בין הסבר שירות למדריך הוספת קישור."
+    },
+    {
+      "query": "מתנות באשראי לאירועים",
+      "intent": "commercial",
+      "primaryPath": "/credit-gifts",
+      "supportingPaths": [
+        "/rsvp",
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "הרחבה מעבר לחתונה — אותו עמוד שירות."
+    },
+    {
+      "query": "מתנות דיגיטליות לבר מצווה",
+      "intent": "commercial",
+      "primaryPath": "/credit-gifts",
+      "supportingPaths": [
+        "/rsvp/bar-bat-mitzvah",
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "עמוד המתנות + תמיכה מסוג אירוע ב־/rsvp/bar-bat-mitzvah."
+    },
+    {
+      "query": "מעקב אחר אישורי הגעה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/tracking-rsvp-responses",
+      "supportingPaths": [
+        "/rsvp",
+        "/event-management",
+        "/info/guides/guest-list"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כוונת דוחות וסטטוסים במערכת — לא עמוד שירות RSVP."
+    },
+    {
+      "query": "דוח אישורי הגעה לחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/tracking-rsvp-responses",
+      "supportingPaths": [
+        "/rsvp/chatuna",
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מובחן מ«דוח שליחת הודעות» — כאן סיכום אישורים/סירובים."
+    },
+    {
+      "query": "כמה אורחים אישרו הגעה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/tracking-rsvp-responses",
+      "supportingPaths": [
+        "/info/guides/wedding-venue-guest-guarantee",
+        "/rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "שאלת מעקב יומיומי; מדריך ההתחייבות לאולם נשאר לכוונת מינימום מנות."
+    },
+    {
+      "query": "שינויי הושבה ביום האירוע",
+      "intent": "informational",
+      "primaryPath": "/info/guides/seating-live-day-of",
+      "supportingPaths": [
+        "/seating-explained",
+        "/info/guides/event-day-checklist"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "תפעול LIVE ביום החתונה; hub ההושבה נשאר לרכישת התוספת."
+    },
+    {
+      "query": "עדכון הושבה בזמן אמת בחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/seating-live-day-of",
+      "supportingPaths": [
+        "/seating-explained",
+        "/info/guides/seating-plan"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מדריך יום־אירוע; לא מתחרה בביטוי «הושבה LIVE» המסחרי."
+    },
+    {
+      "query": "איך בונים אתר חתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/wedding-website-guide",
+      "supportingPaths": [
+        "/wedding-website",
+        "/invitations/chatuna"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "How-to לתבניות ופרסום; עמוד השירות נשאר /wedding-website."
+    },
+    {
+      "query": "תבניות אתר חתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/wedding-website-guide",
+      "supportingPaths": [
+        "/wedding-website",
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כוונת בחירת תבנית ותוכן — לא דמו /wedding-website/*."
+    },
+    {
+      "query": "אתר חתונה",
+      "intent": "commercial",
+      "primaryPath": "/wedding-website",
+      "supportingPaths": [
+        "/info/guides/wedding-website-guide",
+        "/invitations/chatuna"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "בחיפוש רשת (נובמבר 2026) מופיעים גם ספקי אתרים חיצוניים; אין דירוג Invistimo."
+    },
+    {
+      "query": "אתר חתונה אישי",
+      "intent": "commercial",
+      "primaryPath": "/wedding-website",
+      "supportingPaths": [
+        "/info/guides/wedding-website-guide",
+        "/rsvp/chatuna"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "עמוד מוצר אתר חתונה; RSVP נשאר בנתיבים נפרדים."
+    },
+    {
+      "query": "בניית אתר לחתונה",
+      "intent": "commercial",
+      "primaryPath": "/wedding-website",
+      "supportingPaths": [
+        "/info/guides/wedding-website-guide"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כוונת רכישה/התחלה; המדריך מסביר שלבים."
+    },
+    {
+      "query": "אתר חתונה או הזמנה דיגיטלית",
+      "intent": "informational",
+      "primaryPath": "/info/guides/wedding-website-vs-digital-invitation",
+      "supportingPaths": [
+        "/wedding-website",
+        "/invitations/chatuna",
+        "/rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "השוואת מטרות מוצר — לא טבלת מתחרים."
+    },
+    {
+      "query": "מה ההבדל בין אתר חתונה להזמנה דיגיטלית",
+      "intent": "informational",
+      "primaryPath": "/info/guides/wedding-website-vs-digital-invitation",
+      "supportingPaths": [
+        "/info/guides/save-the-date-vs-invitation",
+        "/wedding-website"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מפריד אתר מידע מול הזמנה עם RSVP."
+    },
+    {
+      "query": "ניהול אישורי הגעה לאירוע חברה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/rsvp-corporate-events",
+      "supportingPaths": [
+        "/event-management",
+        "/rsvp",
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מדריך תהליך B2B; hub /rsvp נשאר לכוונת רכישה כללית."
+    },
+    {
+      "query": "אישורי הגעה לכנס עסקי",
+      "intent": "informational",
+      "primaryPath": "/info/guides/rsvp-corporate-events",
+      "supportingPaths": [
+        "/event-management",
+        "/rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כוונת מידע לפני בחירת חבילה — לא כפילות ל«אישורי הגעה לכנס» המסחרי."
+    },
+    {
+      "query": "אישורי הגעה לעובדים באירוע",
+      "intent": "commercial",
+      "primaryPath": "/rsvp",
+      "supportingPaths": [
+        "/info/guides/rsvp-corporate-events",
+        "/event-management"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כוונת שירות; המדריך מסביר workflow פנימי."
+    },
+    {
+      "query": "איך עובדים אישורי הגעה בטלפון",
+      "intent": "informational",
+      "primaryPath": "/info/guides/how-phone-rsvp-works",
+      "supportingPaths": [
+        "/rsvp/calls",
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "הסבר IVR/מוקד; עמוד /rsvp/calls לכוונת רכישה."
+    },
+    {
+      "query": "שיחה מוקלטת לאישור הגעה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/how-phone-rsvp-works",
+      "supportingPaths": [
+        "/rsvp/calls",
+        "/info/guides/guests-who-dont-reply"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "תהליך מקשים וקריינות — לא עמוד שירות כפול."
+    },
+    {
+      "query": "ייבוא רשימת מוזמנים",
+      "intent": "informational",
+      "primaryPath": "/info/guides/import-guest-list",
+      "supportingPaths": [
+        "/info/guides/guest-list",
+        "/rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "Excel/CSV; «ניהול רשימת מוזמנים» נשאר במדריך guest-list."
+    },
+    {
+      "query": "העלאת אקסל מוזמנים לחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/import-guest-list",
+      "supportingPaths": [
+        "/info/guides/guest-list",
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כוונת how-to ייבוא — לא מדריך תכנון רשימה מאפס."
+    },
+    {
+      "query": "שינוי מוזמנים ברגע האחרון",
+      "intent": "informational",
+      "primaryPath": "/info/guides/last-minute-guest-changes",
+      "supportingPaths": [
+        "/info/guides/manage-guests-after-rsvp",
+        "/rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "הוספות/ביטולים קרוב לאירוע; נפרד ממדריך ייבוא."
+    },
+    {
+      "query": "הוספת אורחים אחרי שליחת אישורי הגעה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/last-minute-guest-changes",
+      "supportingPaths": [
+        "/info/guides/import-guest-list",
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "עדכון רשומות ומכסה — לא מדריך מעקב דוחות."
+    },
+    {
+      "query": "ניסוח הזמנה לוואטסאפ לחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/whatsapp-invitation-wording",
+      "supportingPaths": [
+        "/info/guides/send-digital-invitation",
+        "/rsvp/whatsapp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "דוגמאות ניסוח; שליחה טכנית במדריך send-digital-invitation."
+    },
+    {
+      "query": "טקסט הזמנה לחתונה בוואטסאפ",
+      "intent": "informational",
+      "primaryPath": "/info/guides/whatsapp-invitation-wording",
+      "supportingPaths": [
+        "/rsvp/whatsapp",
+        "/invitations/chatuna"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "וריאציית ניסוח; עמוד WhatsApp לשירות."
+    },
+    {
+      "query": "מתי שולחים save the date לחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/when-to-send-save-the-date",
+      "supportingPaths": [
+        "/rsvp/save-the-date",
+        "/info/guides/when-to-send-rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "לוח זמנים STD; «Save the Date לחתונה» נשאר ב־/rsvp/save-the-date."
+    },
+    {
+      "query": "כמה חודשים לפני החתונה save the date",
+      "intent": "informational",
+      "primaryPath": "/info/guides/when-to-send-save-the-date",
+      "supportingPaths": [
+        "/info/guides/save-the-date-vs-invitation"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כוונת timing בלבד — לא השוואת מוצרים."
+    },
+    {
+      "query": "חיסכון במנות חתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/reduce-meal-waste",
+      "supportingPaths": [
+        "/info/guides/wedding-venue-guest-guarantee",
+        "/rsvp/chatuna"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "קישור בין RSVP למספר מנות; לא הבטחת אחוזי no-show."
+    },
+    {
+      "query": "מנות מיותרות בחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/reduce-meal-waste",
+      "supportingPaths": [
+        "/info/guides/tracking-rsvp-responses",
+        "/event-management"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "תפעול catering אחרי סגירת רשימה."
+    },
+    {
+      "query": "כמה מנות להזמין לפי אישורי הגעה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/reduce-meal-waste",
+      "supportingPaths": [
+        "/info/guides/wedding-venue-guest-guarantee"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מדריך ביניים בין דוח RSVP להתחייבות אולם."
+    },
+    {
+      "query": "פלוס אחד באישורי הגעה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/plus-ones-and-kids-rsvp",
+      "supportingPaths": [
+        "/info/guides/guest-list",
+        "/rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מדיניות +1 ברשומה; לא מחירון."
+    },
+    {
+      "query": "ילדים באישורי הגעה לחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/plus-ones-and-kids-rsvp",
+      "supportingPaths": [
+        "/info/guides/cost-rsvp-wedding",
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "ספירת נפשות מול רשומות עם טלפון."
+    },
+    {
+      "query": "איך לציין ילדים ברשימת מוזמנים",
+      "intent": "informational",
+      "primaryPath": "/info/guides/plus-ones-and-kids-rsvp",
+      "supportingPaths": [
+        "/info/guides/guest-list",
+        "/info/guides/import-guest-list"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "שדות וניסוח — לא מדריך ייבוא כללי."
+    },
+    {
+      "query": "צ'ק אין אורחים בחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/venue-guest-check-in",
+      "supportingPaths": [
+        "/info/guides/seating-cards-vs-qr",
+        "/seating-explained"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "קבלת פנים באולם; QR נשאר במדריך seating-cards-vs-qr."
+    },
+    {
+      "query": "רישום הגעה באולם אירועים",
+      "intent": "informational",
+      "primaryPath": "/info/guides/venue-guest-check-in",
+      "supportingPaths": [
+        "/event-management",
+        "/info/guides/event-day-checklist"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "תיאור תהליך check-in — לא עמוד הושבה מסחרי."
+    },
+    {
+      "query": "אורחים מחו\"ל בחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/overseas-guests-rsvp",
+      "supportingPaths": [
+        "/rsvp/whatsapp",
+        "/info/guides/when-to-send-rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "אזורי זמן וערוצים; WhatsApp hub לשירות."
+    },
+    {
+      "query": "אישורי הגעה לאורחים בחו\"ל",
+      "intent": "informational",
+      "primaryPath": "/info/guides/overseas-guests-rsvp",
+      "supportingPaths": [
+        "/rsvp/calls",
+        "/rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כוונת מידע; שיחות בינלאומיות — לבדוק חבילה ב־/pricing."
+    },
+    {
+      "query": "הושבת משפחות בחתונה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/seating-families-groups",
+      "supportingPaths": [
+        "/info/guides/wedding-seating-arrangements",
+        "/seating-explained"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כללי קבוצות; wedding-seating-arrangements לתכנון כללי."
+    },
+    {
+      "query": "הושבת חברים ומשפחה באותו אירוע",
+      "intent": "informational",
+      "primaryPath": "/info/guides/seating-families-groups",
+      "supportingPaths": [
+        "/info/guides/seating-plan"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מדריך החלטות הושבה חברתית — לא מספר שולחן בהודעה."
+    },
+    {
+      "query": "קישור אישי לאישור הגעה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/personal-rsvp-link",
+      "supportingPaths": [
+        "/rsvp",
+        "/invitations/chatuna"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "קישור /invite ייחודי; לא אתר חתונה ציבורי."
+    },
+    {
+      "query": "קישור RSVP אישי לכל אורח",
+      "intent": "informational",
+      "primaryPath": "/info/guides/personal-rsvp-link",
+      "supportingPaths": [
+        "/info/guides/guest-list",
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "הסבר טכני לזוגות; hub RSVP לרכישה."
+    },
+    {
+      "query": "סבבי תזכורת לאורחים",
+      "intent": "informational",
+      "primaryPath": "/info/guides/rsvp-reminder-rounds",
+      "supportingPaths": [
+        "/rsvp/whatsapp",
+        "/info/guides/guests-who-dont-reply"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "תזמון סבבים; guests-who-dont-reply לטיפול באי־מ responders."
+    },
+    {
+      "query": "תזכורת שנייה לאישורי הגעה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/rsvp-reminder-rounds",
+      "supportingPaths": [
+        "/rsvp/calls",
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "מפריד בין WhatsApp לשיחות בתשלום."
+    },
+    {
+      "query": "ניהול אורחים אחרי אישורי הגעה",
+      "intent": "informational",
+      "primaryPath": "/info/guides/manage-guests-after-rsvp",
+      "supportingPaths": [
+        "/info/guides/tracking-rsvp-responses",
+        "/event-management"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "עדכוני סטטוס והערות — לא שינויי דקה 90."
+    },
+    {
+      "query": "עדכון רשימת מוזמנים אחרי סגירת RSVP",
+      "intent": "informational",
+      "primaryPath": "/info/guides/manage-guests-after-rsvp",
+      "supportingPaths": [
+        "/info/guides/last-minute-guest-changes",
+        "/rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "workflow לאחר רוב האישורים."
+    },
+    {
+      "query": "שליחת save the date בוואטסאפ",
+      "intent": "commercial",
+      "primaryPath": "/rsvp/save-the-date",
+      "supportingPaths": [
+        "/info/guides/when-to-send-save-the-date",
+        "/rsvp/whatsapp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "הודעת STD במערכת — לא סבב אישור אוטומטי."
+    },
+    {
+      "query": "הודעת save the date לחתונה",
+      "intent": "informational",
+      "primaryPath": "/rsvp/save-the-date",
+      "supportingPaths": [
+        "/info/guides/when-to-send-save-the-date"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "עמוד מוצר STD; מדריך timing נפרד."
+    },
+    {
+      "query": "חבילת הודעות וואטסאפ לחתונה",
+      "intent": "commercial",
+      "primaryPath": "/rsvp/whatsapp",
+      "supportingPaths": [
+        "/pricing",
+        "/info/guides/whatsapp-vs-sms-rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כוונת רכישה; גיבוי SMS במדריך הערוצים."
+    },
+    {
+      "query": "שליחת הזמנה ואישור הגעה בוואטסאפ",
+      "intent": "commercial",
+      "primaryPath": "/rsvp/whatsapp",
+      "supportingPaths": [
+        "/invitations/chatuna",
+        "/info/guides/whatsapp-invitation-wording"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "שירות משולב הזמנה+RSVP — לא מדריך ניסוח בלבד."
+    },
+    {
+      "query": "מוקד טלפוני לאישורי הגעה",
+      "intent": "commercial",
+      "primaryPath": "/rsvp/calls",
+      "supportingPaths": [
+        "/info/guides/how-phone-rsvp-works",
+        "/pricing"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "עמוד שירות שיחות; how-to במדריך נפרד."
+    },
+    {
+      "query": "ניהול אירוע חתונה במערכת אחת",
+      "intent": "commercial",
+      "primaryPath": "/event-management",
+      "supportingPaths": [
+        "/rsvp/chatuna",
+        "/seating-explained",
+        "/info/guides/event-day-checklist"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "hub ניהול אירוע; לא מדריך תכנון חתונה כללי."
+    },
+    {
+      "query": "מערכת לניהול חתונה",
+      "intent": "commercial",
+      "primaryPath": "/event-management",
+      "supportingPaths": [
+        "/info/guides/wedding-planning",
+        "/rsvp"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "כוונת מוצר; wedding-planning נשאר למדריך תכנון."
+    },
+    {
+      "query": "אישורי הגעה לחינה עם הושבה",
+      "intent": "commercial",
+      "primaryPath": "/rsvp/hina",
+      "supportingPaths": [
+        "/seating-explained",
+        "/info/guides/seating-plan"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "עמוד סוג אירוע; הושבה כתוספת."
+    },
+    {
+      "query": "אישורי הגעה לברית עם וואטסאפ",
+      "intent": "commercial",
+      "primaryPath": "/rsvp/brit-brita",
+      "supportingPaths": [
+        "/rsvp/whatsapp",
+        "/info/guides/whatsapp-invitation-wording"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "עמוד ברית/בריתה; לא hub כללי."
+    },
+    {
+      "query": "אישורי הגעה לבר מצווה בוואטסאפ",
+      "intent": "commercial",
+      "primaryPath": "/rsvp/bar-bat-mitzvah",
+      "supportingPaths": [
+        "/rsvp/whatsapp",
+        "/seating-explained"
+      ],
+      "volume": null,
+      "competition": null,
+      "observation": "עמוד משולב בר/בת מצווה."
     }
   ]
 }

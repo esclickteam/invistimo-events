@@ -402,6 +402,17 @@ export default function EventManagementPage() {
                 סידורי הושבה
               </Link>
             </div>
+            <p className="mt-4 text-sm leading-7 text-[#7A6042]">
+              לתכנון הכללי של החתונה ראו את{" "}
+              <Link href="/info/guides/wedding-planning" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                מדריך תכנון החתונה
+              </Link>
+              , ולסגירות שלפני היום את{" "}
+              <Link href="/info/guides/event-day-checklist" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                צ׳קליסט יום האירוע
+              </Link>
+              .
+            </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <ShotCard

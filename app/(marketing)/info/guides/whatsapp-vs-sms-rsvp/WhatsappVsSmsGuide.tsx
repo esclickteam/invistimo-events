@@ -192,7 +192,8 @@ export default function WhatsappVsSmsGuide() {
               </p>
               <p>
                 ב־Invistimo שילבנו בין WhatsApp ל־SMS כדי לצמצם את התלות בערוץ שליחה אחד. כאשר מזוהה כשל מתאים
-                בשליחת WhatsApp, המערכת מפעילה שליחת SMS חלופית באופן אוטומטי.
+                בשליחת WhatsApp, המערכת מפעילה שליחת SMS חלופית באופן אוטומטי. המדריך הזה עוסק במסירה — לא
+                בשירות השיחות ולא באורח שקיבל הודעה ועדיין לא ענה.
               </p>
             </div>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -574,7 +575,18 @@ export default function WhatsappVsSmsGuide() {
               יש אורחים שמעדיפים לענות בטלפון, ויש כאלה שלא מגיבים להודעות גם אחרי שקיבלו אותן. לכן שיחות טלפוניות
               יכולות להיות השלמה טובה לתהליך, בהתאם לחבילה שנבחרה.
             </p>
-            <p>שיחות אינן חלק אוטומטי מכל חבילה — הן מופיעות בחבילות השיחה במחשבון.</p>
+            <p>
+              שיחות אינן חלק אוטומטי מכל חבילה — הן מופיעות בחבילות השיחה במחשבון. את שירות השיחות עצמו
+              אפשר לראות בעמוד{" "}
+              <Link href="/rsvp/calls" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                אישורי הגעה בשיחות
+              </Link>
+              , ואת סבבי ה־WhatsApp בעמוד{" "}
+              <Link href="/rsvp/whatsapp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                אישורי הגעה ב־WhatsApp
+              </Link>
+              .
+            </p>
           </div>
         </div>
       </section>

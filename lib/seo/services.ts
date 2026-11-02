@@ -151,7 +151,7 @@ export const SERVICE_PAGES: ServicePage[] = [
     path: "/rsvp/whatsapp",
     title: "אישורי הגעה בוואטסאפ לאירועים | Invistimo",
     description:
-      "אישורי הגעה ב־WhatsApp עם קישור אישי לאורחים, סבבי הודעות ומעקב תשובות במקום אחד. גלו איך Invistimo עוזרת לנהל את רשימת המוזמנים.",
+      "אישורי הגעה ב־WhatsApp עם קישור אישי, שני סבבים בחבילת ההודעות ומעקב תשובות. האישור בעמוד שנפתח מהקישור — לא בגוף ההודעה.",
     eyebrow: "וואטסאפ + SMS",
     h1: "אישורי הגעה בוואטסאפ",
     titleAccent: "שני סבבים, תשובה במערכת",
@@ -227,7 +227,7 @@ export const SERVICE_PAGES: ServicePage[] = [
       },
       {
         q: "מה עם אורחים בלי וואטסאפ?",
-        a: "אפשר להמשיך בשיחות מוקלטות או במוקד אנושי בחבילות השיחה הנפרדות.",
+        a: "כש־WhatsApp נכשל או לא נשלח, המערכת יכולה לשלוח SMS חלופי עם אותו קישור. אי־מענה אינו מפעיל SMS. שיחות מוקלטות או מוקד אנושי הן חבילות נפרדות.",
       },
     ],
     related: [
@@ -236,6 +236,8 @@ export const SERVICE_PAGES: ServicePage[] = [
       { href: "/pricing", label: "חבילות ושיחות" },
       { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
       { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "מה קורה כששליחת WhatsApp נכשלת?" },
+      { href: "/rsvp/calls", label: "אישורי הגעה בשיחות" },
+      { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
     ],
     breadcrumbs: [home, { name: "אישורי הגעה", path: "/rsvp" }, { name: "וואטסאפ", path: "/rsvp/whatsapp" }],
   },
@@ -329,7 +331,7 @@ export const SERVICE_PAGES: ServicePage[] = [
     path: "/rsvp/save-the-date",
     title: "Save the Date לחתונה | מתי ולמה שולחים? | Invistimo",
     description:
-      "מתי שולחים Save the Date לחתונה, למה לא להסתפק בסטורי ואיך שולחים הודעה אישית ב־WhatsApp? מדריך מלא עם דוגמאות, תמונות וטיפים לתכנון.",
+      "Save the Date ב־WhatsApp עם תמונה מעוצבת, מרשימת המוזמנים. לא אוסף אישורי הגעה ולא נספר כסבב אישור. זמין כשהאפשרות פתוחה בחשבון.",
     eyebrow: "Save the Date",
     h1: "Save the Date לחתונה — כי יש תאריכים שפשוט חייבים לשמור",
     titleAccent: "הודעה אישית לפני ההזמנה",
