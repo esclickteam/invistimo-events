@@ -275,7 +275,7 @@ export function DesktopMarketingNav({
     }
   };
 
-const megaItems = HEADER_PRIMARY.filter(
+  const megaItems = HEADER_PRIMARY.filter(
     (item): item is Extract<HeaderNavItem, { kind: "mega" | "dropdown" }> =>
       item.kind !== "link"
   );
