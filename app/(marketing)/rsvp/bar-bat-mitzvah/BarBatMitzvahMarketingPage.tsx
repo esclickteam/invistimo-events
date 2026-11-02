@@ -587,7 +587,16 @@ export default function BarBatMitzvahMarketingPage() {
         </div>
         <div className="mt-10 flex flex-wrap gap-4 text-sm">
           <Link href={LINKS.rsvp} className="font-bold text-[#9A7B2F] underline-offset-4 hover:underline">
-            אישורי הגעה
+            אישורי הגעה — סקירה
+          </Link>
+          <Link href={LINKS.chooseCompany} className="font-bold text-[#9A7B2F] underline-offset-4 hover:underline">
+            איך בוחרים חברה
+          </Link>
+          <Link href={LINKS.guestList} className="font-bold text-[#9A7B2F] underline-offset-4 hover:underline">
+            רשימת מוזמנים
+          </Link>
+          <Link href={LINKS.brit} className="font-bold text-[#9A7B2F] underline-offset-4 hover:underline">
+            ברית ובריתה
           </Link>
           <Link href={LINKS.invitations} className="font-bold text-[#9A7B2F] underline-offset-4 hover:underline">
             הזמנות דיגיטליות

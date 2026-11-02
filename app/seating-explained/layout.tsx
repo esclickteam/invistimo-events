@@ -71,7 +71,21 @@ export default function SeatingLayout({ children }: { children: React.ReactNode 
           <h2 className="text-3xl font-black text-[#35281F]">{EVENT_TYPE_SECTION.heading}</h2>
           <p className="mt-3 max-w-3xl leading-8 text-[#5C4A3A]">
             סידורי הושבה רלוונטיים בכל אירוע עם שולחנות — חתונה, חינה, בר מצווה או אירוע חברה —
-            כשהתוספת וההרשאות המתאימות נרכשו.
+            כשהתוספת וההרשאות המתאימות נרכשו. להחלטות לפני השיבוץ ראו את{" "}
+            <Link
+              href="/info/guides/wedding-seating-arrangements"
+              className="font-bold text-[#8A672E] underline-offset-2 hover:underline"
+            >
+              מדריך תכנון ההושבה
+            </Link>
+            ; לביצוע צעד־אחר־צעד במערכת —
+            <Link
+              href="/info/guides/seating-plan"
+              className="mx-1 font-bold text-[#8A672E] underline-offset-2 hover:underline"
+            >
+              המדריך המעשי
+            </Link>
+            .
           </p>
           <ul className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {EVENT_TYPES.map((item) => (

@@ -13,7 +13,7 @@ export const CHATUNA_PATH = "/rsvp/chatuna";
 export const CHATUNA_META = {
   title: "אישורי הגעה לחתונה בוואטסאפ | Invistimo",
   description:
-    "אישורי הגעה לחתונה עם הודעות WhatsApp, קישור אישי לכל אורח, מעקב תשובות ואפשרות לשלב שיחות וסידורי הושבה. גלו איך Invistimo עובדת.",
+    "אישורי הגעה לחתונה מול האולם והמנות: WhatsApp עם קישור אישי, סבבי תזכורת ושיחות לפי החבילה, מעקב מגיעים וחיבור להושבה. מדריך ממוקד לחתונה — לא העתק של עמוד אישורי ההגעה הכללי.",
 } as const;
 
 export const JOURNEY_VIDEO = {
@@ -270,6 +270,9 @@ export const LINKS = {
   costGuide: "/info/guides/cost-rsvp-wedding",
   alcoholCalculator: "/info/guides/wedding-alcohol-calculator",
   guestList: "/info/guides/guest-list",
+  chooseCompany: "/info/guides/how-to-choose-rsvp-company",
+  seatingPlan: "/info/guides/seating-plan",
+  seatingDecisions: "/info/guides/wedding-seating-arrangements",
   contact: "/contact",
 } as const;
 
@@ -343,7 +346,7 @@ export const FAQ_TOPICS = [
   {
     id: "basics",
     title: "יסודות",
-    ids: ["why", "when", "why-not-early", "std-diff", "small"],
+    ids: ["why", "vs-hub", "when", "why-not-early", "std-diff", "small"],
   },
   {
     id: "whatsapp",

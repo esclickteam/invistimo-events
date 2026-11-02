@@ -235,30 +235,41 @@ export default function SeatingPlanGuide() {
             הכנת סידורי הושבה
           </p>
           <p className="mt-4 text-sm font-black tracking-[0.12em] text-[#7A5530]">
-            מדריך מעשי · Invistimo
+            מדריך ביצוע · Invistimo
           </p>
           <h1 className="mt-3 max-w-4xl text-[1.7rem] font-black leading-[1.18] tracking-[-0.03em] text-[#2C241C] md:text-[2.45rem]">
             איך מכינים סידורי הושבה לחתונה? מדריך מעשי צעד אחר צעד
           </h1>
           <div className="mt-5 max-w-3xl space-y-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
             <p>
-              סידורי הושבה מתחילים ברשימת אורחים מעודכנת ובסקיצה של האולם. לאחר מכן מחלקים את
-              המוזמנים לקבוצות, מגדירים את השולחנות והקיבולת שלהם, משבצים את האורחים ובודקים שאין
-              כפילויות, מקומות חסרים או בקשות מיוחדות שלא טופלו.
+              זהו מדריך הביצוע: מהרשימה המעודכנת ועד מפת הושבה מאושרת, הודעות מספר שולחן ויום האירוע.
+              כאן עוברים שלב אחר שלב — ברשימה, במערכת ובסקיצת האולם — בלי לדלג על בדיקות קיבולת
+              ורזרבות.
             </p>
             <p>
               במדריך הזה נבנה יחד מפת הושבה לדוגמה, נלמד איך לחלק משפחות וחברים לשולחנות, איך לעבוד
-              עם רזרבות ואיך לבצע בדיקה סופית לפני האירוע.
+              עם רזרבות ואיך לבצע בדיקה סופית לפני האירוע. לפני שלב 1 כדאי ש{" "}
+              <Link
+                href="/info/guides/guest-list"
+                className="font-black text-[#8A642E] underline-offset-4 hover:underline"
+              >
+                רשימת המוזמנים
+              </Link>{" "}
+              ו{" "}
+              <Link href="/rsvp/chatuna" className="font-black text-[#8A642E] underline-offset-4 hover:underline">
+                אישורי ההגעה
+              </Link>{" "}
+              כבר מסודרים מספיק לשיבוץ.
             </p>
             <p>
-              אם אתם עדיין מתלבטים איך לתכנן את ההושבה בכלל —{" "}
+              אם עדיין מתלבטים האם למלא שולחנות, כמה רזרבה לתכנן או מה עושים עם מיתוס ה־10% —{" "}
               <Link
                 href="/info/guides/wedding-seating-arrangements"
                 className="font-black text-[#8A642E] underline-offset-4 hover:underline"
               >
-                המדריך המלא לסידורי הושבה לחתונה
+                המדריך לתכנון והחלטות לפני הושבה
               </Link>{" "}
-              מסביר את העקרונות. כאן נעבור לעבודה בפועל.
+              מסביר את העקרונות. כאן נעבור לעבודה בפועל במערכת.
             </p>
           </div>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -524,7 +535,14 @@ export default function SeatingPlanGuide() {
               <p>
                 ב־Invistimo אפשר לשבץ ידנית או לפי קבוצות, כולל גרירה בין שולחנות, ולראות בכל רגע
                 כמה משובצים מתוך הקיבולת ורשימת מי שטרם שובץ. הושבה דיגיטלית היא תוספת במחשבון
-                החבילות.
+                החבילות — פירוט ב{" "}
+                <Link
+                  href="/seating-explained"
+                  className="font-black text-[#8A642E] underline-offset-4 hover:underline"
+                >
+                  עמוד סידורי ההושבה
+                </Link>
+                .
               </p>
             </Prose>
             <div className="mt-8 overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-white shadow-[0_16px_36px_rgba(58,39,20,0.08)]">

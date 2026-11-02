@@ -81,8 +81,18 @@ export default function WhenToSendGuide() {
               המנות.
             </p>
             <p className="mt-4 max-w-2xl text-base leading-8 text-[#5C4A3A] md:text-lg">
-              במדריך הזה נעשה סדר: מתי שולחים Save the Date, מתי שולחים הזמנה, מתי מתחילים אישורי
-              הגעה ואיך מתכננים את הסבבים כך שיישאר מספיק זמן לסגור את הפרטים.
+              במדריך הזה נעשה סדר: מתי שולחים Save the Date, מתי שולחים הזמנה, מתי מתחילים{" "}
+              <Link href="/rsvp/chatuna" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                אישורי הגעה לחתונה
+              </Link>{" "}
+              ואיך מתכננים את הסבבים כך שיישאר מספיק זמן לסגור את הפרטים — על בסיס{" "}
+              <Link
+                href="/info/guides/guest-list"
+                className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+              >
+                רשימת מוזמנים
+              </Link>{" "}
+              מעודכנת.
             </p>
           </div>
           <div className="relative">
@@ -137,7 +147,14 @@ export default function WhenToSendGuide() {
           </ol>
           <p className="mt-8 max-w-3xl text-sm leading-7 text-[#7A6042]">
             אלה טווחי תכנון מומלצים, לא כללים מחייבים. אירועים בחגים, בקיץ, ביעדים מרוחקים או עם
-            אורחים מחו״ל עשויים לדרוש היערכות מוקדמת יותר.
+            אורחים מחו״ל עשויים לדרוש היערכות מוקדמת יותר. להבדל בין Save the Date להזמנה ראו{" "}
+            <Link
+              href="/info/guides/save-the-date-vs-invitation"
+              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+            >
+              המדריך המלא
+            </Link>
+            .
           </p>
         </div>
       </section>
@@ -346,7 +363,14 @@ export default function WhenToSendGuide() {
           </p>
           <p className="mt-4 text-lg leading-8 text-[#D8CBB8]">
             משם מתכננים אחורה את לוח הזמנים: משאירים זמן לסבב הראשון, זמן לתשובות, סבב נוסף והשלמת
-            אישורים.
+            אישורים. כשבוחרים חבילה, כדאי לדעת{" "}
+            <Link
+              href="/info/guides/cost-rsvp-wedding"
+              className="font-bold text-[#E8C988] underline-offset-4 hover:underline"
+            >
+              איך מחושב מחיר אישורי הגעה
+            </Link>{" "}
+            — כדי שלא יפתיעו תוספות לפני הדד־ליין.
           </p>
           <blockquote className="mt-8 rounded-[24px] border border-[#C9A45C]/35 bg-white/[0.04] p-5 text-[15px] leading-7 text-[#E8DCC8]">
             אם האולם מבקש לקבל מספר מנות עשרה ימים לפני האירוע, לא כדאי להתחיל את סבב האישורים הראשון

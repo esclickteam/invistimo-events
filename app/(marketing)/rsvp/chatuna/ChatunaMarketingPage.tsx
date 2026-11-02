@@ -838,7 +838,22 @@ export default function ChatunaMarketingPage() {
         </div>
         <div className="mt-10 flex flex-wrap gap-4 text-sm">
           <Link href={LINKS.rsvp} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
-            אישורי הגעה לכל אירוע
+            אישורי הגעה — סקירה כללית
+          </Link>
+          <Link href={LINKS.chooseCompany} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+            איך בוחרים חברה
+          </Link>
+          <Link href={LINKS.guestList} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+            רשימת מוזמנים
+          </Link>
+          <Link href={LINKS.whenToSend} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+            מתי שולחים
+          </Link>
+          <Link href={LINKS.seatingDecisions} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+            החלטות הושבה
+          </Link>
+          <Link href={LINKS.seatingPlan} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+            ביצוע הושבה
           </Link>
           <Link href={LINKS.whatsapp} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
             אישורי הגעה ב־WhatsApp

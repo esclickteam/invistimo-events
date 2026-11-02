@@ -231,8 +231,25 @@ export default function GuestListGuide() {
                 כפילויות ומי עדיין צריך לאשר הגעה.
               </p>
               <p>
-                במדריך הזה נסביר איך להכין רשימה מסודרת, מה חשוב לבדוק לפני ששולחים אישורי הגעה ואיך
-                להשתמש ב־Invistimo כדי לנהל את התהליך במקום אחד.
+                במדריך הזה נסביר איך להכין רשימה מסודרת, מה חשוב לבדוק לפני ששולחים{" "}
+                <Link href="/rsvp/chatuna" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                  אישורי הגעה לחתונה
+                </Link>{" "}
+                ואיך להשתמש ב־Invistimo כדי לנהל את התהליך במקום אחד — כולל קישור ל{" "}
+                <Link
+                  href="/info/guides/when-to-send-rsvp"
+                  className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+                >
+                  תזמון השליחה
+                </Link>{" "}
+                ול{" "}
+                <Link
+                  href="/info/guides/how-to-choose-rsvp-company"
+                  className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+                >
+                  בחירת חברת אישורי הגעה
+                </Link>
+                .
               </p>
             </div>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -656,6 +673,16 @@ export default function GuestListGuide() {
               </li>
             ))}
           </ol>
+          <p className="mt-8 max-w-3xl text-base leading-8 text-[#5C4A3A]">
+            לפני שלב 8 כדאי לעבור על{" "}
+            <Link
+              href="/info/guides/cost-rsvp-wedding"
+              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+            >
+              כמה עולים אישורי הגעה לפי רשומות
+            </Link>{" "}
+            — כדי לבחור חבילה שמתאימה לרשימה שבניתם.
+          </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <TrackedCtaLink href="/register" className={ctaPrimary} location={`steps_register:${PATH}`}>
               התחילו לנהל את רשימת המוזמנים

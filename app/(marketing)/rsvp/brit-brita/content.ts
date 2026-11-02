@@ -3,7 +3,7 @@ export const BRIT_PATH = "/rsvp/brit-brita";
 export const BRIT_META = {
   title: "אישורי הגעה לברית ובריתה | הזמנות דיגיטליות | Invistimo",
   description:
-    "אישורי הגעה לברית ולבריתה: הזמנה דיגיטלית מהירה, איסוף תשובות, מספר מגיעים והושבה משפחתית. מתאים לתכנון בזמן קצר — בלי להציג תאריך משוער כמחייב.",
+    "אישורי הגעה לברית ובריתה בזמן קצר: הזמנה דיגיטלית, מספר מגיעים לבית/מסעדה/אולם קטן, ונגישות לסבים. בברית — בלי תאריך משוער כמחייב עד שהוא סגור.",
 } as const;
 
 export const BRIT_H1 = "אישורי הגעה לברית ובריתה — מארגנים את השמחה בקלות";
@@ -158,6 +158,7 @@ export const LINKS = {
   seating: "/seating-explained",
   whenToSend: "/info/guides/when-to-send-rsvp",
   guestList: "/info/guides/guest-list",
+  chooseCompany: "/info/guides/how-to-choose-rsvp-company",
   venueGuarantee: "/info/guides/wedding-venue-guest-guarantee",
   costGuide: "/info/guides/cost-rsvp-wedding",
   contact: "/contact",

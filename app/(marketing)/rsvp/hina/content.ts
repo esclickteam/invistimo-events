@@ -13,7 +13,7 @@ export const HINA_PATH = "/rsvp/hina";
 export const HINA_META = {
   title: "אישורי הגעה לחינה וסידורי הושבה | Invistimo",
   description:
-    "מתכננים חינה? אישורי הגעה, הזמנות דיגיטליות וסידורי הושבה לחינה — גם לאירוע קטן. מנהלים מוזמנים, שולחנות והגעה בפועל עם Invistimo.",
+    "אישורי הגעה לחינה למשפחה קרובה: מעקב מגיעים, הושבה לפי קרבה ונוחות, והזמנה דיגיטלית גם באירוע קטן מחתונה. מותאם לחינה — לא העתק של עמוד החתונה.",
 } as const;
 
 export const CONTENT_UPDATED_LABEL = "עודכן ב־25 באוקטובר 2026";
@@ -29,6 +29,8 @@ export const LINKS = {
   whenToSend: "/info/guides/when-to-send-rsvp",
   guestList: "/info/guides/guest-list",
   seatingGuide: "/info/guides/seating-plan",
+  seatingDecisions: "/info/guides/wedding-seating-arrangements",
+  chooseCompany: "/info/guides/how-to-choose-rsvp-company",
   noReply: "/info/guides/guests-who-dont-reply",
   guides: "/info/guides",
   contact: "/contact",
@@ -244,7 +246,7 @@ export const FAQ_TOPICS = [
   {
     id: "rsvp-basics",
     title: "אישורי הגעה לחינה",
-    ids: ["need-rsvp", "why-not-call", "when-send", "whatsapp", "personal-link", "track-pending"],
+    ids: ["need-rsvp", "vs-wedding", "why-not-call", "when-send", "whatsapp", "personal-link", "track-pending"],
   },
   {
     id: "seating",
