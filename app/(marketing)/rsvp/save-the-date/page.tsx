@@ -14,7 +14,7 @@ import { SAVE_THE_DATE_FAQS } from "./guideFaqs";
 const PATH = "/rsvp/save-the-date";
 const TITLE = "Save the Date לחתונה | מתי ולמה שולחים? | Invistimo";
 const DESCRIPTION =
-  "מתי שולחים Save the Date לחתונה, למה לא להסתפק בסטורי ואיך שולחים הודעה אישית ב־WhatsApp? מדריך מלא עם דוגמאות, תמונות וטיפים לתכנון.";
+  "Save the Date ב־WhatsApp עם תמונה מעוצבת, מרשימת המוזמנים. לא אוסף אישורי הגעה ולא נספר כסבב אישור. זמין כשהאפשרות פתוחה בחשבון.";
 
 export const metadata = pageMetadata({
   title: TITLE,

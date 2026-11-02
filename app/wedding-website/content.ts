@@ -5,7 +5,7 @@ export const WW_PATH = "/wedding-website";
 export const WW_META = {
   title: "אתר חתונה אישי ומעוצב | תבניות ואתרי חתונה | Invistimo",
   description:
-    "אתר חתונה אישי בעיצוב יוקרתי עם תמונות, סיפור זוגי ופרטי האירוע. צפו בדוגמאות לאתרי חתונה ובחרו עיצוב שמתאים לחתונה שלכם.",
+    "אתר חתונה אישי: סיפור, תמונות ופרטי האירוע בקישור משותף. נפרד מהזמנה דיגיטלית ומקישור RSVP אישי. תבניות מוכנות או בדיקת עיצוב אישי.",
 } as const;
 
 /** Featured styles mapped only to real product templates. */

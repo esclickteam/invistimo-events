@@ -207,7 +207,12 @@ export default function WeddingPlanningGuide() {
             </p>
             <p>
               במדריך הזה נעבור על כל שלבי תכנון החתונה בישראל, מההחלטות הראשונות ועד הרגע שבו אתם
-              נכנסים לחופה.
+              נכנסים לחופה. זה מדריך החלטות — לא מערכת הניהול. את המשימות, הספקים והתקציב במקום אחד
+              אפשר לרכז{" "}
+              <Link href="/event-management" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                בפלטפורמת ניהול האירוע
+              </Link>
+              .
             </p>
           </div>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">

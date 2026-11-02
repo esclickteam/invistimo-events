@@ -5,7 +5,7 @@ export const CALLS_PATH = "/rsvp/calls";
 export const CALLS_META = {
   title: "אישורי הגעה בשיחות טלפון | שיחות AI ומוקד אנושי — Invistimo",
   description:
-    "אישורי הגעה בשיחות מוקלטות עם קריינות AI ובמוקד אנושי. מעקב אחרי מי שלא ענה, שיחות חוזרות ושילוב עם WhatsApp. הכירו את Invistimo.",
+    "אישורי הגעה בשיחות מוקלטות עם קריינות AI, במוקד אנושי או בשילוב. משלימות WhatsApp למי שלא השיב — בלי הבטחת מענה מלא.",
 } as const;
 
 export const LINKS = {

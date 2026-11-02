@@ -40,8 +40,14 @@ Code already skips GA on guest/account paths (`lib/seo/analytics.ts`).
 | --- | --- |
 | GA4 Realtime on `/pricing` | Hit + `content_group=pricing` |
 | GA4 on `/invite/...` | No tag / no hit |
-| GSC sitemap | Success / discovered URLs ≈ 28 marketing |
+| GSC sitemap | Success; discovered URLs match sitemap (baseline ~28 pre–Phase C; **~46+** after Phase C guides deploy — recount in GSC) |
 | Bing sitemap | Accepted |
+
+## 5) Verification pointers (2026-11-02)
+
+- Post–Phase C deploy: use [`phase-c-measurement-2026-11-02.md`](./phase-c-measurement-2026-11-02.md) for index + performance tables.
+- Baseline comparison fields: [`baseline-index-report.md`](./baseline-index-report.md).
+- Env vars unchanged: `NEXT_PUBLIC_GA_MEASUREMENT_ID`, `NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION`, `NEXT_PUBLIC_BING_SITE_VERIFICATION`.
 
 ## What this agent cannot do without you
 

@@ -143,7 +143,7 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
     path: "/rsvp/whatsapp",
     title: "אישורי הגעה בוואטסאפ לאירועים | Invistimo",
     description:
-      "אישורי הגעה ב־WhatsApp עם קישור אישי לאורחים, סבבי הודעות ומעקב תשובות במקום אחד. גלו איך Invistimo עוזרת לנהל את רשימת המוזמנים.",
+      "אישורי הגעה ב־WhatsApp עם קישור אישי, שני סבבים בחבילת ההודעות ומעקב תשובות. האישור בעמוד שנפתח מהקישור — לא בגוף ההודעה.",
     changeFrequency: "monthly",
     priority: 0.9,
   },
@@ -151,7 +151,7 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
     path: "/rsvp/calls",
     title: "אישורי הגעה בשיחות טלפון | שיחות AI ומוקד אנושי — Invistimo",
     description:
-      "אישורי הגעה בשיחות מוקלטות עם קריינות AI ובמוקד אנושי. מעקב אחרי מי שלא ענה, שיחות חוזרות ושילוב עם WhatsApp. הכירו את Invistimo.",
+      "אישורי הגעה בשיחות מוקלטות עם קריינות AI, במוקד אנושי או בשילוב. משלימות WhatsApp למי שלא השיב — בלי הבטחת מענה מלא.",
     changeFrequency: "monthly",
     priority: 0.9,
   },
@@ -159,7 +159,7 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
     path: "/rsvp/save-the-date",
     title: "Save the Date לחתונה ולאירועים | Invistimo",
     description:
-      "Save the Date ב־Invistimo הוא הודעת וואטסאפ מוקדמת וחד־פעמית שמודיעה שהתאריך נשמר. לא אוסף אישורי הגעה. זמין כשהאפשרות פתוחה בחשבון.",
+      "Save the Date ב־WhatsApp עם תמונה מעוצבת, מרשימת המוזמנים. לא אוסף אישורי הגעה ולא נספר כסבב אישור. זמין כשהאפשרות פתוחה בחשבון.",
     changeFrequency: "monthly",
     priority: 0.85,
   },
@@ -183,7 +183,7 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
     path: "/event-management",
     title: "פלטפורמה לניהול אירועים | Invistimo",
     description:
-      "נהלו את האירוע במקום אחד עם Invistimo: משימות, ספקים, תקציב, תשלומים ולוח זמנים. מערכת עצמאית עם אפשרות לליווי מקצועי וניהול ביום האירוע.",
+      "מערכת לניהול האירוע: משימות, ספקים, תקציב ותשלומים במקום אחד. ניהול עצמאי, וליווי או ניהול באולם רק אם סוכמו. אישורי הגעה והושבה בנפרד.",
     changeFrequency: "monthly",
     priority: 0.85,
   },
@@ -215,7 +215,7 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
     path: "/info/guides",
     title: "מדריכים לאישורי הגעה, הזמנות והושבה | Invistimo",
     description:
-      "מרכז הידע של Invistimo: בחירת חברת אישורי הגעה, רשימת מוזמנים, מחיר לפי רשומות, תזמון שליחה, החלטות הושבה וביצוע במערכת — מדריך אחד לכל כוונת חיפוש.",
+      "מרכז הידע של Invistimo: בחירת חברה, רשימת מוזמנים, מחיר, תזמון, אורחים שלא עונים, הושבה LIVE, אתר חתונה וניהול מוזמנים — מדריך אחד לכל כוונת חיפוש.",
     changeFrequency: "weekly",
     priority: 0.8,
   },
@@ -239,7 +239,7 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
     path: "/wedding-website",
     title: "אתר חתונה אישי ומעוצב | תבניות ואתרי חתונה | Invistimo",
     description:
-      "אתר חתונה אישי בעיצוב יוקרתי עם תמונות, סיפור זוגי ופרטי האירוע. צפו בדוגמאות לאתרי חתונה ובחרו עיצוב שמתאים לחתונה שלכם.",
+      "אתר חתונה אישי: סיפור, תמונות ופרטי האירוע בקישור משותף. נפרד מהזמנה דיגיטלית ומקישור RSVP אישי. תבניות מוכנות או בדיקת עיצוב אישי.",
     changeFrequency: "monthly",
     priority: 0.88,
   },

@@ -307,7 +307,15 @@ export default function TableNumberGuide() {
           <div className="mt-5 max-w-3xl space-y-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
             <p>
               הודעת מספר שולחן יכולה לעזור לאורחים למצוא את מקומם באירוע, אבל שליחה מוקדמת מדי עלולה
-              לגרום לבלבול.
+              לגרום לבלבול. היא נשלחת אחרי השיבוץ — לא בתוך סבב אישור ההגעה. את המפה בונים לפי{" "}
+              <Link href="/info/guides/seating-plan" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                מדריך ביצוע ההושבה
+              </Link>
+              , ובקבלת הפנים אפשר גם למסור את המספר בעל פה או ב־QR, כפי שמוסבר{" "}
+              <Link href="/info/guides/seating-cards-vs-qr" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                במדריך פתקיות מול QR
+              </Link>
+              .
             </p>
             <p>
               לפני שמודיעים לאורחים באיזה שולחן הם יושבים, חשוב לוודא שהאולם אישר את סקיצת ההושבה,

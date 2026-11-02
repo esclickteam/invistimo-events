@@ -6,6 +6,7 @@ import type {
   ContentSection,
   ContentStep,
 } from "@/components/marketing/PublicContentPage";
+import { PHASE_C_GUIDES } from "./phaseCGuides";
 
 export type Guide = {
   slug: string;
@@ -25,7 +26,7 @@ export type Guide = {
   ctaLede?: string;
 };
 
-export const GUIDES: Guide[] = [
+const CORE_GUIDES: Guide[] = [
   {
     // Dedicated UI: app/(marketing)/info/guides/cost-rsvp-wedding/
     slug: "cost-rsvp-wedding",
@@ -134,6 +135,9 @@ export const GUIDES: Guide[] = [
       { href: "/invitations/chatuna", label: "הזמנות דיגיטליות" },
       { href: "/rsvp", label: "אישורי הגעה" },
       { href: "/info/guides/save-the-date-vs-invitation", label: "Save the Date מול הזמנה" },
+      { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
+      { href: "/wedding-website", label: "אתר חתונה" },
+      { href: "/info/guides/bit-paybox-wedding-invitation", label: "bit ו־PayBox בהזמנה" },
       { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
       { href: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },
@@ -170,6 +174,7 @@ export const GUIDES: Guide[] = [
       { href: "/credit-gifts", label: "מתנות באשראי, bit ו־PayBox" },
       { href: "/invitations/chatuna", label: "הזמנות דיגיטליות" },
       { href: "/info/guides/send-digital-invitation", label: "איך שולחים הזמנה" },
+      { href: "/wedding-website", label: "אתר חתונה" },
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { href: "/rsvp/save-the-date", label: "Save the Date" },
       { href: "/info/guides", label: "מרכז המדריכים" },
@@ -219,6 +224,9 @@ export const GUIDES: Guide[] = [
       { href: "/rsvp", label: "אישורי הגעה" },
       { href: "/info/guides/seating-plan", label: "איך מכינים הושבה" },
       { href: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },
+      { href: "/info/guides/event-day-checklist", label: "צ׳קליסט לפני יום האירוע" },
+      { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
+      { href: "/info/guides/venue-guest-check-in", label: "קבלת פנים באולם" },
       { href: "/info/guides/wedding-seating-arrangements", label: "מדריך סידורי הושבה" },
       { href: "/pricing", label: "מחירון" },
       { href: "/try/dashboard/check-in", label: "דמו קבלת פנים" },
@@ -237,9 +245,12 @@ export const GUIDES: Guide[] = [
     faqs: [],
     related: [
       { href: "/rsvp/save-the-date", label: "עמוד Save the Date" },
+      { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
+      { href: "/wedding-website", label: "אתר חתונה" },
       { href: "/invitations/chatuna", label: "הזמנות דיגיטליות" },
       { href: "/info/guides/send-digital-invitation", label: "מדריך שליחת הזמנה דיגיטלית" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
+      { href: "/info/guides/when-to-send-save-the-date", label: "מתי שולחים Save the Date" },
       { href: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },
       { href: "/seating-explained", label: "סידורי הושבה" },
       { href: "/pricing", label: "חבילות ומחירים" },
@@ -289,12 +300,15 @@ export const GUIDES: Guide[] = [
       { href: "/rsvp/hina", label: "אישורי הגעה לחינה" },
       { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
       { href: "/rsvp/calls", label: "אישורי הגעה בשיחות טלפון" },
+      { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
+      { href: "/seating-explained", label: "סידורי הושבה" },
       { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "מה ההבדל בין הודעה שלא נמסרה לאורח שלא השיב?" },
       { href: "/info/guides/how-to-choose-rsvp-company", label: "איך בוחרים חברת אישורי הגעה" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
       { href: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים להתחייב לאולם" },
       { href: "/info/guides/cost-rsvp-wedding", label: "כמה עולים אישורי הגעה" },
       { href: "/info/guides/event-day-checklist", label: "צ'קליסט לפני יום האירוע" },
+      { href: "/info/guides/rsvp-reminder-rounds", label: "סבבי תזכורת" },
     ],
   },
   {
@@ -318,6 +332,9 @@ export const GUIDES: Guide[] = [
       },
       { href: "/info/guides/seating-plan", label: "איך מכינים הושבה במערכת" },
       { href: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" },
+      { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
+      { href: "/rsvp/save-the-date", label: "Save the Date" },
+      { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
       {
         href: "/info/guides/event-management-vs-production",
         label: "ניהול אירוע או הפקת אירוע",
@@ -344,6 +361,8 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/wedding-planning", label: "תכנון חתונה מלא" },
       { href: "/info/guides/wedding-vendors-contracts", label: "ספקים וחוזים" },
       { href: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" },
+      { href: "/seating-explained", label: "סידורי הושבה" },
+      { href: "/rsvp", label: "אישורי הגעה" },
       { href: "/pricing", label: "חבילות ומחירים" },
       { href: "/info/guides", label: "כל המדריכים" },
     ],
@@ -363,6 +382,7 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות לאולם" },
       { href: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" },
       { href: "/event-management", label: "ניהול אירוע וספקים" },
+      { href: "/info/guides/event-management-vs-production", label: "ניהול אירוע או הפקה" },
       { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול" },
       { href: "/pricing", label: "חבילות Invistimo" },
     ],
@@ -386,6 +406,8 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
       { href: "/info/guides/wedding-planning", label: "תכנון חתונה מלא" },
       { href: "/info/guides/wedding-vendors-contracts", label: "ספקים וחוזים" },
+      { href: "/info/guides/event-day-checklist", label: "צ׳קליסט לפני יום האירוע" },
+      { href: "/info/guides/reduce-meal-waste", label: "צמצום בזבוז מנות" },
       { href: "/seating-explained", label: "סידורי הושבה" },
       { href: "/pricing", label: "חבילות ומחירים" },
     ],
@@ -428,6 +450,9 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
       { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות לאולם" },
+      { href: "/info/guides/wedding-vendors-contracts", label: "ספקים וחוזים" },
+      { href: "/services/alcohol-management", label: "ניהול אלכוהול באירוע" },
+      { href: "/info/guides/event-day-checklist", label: "צ׳קליסט לפני יום האירוע" },
     ],
   },
   {
@@ -450,6 +475,9 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },
       { href: "/info/guides/cost-rsvp-wedding", label: "עלויות אישורי הגעה" },
+      { href: "/info/guides/send-digital-invitation", label: "איך שולחים הזמנה דיגיטלית" },
+      { href: "/info/guides/whatsapp-invitation-wording", label: "ניסוח הודעת WhatsApp" },
+      { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
     ],
   },
   {
@@ -538,6 +566,8 @@ export const GUIDES: Guide[] = [
       { href: "/seating-explained", label: "סידורי הושבה" },
       { href: "/info/guides/seating-plan", label: "מדריך מפת הושבה" },
       { href: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" },
+      { href: "/info/guides/seating-cards-vs-qr", label: "פתקיות הושבה או QR" },
+      { href: "/info/guides/wedding-seating-arrangements", label: "החלטות הושבה" },
       { href: "/pricing", label: "חבילות ומחירים" },
       { href: "/try/dashboard/seating", label: "דמו הושבה" },
     ],
@@ -560,6 +590,9 @@ export const GUIDES: Guide[] = [
       { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
       { href: "/info/guides/wedding-seating-arrangements", label: "סידורי הושבה" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
+      { href: "/info/guides/seating-plan", label: "ביצוע הושבה במערכת" },
+      { href: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },
+      { href: "/info/guides/seating-live-day-of", label: "הושבה חיה ביום האירוע" },
       { href: "/event-management", label: "ניהול אירוע" },
       { href: "/rsvp", label: "אישורי הגעה" },
       { href: "/seating-explained", label: "הושבה דיגיטלית" },
@@ -569,6 +602,8 @@ export const GUIDES: Guide[] = [
     ],
   },
 ];
+
+export const GUIDES: Guide[] = [...CORE_GUIDES, ...PHASE_C_GUIDES];
 
 export function getGuide(slug: string) {
   return GUIDES.find((guide) => guide.slug === slug);

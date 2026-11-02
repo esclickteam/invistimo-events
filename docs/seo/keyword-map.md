@@ -1,6 +1,6 @@
 # Keyword Map — Invistimo (Israel)
 
-**Observed at:** 2026-10-23 (Asia/Jerusalem)  
+**Observed at:** 2026-11-02 (Asia/Jerusalem)  
 **Volume / competition:** not measured. No Search Console or Keyword Planner access in this environment. Fields stay `null` until real data is connected.
 
 Source of truth in code: `lib/seo/keywordMap.ts`.
@@ -12,55 +12,75 @@ Source of truth in code: `lib/seo/keywordMap.ts`.
 3. Observations are web-search snapshots, not Google rank reports.
 4. Do not invent volumes, competitor ranks, or review scores.
 
-## Map
+## Map (core + hubs)
 
 | Query | Intent | Primary | Supporting |
 | --- | --- | --- | --- |
 | אישורי הגעה לחתונה | commercial | `/rsvp/chatuna` | `/rsvp`, `/pricing` |
 | אישורי הגעה לאירועים | commercial | `/rsvp` | `/rsvp/chatuna`, `/faq` |
 | אישורי הגעה בוואטסאפ | commercial | `/rsvp/whatsapp` | `/rsvp/chatuna`, `/info/guides/guests-who-dont-reply` |
-| הזמנות דיגיטליות לחתונה | commercial | `/invitations/chatuna` | `/info/guides/send-digital-invitation`, `/wedding-website` |
+| חבילת הודעות וואטסאפ לחתונה | commercial | `/rsvp/whatsapp` | `/pricing`, `/info/guides/whatsapp-vs-sms-rsvp` |
+| מוקד טלפוני לאישורי הגעה | commercial | `/rsvp/calls` | `/info/guides/how-phone-rsvp-works`, `/pricing` |
 | Save the Date לחתונה | informational | `/rsvp/save-the-date` | `/info/guides/save-the-date-vs-invitation` |
-| סידורי הושבה לחתונה | commercial | `/seating-explained` | `/info/guides/seating-plan`, `/info/guides/seating-cards-vs-qr`, `/info/guides/table-number-message` |
-| פתקיות הושבה לחתונה | informational | `/info/guides/seating-cards-vs-qr` | `/seating-explained`, `/info/guides/seating-plan` |
-| פתקיות הושבה או ברקוד | informational | `/info/guides/seating-cards-vs-qr` | `/seating-explained` |
-| QR לחתונה | informational | `/info/guides/seating-cards-vs-qr` | `/seating-explained` |
-| ברקוד להושבה | informational | `/info/guides/seating-cards-vs-qr` | `/seating-explained` |
-| איך אורחים יודעים איפה לשבת | informational | `/info/guides/seating-cards-vs-qr` | `/info/guides/table-number-message` |
-| קבלת פנים לחתונה | informational | `/info/guides/seating-cards-vs-qr` | `/seating-explained`, `/info/guides/event-day-checklist` |
-| סריקת QR בכניסה לאירוע | informational | `/info/guides/seating-cards-vs-qr` | `/seating-explained` |
-| מספר שולחן לאורחים | informational | `/info/guides/table-number-message` | `/seating-explained`, `/info/guides/seating-plan` |
-| מערכת ניהול אירועים | commercial | `/event-management` | `/rsvp`, `/seating-explained`, `/info/guides/event-day-checklist` |
-| מה לבדוק לפני יום החתונה | informational | `/info/guides/event-day-checklist` | `/event-management`, `/rsvp` |
+| שליחת save the date בוואטסאפ | commercial | `/rsvp/save-the-date` | `/info/guides/when-to-send-save-the-date` |
+| אתר חתונה | commercial | `/wedding-website` | `/info/guides/wedding-website-guide` |
+| הזמנות דיגיטליות לחתונה | commercial | `/invitations/chatuna` | `/info/guides/send-digital-invitation`, `/wedding-website` |
+| סידורי הושבה לחתונה | commercial | `/seating-explained` | `/info/guides/seating-plan`, `/info/guides/seating-cards-vs-qr` |
+| מערכת ניהול אירועים | commercial | `/event-management` | `/rsvp`, `/seating-explained` |
+| ניהול אירוע חתונה במערכת אחת | commercial | `/event-management` | `/rsvp/chatuna`, `/info/guides/event-day-checklist` |
 | כמה עולים אישורי הגעה לחתונה | informational | `/info/guides/cost-rsvp-wedding` | `/pricing` |
 | מתי לשלוח אישורי הגעה | informational | `/info/guides/when-to-send-rsvp` | `/rsvp/chatuna` |
-| אורחים שלא מאשרים הגעה | informational | `/info/guides/guests-who-dont-reply` | `/rsvp/whatsapp`, `/pricing` |
-| חבילות אישורי הגעה | commercial | `/pricing` | `/info/guides/cost-rsvp-wedding` |
 | Invistimo | navigational | `/` | `/info/about`, `/contact` |
 
-## Competitor landscape (public pages observed, not ranks)
+## Phase C guides (2026-11-02) — primary targets
 
-Observed public marketing/pricing surfaces (not Invistimo rankings):
+| Query (sample) | Intent | Primary guide / hub |
+| --- | --- | --- |
+| מעקב אחר אישורי הגעה | informational | `/info/guides/tracking-rsvp-responses` |
+| שינויי הושבה ביום האירוע | informational | `/info/guides/seating-live-day-of` |
+| איך בונים אתר חתונה | informational | `/info/guides/wedding-website-guide` |
+| אתר חתונה או הזמנה דיגיטלית | informational | `/info/guides/wedding-website-vs-digital-invitation` |
+| ניהול אישורי הגעה לאירוע חברה | informational | `/info/guides/rsvp-corporate-events` |
+| איך עובדים אישורי הגעה בטלפון | informational | `/info/guides/how-phone-rsvp-works` |
+| ייבוא רשימת מוזמנים | informational | `/info/guides/import-guest-list` |
+| שינוי מוזמנים ברגע האחרון | informational | `/info/guides/last-minute-guest-changes` |
+| ניסוח הזמנה לוואטסאפ לחתונה | informational | `/info/guides/whatsapp-invitation-wording` |
+| מתי שולחים save the date לחתונה | informational | `/info/guides/when-to-send-save-the-date` |
+| חיסכון במנות חתונה | informational | `/info/guides/reduce-meal-waste` |
+| פלוס אחד באישורי הגעה | informational | `/info/guides/plus-ones-and-kids-rsvp` |
+| צ'ק אין אורחים בחתונה | informational | `/info/guides/venue-guest-check-in` |
+| אורחים מחו"ל בחתונה | informational | `/info/guides/overseas-guests-rsvp` |
+| הושבת משפחות בחתונה | informational | `/info/guides/seating-families-groups` |
+| קישור אישי לאישור הגעה | informational | `/info/guides/personal-rsvp-link` |
+| סבבי תזכורת לאורחים | informational | `/info/guides/rsvp-reminder-rounds` |
+| ניהול אורחים אחרי אישורי הגעה | informational | `/info/guides/manage-guests-after-rsvp` |
 
-- [Wedly](https://www.wedly.co.il/) — RSVP / WhatsApp, free + paid packages; compare/pricing pages.
-- [Guini](https://www.guini.io/) — WhatsApp RSVP, per-confirmation pricing tiers.
-- [Flashback](https://www.flashback.co.il/) — invitations / RSVP adjacent (listed in market comparisons).
-- Also seen in market comparison tables published by others: Diginet, Save The Date / savedate.co.il, WiWi, My Invite, iPlan, Easy2Give, Navo, Magiimolo, Lunsoul, RSVP Events.
+Full query list (including variants and hub rows): `KEYWORD_MAP` in `lib/seo/keywordMap.ts`.
 
-Invistimo pages must describe Invistimo capabilities factually. Do not republish competitor prices as Invistimo facts.
+## Research notes (not ranks)
 
-## Pillar → cluster
+Public RSVP / invitation vendors sometimes appear in broad Hebrew queries (e.g. Wedly, Guini, Diginet, Save The Date brands). Observations in code name sources only as SERP context — **not** as comparison pages to publish.
+
+Invistimo pages describe Invistimo capabilities factually. Do not republish competitor prices as Invistimo facts.
+
+## Pillar → cluster (updated)
 
 | Pillar | Hub | Cluster URLs |
 | --- | --- | --- |
-| RSVP | `/rsvp` | wedding, WhatsApp, timing, cost, non-replies, guest list, meal count |
-| Invitations | `/invitations/chatuna` | Save the Date, send invitation, STD vs invitation |
-| Seating | `/seating-explained` | seating plan, table-number message |
-| Events | `/event-management` | event-day checklist |
+| RSVP | `/rsvp` | event-type pages, WhatsApp, calls, save-the-date, tracking, reminders, import, personal link, corporate guide |
+| Invitations | `/invitations/chatuna` | send invitation, STD vs invitation, WhatsApp wording |
+| Wedding website | `/wedding-website` | wedding-website-guide, vs digital invitation |
+| Seating | `/seating-explained` | seating-plan, live day-of, families/groups, venue check-in, seating-cards-vs-qr |
+| Events | `/event-management` | event-day checklist, manage guests after RSVP, reduce meal waste |
+| Guest ops | `/info/guides/guest-list` | import, plus-ones/kids, overseas, last-minute changes |
+
+## AI monitor
+
+Hebrew customer questions for periodic AI citation checks: `AI_MONITOR_QUESTIONS` in `lib/seo/keywordMap.ts` (includes Phase C additions). See [`phase-c-measurement-2026-11-02.md`](./phase-c-measurement-2026-11-02.md).
 
 ## After GSC / Planner access
 
-1. Export queries for the primary URLs above.
+1. Export queries for the primary URLs above (including Phase C guides).
 2. Fill `volume` / `competition` only from those exports.
 3. Re-run `npm run test:seo`.
 4. Split or merge rows only when intent differs.

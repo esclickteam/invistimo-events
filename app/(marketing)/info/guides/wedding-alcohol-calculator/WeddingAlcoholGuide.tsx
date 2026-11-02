@@ -112,7 +112,8 @@ export default function WeddingAlcoholGuide() {
               </p>
               <p>
                 במדריך הזה תוכלו לתכנן את המשקאות לאירוע, לקבל הערכת כמויות ולהשוות בין רכישה עצמאית
-                לבין שירותי הבר של האולם.
+                לבין שירותי הבר של האולם. הכמויות הן לתכנון רכש — לא המלצת שתייה, ולא מספר המוזמנים
+                הכולל.
               </p>
             </div>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -224,6 +225,23 @@ export default function WeddingAlcoholGuide() {
             <p>
               מנגד, חבילת בר של האולם יכולה להיות נוחה יותר ולכלול חלק מהשירותים, אך לא תמיד כוללת את
               כל המותגים או את רמת האלכוהול הרצויה.
+            </p>
+            <p>
+              לפני שסוגרים בר או דמי מזיגה, בדקו את תנאי הספק{" "}
+              <Link
+                href="/info/guides/wedding-vendors-contracts"
+                className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+              >
+                במדריך הספקים והחוזים
+              </Link>
+              . אם צריך גם צוות ומערכת לספירת מלאי באירוע, זה שירות נפרד בעמוד{" "}
+              <Link
+                href="/services/alcohol-management"
+                className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+              >
+                ניהול אלכוהול לאירועים
+              </Link>
+              .
             </p>
             <p>
               השתמשו במחשבון ההשוואה למעלה עם הנתונים מההצעות שלכם — בלי להכריז על חיסכון לפני שיש

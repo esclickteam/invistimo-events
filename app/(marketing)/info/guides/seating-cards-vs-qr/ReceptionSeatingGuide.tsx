@@ -200,7 +200,15 @@ export default function ReceptionSeatingGuide() {
             >
               איך מכניסים מאות אורחים לאולם בצורה מסודרת, מונעים תורים בכניסה ודואגים שכל אורח
               יידע בדיוק היכן הוא יושב — עם צוות דיגיטלי או עם QR אישי, בלי פתקיות הושבה של
-              Invistimo.
+              Invistimo. בניית המפה עצמה נמצאת{" "}
+              <Link href="/info/guides/seating-plan" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                במדריך ביצוע ההושבה
+              </Link>
+              , ושליחת המספר לאורחים{" "}
+              <Link href="/info/guides/table-number-message" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                במדריך הודעת מספר שולחן
+              </Link>
+              .
             </motion.p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <TrackedCtaLink href="#demo" className={ctaPrimary} location={`hero_demo:${PATH}`}>

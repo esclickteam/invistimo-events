@@ -21,7 +21,7 @@ export const metadata = pageMetadata({
 const faqs = [
   {
     q: "מהי פלטפורמה לניהול אירועים?",
-    a: "מערכת דיגיטלית שמרכזת משימות, ספקים, תקציב, תשלומים ולוח זמנים סביב האירוע. ב־Invistimo אפשר לנהל את אלה במקום אחד, ולהוסיף ליווי או ניהול באולם רק אם סוכמו.",
+    a: "מערכת דיגיטלית שמרכזת משימות, ספקים, תקציב, תשלומים ולוח זמנים. העמוד הזה מתאר את מערכת Invistimo לניהול האירוע — לא מדריך תכנון חתונה כללי, ולא תחליף למפיק אלא אם סוכם ליווי.",
   },
   {
     q: "האם אפשר לנהל את האירוע באופן עצמאי?",
@@ -73,7 +73,7 @@ const faqs = [
   },
   {
     q: "למי מתאים השירות?",
-    a: "לחתונות ולאירועים משפחתיים או עסקיים שצריכים סדר במשימות, ספקים ותקציב. אפשר להתחיל עצמאית ולהוסיף ליווי בהמשך.",
+    a: "למי שצריך סדר במשימות, ספקים ותקציב — בחתונה, באירוע משפחתי או עסקי. אפשר להתחיל עצמאית ולהוסיף ליווי בהמשך. ההחלטה אם לקחת מפיק נפרדת מהשימוש במערכת.",
   },
 ];
 
@@ -130,6 +130,28 @@ export default function Page() {
         <div className="mx-auto max-w-3xl">
           <p className="text-sm font-black tracking-wide text-[#A67C3D]">שאלות נפוצות</p>
           <h2 className="mt-2 text-3xl font-black text-[#35281F]">שאלות על ניהול האירוע</h2>
+          <p className="mt-4 leading-8 text-[#5C4A3A]">
+            המערכת מרכזת את תפעול האירוע. לרצף ההחלטות מהאירוסין ועד החופה יש{" "}
+            <Link href="/info/guides/wedding-planning" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              מדריך תכנון חתונה
+            </Link>
+            , להבדל בין מפיק למנהל אירוע את{" "}
+            <Link
+              href="/info/guides/event-management-vs-production"
+              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+            >
+              מדריך הניהול מול ההפקה
+            </Link>
+            , ולסגירות שלפני היום את{" "}
+            <Link href="/info/guides/event-day-checklist" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              צ׳קליסט יום האירוע
+            </Link>
+            . לאירוע עסקי יש{" "}
+            <Link href="/info/guides/rsvp-corporate-events" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              מדריך אישורי הגעה לאירועי חברה
+            </Link>
+            .
+          </p>
           <div className="mt-8 space-y-4">
             {faqs.map((faq) => (
               <details key={faq.q} className="rounded-[24px] border border-[#E6D2AA] bg-white px-5 py-4">

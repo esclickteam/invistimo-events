@@ -12,7 +12,7 @@ import SendChecklist from "./SendChecklist";
 import { STD_VS_INVITE_FAQS } from "./guideFaqs";
 
 const PATH = "/info/guides/save-the-date-vs-invitation";
-const UPDATED_LABEL = "עודכן ב־26 באוקטובר 2026";
+const UPDATED_LABEL = "עודכן ב־2 בנובמבר 2026";
 
 const ctaPrimary =
   "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3.5 text-base font-black text-white shadow-[0_18px_40px_rgba(58,39,20,0.22)] transition hover:-translate-y-0.5";
@@ -208,7 +208,15 @@ export default function SaveTheDateVsInvitationGuide() {
                 Save the Date הוא הודעה מוקדמת שמטרתה לבקש מהאורחים לשמור את תאריך החתונה ביומן. ההזמנה
                 לחתונה נשלחת בהמשך, כשהפרטים המרכזיים כבר סגורים, וכוללת את המיקום, השעות ומידע נוסף שהאורחים
                 צריכים לקראת האירוע. כאשר ההזמנה מחוברת למערכת אישורי הגעה, האורחים יכולים גם לעדכן אם יגיעו
-                וכמה אנשים צפויים להגיע.
+                וכמה אנשים צפויים להגיע. ב־Invistimo{" "}
+                <Link href="/rsvp/save-the-date" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                  Save the Date
+                </Link>{" "}
+                אינו אוסף תשובות; ההזמנה והאישורים מתחילים בעמוד{" "}
+                <Link href="/invitations/chatuna" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                  ההזמנות הדיגיטליות
+                </Link>
+                .
               </p>
               <p>
                 לא כל זוג חייב לשלוח את שתיהן. ההחלטה תלויה במועד החתונה, בכמות הזמן שנותרה, באופי האירוע

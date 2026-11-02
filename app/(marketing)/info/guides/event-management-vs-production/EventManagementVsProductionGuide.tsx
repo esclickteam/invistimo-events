@@ -275,6 +275,18 @@ export default function EventManagementVsProductionGuide() {
                   להסתפק בשם השירות. במדריך הזה נבין את ההבדלים, נבחן מתי כל שירות מתאים, ונעזור לכם
                   להחליט מה נכון לאירוע שלכם.
                 </p>
+                <p>
+                  מערכת הניהול של Invistimo אינה מחליפה מפיק או מנהל באולם — אפשר לעבוד בה לבד,
+                  ולהוסיף ליווי רק אם סוכם. פירוט השירות נמצא בעמוד{" "}
+                  <Link href="/event-management" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                    ניהול האירוע
+                  </Link>
+                  , ורצף התכנון הכללי{" "}
+                  <Link href="/info/guides/wedding-planning" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                    במדריך תכנון החתונה
+                  </Link>
+                  .
+                </p>
               </motion.div>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <a href="#quiz" className={ctaPrimary}>

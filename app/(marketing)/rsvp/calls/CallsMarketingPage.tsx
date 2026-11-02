@@ -451,6 +451,24 @@ export default function CallsMarketingPage() {
                 יודע אם יוכל להגיע, ודווקא שיחה יכולה לעזור להבין את המצב. כאן נכנסות השיחות הטלפוניות
                 — פנייה נוספת למי שלא השיב, כדי לקבל תשובה ברורה יותר לפני מסירת הכמות הסופית לאולם.
               </p>
+              <p>
+                העמוד הזה הוא שירות השיחות, לא חבילת ההודעות. למי שההודעה הגיעה ועדיין אין תשובה יש{" "}
+                <Link href={LINKS.noReply} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                  מדריך לאורחים שלא עונים
+                </Link>
+                . לכשל מסירה שמפעיל SMS חלופי יש{" "}
+                <Link href={LINKS.whatsappVsSms} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                  מדריך WhatsApp ו־SMS
+                </Link>
+                . איך השיחה עצמה נשמעת ומה האורח מקיש מוסבר{" "}
+                <Link
+                  href="/info/guides/how-phone-rsvp-works"
+                  className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+                >
+                  במדריך איך עובדת שיחת אישור
+                </Link>
+                .
+              </p>
             </div>
           </Reveal>
           <div className="mt-12 grid gap-5 sm:grid-cols-2">

@@ -37,7 +37,7 @@ import {
 import { EVENT_DAY_FAQS } from "./guideFaqs";
 
 const PATH = "/info/guides/event-day-checklist";
-const UPDATED = "26 באוקטובר 2026";
+const UPDATED = "2 בנובמבר 2026";
 
 const ctaPrimary =
   "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3.5 text-base font-black text-white shadow-[0_18px_40px_rgba(58,39,20,0.22)] transition hover:-translate-y-0.5";
@@ -337,7 +337,11 @@ export default function EventDayChecklistGuide() {
             </p>
             <p>
               במדריך הזה נעבור על ההכנות לפי זמנים, נציג דוגמאות מעשיות ונספק צ׳קליסט שתוכלו להשתמש
-              בו בעצמכם.
+              בו בעצמכם. אפשר לרכז את אותן משימות גם{" "}
+              <Link href="/event-management" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                במערכת ניהול האירוע
+              </Link>
+              — הצ׳קליסט אינו מחליף מפיק באולם אלא אם סוכם ליווי.
             </p>
           </div>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -712,6 +716,14 @@ export default function EventDayChecklistGuide() {
                 {" · "}
                 <Link href="/seating-explained" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
                   הושבה ב־Invistimo
+                </Link>
+                {" · "}
+                <Link href="/info/guides/seating-plan" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                  ביצוע המפה במערכת
+                </Link>
+                {" · "}
+                <Link href="/info/guides/table-number-message" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                  הודעת מספר שולחן
                 </Link>
               </p>
             </Prose>

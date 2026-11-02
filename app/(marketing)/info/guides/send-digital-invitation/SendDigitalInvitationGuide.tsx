@@ -265,7 +265,15 @@ export default function SendDigitalInvitationGuide() {
             </p>
             <p>
               אם ההזמנה מחוברת למערכת אישורי הגעה, ניתן גם לאפשר לאורחים להשיב ולנהל את התגובות במקום
-              אחד.
+              אחד. סבבי ה־WhatsApp עצמם מתוארים בעמוד{" "}
+              <Link href="/rsvp/whatsapp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                אישורי הגעה ב־WhatsApp
+              </Link>
+              . אתר חתונה הוא קישור משותף נפרד — ראו{" "}
+              <Link href="/wedding-website" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                אתר חתונה אישי
+              </Link>
+              .
             </p>
             <p>
               במדריך הזה נעבור על הכנת ההזמנה, בחירת אופן השליחה, בדיקת הקישורים, שליחה לאורחים, מעקב

@@ -104,7 +104,8 @@ export default function GuestsNoReplyGuide() {
             </p>
             <p className="mt-5 max-w-xl text-base leading-8 text-[#5C4A3A] md:text-lg">
               עם תהליך אישורי הגעה מסודר, אפשר לעקוב אחרי האורחים שעדיין לא השיבו ולהמשיך לפנות אליהם
-              בהתאם לסבבים הכלולים בחבילה שלכם.
+              בהתאם לסבבים הכלולים בחבילה שלכם. אי־מענה אינו כשל מסירה: ההודעה יכולה להגיע, והרשומה
+              פשוט נשארת בלי תשובה.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <TrackedCtaLink href="/rsvp/chatuna" className={ctaPrimary} location={`hero_chatuna:${PATH}`}>

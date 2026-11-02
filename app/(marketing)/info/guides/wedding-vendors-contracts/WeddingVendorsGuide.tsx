@@ -271,6 +271,17 @@ export default function WeddingVendorsGuide() {
               <Link href="/info/guides/wedding-planning" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
                 מדריך תכנון החתונה
               </Link>
+              , להתחייבות המנות מול האולם את{" "}
+              <Link
+                href="/info/guides/wedding-venue-guest-guarantee"
+                className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+              >
+                מדריך ההתחייבות לאולם
+              </Link>
+              , ולריכוז הספקים במערכת את{" "}
+              <Link href="/event-management" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                ניהול האירוע
+              </Link>
               .
             </p>
           </section>
