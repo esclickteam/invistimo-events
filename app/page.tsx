@@ -55,8 +55,23 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* Single LCP preload: hero atmosphere image (CSS background). Poster/video load after paint. */}
-      <link rel="preload" as="image" href="/homep1.webp" fetchPriority="high" />
+      {/* Single LCP preload: cinematic hero poster (video starts after first paint). */}
+      <link
+        rel="preload"
+        as="image"
+        href="/marketing/videos/home-cinematic-hero-poster.webp"
+        type="image/webp"
+        fetchPriority="high"
+        media="(min-width: 768px)"
+      />
+      <link
+        rel="preload"
+        as="image"
+        href="/marketing/videos/home-cinematic-hero-mobile-poster.webp"
+        type="image/webp"
+        fetchPriority="high"
+        media="(max-width: 767px)"
+      />
       <JsonLd
         data={graph([
           organizationNode(),
