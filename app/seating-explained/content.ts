@@ -5,10 +5,10 @@ export const SEATING_PATH = "/seating-explained";
 export const SEATING_META = {
   title: "סידורי הושבה לחתונה | הושבה דיגיטלית ו־LIVE | Invistimo",
   description:
-    "סידורי הושבה דיגיטליים לחתונה עם מפת שולחנות, שיבוץ אורחים, ניהול הגעה בזמן אמת, מקומות פנויים, רזרבות ואנשי צוות. הכירו את Invistimo.",
+    "עמוד השירות להושבה דיגיטלית: מפת שולחנות, שיבוץ מאשרים ו־LIVE ביום האירוע. להחלטות תכנון ולביצוע צעד־אחר־צעד יש מדריכים נפרדים במרכז הידע.",
 } as const;
 
-export const UPDATED_AT = "2026-10-25";
+export const UPDATED_AT = "2026-11-02";
 
 export const STAFF_WHATSAPP_MESSAGE =
   "שלום, אשמח לקבל פרטים והצעת מחיר לצוותי הושבה וניהול LIVE ביום האירוע. מה השירות כולל?";

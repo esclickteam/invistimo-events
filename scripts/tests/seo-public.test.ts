@@ -466,6 +466,8 @@ test("answers.json mirrors PAGE_ANSWERS for machine readers", () => {
   for (const [pathKey, answer] of Object.entries(PAGE_ANSWERS)) {
     assert.equal(raw.pageAnswers[pathKey], answer, pathKey);
   }
+  assert.ok(PAGE_ANSWERS["/rsvp/hina"], "hina must have an AI answer distinct from the wedding page");
+  assert.notEqual(PAGE_ANSWERS["/rsvp"], PAGE_ANSWERS["/rsvp/chatuna"]);
   assert.ok(Array.isArray(raw.aiMonitorQuestions));
   assert.ok(raw.aiMonitorQuestions.length >= 6);
 });
@@ -495,6 +497,7 @@ test("seo documentation deliverables exist", () => {
     "docs/seo/baseline-index-report.md",
     "docs/seo/directory-profiles-mit4mit-mazalday.md",
     "docs/seo/crawled-not-indexed-diagnosis-2026-11-02.md",
+    "docs/seo/phase-b-service-guides-2026-11-02.md",
   ]) {
     assert.ok(fs.existsSync(path.join(root, rel)), rel);
   }

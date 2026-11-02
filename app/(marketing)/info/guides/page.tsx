@@ -53,8 +53,47 @@ export default function GuidesPage() {
             </span>
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-[#5C4A3A]">
-            כל מדריך שייך לנושא אחד ומסביר איך Invistimo עובדת בפועל — לחתונות ולאירועים נוספים.
-            המדריך מסביר; עמוד השירות והמחשבון הם המקום להתקדם לחבילה.
+            מרכז הידע של Invistimo: כל מדריך עונה על כוונת חיפוש אחת — בחירת חברה, רשימת מוזמנים, מחיר
+            לפי רשומות, תזמון שליחה, החלטות הושבה או ביצוע במערכת. המדריך מסביר; עמוד השירות והמחשבון הם
+            המקום להתקדם לחבילה.
+          </p>
+          <p className="mt-4 max-w-2xl text-base leading-7 text-[#5C4A3A]">
+            התחילו מ
+            <Link
+              href="/info/guides/how-to-choose-rsvp-company"
+              className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline"
+            >
+              איך בוחרים חברת אישורי הגעה
+            </Link>
+            ,
+            <Link
+              href="/info/guides/guest-list"
+              className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline"
+            >
+              רשימת מוזמנים
+            </Link>
+            ,
+            <Link
+              href="/info/guides/cost-rsvp-wedding"
+              className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline"
+            >
+              כמה עולים אישורי הגעה
+            </Link>
+            או מ
+            <Link
+              href="/info/guides/wedding-seating-arrangements"
+              className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline"
+            >
+              החלטות הושבה
+            </Link>
+            ו
+            <Link
+              href="/info/guides/seating-plan"
+              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+            >
+              ביצוע הושבה במערכת
+            </Link>
+            .
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <TrackedCtaLink href="/pricing" className={ctaClass} location="hero_cta:/info/guides">

@@ -157,15 +157,14 @@ export default function WeddingSeatingGuide() {
             סידורי הושבה לחתונה
           </p>
           <p className="mt-5 text-sm font-black tracking-[0.12em] text-[#7A5530]">
-            מדריך · Invistimo
+            תכנון והחלטות · Invistimo
           </p>
           <h1 className="mt-3 max-w-4xl text-[1.75rem] font-black leading-[1.18] tracking-[-0.03em] text-[#2C241C] md:text-[2.55rem]">
             סידורי הושבה לחתונה: המדריך המלא לחלוקת שולחנות, מאשרי הגעה ורזרבות
           </h1>
           <p className="mt-5 max-w-3xl text-lg leading-8 text-[#5C4A3A] md:text-xl md:leading-9">
-            סידורי הושבה הם הרבה יותר מחלוקת שמות לשולחנות. זהו אחד השלבים שבהם רשימת המוזמנים,
-            אישורי ההגעה, קיבולת האולם והקשרים בין האורחים נפגשים לתוכנית אחת שצריכה לעבוד גם
-            במציאות.
+            לפני שפותחים מפת שולחנות במערכת, כדאי לסגור החלטות תכנון: האם למלא כל שולחן, כמה רזרבה
+            מול האולם, האם לשבץ את כל מאשרי ההגעה, ומה לא לעשות עם אומדן אי־הגעה.
           </p>
           <div className="mt-5 max-w-3xl space-y-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
             <p>
@@ -174,7 +173,15 @@ export default function WeddingSeatingGuide() {
             </p>
             <p>
               במדריך הזה נסביר כיצד מתכננים הושבה חכמה, נעימה ומסודרת, מה ההבדל בין מספר מאשרים לבין
-              מספר מגיעים בפועל, ואיך מתמודדים עם חוסר הוודאות בלי לסכן את חוויית האורחים.
+              מספר מגיעים בפועל, ואיך מתמודדים עם חוסר הוודאות בלי לסכן את חוויית האורחים. כשההחלטות
+              ברורות — עוברים ל{" "}
+              <Link
+                href="/info/guides/seating-plan"
+                className="font-black text-[#8A642E] underline-offset-4 hover:underline"
+              >
+                מדריך הביצוע צעד אחר צעד במערכת
+              </Link>
+              .
             </p>
           </div>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -244,6 +251,23 @@ export default function WeddingSeatingGuide() {
               הרזרבה שסוכמו עם האולם. גם אם מעריכים שחלק מהמאשרים לא יגיעו, אין להסתמך על כך כדי
               להושיב יותר אורחים ממספר המקומות הזמינים בפועל.
             </Lead>
+            <p className="mt-5 max-w-3xl text-base leading-8 text-[#5C4A3A] md:text-lg">
+              ליישום השלבים ברשימה, בסקיצה ובמערכת —{" "}
+              <Link
+                href="/info/guides/seating-plan"
+                className="font-black text-[#8A642E] underline-offset-4 hover:underline"
+              >
+                איך מכינים הושבה צעד אחר צעד
+              </Link>
+              . לשירות ההושבה עצמו ראו גם{" "}
+              <Link
+                href="/seating-explained"
+                className="font-black text-[#8A642E] underline-offset-4 hover:underline"
+              >
+                סידורי הושבה ב־Invistimo
+              </Link>
+              .
+            </p>
           </section>
 
           {/* 2 When to start */}

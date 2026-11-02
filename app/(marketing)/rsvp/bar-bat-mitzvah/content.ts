@@ -3,7 +3,7 @@ export const MITZVAH_PATH = "/rsvp/bar-bat-mitzvah";
 export const MITZVAH_META = {
   title: "אישורי הגעה לבר ובת מצווה וסידורי הושבה | Invistimo",
   description:
-    "אישורי הגעה לבר ובת מצווה: הזמנות דיגיטליות, אישור דרך ההורים, רשומות בלי טלפון שלא נגרעות מהמכסה, ומעקב מוזמנים. סידורי הושבה והושבה חיה — בהתאם לחבילה.",
+    "אישורי הגעה לבר ובת מצווה עם אישור דרך ההורים, מעקב משפחה מול חברים לכיתה, ורשומות בלי טלפון שלא נגרעות מהמכסה. בלי ייבוא מקבוצות WhatsApp — רשימה שאתם בונים.",
 } as const;
 
 export const MITZVAH_H1 =
@@ -178,10 +178,12 @@ export const LINKS = {
   seating: "/seating-explained",
   whenToSend: "/info/guides/when-to-send-rsvp",
   guestList: "/info/guides/guest-list",
+  chooseCompany: "/info/guides/how-to-choose-rsvp-company",
   venueGuarantee: "/info/guides/wedding-venue-guest-guarantee",
   costGuide: "/info/guides/cost-rsvp-wedding",
   contact: "/contact",
   chatuna: "/rsvp/chatuna",
+  brit: "/rsvp/brit-brita",
 } as const;
 
 export const MEDIA = {

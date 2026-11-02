@@ -62,21 +62,44 @@ export default function RsvpPage() {
         <div className="mx-auto max-w-3xl space-y-4 leading-8">
           <h2 className="text-2xl font-black text-[#35281F]">עמודים קשורים לפי סוג האירוע והערוץ</h2>
           <p>
-            מחפשים התמקדות בחתונה? עברו ל
+            העמוד הזה מסביר את מודל אישורי ההגעה הכללי. להתמקדות בחתונה (אולם, מנות ותזמון) עברו ל
             <Link href="/rsvp/chatuna" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">
               אישורי הגעה לחתונה
             </Link>
-            . להתמקדות בערוץ הוואטסאפ —
+            ; לחינה ולמשפחה קרובה —
+            <Link href="/rsvp/hina" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              אישורי הגעה לחינה
+            </Link>
+            ; לבר או בת מצווה עם אישור דרך ההורים —
+            <Link
+              href="/rsvp/bar-bat-mitzvah"
+              className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline"
+            >
+              בר ובת מצווה
+            </Link>
+            ; לברית או בריתה בזמן קצר —
+            <Link href="/rsvp/brit-brita" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              ברית ובריתה
+            </Link>
+            . לערוץ הוואטסאפ —
             <Link href="/rsvp/whatsapp" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">
               אישורי הגעה ב־WhatsApp
             </Link>
-            . לשאלה{" "}
+            . לבחירת חברה והשוואת שירותים —
+            <Link
+              href="/info/guides/how-to-choose-rsvp-company"
+              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+            >
+              איך בוחרים חברת אישורי הגעה
+            </Link>
+            , ולשאלה{" "}
             <Link
               href="/info/guides/whatsapp-vs-sms-rsvp"
               className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
             >
-              WhatsApp או SMS — איך כדאי לשלוח אישורי הגעה?
+              WhatsApp או SMS
             </Link>
+            .
           </p>
           {siblings.length ? (
             <ul className="flex flex-wrap gap-3 pt-2">

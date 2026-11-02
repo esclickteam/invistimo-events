@@ -458,10 +458,16 @@ export default function BritBritaMarketingPage() {
         </div>
         <div className="mt-10 flex flex-wrap gap-4 text-sm">
           <Link href={LINKS.rsvp} className="font-bold text-[#8A6E2E] underline-offset-4 hover:underline">
-            אישורי הגעה
+            אישורי הגעה — סקירה
+          </Link>
+          <Link href={LINKS.chooseCompany} className="font-bold text-[#8A6E2E] underline-offset-4 hover:underline">
+            איך בוחרים חברה
           </Link>
           <Link href={LINKS.mitzvah} className="font-bold text-[#8A6E2E] underline-offset-4 hover:underline">
             בר ובת מצווה
+          </Link>
+          <Link href={LINKS.guestList} className="font-bold text-[#8A6E2E] underline-offset-4 hover:underline">
+            רשימת מוזמנים
           </Link>
           <Link href={LINKS.invitations} className="font-bold text-[#8A6E2E] underline-offset-4 hover:underline">
             הזמנות דיגיטליות

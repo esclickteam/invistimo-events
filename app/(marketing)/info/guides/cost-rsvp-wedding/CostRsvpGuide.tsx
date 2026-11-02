@@ -82,7 +82,21 @@ export default function CostRsvpGuide() {
               <p>
                 ב־Invistimo התמחור מבוסס על רשומות בהתאם לחבילה שנבחרה. במדריך הזה נסביר מהי רשומה,
                 אילו אורחים נכללים במכסת החבילה, איך מחושבות הודעות נוספות ומה חשוב לבדוק לפני
-                הרכישה.
+                הרכישה — אחרי ש{" "}
+                <Link
+                  href="/info/guides/guest-list"
+                  className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+                >
+                  רשימת המוזמנים
+                </Link>{" "}
+                מסודרת ו{" "}
+                <Link
+                  href="/info/guides/how-to-choose-rsvp-company"
+                  className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+                >
+                  בוחרים סוג שירות
+                </Link>
+                .
               </p>
             </div>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -344,7 +358,15 @@ export default function CostRsvpGuide() {
             </p>
             <p>
               חשוב לבחור חבילה שמתאימה למספר הרשומות המחויבות בפועל ולשירותים הנדרשים. הסכום העדכני
-              מופיע רק במחשבון החבילות — לא בעמוד זה.
+              מופיע רק ב{" "}
+              <Link href="/pricing" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                מחשבון החבילות
+              </Link>{" "}
+              — לא בעמוד זה. לחתונה ספציפית ראו גם{" "}
+              <Link href="/rsvp/chatuna" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                אישורי הגעה לחתונה
+              </Link>
+              .
             </p>
           </div>
           <div className="mt-8 overflow-x-auto rounded-[24px] border border-[#E7D3B0] bg-[#FFFDF8]">

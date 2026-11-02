@@ -366,7 +366,15 @@ export default function ChooseRsvpCompanyGuide() {
             </p>
             <p>
               במדריך הזה נעשה סדר בכל האפשרויות, נציג שאלות שכדאי לשאול כל חברה ונסביר איך לבחור פתרון
-              שמתאים לגודל האירוע, לאופי האורחים ולתקציב שלכם.
+              שמתאים לגודל האירוע, לאופי האורחים ולתקציב שלכם. לפני ההשוואה כדאי להכיר את{" "}
+              <Link href="/rsvp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                שירות אישורי ההגעה
+              </Link>{" "}
+              ואת{" "}
+              <Link href="/rsvp/chatuna" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                אישורי ההגעה לחתונה
+              </Link>{" "}
+              — כדי לדעת מה בכלל מחפשים.
             </p>
           </div>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -428,7 +436,21 @@ export default function ChooseRsvpCompanyGuide() {
               </p>
               <p>
                 מומלץ להתנסות במערכת לפני הרכישה ולהשוות בין חבילות בעלות היקף שירות דומה — לא רק לפי
-                הסכום הראשוני בהצעה.
+                הסכום הראשוני בהצעה. לעלויות לפי רשומות ראו{" "}
+                <Link
+                  href="/info/guides/cost-rsvp-wedding"
+                  className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+                >
+                  מדריך מחיר אישורי הגעה
+                </Link>
+                ; לערוצי הודעות —{" "}
+                <Link
+                  href="/info/guides/whatsapp-vs-sms-rsvp"
+                  className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+                >
+                  WhatsApp מול SMS
+                </Link>
+                .
               </p>
             </Prose>
           </section>
