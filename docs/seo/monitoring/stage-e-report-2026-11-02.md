@@ -136,13 +136,36 @@
 
 ## 4) GA4 / Mongo (סטטוס)
 
+### 4.1 Traffic Acquisition — חי (GA4 p561016940, ~16:38)
+
+| חלון | 5.10.2026 – 1.11.2026 (**28 ימים**) |
+| --- | --- |
+| Users | **112** |
+| Engaged sessions | **87** · Engagement rate **77.68%** |
+| Event count | **7,029** |
+| Key events | **19** · Key event rate **9.82%** |
+| Revenue | **₪0** (לא ecommerce) |
+
+| Session primary channel | Users | Key events (משוער מטבלה) | הערה |
+| --- | ---: | ---: | --- |
+| Direct | **41** | **4** | הגדול במספר users |
+| Organic Social | **~30–39** | **~10** | תרומה גבוהה יחסית ל־key events |
+| Organic Search | **~27–29** | **~5** | engagement גבוה; מעט key events |
+| Unassigned / אחר | שארית ל־112 | — | ספייק משמעותי מאז ~26.10 |
+
+*(מספרי ערוץ נקראו מטבלת UI בעברית; יש עיגול/הצגה דינמית — לא לייצא כ־CSV רשמי בלי ייצוא קובץ.)*
+
+**Stage D Home 7d (להשוואה):** ~82 users · 19 key events — אותם 19 key events מופיעים גם בחלון 28d ⇒ רוב ההמרות בחלון האחרון.
+
+### 4.2 `generate_lead` מול Mongo
+
 | מקור | מצב |
 | --- | --- |
-| GA4 Home 7d (Stage D) | ~82 users · 19 key events · p561016940 — **לא** פירוט Traffic Acquisition לפי מקור בסשן זה |
-| `generate_lead` מול Mongo | Mongo Atlas `querySrv ECONNREFUSED` — **אין אימות לידים CRM** |
-| כלל | לא לטפל ב־GA4 כמכירות מאומתות בלי התאמה ל־CustomerFile |
+| פירוט Event name = `generate_lead` | **לא נפתח** בדוח Events בסשן זה (רק Key events מצטבר ב־Traffic Acquisition) |
+| Mongo `CustomerFile` / `query-leads-28d.mjs` | **ECONNREFUSED** — אין אימות CRM |
+| כלל | **אין** להכריז על מכירות מאומתות מ־GA4 בלבד |
 
-**Follow-up:** פתיחת Traffic Acquisition + Events (`generate_lead`, `click_whatsapp`, `click_package`) ב־7/28d; הרצת `query-leads-28d.mjs` כש־Mongo זמין.
+**Follow-up:** Events → `generate_lead` / `click_whatsapp` / `click_package` ב־7d+28d; Mongo כשה־SRV זמין.
 
 ---
 

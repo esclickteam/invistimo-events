@@ -74,8 +74,24 @@
     "cta_changed": false
   },
   "ga4_mongo": {
-    "traffic_acquisition_detail": "not_completed_this_session",
-    "ga4_home_7d_prior": { "users": 82, "key_events": 19, "property": "p561016940" },
+    "property": "p561016940",
+    "traffic_acquisition_28d": {
+      "range": "2026-10-05_to_2026-11-01",
+      "users": 112,
+      "engaged_sessions": 87,
+      "engagement_rate": 0.7768,
+      "event_count": 7029,
+      "key_events": 19,
+      "revenue_ils": 0,
+      "channels_approx": {
+        "Direct": { "users": 41, "key_events": 4 },
+        "Organic Social": { "users_range": [30, 39], "key_events_approx": 10 },
+        "Organic Search": { "users_range": [27, 29], "key_events_approx": 5 }
+      },
+      "note": "UI read ~16:38; channel rows approximate — no CSV export"
+    },
+    "ga4_home_7d_prior": { "users": 82, "key_events": 19 },
+    "generate_lead_event_breakdown": "not_opened",
     "mongo_leads": "querySrv_ECONNREFUSED",
     "treat_ga4_as_verified_sales": false
   },
