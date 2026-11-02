@@ -135,6 +135,9 @@ export function safePublicPath(value: string) {
   try {
     const url = new URL(raw, "https://www.invistimo.com");
     if (url.username || url.password || url.pathname.includes("@")) return "";
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    // Only first-party paths — never WhatsApp phone paths or other hosts.
+    if (host !== "invistimo.com") return "";
     return url.pathname || "/";
   } catch {
     return "";
@@ -180,7 +183,7 @@ function whatsappPhone(url: URL) {
 }
 
 export type PublicClickEvent = {
-  name: "click_whatsapp" | "click_package" | "click_register" | "click_contact";
+  name: "click_whatsapp" | "click_package" | "click_register" | "click_contact" | "select_cta";
   params: Record<string, string>;
 };
 
@@ -189,6 +192,7 @@ export type PublicClickEvent = {
  * WhatsApp share links that are not a message to the business.
  * The returned params never include the link query, so prefilled names and
  * phone numbers stay out of GA4.
+ * Pricing / WhatsApp clicks are funnel signals only — never purchase conversions.
  */
 export function classifyPublicClick(
   href: string,
@@ -232,6 +236,16 @@ export function classifyPublicClick(
   }
 
   if (host === "invistimo.com") {
+    if (url.pathname === "/pricing" || url.pathname.startsWith("/pricing/")) {
+      return {
+        name: "select_cta",
+        params: sanitizeEventParams({
+          page_path,
+          destination: "/pricing",
+          placement: placement || "pricing_cta",
+        }),
+      };
+    }
     if (url.pathname === "/register" || url.pathname.startsWith("/register/")) {
       return {
         name: "click_register",
@@ -253,6 +267,66 @@ export function trackPublicEvent(name: string, params?: Record<string, string>) 
   if (typeof window === "undefined" || typeof window.gtag !== "function") return;
   if (!EVENT_NAME.test(name)) return;
   window.gtag("event", name, sanitizeEventParams(params));
+}
+
+/**
+ * Sends a funnel click from routes that do not load MarketingAnalytics (e.g. /try).
+ * No page_view, no query string, no personal fields — and never purchase/sign_up.
+ */
+export function trackFunnelClick(href: string, pagePath: string, placement: string) {
+  if (typeof window === "undefined" || !isGaMeasurementId(GA_MEASUREMENT_ID)) {
+    return Promise.resolve();
+  }
+  const decision =
+    classifyPublicClick(href, pagePath, { placement }) ||
+    ({
+      name: "select_cta" as const,
+      params: sanitizeEventParams({
+        page_path: safePublicPath(pagePath) || "/",
+        destination: safePublicPath(href) || href,
+        placement,
+      }),
+    } satisfies PublicClickEvent);
+
+  const safe = sanitizeEventParams(decision.params);
+  if (typeof window.gtag === "function" && document.getElementById("invistimo-ga4")) {
+    window.gtag("event", decision.name, safe);
+    return Promise.resolve();
+  }
+  if (typeof window.gtag === "function" && document.getElementById("invistimo-ga4-conversion")) {
+    window.gtag("event", decision.name, safe);
+    return Promise.resolve();
+  }
+
+  const pageLocation = pageLocationWithoutQuery();
+  window.dataLayer = window.dataLayer || [];
+  if (typeof window.gtag !== "function") {
+    window.gtag = function gtag() {
+      window.dataLayer?.push(arguments);
+    };
+    window.gtag("js", new Date());
+    window.gtag("config", GA_MEASUREMENT_ID, {
+      send_page_view: false,
+      anonymize_ip: true,
+      allow_google_signals: false,
+      allow_ad_personalization_signals: false,
+      page_location: pageLocation,
+    });
+  }
+  window.gtag("event", decision.name, safe);
+
+  if (document.getElementById("invistimo-ga4-conversion") || document.getElementById("invistimo-ga4")) {
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve) => {
+    const script = document.createElement("script");
+    script.id = "invistimo-ga4-conversion";
+    script.async = true;
+    script.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(GA_MEASUREMENT_ID)}`;
+    script.onload = () => resolve();
+    script.onerror = () => resolve();
+    document.head.appendChild(script);
+  });
 }
 
 function pageLocationWithoutQuery() {

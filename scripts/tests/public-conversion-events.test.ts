@@ -67,7 +67,30 @@ test("clicks are classified without the link query or personal fields", () => {
   assert.equal(mail?.params.channel, "email");
   assert.equal(JSON.stringify(mail).includes("support@"), false);
 
-  assert.equal(classifyPublicClick("/pricing", "/"), null);
+  const pricingNav = classifyPublicClick("/pricing", "/", { placement: "home_hero_primary" });
+  assert.equal(pricingNav?.name, "select_cta");
+  assert.deepEqual(pricingNav?.params, {
+    page_path: "/",
+    destination: "/pricing",
+    placement: "home_hero_primary",
+  });
+  assert.equal(JSON.stringify(pricingNav).includes("purchase"), false);
+});
+
+test("funnel click helper stays separate from purchase conversions", () => {
+  const analytics = read("lib/seo/analytics.ts");
+  assert.match(analytics, /export function trackFunnelClick/);
+  assert.match(analytics, /never purchase/);
+  assert.doesNotMatch(
+    callBlock(analytics, "export function trackFunnelClick"),
+    /trackPurchaseConversion|name: "purchase"/
+  );
+  assert.match(read("components/demo/DemoExperience.tsx"), /try_summary_pricing/);
+  assert.match(read("components/demo/DemoExperience.tsx"), /FOOTER_WHATSAPP_HREF/);
+  assert.match(read("app/HomePageClient.tsx"), /home_hero_primary/);
+  assert.match(read("app/HomePageClient.tsx"), /href="\/pricing"/);
+  assert.match(read("app/HomePageClient.tsx"), /href="\/try"/);
+  assert.match(read("app/(marketing)/rsvp/chatuna/ChatunaMarketingPage.tsx"), /chatuna_hero_whatsapp/);
 });
 
 test("event params drop personal data and unknown keys", () => {

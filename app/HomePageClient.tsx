@@ -1,68 +1,9 @@
 "use client";
 
 import { motion } from "framer-motion";
-import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import HomeMarketingSections from "@/components/marketing/HomeMarketingSections";
-
-/* =====================================================
-   DEMO BUTTON
-===================================================== */
-function DemoButton({
-  children,
-  variant = "gold",
-  className = "",
-}: {
-  children: React.ReactNode;
-  variant?: "gold" | "dark";
-  className?: string;
-}) {
-  const router = useRouter();
-
-  const baseClass =
-    variant === "dark"
-      ? `
-        group inline-flex w-full min-w-0
-        items-center justify-center gap-3
-        rounded-full
-        bg-[#3F3A34]
-        px-6 py-4
-        text-[17px] font-extrabold
-        text-white
-        shadow-[0_18px_40px_rgba(63,58,52,0.20)]
-        transition
-        hover:-translate-y-0.5
-        hover:bg-[#2F2B27]
-        sm:w-auto sm:min-w-[220px] sm:px-10
-      `
-      : `
-        group inline-flex w-full min-w-0
-        items-center justify-center gap-3
-        rounded-full
-        bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220]
-        px-6 py-4
-        text-[16px] font-extrabold
-        text-white
-        shadow-[0_18px_38px_rgba(184,134,45,0.26)]
-        transition
-        hover:-translate-y-0.5
-        hover:shadow-[0_22px_46px_rgba(184,134,45,0.34)]
-        sm:w-auto sm:min-w-[220px] sm:px-9
-      `;
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => router.push("/try")}
-        className={`${baseClass} ${className}`}
-      >
-        {children}
-      </button>
-    </>
-  );
-}
+import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 
 /* =====================================================
    HERO PHONE — CLEAN 3D VIDEO PHONE
@@ -331,16 +272,21 @@ export default function HomePageClient() {
               </span>
             </p>
             <div className="mt-10 flex w-full flex-col items-stretch justify-center gap-3 sm:flex-row sm:items-center sm:gap-4 lg:justify-start">
-              <DemoButton className="w-full min-w-0 sm:w-auto sm:min-w-[220px]">
+              <TrackedCtaLink
+                href="/pricing"
+                location="home_hero_primary"
+                className="group inline-flex w-full min-w-0 items-center justify-center gap-3 rounded-full bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220] px-6 py-4 text-[16px] font-extrabold text-white shadow-[0_18px_38px_rgba(184,134,45,0.26)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_46px_rgba(184,134,45,0.34)] sm:w-auto sm:min-w-[220px] sm:px-9"
+              >
                 בואו נתחיל
                 <span className="transition group-hover:-translate-x-1">←</span>
-              </DemoButton>
-              <Link
-                href="/pricing"
+              </TrackedCtaLink>
+              <TrackedCtaLink
+                href="/try"
+                location="home_hero_demo"
                 className="inline-flex w-full min-w-0 items-center justify-center rounded-full border border-[#2C241C]/25 bg-[#F7F1E8]/95 px-6 py-4 text-[16px] font-extrabold text-[#2C241C] shadow-[0_14px_32px_rgba(28,22,18,0.12)] transition hover:bg-white sm:w-auto sm:min-w-[220px] sm:px-9"
               >
-                החבילות שלנו
-              </Link>
+                נסו דמו
+              </TrackedCtaLink>
             </div>
           </motion.div>
 

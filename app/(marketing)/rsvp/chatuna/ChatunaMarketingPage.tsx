@@ -5,6 +5,9 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import localFont from "next/font/local";
 import { motion, useReducedMotion } from "framer-motion";
+import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
+import { FOOTER_WHATSAPP_HREF } from "@/lib/marketing/footerNav";
+import { classifyPublicClick, trackPublicEvent } from "@/lib/seo/analytics";
 import ChatunaVideo from "./components/ChatunaVideo";
 import { CHATUNA_FAQS } from "./chatunaFaqs";
 import {
@@ -71,10 +74,14 @@ function CtaLink({
   href,
   children,
   variant = "primary",
+  location,
+  external = false,
 }: {
   href: string;
   children: ReactNode;
   variant?: "primary" | "secondary" | "ghost";
+  location: string;
+  external?: boolean;
 }) {
   const styles =
     variant === "primary"
@@ -82,13 +89,29 @@ function CtaLink({
       : variant === "secondary"
         ? "border border-[#E8D9C2] bg-[#F7EDDF] !text-[#2A211A] hover:bg-white"
         : "!text-[#8A642E] underline-offset-4 hover:underline";
+  const className = `inline-flex items-center justify-center rounded-full px-6 py-3 text-[15px] font-bold transition ${styles}`;
+  if (external) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={className}
+        data-conversion-tracked="1"
+        data-placement={location}
+        onClick={() => {
+          const decision = classifyPublicClick(href, window.location.pathname, { placement: location });
+          if (decision) trackPublicEvent(decision.name, decision.params);
+        }}
+      >
+        {children}
+      </a>
+    );
+  }
   return (
-    <Link
-      href={href}
-      className={`inline-flex items-center justify-center rounded-full px-6 py-3 text-[15px] font-bold transition ${styles}`}
-    >
+    <TrackedCtaLink href={href} location={location} className={className}>
       {children}
-    </Link>
+    </TrackedCtaLink>
   );
 }
 
@@ -270,11 +293,19 @@ export default function ChatunaMarketingPage() {
               מסודר שמלווה אתכם עד האירוע.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
-              <CtaLink href={LINKS.pricing} variant="primary">
+              <CtaLink href={LINKS.pricing} variant="primary" location="chatuna_hero_pricing">
                 לצפייה בחבילות אישורי הגעה
               </CtaLink>
-              <CtaLink href="#how-it-works" variant="secondary">
+              <CtaLink href="#how-it-works" variant="secondary" location="chatuna_hero_how">
                 לראות איך זה עובד
+              </CtaLink>
+              <CtaLink
+                href={FOOTER_WHATSAPP_HREF}
+                variant="secondary"
+                location="chatuna_hero_whatsapp"
+                external
+              >
+                שאלה בוואטסאפ
               </CtaLink>
             </div>
           </motion.div>
@@ -421,7 +452,7 @@ export default function ChatunaMarketingPage() {
             עם נתוני הדגמה.
           </p>
           <div className="mt-8">
-            <CtaLink href={LINKS.pricing} variant="primary">
+            <CtaLink href={LINKS.pricing} variant="primary" location="chatuna_mid_pricing">
               גם אנחנו רוצים אישורי הגעה מסודרים
             </CtaLink>
           </div>
@@ -505,7 +536,7 @@ export default function ChatunaMarketingPage() {
           </Link>
         </p>
         <div className="mt-8">
-          <CtaLink href={LINKS.pricing} variant="secondary">
+          <CtaLink href={LINKS.pricing} variant="secondary" location="chatuna_followup_pricing">
             להשוואת החבילות
           </CtaLink>
         </div>
@@ -550,7 +581,7 @@ export default function ChatunaMarketingPage() {
           />
         </div>
         <div className="mt-8">
-          <CtaLink href={LINKS.whenToSend} variant="primary">
+          <CtaLink href={LINKS.whenToSend} variant="primary" location="chatuna_timing_guide">
             קראו מתי כדאי לשלוח
           </CtaLink>
         </div>
@@ -640,7 +671,7 @@ export default function ChatunaMarketingPage() {
           </div>
         </div>
         <div className="mt-8">
-          <CtaLink href={LINKS.seating} variant="primary">
+          <CtaLink href={LINKS.seating} variant="primary" location="chatuna_seating_cta">
             סידורי הושבה
           </CtaLink>
         </div>
@@ -749,7 +780,7 @@ export default function ChatunaMarketingPage() {
           ))}
         </div>
         <div className="mt-8">
-          <CtaLink href={LINKS.pricing} variant="primary">
+          <CtaLink href={LINKS.pricing} variant="primary" location="chatuna_packages_pricing">
             לצפייה במחיר לחתונה שלנו
           </CtaLink>
         </div>
@@ -878,10 +909,10 @@ export default function ChatunaMarketingPage() {
           עם תמונה ברורה יותר של רשימת המוזמנים.
         </p>
         <div className="mt-8 flex flex-wrap gap-3">
-          <CtaLink href={LINKS.pricing} variant="primary">
+          <CtaLink href={LINKS.pricing} variant="primary" location="chatuna_final_pricing">
             לבחירת חבילת אישורי הגעה
           </CtaLink>
-          <CtaLink href={LINKS.contact} variant="secondary">
+          <CtaLink href={LINKS.contact} variant="secondary" location="chatuna_final_contact">
             יש לנו שאלה
           </CtaLink>
         </div>
