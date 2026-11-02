@@ -1,0 +1,104 @@
+{
+  "date": "2026-11-02",
+  "timezone": "Asia/Jerusalem",
+  "property": "sc-domain:invistimo.com",
+  "scope": "diagnosis_docs_only_no_cta_code_merge",
+  "gsc_deep_inspect": {
+    "chatuna": {
+      "url": "https://www.invistimo.com/rsvp/chatuna",
+      "index_presence": "not_on_google",
+      "coverage": "crawled_currently_not_indexed",
+      "sitemap": "https://www.invistimo.com/sitemap.xml",
+      "referring_page": null,
+      "last_crawl": null,
+      "user_canonical": null,
+      "google_canonical": null,
+      "declared_canonical_in_code": "https://www.invistimo.com/rsvp/chatuna",
+      "live_test_at": "2026-11-02T16:27+02:00",
+      "live_available": true,
+      "live_indexable": true,
+      "live_breadcrumbs_valid": 1,
+      "live_videos_valid": 4,
+      "live_videos_noncritical_issues": true,
+      "request_indexing": "accepted_2026-11-02T16:27+02:00"
+    },
+    "bar_bat_mitzvah": {
+      "url": "https://www.invistimo.com/rsvp/bar-bat-mitzvah",
+      "index_presence": "not_on_google",
+      "coverage": "crawled_currently_not_indexed",
+      "sitemap": "https://www.invistimo.com/sitemap.xml",
+      "referring_page": null,
+      "last_crawl": null,
+      "user_canonical": null,
+      "google_canonical": null,
+      "live_test_at": "2026-11-02T16:32+02:00",
+      "live_available": true,
+      "live_indexable": true,
+      "live_breadcrumbs_valid": 1,
+      "request_indexing": "accepted_2026-11-02T16:33+02:00"
+    },
+    "morning_vs_afternoon": {
+      "morning": "URL_unknown_to_Google_no_sitemap_referral",
+      "afternoon": "crawled_not_indexed_with_sitemap_discovery_plus_index_request"
+    }
+  },
+  "customer_paths": {
+    "home_to_try": {
+      "cta": "בואו נתחיל",
+      "target": "/try",
+      "demo_title": "החתונה של מאיה ואיתי",
+      "purchase_cta_in_demo_body": false,
+      "exits": ["/pricing", "/contact", "wa.me/972555039072"]
+    },
+    "home_to_pricing": {
+      "cta": "החבילות שלנו",
+      "target": "/pricing",
+      "nav_also": "חבילות ומחירים"
+    },
+    "whatsapp": {
+      "href": "https://wa.me/972555039072",
+      "hero_home": false,
+      "footer_and_fab": true
+    },
+    "chatuna_service_to_lead": {
+      "hero_primary": { "copy": "לצפייה בחבילות אישורי הגעה", "href": "/pricing" },
+      "hero_secondary": { "copy": "לראות איך זה עובד", "href": "#how-it-works" },
+      "final_primary": { "copy": "לבחירת חבילת אישורי הגעה", "href": "/pricing" },
+      "final_secondary": { "copy": "יש לנו שאלה", "href": "/contact" }
+    }
+  },
+  "try_diagnosis": {
+    "converts_to": "product_demo",
+    "converts_to_lead_or_purchase": false,
+    "abandonment_risk": "high_when_used_as_primary_home_cta",
+    "cta_changed": false
+  },
+  "ga4_mongo": {
+    "property": "p561016940",
+    "traffic_acquisition_28d": {
+      "range": "2026-10-05_to_2026-11-01",
+      "users": 112,
+      "engaged_sessions": 87,
+      "engagement_rate": 0.7768,
+      "event_count": 7029,
+      "key_events": 19,
+      "revenue_ils": 0,
+      "channels_approx": {
+        "Direct": { "users": 41, "key_events": 4 },
+        "Organic Social": { "users_range": [30, 39], "key_events_approx": 10 },
+        "Organic Search": { "users_range": [27, 29], "key_events_approx": 5 }
+      },
+      "note": "UI read ~16:38; channel rows approximate — no CSV export"
+    },
+    "ga4_home_7d_prior": { "users": 82, "key_events": 19 },
+    "generate_lead_event_breakdown": "not_opened",
+    "mongo_leads": "querySrv_ECONNREFUSED",
+    "treat_ga4_as_verified_sales": false
+  },
+  "cta_proposals_pending_approval": {
+    "home_primary": { "from": "/try", "to": "/pricing", "copy_suggested": "לצפייה בחבילות" },
+    "home_secondary_options": ["/try", "wa.me/972555039072"],
+    "chatuna_hero_primary": "keep_pricing",
+    "chatuna_hero_secondary_suggested": "wa.me/972555039072"
+  }
+}
