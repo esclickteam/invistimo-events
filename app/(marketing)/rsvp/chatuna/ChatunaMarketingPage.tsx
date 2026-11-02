@@ -892,6 +892,9 @@ export default function ChatunaMarketingPage() {
           <Link href={LINKS.calls} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
             אישורי הגעה בשיחות טלפון
           </Link>
+          <Link href={LINKS.barBatMitzvah} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+            אישורי הגעה לבר ובת מצווה
+          </Link>
           <Link href={LINKS.invitations} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
             הזמנות דיגיטליות
           </Link>

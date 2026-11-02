@@ -507,6 +507,10 @@ export default function GuestsNoReplyGuide() {
               WhatsApp
             </Link>
             {" · "}
+            <Link href="/rsvp/bar-bat-mitzvah" className="underline-offset-4 hover:underline">
+              בר ובת מצווה
+            </Link>
+            {" · "}
             <Link
               href="/info/guides/wedding-venue-guest-guarantee"
               className="underline-offset-4 hover:underline"

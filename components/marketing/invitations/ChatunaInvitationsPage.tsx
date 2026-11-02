@@ -1007,6 +1007,8 @@ export default function ChatunaInvitationsPage() {
               ["/rsvp/save-the-date", "Save the Date"],
               ["/rsvp/chatuna", "אישורי הגעה לחתונה"],
               ["/rsvp/whatsapp", "אישורי הגעה ב־WhatsApp"],
+              ["/seating-explained", "סידורי הושבה"],
+              ["/rsvp/bar-bat-mitzvah", "בר ובת מצווה"],
               ["/info/guides/when-to-send-rsvp", "מתי שולחים"],
               ["/info/guides/send-digital-invitation", "איך שולחים הזמנה"],
               ["/info/guides/save-the-date-vs-invitation", "STD מול הזמנה"],

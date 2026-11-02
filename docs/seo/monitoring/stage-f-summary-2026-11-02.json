@@ -1,0 +1,92 @@
+{
+  "report_id": "stage-f-2026-11-02",
+  "date": "2026-11-02",
+  "timezone": "Asia/Jerusalem",
+  "branch": "stage-f-ai-commercial-visibility-2026-11-02",
+  "scope": "content_internal_links_monitoring_no_merge_deploy",
+  "diagnosis": {
+    "homepage_ai_share_pct": 81.6,
+    "homepage_impressions": 217,
+    "total_gsc_ai_impressions_3m": 266,
+    "primary_causes": [
+      "homepage_authority_concentration",
+      "chatuna_and_bar_bat_crawled_not_indexed",
+      "weak_bar_bat_inbound_mesh_pre_fix",
+      "guides_outcompete_some_service_pages_in_ai_pages",
+      "invitations_indexed_vs_chatuna_unindexed_topic_split"
+    ]
+  },
+  "baseline_rollups": {
+    "priority_commercial_with_impressions": {
+      "urls": ["/rsvp/whatsapp", "/seating-explained", "/invitations/chatuna"],
+      "impressions_sum": 8
+    },
+    "priority_commercial_zero": {
+      "urls": ["/rsvp/chatuna", "/rsvp/bar-bat-mitzvah", "/pricing"],
+      "impressions_sum": 0
+    },
+    "guides_ai_impressions_sum": 8,
+    "bing_ai_citations": 0
+  },
+  "tracking_windows": {
+    "d30": "recheck_gsc_ai_pages_shares_and_priority_urls",
+    "d90": "recheck_gsc_ai_pages_shares_index_status_bing_citations"
+  },
+  "content_changes": {
+    "internal_links": [
+      "ServiceLinks_bar_bat",
+      "chatuna_faq_to_bar_bat",
+      "bar_bat_faq_whatsapp_seating",
+      "seating_to_bar_bat_whatsapp_invitations",
+      "invitations_to_seating_bar_bat",
+      "four_ai_guides_to_bar_bat",
+      "whatsapp_remove_duplicate_hina"
+    ],
+    "faqs_answers": [
+      "chatuna_price_example",
+      "mitzvah_price_seating",
+      "whatsapp_price_channel_focus",
+      "seating_other_events_crosslinks",
+      "page_answers_chatuna_bar_bat"
+    ],
+    "not_changed": [
+      "prices",
+      "packages",
+      "design",
+      "forms",
+      "urls",
+      "index_requests"
+    ]
+  },
+  "engine_coverage_stage_f_plus_pass1": {
+    "google_ai_mode": {
+      "samples_approx": 22,
+      "brand_hit_ids": [22],
+      "citation_hit_ids": [22, 17]
+    },
+    "gemini": {
+      "samples_approx": 10,
+      "brand_hit_ids": [],
+      "citation_hit_ids": []
+    },
+    "chatgpt_search": {
+      "samples": 1,
+      "brand_hit_ids": [2],
+      "remaining": "not_tested_auth"
+    },
+    "copilot": "not_tested",
+    "perplexity": "not_tested"
+  },
+  "ga4": {
+    "window_28d": "2026-10-05_to_2026-11-01",
+    "session_default_channel_group": {
+      "total_sessions": 112,
+      "Direct": 41,
+      "Organic Social": 39,
+      "Organic Search": 31,
+      "Unassigned": 1,
+      "Referral": false
+    },
+    "session_source_medium_ai_hosts": "not_tested_ui_blocked"
+  }
+}

@@ -1,0 +1,28 @@
+snapshot_date,window,source,url_or_group,impressions,share_of_gsc_ai_pct,notes
+2026-11-02,3m_gsc_ai,gsc_generative_ai,TOTAL,266,100,search-analytics/ai resource sc-domain:invistimo.com
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/,217,81.6,homepage concentration
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/login,27,10.2,Disallow in robots but AI impressions attributed
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/credit-gifts,10,3.8,
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/event-management,5,1.9,
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/faq,5,1.9,
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/accessibility,4,1.5,
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/info/guides/cost-rsvp-wedding,4,1.5,guide cluster
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/rsvp/whatsapp,4,1.5,priority commercial — micro
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/privacy,3,1.1,
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/seating-explained,3,1.1,priority commercial — micro
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/info/guides/how-to-choose-rsvp-company,2,0.8,guide cluster
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/rsvp/save-the-date,2,0.8,
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/try/dashboard,2,0.8,
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/info/guides/guests-who-dont-reply,1,0.4,guide cluster
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/info/guides/wedding-venue-guest-guarantee,1,0.4,guide cluster
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/invitations/chatuna,1,0.4,priority commercial — micro; indexed
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/rsvp,1,0.4,
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/wedding-website,1,0.4,
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/rsvp/chatuna,0,0,priority — crawled not indexed (Stage E); absent from AI pages list
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/rsvp/bar-bat-mitzvah,0,0,priority — crawled not indexed (Stage E); absent from AI pages list
+2026-11-02,3m_gsc_ai,gsc_generative_ai,/pricing,0,0,priority — indexed organically but 0 AI impressions in 3m list
+2026-11-02,3m_gsc_ai,rollup,homepage,217,81.6,
+2026-11-02,3m_gsc_ai,rollup,priority_commercial_present_sum,8,3.0,/rsvp/whatsapp+/seating-explained+/invitations/chatuna
+2026-11-02,3m_gsc_ai,rollup,priority_commercial_missing_sum,0,0,/rsvp/chatuna+/rsvp/bar-bat-mitzvah+/pricing
+2026-11-02,3m_gsc_ai,rollup,guides_with_ai_impressions_sum,8,3.0,cost+choose+no-reply+venue-guarantee
+2026-11-02,3m_gsc_ai,rollup,other_non_priority,41,15.4,login credit-gifts event-management faq accessibility privacy std try rsvp wedding-website

@@ -785,6 +785,15 @@ export default function SeatingMarketingPage() {
             <Link href={LINKS.chatuna} className="hover:underline">
               אישורי הגעה לחתונה
             </Link>
+            <Link href={LINKS.barBatMitzvah} className="hover:underline">
+              אישורי הגעה לבר ובת מצווה
+            </Link>
+            <Link href={LINKS.whatsapp} className="hover:underline">
+              אישורי הגעה ב־WhatsApp
+            </Link>
+            <Link href={LINKS.invitations} className="hover:underline">
+              הזמנות דיגיטליות לחתונה
+            </Link>
             <Link href={LINKS.costGuide} className="hover:underline">
               מחירי אישורי הגעה
             </Link>
