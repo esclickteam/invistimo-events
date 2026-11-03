@@ -7,144 +7,22 @@ import { useSeatingStore } from "@/store/seatingStore";
 import { useSearchParams } from "next/navigation";
 import { useGroupStore } from "@/store/groupStore";
 import { SEATING_EXPORT_HIDE_NAME } from "@/app/dashboard/seating/seatingExport";
+import { clampLayoutScale, controlCounterScale } from "@/lib/seating/canvasLayout";
+import { legacyTableLayout } from "@/lib/seating/legacyTableLayout";
+import {
+  clampTableVisualSize,
+  displayedOuter,
+  sketchProportionalSize,
+  uniformTableScale,
+} from "@/lib/seating/tableVisual";
 
 /* ============================================================
    חישוב דינמי של צורת השולחן + כסאות
 ============================================================ */
 function getTableLayout(rawTable) {
-  const seats = Math.max(0, Number(rawTable.seats || 0));
-  const type =
-    rawTable.type === "rectangle" || rawTable.type === "rect"
-      ? "banquet"
-      : rawTable.type;
-
-  const SEAT_R = 13;
-  const SEAT_GAP = 12;
-  const OUTSIDE = 10;
-  const STEP = SEAT_R * 2 + SEAT_GAP;
-  const PAD = SEAT_R + OUTSIDE + 18;
-
-  const coords = [];
-  const dims = {
-    size: 150,
-    width: 240,
-    height: 75,
-    radius: 55,
-  };
-
-  if (!seats) return { coords, ...dims, type };
-
-  const splitSquareOpposite = (n) => {
-    const hasExtra = n % 2 === 1;
-    const even = hasExtra ? n - 1 : n;
-    const pairs = even / 2;
-    const horizontalPairs = Math.ceil(pairs / 2);
-    const verticalPairs = Math.floor(pairs / 2);
-
-    return {
-      top: horizontalPairs + (hasExtra ? 1 : 0),
-      bottom: horizontalPairs,
-      left: verticalPairs,
-      right: verticalPairs,
-    };
-  };
-
-  const placeLineCentered = (count, fixed, axis) => {
-    if (count <= 0) return;
-
-    if (count === 1) {
-      coords.push(axis === "x" ? { x: 0, y: fixed } : { x: fixed, y: 0 });
-      return;
-    }
-
-    const span = (count - 1) * STEP;
-    const start = -span / 2;
-
-    for (let i = 0; i < count; i++) {
-      const v = start + i * STEP;
-      coords.push(axis === "x" ? { x: v, y: fixed } : { x: fixed, y: v });
-    }
-  };
-
-  if (type === "round") {
-    const requiredCirc = seats * STEP;
-    const seatRing = Math.max(48, requiredCirc / (2 * Math.PI));
-    const tableRadius = Math.max(42, seatRing - (SEAT_R + OUTSIDE));
-    const ring = tableRadius + SEAT_R + OUTSIDE;
-
-    for (let i = 0; i < seats; i++) {
-      const angle = (2 * Math.PI * i) / seats - Math.PI / 2;
-
-      coords.push({
-        x: Math.cos(angle) * ring,
-        y: Math.sin(angle) * ring,
-      });
-    }
-
-    dims.radius = tableRadius;
-    return { coords, ...dims, type };
-  }
-
-  if (type === "square") {
-    const { top, right, bottom, left } = splitSquareOpposite(seats);
-
-    const maxSide = Math.max(top, right, bottom, left);
-    const span = maxSide <= 1 ? 0 : (maxSide - 1) * STEP;
-
-    const size = Math.max(140, span + PAD * 2);
-    const half = size / 2;
-    const fixed = half + SEAT_R + OUTSIDE;
-
-    placeLineCentered(top, -fixed, "x");
-    placeLineCentered(bottom, fixed, "x");
-    placeLineCentered(right, fixed, "y");
-    placeLineCentered(left, -fixed, "y");
-
-    dims.size = size;
-    return { coords, ...dims, type };
-  }
-
-  if (type === "banquet") {
-    const topCount = Math.ceil(seats / 2);
-    const bottomCount = seats - topCount;
-    const maxRow = Math.max(topCount, bottomCount);
-
-    const span = maxRow <= 1 ? 0 : (maxRow - 1) * STEP;
-    const width = Math.max(230, span + PAD * 2);
-    const height = 78;
-    const yFixed = height / 2 + SEAT_R + OUTSIDE;
-
-    const placeRow = (count, y) => {
-      if (count <= 0) return;
-
-      if (count === 1) {
-        coords.push({ x: 0, y });
-        return;
-      }
-
-      const rowSpan = (count - 1) * STEP;
-      const start = -rowSpan / 2;
-
-      for (let i = 0; i < count; i++) {
-        coords.push({ x: start + i * STEP, y });
-      }
-    };
-
-    placeRow(topCount, -yFixed);
-    placeRow(bottomCount, yFixed);
-
-    dims.width = width;
-    dims.height = height;
-
-    return { coords, ...dims, type };
-  }
-
-  return { coords, ...dims, type };
+  return legacyTableLayout(rawTable);
 }
 
-/* ============================================================
-   סיבוב כיסאות
-============================================================ */
 function getSeatRotation(table, c) {
   if (table.type === "round") {
     return (Math.atan2(-c.y, -c.x) * 180) / Math.PI + 90;
@@ -168,14 +46,19 @@ function getSeatRotation(table, c) {
 /* ============================================================
    TableRenderer
 ============================================================ */
-function TableRenderer({ table, hideSeats = false }) {
+function TableRenderer({ table, hideSeats = false, cameraScale = 1 }) {
   const tableRef = useRef(null);
 
   const [rotating, setRotating] = useState(false);
+  const [resizing, setResizing] = useState(false);
 
   const rotateActiveRef = useRef(false);
   const startAngleRef = useRef(0);
   const startRotationRadRef = useRef(0);
+
+  const resizeActiveRef = useRef(false);
+  const resizeStartDistRef = useRef(1);
+  const resizeStartScaleRef = useRef(1);
 
   const demoMode = useSeatingStore((s) => s.demoMode);
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
@@ -184,6 +67,7 @@ function TableRenderer({ table, hideSeats = false }) {
   const guests = useSeatingStore((s) => s.guests);
   const assignGuestBlock = useSeatingStore((s) => s.assignGuestBlock);
   const selectedTableId = useSeatingStore((s) => s.selectedTableId);
+  const selectedTableIds = useSeatingStore((s) => s.selectedTableIds);
   const liveArrivals = useSeatingStore((s) => s.liveArrivals);
   const seatingMode = useSeatingStore((s) => s.seatingMode);
 
@@ -536,7 +420,10 @@ function TableRenderer({ table, hideSeats = false }) {
     seatsTotal,
   ]);
 
-  const layout = useMemo(() => getTableLayout(table), [table.type, table.seats]);
+  const layout = useMemo(
+    () => getTableLayout(table),
+    [table.type, table.seats, table.capacity]
+  );
 
   const seatsCoords = layout.coords;
 
@@ -711,13 +598,13 @@ function TableRenderer({ table, hideSeats = false }) {
 
   const renderTableCenterLines = (boxWidth, compact = false) => {
     const lineHeight =
-      seatingMode === "live"
+      (seatingMode === "live"
         ? compact
           ? 15
           : 22
         : compact
           ? 21
-          : 26;
+          : 26);
 
     const totalHeight = tableLines.length * lineHeight;
 
@@ -764,15 +651,24 @@ function TableRenderer({ table, hideSeats = false }) {
 
   const handleClick = (e) => {
     e.cancelBubble = true;
+    const additive = Boolean(e.evt?.shiftKey);
+    useSeatingStore.getState().selectTable(table.id, { additive });
+  };
 
-    useSeatingStore.setState({ selectedTableId: table.id });
-
+  const handleDblClick = (e) => {
+    e.cancelBubble = true;
     if (draggingGuest) return;
-
     if (typeof table.openAddGuestModal !== "function") return;
-
     table.openAddGuestModal();
   };
+
+  const handleDelete = (e) => {
+    e.cancelBubble = true;
+    if (!confirm("למחוק את השולחן?")) return;
+    deleteTable(table.id);
+  };
+
+  const layoutScale = clampLayoutScale(table.layoutScale, 1);
 
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
@@ -788,6 +684,26 @@ function TableRenderer({ table, hideSeats = false }) {
               x: pos.x,
               y: pos.y,
               rotation,
+              layoutScale: clampLayoutScale(
+                t.layoutScale ?? table.layoutScale,
+                1
+              ),
+            }
+          : t
+      ),
+    }));
+  };
+
+  const updateLayoutScaleInStore = (nextScale) => {
+    const safeScale = clampLayoutScale(nextScale, 1);
+
+    useSeatingStore.setState((state) => ({
+      tables: state.tables.map((t) =>
+        t.id === table.id
+          ? {
+              ...t,
+              // Visual size only — never touch seats / seatedGuests.
+              layoutScale: safeScale,
             }
           : t
       ),
@@ -833,13 +749,101 @@ function TableRenderer({ table, hideSeats = false }) {
 
       stage.off("mousemove.tableRotate", move);
       stage.off("mouseup.tableRotate", end);
+      stage.off("touchmove.tableRotate", move);
+      stage.off("touchend.tableRotate", end);
     };
 
     stage.on("mousemove.tableRotate", move);
     stage.on("mouseup.tableRotate", end);
+    stage.on("touchmove.tableRotate", move);
+    stage.on("touchend.tableRotate", end);
+  };
+
+  const startResize = (e) => {
+    e.cancelBubble = true;
+    if (!tableRef.current) return;
+
+    const stage = e.target.getStage();
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return;
+
+    const center = tableRef.current.getAbsolutePosition();
+    const dist = Math.max(
+      8,
+      Math.hypot(pointer.x - center.x, pointer.y - center.y)
+    );
+
+    const state = useSeatingStore.getState();
+    const selectedIds = (state.selectedTableIds || []).map(String);
+    const activeIds = selectedIds.includes(String(table.id))
+      ? selectedIds
+      : [String(table.id)];
+    const startSizes = {};
+    for (const item of state.tables || []) {
+      const key = String(item.id);
+      if (activeIds.includes(key)) {
+        startSizes[key] = displayedOuter(item);
+      }
+    }
+
+    resizeStartDistRef.current = dist;
+    resizeActiveRef.current = true;
+    setResizing(true);
+
+    const move = () => {
+      if (!resizeActiveRef.current || !tableRef.current) return;
+
+      const p = stage.getPointerPosition();
+      if (!p) return;
+
+      const c = tableRef.current.getAbsolutePosition();
+      const nextDist = Math.max(8, Math.hypot(p.x - c.x, p.y - c.y));
+      const ratio = nextDist / resizeStartDistRef.current;
+      const base = sketchProportionalSize(
+        useSeatingStore.getState().background
+      );
+
+      useSeatingStore.setState((current) => ({
+        tables: (current.tables || []).map((item) => {
+          const key = String(item.id);
+          if (!(key in startSizes)) return item;
+          const nextSize = clampTableVisualSize(startSizes[key] * ratio, base);
+          return {
+            ...item,
+            x: item.x,
+            y: item.y,
+            rotation: item.rotation,
+            seats: item.seats,
+            seatedGuests: item.seatedGuests,
+            visualSize: nextSize,
+          };
+        }),
+      }));
+    };
+
+    const end = () => {
+      resizeActiveRef.current = false;
+      setResizing(false);
+      stage.off("mousemove.tableResize", move);
+      stage.off("mouseup.tableResize", end);
+      stage.off("touchmove.tableResize", move);
+      stage.off("touchend.tableResize", end);
+    };
+
+    stage.on("mousemove.tableResize", move);
+    stage.on("mouseup.tableResize", end);
+    stage.on("touchmove.tableResize", move);
+    stage.on("touchend.tableResize", end);
   };
 
   const { size, width, height, radius } = layout;
+  const isSelected =
+    (selectedTableIds || []).map(String).includes(String(table.id)) ||
+    String(selectedTableId || "") === String(table.id);
+  const visualScale = uniformTableScale(table);
+  const counter = controlCounterScale(cameraScale);
+  const edgeX = ((layout.outerWidth || size) / 2) * visualScale;
+  const edgeY = ((layout.outerHeight || height) / 2) * visualScale;
 
   return (
     <Group
@@ -847,12 +851,15 @@ function TableRenderer({ table, hideSeats = false }) {
       x={table.x}
       y={table.y}
       rotation={table.rotation || 0}
-      draggable={!rotating}
+      draggable={!rotating && !resizing}
       onDragEnd={updatePositionInStore}
       onMouseUp={handleDrop}
       onClick={handleClick}
       onTap={handleClick}
+      onDblClick={handleDblClick}
+      onDblTap={handleDblClick}
     >
+      <Group scaleX={visualScale} scaleY={visualScale}>
       {/* ============================================================
           כסאות בסגנון הסקיצה:
           גב עליון רחב + מושב גדול + עומק תחתון + הצללה.
@@ -866,25 +873,8 @@ function TableRenderer({ table, hideSeats = false }) {
         );
 
         const rotation = getSeatRotation(layout, c);
-
-        let chairX = c.x;
-        let chairY = c.y;
-
-        if (layout.type === "banquet") {
-          const tableEdgeY = layout.height / 2;
-          const outsideOffset = 6;
-
-          chairY =
-            c.y > 0
-              ? tableEdgeY + outsideOffset
-              : -tableEdgeY - outsideOffset;
-        } else {
-          const dist = Math.hypot(c.x, c.y) || 1;
-          const inset = 4;
-
-          chairX = c.x - (c.x / dist) * inset;
-          chairY = c.y - (c.y / dist) * inset;
-        }
+        const chairX = c.x;
+        const chairY = c.y;
 
         const {
           chairFill,
@@ -895,7 +885,14 @@ function TableRenderer({ table, hideSeats = false }) {
         } = getSeatVisual(seat, i);
 
         return (
-          <Group key={i} x={chairX} y={chairY} rotation={rotation}>
+          <Group
+            key={i}
+            x={chairX}
+            y={chairY}
+            rotation={rotation}
+            scaleX={layout.chairScale || 1}
+            scaleY={layout.chairScale || 1}
+          >
             <Rect
               x={-17}
               y={-13}
@@ -978,7 +975,7 @@ function TableRenderer({ table, hideSeats = false }) {
             perfectDrawEnabled={false}
           />
 
-          {renderTableCenterLines(radius * 2)}
+          {renderTableCenterLines(radius * 2, Boolean(layout.compact))}
         </>
       )}
 
@@ -997,7 +994,7 @@ function TableRenderer({ table, hideSeats = false }) {
             perfectDrawEnabled={false}
           />
 
-          {renderTableCenterLines(size)}
+          {renderTableCenterLines(size, Boolean(layout.compact))}
         </>
       )}
 
@@ -1019,34 +1016,63 @@ function TableRenderer({ table, hideSeats = false }) {
           {renderTableCenterLines(width, true)}
         </>
       )}
+      </Group>
 
-      {/* כפתור סיבוב */}
-      {!hideSeats && (
+      {/* פקדים בגודל מסך קבוע — לא גדלים עם השולחן או עם הזום */}
+      {!hideSeats && isSelected && (
         <Group
           name={SEATING_EXPORT_HIDE_NAME}
-          y={
-            layout.type === "round"
-              ? -radius - 42
-              : layout.type === "square"
-                ? -size / 2 - 42
-                : -height / 2 - 42
-          }
+          x={edgeX}
+          y={-edgeY}
+          scaleX={counter}
+          scaleY={counter}
+          onMouseDown={handleDelete}
+          onTouchStart={handleDelete}
+          onClick={(e) => {
+            e.cancelBubble = true;
+          }}
+        >
+          <Circle radius={13} fill="#ef4444" perfectDrawEnabled={false} />
+          <Text
+            text="✕"
+            width={26}
+            height={26}
+            offsetX={13}
+            offsetY={13}
+            align="center"
+            verticalAlign="middle"
+            fill="white"
+            fontSize={14}
+            fontStyle="bold"
+            listening={false}
+            perfectDrawEnabled={false}
+          />
+        </Group>
+      )}
+
+      {!hideSeats && isSelected && (
+        <Group
+          name={SEATING_EXPORT_HIDE_NAME}
+          x={0}
+          y={-edgeY - 18 * counter}
+          scaleX={counter}
+          scaleY={counter}
           onMouseDown={startRotate}
+          onTouchStart={startRotate}
         >
           <Circle
-            radius={12}
+            radius={13}
             fill="#FFF9ED"
             stroke="#CBA56C"
             strokeWidth={1}
             perfectDrawEnabled={false}
           />
-
           <Text
             text="↻"
-            width={24}
-            height={24}
-            offsetX={12}
-            offsetY={12}
+            width={26}
+            height={26}
+            offsetX={13}
+            offsetY={13}
             align="center"
             verticalAlign="middle"
             fill="#9A6A2F"
@@ -1056,8 +1082,62 @@ function TableRenderer({ table, hideSeats = false }) {
           />
         </Group>
       )}
+
+      {!hideSeats && isSelected && (
+        <Group
+          name={SEATING_EXPORT_HIDE_NAME}
+          x={edgeX + 8 * counter}
+          y={edgeY + 8 * counter}
+          scaleX={counter}
+          scaleY={counter}
+          onMouseDown={startResize}
+          onTouchStart={startResize}
+        >
+          <Circle
+            radius={13}
+            fill="#17203A"
+            stroke="#FFF9ED"
+            strokeWidth={1.5}
+            perfectDrawEnabled={false}
+          />
+          <Text
+            text="⤡"
+            width={26}
+            height={26}
+            offsetX={13}
+            offsetY={13}
+            align="center"
+            verticalAlign="middle"
+            fill="#FFF9ED"
+            fontSize={13}
+            listening={false}
+            perfectDrawEnabled={false}
+          />
+        </Group>
+      )}
     </Group>
   );
 }
 
-export default TableRenderer;
+function seatingPropsAreEqual(prev, next) {
+  if (prev.hideSeats !== next.hideSeats) return false;
+  if (prev.cameraScale !== next.cameraScale) return false;
+  const a = prev.table || {};
+  const b = next.table || {};
+  return (
+    a.id === b.id &&
+    a.x === b.x &&
+    a.y === b.y &&
+    a.rotation === b.rotation &&
+    a.type === b.type &&
+    a.seats === b.seats &&
+    a.capacity === b.capacity &&
+    a.layoutScale === b.layoutScale &&
+    a.visualSize === b.visualSize &&
+    a.name === b.name &&
+    a.statsLabel === b.statsLabel &&
+    a.seatedGuests === b.seatedGuests
+  );
+}
+
+export default React.memo(TableRenderer, seatingPropsAreEqual);

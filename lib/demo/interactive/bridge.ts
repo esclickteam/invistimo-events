@@ -558,7 +558,12 @@ export function applyExplicitDemoAction(sessionId: string, body: any) {
   if (type === "ivr") return simulateIvrDigit(sessionId, body.guestId, body.digit);
   if (type === "human-call") return simulateHumanCall(sessionId, body.guestId);
   if (type === "syncCheckIn") return syncCheckIn(sessionId, body.counts || []);
-  if (type === "syncSeating") return syncSeating(sessionId, body.tables || []);
+  if (type === "syncSeating") {
+    return syncSeating(sessionId, body.tables || [], {
+      background: body.background,
+      canvasView: body.canvasView,
+    });
+  }
   if (type === "message") {
     return simulateMessageRound(sessionId, body);
   }

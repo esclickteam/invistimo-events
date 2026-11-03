@@ -34,7 +34,19 @@ export const useGroupStore = create<GroupStore>((set, get) => ({
 
       const data = await res.json();
       if (data.success) {
-        set({ groups: data.groups || [] });
+        const next = data.groups || [];
+        const prev = get().groups;
+        const same =
+          prev.length === next.length &&
+          prev.every((group, index) => {
+            const item = next[index];
+            return (
+              String(group._id) === String(item?._id) &&
+              group.name === item?.name &&
+              group.order === item?.order
+            );
+          });
+        if (!same) set({ groups: next });
       }
     } catch (err) {
       console.error("❌ loadGroups failed:", err);

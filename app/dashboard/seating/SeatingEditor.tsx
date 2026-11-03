@@ -11,6 +11,7 @@ import {
 import { Stage, Layer, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
+import { displayedOuter } from "@/lib/seating/tableVisual";
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
 
@@ -18,10 +19,21 @@ import TableRenderer from "@/app/components/seating/TableRenderer";
 import ZoneRenderer from "@/app/components/zones/ZoneRenderer";
 import GhostPreview from "@/app/components/GhostPreview";
 import AddTableDrawer from "./AddTableDrawer";
-import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
 import MobileGuests from "./MobileGuests";
 import { captureSeatingStage, SEATING_EXPORT_HIDE_NAME } from "./seatingExport";
+import {
+  clamp,
+  computeCanonicalBackgroundRect,
+  fillViewToRect,
+  fitViewToBounds,
+  getBackgroundRect,
+  getContentBounds,
+  getSketchDisplayOpacity,
+  preserveWorldCenterOnResize,
+  type BackgroundLike,
+  type CanvasView,
+} from "@/lib/seating/canvasLayout";
 
 /* ============================================================
    GLOBAL WINDOW TYPE
@@ -29,8 +41,12 @@ import { captureSeatingStage, SEATING_EXPORT_HIDE_NAME } from "./seatingExport";
 declare global {
   interface Window {
     __captureInvistimoSeatingMap?: () => HTMLCanvasElement | null;
+    __fitInvistimoSeatingToScreen?: () => void;
+    __fillInvistimoSeatingToScreen?: () => void;
   }
 }
+
+type ViewMode = "fill" | "fit";
 
 /* ============================================================
    TYPES
@@ -46,29 +62,6 @@ type SeatingEditorProps = {
   /** When provided, the entry view waits until the event seating was loaded from the server. */
   initialViewReady?: boolean;
 };
-
-type CanvasViewState = { x: number; y: number; scale: number };
-
-type BackgroundState = {
-  url?: string;
-  opacity?: number;
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  fitOnLoad?: boolean;
-} | null;
-
-function getBackgroundRect(bg: BackgroundState) {
-  if (!bg) return null;
-  const x = Number(bg.x);
-  const y = Number(bg.y);
-  const width = Number(bg.width);
-  const height = Number(bg.height);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-  if (!(width > 0) || !(height > 0)) return null;
-  return { x, y, width, height };
-}
 
 type Guest = {
   id?: string;
@@ -86,17 +79,11 @@ type Table = {
   y: number;
   capacity?: number;
   seatedGuests?: SeatedGuest[];
+  layoutScale?: number;
 };
 
-type Bounds = {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-};
-
-const clamp = (v: number, min: number, max: number) =>
-  Math.min(Math.max(v, min), max);
+const MIN_SCALE = 0.04;
+const MAX_SCALE = 6;
 
 /* ============================================================
    INNER
@@ -111,16 +98,31 @@ function SeatingEditorInner({
   sidebarOpen = false,
   initialViewReady,
 }: SeatingEditorProps) {
-  const [bgImage] = useImage(background || "", "anonymous");
-  const storeBackground = useSeatingStore((s) => s.background) as BackgroundState;
+  const storeBackground = useSeatingStore(
+    (s) => s.background
+  ) as BackgroundLike;
+  const backgroundUrl =
+    typeof storeBackground === "string"
+      ? storeBackground
+      : (storeBackground && storeBackground.url) ||
+        (typeof background === "string" ? background : "") ||
+        "";
+  const [bgImage] = useImage(backgroundUrl, "anonymous");
   const setBackground = useSeatingStore((s) => s.setBackground);
   const backgroundRect =
-    storeBackground?.url && storeBackground.url === background
+    storeBackground && typeof storeBackground === "object"
       ? getBackgroundRect(storeBackground)
       : null;
 
   /* ================= STORES ================= */
   const tables = useSeatingStore((s) => s.tables) as Table[];
+  const selectedTableIds = useSeatingStore(
+    (s) => s.selectedTableIds
+  ) as string[];
+  const selectAllTables = useSeatingStore((s) => s.selectAllTables);
+  const setSelectedLayoutPercent = useSeatingStore(
+    (s) => s.setSelectedLayoutPercent
+  );
   const guests = useSeatingStore((s) => s.guests) as Guest[];
 
   const draggedGuest = useSeatingStore((s) => s.draggingGuest);
@@ -206,9 +208,20 @@ function SeatingEditorInner({
     const updateSize = () => {
       const rect = viewportElement.getBoundingClientRect();
 
-      setSize({
-        width: Math.max(1, rect.width),
-        height: Math.max(1, rect.height),
+      setSize((prev) => {
+        const next = {
+          width: Math.max(1, rect.width),
+          height: Math.max(1, rect.height),
+        };
+
+        if (
+          prev.width === next.width &&
+          prev.height === next.height
+        ) {
+          return prev;
+        }
+
+        return next;
       });
     };
 
@@ -228,9 +241,6 @@ function SeatingEditorInner({
   }, []);
 
   /* ================= ZOOM & PAN ================= */
-  const MIN_SCALE = 0.04;
-  const MAX_SCALE = 6;
-
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -238,107 +248,149 @@ function SeatingEditorInner({
   const panStart = useRef<{ x: number; y: number } | null>(null);
   const stageStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const lastTouchDist = useRef<number | null>(null);
+  const viewRef = useRef<CanvasView>({ x: 0, y: 0, scale: 1 });
+  const viewPersistTimer = useRef<number | null>(null);
 
   const didFitCanvasOnEntryRef = useRef(false);
   const prevInvitationIdRef = useRef<string | null>(invitationId ?? null);
+  const didResolveBackgroundRef = useRef(false);
 
-  const getContentBounds = useCallback((): Bounds | null => {
-    const xs: number[] = [];
-    const ys: number[] = [];
+  useEffect(() => {
+    viewRef.current = { x: stagePos.x, y: stagePos.y, scale };
+  }, [scale, stagePos.x, stagePos.y]);
 
-    const tableSafeSize = isMobile ? 260 : 230;
+  const computeBounds = useCallback(() => {
+    return getContentBounds({
+      tables,
+      zones,
+      background: storeBackground,
+      mobile: isMobile,
+    });
+  }, [isMobile, storeBackground, tables, zones]);
 
-    tables.forEach((table: any) => {
-      if (!Number.isFinite(table.x) || !Number.isFinite(table.y)) return;
+  const applyView = useCallback(
+    (nextView: CanvasView, persist = true) => {
+      setScale(nextView.scale);
+      setStagePos({ x: nextView.x, y: nextView.y });
+      if (persist) setCanvasView(nextView);
+    },
+    [setCanvasView]
+  );
 
-      xs.push(table.x - tableSafeSize);
-      xs.push(table.x + tableSafeSize);
-      ys.push(table.y - tableSafeSize);
-      ys.push(table.y + tableSafeSize);
+  const [viewMode, setViewMode] = useState<ViewMode>("fill");
+
+  const fitContentToScreen = useCallback(() => {
+    if (size.width <= 0 || size.height <= 0) return false;
+
+    const bounds = computeBounds();
+    if (!bounds) return false;
+
+    const nextView = fitViewToBounds({
+      bounds,
+      viewportWidth: size.width,
+      viewportHeight: size.height,
+      paddingX: isMobile ? 36 : 110,
+      paddingY: isMobile ? 92 : 110,
+      minScale: isMobile ? 0.08 : 0.14,
+      // Allow zooming in enough that small layouts are readable; never
+      // mutates table/sketch world geometry.
+      maxScale: isMobile ? 1.4 : 2.5,
     });
 
-    zones.forEach((zone: any) => {
-      if (!Number.isFinite(zone.x) || !Number.isFinite(zone.y)) return;
+    setViewMode("fit");
+    applyView(nextView, true);
+    return true;
+  }, [applyView, computeBounds, isMobile, size.height, size.width]);
 
-      const width = Number.isFinite(zone.width) ? zone.width : 0;
-      const height = Number.isFinite(zone.height) ? zone.height : 0;
+  const fillSketchToScreen = useCallback(() => {
+    if (size.width <= 0 || size.height <= 0) return false;
 
-      xs.push(zone.x);
-      xs.push(zone.x + width);
-      ys.push(zone.y);
-      ys.push(zone.y + height);
+    const rect = backgroundRect;
+    if (!rect) {
+      // No sketch yet — fall back to fitting tables/zones only.
+      return fitContentToScreen();
+    }
+
+    const nextView = fillViewToRect({
+      rect,
+      viewportWidth: size.width,
+      viewportHeight: size.height,
+      minScale: MIN_SCALE,
+      maxScale: MAX_SCALE,
     });
 
-    if (!xs.length || !ys.length) return null;
+    setViewMode("fill");
+    applyView(nextView, true);
+    return true;
+  }, [
+    applyView,
+    backgroundRect,
+    fitContentToScreen,
+    size.height,
+    size.width,
+  ]);
 
-    return {
-      minX: Math.min(...xs),
-      minY: Math.min(...ys),
-      maxX: Math.max(...xs),
-      maxY: Math.max(...ys),
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.__fitInvistimoSeatingToScreen = () => {
+      fitContentToScreen();
     };
-  }, [isMobile, tables, zones]);
-
-  const fitAllTablesIntoScreen = useCallback(() => {
-    if (size.width <= 0 || size.height <= 0) return;
-
-    const bounds = getContentBounds();
-    if (!bounds) return;
-
-    const contentW = Math.max(1, bounds.maxX - bounds.minX);
-    const contentH = Math.max(1, bounds.maxY - bounds.minY);
-
-    const contentCenterX = bounds.minX + contentW / 2;
-    const contentCenterY = bounds.minY + contentH / 2;
-
-    const paddingX = isMobile ? 36 : 110;
-    const paddingY = isMobile ? 92 : 110;
-
-    const availableW = Math.max(240, size.width - paddingX);
-    const availableH = Math.max(240, size.height - paddingY);
-
-    const nextScale = Math.max(
-      isMobile ? 0.08 : 0.14,
-      Math.min(
-        isMobile ? 0.9 : 1.25,
-        Math.min(availableW / contentW, availableH / contentH)
-      )
-    );
-
-    const nextX = size.width / 2 - contentCenterX * nextScale;
-    const nextY = size.height / 2 - contentCenterY * nextScale;
-
-    const nextView = {
-      x: nextX,
-      y: nextY,
-      scale: nextScale,
+    window.__fillInvistimoSeatingToScreen = () => {
+      fillSketchToScreen();
     };
+    return () => {
+      if (window.__fitInvistimoSeatingToScreen) {
+        delete window.__fitInvistimoSeatingToScreen;
+      }
+      if (window.__fillInvistimoSeatingToScreen) {
+        delete window.__fillInvistimoSeatingToScreen;
+      }
+    };
+  }, [fillSketchToScreen, fitContentToScreen]);
 
-    setScale(nextView.scale);
-    setStagePos({ x: nextView.x, y: nextView.y });
-    setCanvasView(nextView);
-  }, [getContentBounds, isMobile, setCanvasView, size.height, size.width]);
+  const prevSizeForResizeRef = useRef({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const prev = prevSizeForResizeRef.current;
+
+    if (
+      didFitCanvasOnEntryRef.current &&
+      prev.width > 0 &&
+      prev.height > 0 &&
+      size.width > 0 &&
+      size.height > 0 &&
+      (prev.width !== size.width || prev.height !== size.height)
+    ) {
+      const nextView = preserveWorldCenterOnResize({
+        prevWidth: prev.width,
+        prevHeight: prev.height,
+        nextWidth: size.width,
+        nextHeight: size.height,
+        view: viewRef.current,
+      });
+      applyView(nextView, true);
+    }
+
+    prevSizeForResizeRef.current = {
+      width: size.width,
+      height: size.height,
+    };
+  }, [applyView, size.height, size.width]);
 
   useEffect(() => {
     const currentInvitationId = invitationId ?? null;
 
     if (prevInvitationIdRef.current !== currentInvitationId) {
       didFitCanvasOnEntryRef.current = false;
+      didResolveBackgroundRef.current = false;
       prevInvitationIdRef.current = currentInvitationId;
     }
   }, [invitationId]);
 
-  const isViewShowingTables = useCallback(
-    (view: CanvasViewState) => {
-      if (!tables.length) return true;
-      return tables.some((table: any) => {
-        const sx = Number(table.x) * view.scale + view.x;
-        const sy = Number(table.y) * view.scale + view.y;
-        return sx >= 0 && sx <= size.width && sy >= 0 && sy <= size.height;
-      });
-    },
-    [size.height, size.width, tables]
-  );
+  useEffect(() => {
+    // New upload / URL change must re-resolve world rect.
+    didResolveBackgroundRef.current = false;
+  }, [background]);
 
   const [viewSettled, setViewSettled] = useState(false);
 
@@ -347,31 +399,20 @@ function SeatingEditorInner({
     if (size.width <= 0 || size.height <= 0) return;
     if (initialViewReady === false) return;
 
-    const hasContent = tables.length > 0 || zones.length > 0;
-    if (initialViewReady === undefined && !hasContent) return;
+    const hasContent =
+      tables.length > 0 || zones.length > 0 || Boolean(backgroundRect);
+    if (initialViewReady === undefined && !hasContent && !background) return;
 
     const timer = window.setTimeout(() => {
       didFitCanvasOnEntryRef.current = true;
 
-      const { canvasView: savedView, hasSavedCanvasView } =
-        useSeatingStore.getState() as {
-          canvasView: CanvasViewState | null;
-          hasSavedCanvasView?: boolean;
-        };
-
-      const canRestore =
-        hasSavedCanvasView &&
-        savedView &&
-        Number(savedView.scale) > 0 &&
-        Number.isFinite(Number(savedView.x)) &&
-        Number.isFinite(Number(savedView.y)) &&
-        isViewShowingTables(savedView);
-
-      if (canRestore && savedView) {
-        setScale(savedView.scale);
-        setStagePos({ x: savedView.x, y: savedView.y });
-      } else if (hasContent) {
-        fitAllTablesIntoScreen();
+      // Default camera: Fill Screen when a sketch exists (aspect preserved,
+      // overflow via pan). Fit remains available as an explicit mode.
+      // Camera-only — never rewrites table x/y/rotation/layoutScale.
+      if (backgroundRect) {
+        fillSketchToScreen();
+      } else if (hasContent || background) {
+        fitContentToScreen();
       }
 
       setViewSettled(true);
@@ -379,59 +420,87 @@ function SeatingEditorInner({
 
     return () => window.clearTimeout(timer);
   }, [
-    fitAllTablesIntoScreen,
+    background,
+    backgroundRect,
+    fillSketchToScreen,
+    fitContentToScreen,
     initialViewReady,
-    isViewShowingTables,
     size.height,
     size.width,
     tables.length,
     zones.length,
   ]);
 
-  /* The background lives in canvas coordinates so tables stay aligned to the hall sketch on any screen. */
+  /*
+    Resolve missing background world rect once image loads.
+    Never pin sketch size to the current viewport/zoom — that breaks
+    shared coordinates with tables.
+  */
   useEffect(() => {
     if (readOnly) return;
     if (!viewSettled) return;
     if (!background || backgroundRect) return;
     if (!bgImage || bgImage.width <= 0 || bgImage.height <= 0) return;
-    if (size.width <= 0 || size.height <= 0) return;
+    if (didResolveBackgroundRef.current) return;
 
-    const current = useSeatingStore.getState().background as BackgroundState;
-    if (!current?.url || current.url !== background) return;
-
-    const viewX = -stagePos.x / scale;
-    const viewY = -stagePos.y / scale;
-    const viewW = size.width / scale;
-    const viewH = size.height / scale;
-
-    let rect = { x: viewX, y: viewY, width: viewW, height: viewH };
-
-    if (current.fitOnLoad) {
-      const ratio = Math.min(viewW / bgImage.width, viewH / bgImage.height);
-      const width = bgImage.width * ratio;
-      const height = bgImage.height * ratio;
-      rect = {
-        x: viewX + (viewW - width) / 2,
-        y: viewY + (viewH - height) / 2,
-        width,
-        height,
-      };
+    const current = useSeatingStore.getState().background as BackgroundLike;
+    if (!current || typeof current !== "object" || current.url !== background) {
+      return;
     }
 
+    didResolveBackgroundRef.current = true;
+
+    const contentWithoutBg = getContentBounds({
+      tables,
+      zones,
+      background: null,
+      mobile: isMobile,
+    });
+
+    const preferNaturalOrigin = Boolean(current.fitOnLoad);
+    const rect = computeCanonicalBackgroundRect({
+      imageWidth: bgImage.width,
+      imageHeight: bgImage.height,
+      contentBounds: contentWithoutBg,
+      preferNaturalOrigin,
+    });
+
+    // Only backfill a missing world rect (new upload / legacy url-only).
+    // Never rewrite an existing rect, table geometry, or seating assignments.
     const { fitOnLoad: _fitOnLoad, ...rest } = current;
-    setBackground({ ...rest, ...rect });
+    setBackground({
+      ...rest,
+      ...rect,
+      naturalWidth: bgImage.width,
+      naturalHeight: bgImage.height,
+    });
+
+    // Apply Fill using the just-computed rect (state backgroundRect is still
+    // stale in this tick). Camera-only — tables stay put.
+    if (size.width > 0 && size.height > 0) {
+      const nextView = fillViewToRect({
+        rect,
+        viewportWidth: size.width,
+        viewportHeight: size.height,
+        minScale: MIN_SCALE,
+        maxScale: MAX_SCALE,
+      });
+      setViewMode("fill");
+      applyView(nextView, true);
+    }
   }, [
+    applyView,
     background,
     backgroundRect,
     bgImage,
+    isMobile,
     readOnly,
-    scale,
     setBackground,
     size.height,
     size.width,
-    stagePos.x,
-    stagePos.y,
+    tables,
     viewSettled,
+    zones,
   ]);
 
   useEffect(() => {
@@ -462,9 +531,34 @@ function SeatingEditorInner({
     };
   };
 
-  const persistCanvasView = (next: { x: number; y: number; scale: number }) => {
-    setCanvasView(next);
+  const persistCanvasView = (next: CanvasView) => {
+    viewRef.current = next;
+    if (viewPersistTimer.current) window.clearTimeout(viewPersistTimer.current);
+    viewPersistTimer.current = window.setTimeout(() => {
+      viewPersistTimer.current = null;
+      setCanvasView(viewRef.current);
+    }, 280);
   };
+
+  const flushCanvasView = () => {
+    if (!viewPersistTimer.current) return;
+    window.clearTimeout(viewPersistTimer.current);
+    viewPersistTimer.current = null;
+    setCanvasView(viewRef.current);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (!viewPersistTimer.current) return;
+      window.clearTimeout(viewPersistTimer.current);
+      setCanvasView(viewRef.current);
+    };
+  }, [setCanvasView]);
+
+  const pointerToWorld = (pointer: { x: number; y: number }) => ({
+    x: (pointer.x - stagePos.x) / scale,
+    y: (pointer.y - stagePos.y) / scale,
+  });
 
   const handleMouseMove = (e: any) => {
     if (readOnly) return;
@@ -495,8 +589,9 @@ function SeatingEditorInner({
       return;
     }
 
-    updateGhost(pos);
-    evalHover(pos);
+    const world = pointerToWorld(pos);
+    updateGhost(world);
+    evalHover(world);
   };
 
   const handleWheel = (e: any) => {
@@ -505,6 +600,40 @@ function SeatingEditorInner({
     const stage = e.target.getStage();
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
+
+    const world = {
+      x: (pointer.x - stagePos.x) / scale,
+      y: (pointer.y - stagePos.y) / scale,
+    };
+    const seating = useSeatingStore.getState() as {
+      tables: Array<{
+        id: string;
+        x: number;
+        y: number;
+        seats?: number;
+        type?: string;
+        layoutScale?: number;
+      }>;
+      selectedTableIds?: string[];
+      scaleSelectedTables?: (factor: number) => void;
+    };
+    const selected = new Set((seating.selectedTableIds || []).map(String));
+    const zoomCamera = Boolean(e.evt.ctrlKey || e.evt.metaKey);
+    const overSelected =
+      !zoomCamera &&
+      (seating.tables || []).some((table) => {
+        if (!selected.has(String(table.id))) return false;
+        const radius = displayedOuter(table) / 2;
+        const dx = world.x - Number(table.x);
+        const dy = world.y - Number(table.y);
+        return Math.hypot(dx, dy) <= radius;
+      });
+
+    if (overSelected && selected.size && seating.scaleSelectedTables) {
+      const factor = e.evt.deltaY < 0 ? 1.06 : 1 / 1.06;
+      seating.scaleSelectedTables(factor);
+      return;
+    }
 
     const scaleBy = 1.05;
     const direction = e.evt.deltaY > 0 ? -1 : 1;
@@ -655,6 +784,15 @@ function SeatingEditorInner({
     if (readOnly) return;
 
     function onKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        useSeatingStore.getState().selectAllTables();
+        return;
+      }
+
       if (!selectedZoneId) return;
 
       if (e.key === "Delete" || e.key === "Backspace") {
@@ -715,6 +853,10 @@ function SeatingEditorInner({
             if (e.evt.button !== 0) return;
             if (e.target !== e.target.getStage()) return;
 
+            if (!e.evt.shiftKey) {
+              useSeatingStore.getState().clearTableSelection();
+            }
+
             setIsPanning(true);
 
             const stage = e.target.getStage();
@@ -730,10 +872,12 @@ function SeatingEditorInner({
           onMouseUp={() => {
             setIsPanning(false);
             panStart.current = null;
+            flushCanvasView();
           }}
           onMouseLeave={() => {
             setIsPanning(false);
             panStart.current = null;
+            flushCanvasView();
           }}
           onMouseMove={handleMouseMove}
           onWheel={handleWheel}
@@ -746,6 +890,7 @@ function SeatingEditorInner({
             handleTouchEnd();
             panStart.current = null;
             setIsPanning(false);
+            flushCanvasView();
           }}
           style={{
             touchAction: "none",
@@ -756,17 +901,20 @@ function SeatingEditorInner({
             {bgImage &&
               bgImage.width > 0 &&
               bgImage.height > 0 &&
-              size.width > 0 &&
-              size.height > 0 && (
+              backgroundRect && (
                 <KonvaImage
                   image={bgImage}
-                  x={backgroundRect ? backgroundRect.x : -stagePos.x / scale}
-                  y={backgroundRect ? backgroundRect.y : -stagePos.y / scale}
-                  width={backgroundRect ? backgroundRect.width : size.width / scale}
-                  height={
-                    backgroundRect ? backgroundRect.height : size.height / scale
-                  }
-                  opacity={0.28}
+                  x={backgroundRect.x}
+                  y={backgroundRect.y}
+                  width={backgroundRect.width}
+                  height={backgroundRect.height}
+                  opacity={getSketchDisplayOpacity(
+                    typeof storeBackground === "object" &&
+                      storeBackground &&
+                      typeof storeBackground.opacity === "number"
+                      ? storeBackground.opacity
+                      : null
+                  )}
                 />
               )}
           </Layer>
@@ -794,6 +942,7 @@ function SeatingEditorInner({
                       : undefined,
                   }}
                   hideSeats={hideSeats}
+                  cameraScale={scale}
                 />
               );
             })}
@@ -805,15 +954,92 @@ function SeatingEditorInner({
             </Layer>
           )}
 
-          {!readOnly && (
-            <Layer name={SEATING_EXPORT_HIDE_NAME}>
-              {tables.map((table) => (
-                <DeleteTableButton key={table.id} table={table} />
-              ))}
-            </Layer>
-          )}
         </Stage>
       )}
+
+      <div
+        className="
+          absolute bottom-4 left-4 z-20 flex flex-col gap-2
+          md:bottom-6 md:left-6
+        "
+        dir="rtl"
+      >
+        <button
+          type="button"
+          data-tour="fill-screen"
+          onClick={() => fillSketchToScreen()}
+          className={`
+            rounded-2xl border px-3 py-2 text-xs font-black shadow-sm
+            backdrop-blur-md transition md:px-4 md:text-sm
+            ${
+              viewMode === "fill"
+                ? "border-[#17203a] bg-[#17203a] text-white"
+                : "border-[#e5d2b8] bg-white/90 text-[#6f5536] hover:bg-[#fff8ee]"
+            }
+          `}
+        >
+          מלא את המסך
+        </button>
+        <button
+          type="button"
+          data-tour="fit-to-screen"
+          onClick={() => fitContentToScreen()}
+          className={`
+            rounded-2xl border px-3 py-2 text-xs font-black shadow-sm
+            backdrop-blur-md transition md:px-4 md:text-sm
+            ${
+              viewMode === "fit"
+                ? "border-[#17203a] bg-[#17203a] text-white"
+                : "border-[#e5d2b8] bg-white/90 text-[#6f5536] hover:bg-[#fff8ee]"
+            }
+          `}
+        >
+          התאם למסך
+        </button>
+        <button
+          type="button"
+          data-tour="select-all-tables"
+          onClick={() => selectAllTables()}
+          className="
+            rounded-2xl border border-[#e5d2b8] bg-white/90 px-3 py-2
+            text-xs font-black text-[#6f5536] shadow-sm backdrop-blur-md
+            transition hover:bg-[#fff8ee] md:px-4 md:text-sm
+          "
+        >
+          בחר הכל
+          {selectedTableIds?.length ? ` (${selectedTableIds.length})` : ""}
+        </button>
+        {selectedTableIds?.length ? (
+          <label className="flex items-center gap-2 rounded-2xl border border-[#e5d2b8] bg-white/90 px-3 py-2 text-xs font-black text-[#6f5536] shadow-sm">
+            גודל %
+            <input
+              type="number"
+              min={20}
+              max={250}
+              step={1}
+              defaultValue={Math.round(
+                (Number(
+                  tables.find((table) =>
+                    selectedTableIds.map(String).includes(String(table.id))
+                  )?.layoutScale
+                ) || 1) * 100
+              )}
+              key={selectedTableIds.join(",")}
+              onBlur={(event) => {
+                const value = Number(event.target.value);
+                if (!Number.isFinite(value)) return;
+                setSelectedLayoutPercent(value);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  (event.target as HTMLInputElement).blur();
+                }
+              }}
+              className="w-16 rounded-lg border border-[#e5d2b8] bg-white px-2 py-1 text-center"
+            />
+          </label>
+        ) : null}
+      </div>
 
       {!readOnly && showAddModal && (
         <AddTableDrawer

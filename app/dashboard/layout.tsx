@@ -16,6 +16,7 @@ import DashboardSidebar, {
   writeSidebarCollapsed,
 } from "./components/DashboardSidebar";
 import AdminManageBanner from "@/app/components/admin/AdminManageBanner";
+import { coalesceJson } from "@/lib/dashboard/desktopPerf";
 
 type Invitation = {
   _id: string;
@@ -145,11 +146,7 @@ function DashboardLayoutInner({
           url = `/api/invitations/my`;
         }
 
-        const res = await fetch(url, {
-          credentials: "include",
-          cache: "no-store",
-        });
-        const data = await res.json().catch(() => null);
+        const { data } = await coalesceJson(url);
         if (cancelled) return;
         setInvitationLoaded(true);
 

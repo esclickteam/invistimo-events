@@ -29,6 +29,17 @@ import { colors } from "@/src/theme";
 
 type CanvasView = { x: number; y: number; scale: number };
 type GuestGroup = { _id: string; name: string };
+type BackgroundRect = {
+  url: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  opacity?: number;
+  naturalWidth?: number;
+  naturalHeight?: number;
+  defaultVisualSize?: number;
+};
 
 const TABLE_TYPES = [
   { id: "banquet", name: "אבירים", subtitle: "שולחן מלבני ארוך" },
@@ -41,7 +52,9 @@ export default function SeatingScreen() {
   const eventId = String(invitation?.eventId || event?._id || "");
   const invitationId = String(invitation?._id || "");
   const [tables, setTables] = useState<SeatingTable[]>([]);
-  const [background, setBackground] = useState<string | null>(null);
+  const [background, setBackground] = useState<BackgroundRect | string | null>(
+    null
+  );
   const [groups, setGroups] = useState<GuestGroup[]>([]);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("שמירה אוטומטית פעילה");
@@ -91,8 +104,52 @@ export default function SeatingScreen() {
       return;
     }
     setTables((result.data.tables || []).map((table, index) => parseSeatingTable(table, index)));
-    const bg = result.data.background;
-    setBackground(typeof bg === "string" ? bg : bg?.url || null);
+    const bg = result.data.background as
+      | string
+      | {
+          url?: string;
+          x?: number;
+          y?: number;
+          width?: number;
+          height?: number;
+          opacity?: number;
+          naturalWidth?: number;
+          naturalHeight?: number;
+          defaultVisualSize?: number;
+        }
+      | null
+      | undefined;
+    if (typeof bg === "string" && bg.trim()) {
+      setBackground(bg.trim());
+    } else if (bg && typeof bg === "object" && bg.url) {
+      const width = Number(bg.width);
+      const height = Number(bg.height);
+      if (
+        Number.isFinite(Number(bg.x)) &&
+        Number.isFinite(Number(bg.y)) &&
+        width > 0 &&
+        height > 0
+      ) {
+        const naturalWidth = Number(bg.naturalWidth);
+        const naturalHeight = Number(bg.naturalHeight);
+        const defaultVisualSize = Number(bg.defaultVisualSize);
+        setBackground({
+          url: String(bg.url),
+          x: Number(bg.x),
+          y: Number(bg.y),
+          width,
+          height,
+          opacity: typeof bg.opacity === "number" ? bg.opacity : 0.28,
+          ...(naturalWidth > 0 ? { naturalWidth } : {}),
+          ...(naturalHeight > 0 ? { naturalHeight } : {}),
+          ...(defaultVisualSize > 0 ? { defaultVisualSize } : {}),
+        });
+      } else {
+        setBackground(String(bg.url));
+      }
+    } else {
+      setBackground(null);
+    }
     if (result.data.canvasView) view.current = result.data.canvasView;
     setTick((n) => n + 1);
   }, [eventId, invitationId]);
@@ -150,6 +207,11 @@ export default function SeatingScreen() {
 
   function addTable() {
     const seats = Math.max(1, Number(seatsInput || 12));
+    const sketch = background && typeof background === "object" ? background : null;
+    const calibrated = Number(sketch?.defaultVisualSize);
+    const shorter = sketch ? Math.min(sketch.width, sketch.height) : 0;
+    const visualSize =
+      calibrated > 0 ? calibrated : shorter > 0 ? shorter * 0.08 : 150;
     const next: SeatingTable = {
       id: `table-${Date.now()}`,
       name: `שולחן ${tables.length + 1}`,
@@ -160,6 +222,8 @@ export default function SeatingScreen() {
       x: (-view.current.x + canvasSize.width / 2) / view.current.scale,
       y: (-view.current.y + canvasSize.height / 2) / view.current.scale,
       rotation: 0,
+      visualSize,
+      layoutScale: 1,
       seatedGuests: [],
     };
     const nextTables = [...tables, next];
@@ -308,9 +372,6 @@ export default function SeatingScreen() {
         onLayout={(e) => setCanvasSize(e.nativeEvent.layout)}
         {...pan.panHandlers}
       >
-        {background ? (
-          <Image source={{ uri: background }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-        ) : null}
         <View
           style={{
             transform: [
@@ -320,6 +381,34 @@ export default function SeatingScreen() {
             ],
           }}
         >
+          {typeof background === "string" && background ? (
+            <Image
+              source={{ uri: background }}
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                width: Math.max(canvasSize.width / Math.max(view.current.scale, 0.01), 800),
+                height: Math.max(canvasSize.height / Math.max(view.current.scale, 0.01), 600),
+                opacity: 0.28,
+              }}
+              resizeMode="contain"
+            />
+          ) : null}
+          {background && typeof background === "object" ? (
+            <Image
+              source={{ uri: background.url }}
+              style={{
+                position: "absolute",
+                left: background.x,
+                top: background.y,
+                width: background.width,
+                height: background.height,
+                opacity: background.opacity ?? 0.28,
+              }}
+              resizeMode="stretch"
+            />
+          ) : null}
           {tables.map((table) => (
             <TableNode
               key={table.id}
@@ -550,23 +639,45 @@ function TableNode({
 }) {
   const layout = getTableLayout(table);
   const footprint = tableFootprint(layout);
+  const savedScale = Number(table.layoutScale);
+  const explicit = Number(table.visualSize);
+  const drawScale =
+    explicit > 0
+      ? explicit / Math.max(footprint.width, footprint.height, 1)
+      : savedScale > 0
+        ? savedScale
+        : 1;
+  const boxW = footprint.width * drawScale;
+  const boxH = footprint.height * drawScale;
   const occupied = new Set(table.seatedGuests.map((seat) => Number(seat.seatIndex)));
   const body =
     layout.type === "round"
-      ? { width: layout.radius * 2, height: layout.radius * 2, borderRadius: 999 }
+      ? {
+          width: layout.radius * 2 * drawScale,
+          height: layout.radius * 2 * drawScale,
+          borderRadius: 999,
+        }
       : layout.type === "square"
-        ? { width: layout.size, height: layout.size, borderRadius: 10 }
-        : { width: layout.width, height: layout.height, borderRadius: 12 };
+        ? {
+            width: layout.size * drawScale,
+            height: layout.size * drawScale,
+            borderRadius: 10,
+          }
+        : {
+            width: layout.width * drawScale,
+            height: layout.height * drawScale,
+            borderRadius: 12,
+          };
 
   return (
     <Pressable
       onPress={onPress}
       style={{
         position: "absolute",
-        left: table.x - footprint.width / 2,
-        top: table.y - footprint.height / 2,
-        width: footprint.width,
-        height: footprint.height,
+        left: table.x - boxW / 2,
+        top: table.y - boxH / 2,
+        width: boxW,
+        height: boxH,
         alignItems: "center",
         justifyContent: "center",
       }}
@@ -576,10 +687,10 @@ function TableNode({
           key={index}
           style={{
             position: "absolute",
-            left: footprint.width / 2 + coord.x - 8,
-            top: footprint.height / 2 + coord.y - 8,
-            width: 16,
-            height: 16,
+            left: boxW / 2 + coord.x * drawScale - 8 * drawScale,
+            top: boxH / 2 + coord.y * drawScale - 8 * drawScale,
+            width: 16 * drawScale,
+            height: 16 * drawScale,
             borderRadius: 4,
             borderWidth: 1,
             backgroundColor: occupied.has(index) ? "#B98A45" : "#FFF9EF",

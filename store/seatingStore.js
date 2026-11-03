@@ -1,5 +1,15 @@
 import { create } from "zustand";
 import { findFreeBlock } from "../logic/seatingEngine";
+import {
+  clampLayoutScale,
+  normalizeBackground,
+} from "../lib/seating/canvasLayout";
+import {
+  clampTableVisualSize,
+  displayedOuter,
+  resolveDefaultVisualSize,
+  sketchProportionalSize,
+} from "../lib/seating/tableVisual";
 
 function extractNumberFromName(name) {
   const m = String(name || "").match(/(\d+)/);
@@ -88,6 +98,7 @@ function normalizeTableForStore(table) {
     seats,
     capacity: seats,
     number: table?.number ?? extractNumberFromName(table?.name) ?? null,
+    layoutScale: clampLayoutScale(table?.layoutScale, 1),
     seatedGuests: normalizeSeatIndexList(table?.seatedGuests || [], seats),
   };
 }
@@ -214,6 +225,97 @@ export const useSeatingStore = create((set, get) => ({
   highlightedSeats: [],
 
   selectedGuestId: null,
+  selectedTableId: null,
+  selectedTableIds: [],
+
+  selectTable: (id, options = {}) =>
+    set((state) => {
+      const sid = String(id || "");
+      if (!sid) return state;
+      const current = (state.selectedTableIds || []).map(String);
+      const additive = Boolean(options.additive);
+      let next;
+      if (additive) {
+        next = current.includes(sid)
+          ? current.filter((value) => value !== sid)
+          : [...current, sid];
+      } else {
+        next = [sid];
+      }
+      return {
+        selectedTableIds: next,
+        selectedTableId: next[next.length - 1] || null,
+      };
+    }),
+
+  selectAllTables: () =>
+    set((state) => {
+      const ids = (state.tables || []).map((table) => String(table.id));
+      return {
+        selectedTableIds: ids,
+        selectedTableId: ids[0] || null,
+      };
+    }),
+
+  clearTableSelection: () =>
+    set({ selectedTableId: null, selectedTableIds: [] }),
+
+  scaleSelectedTables: (factor) =>
+    set((state) => {
+      const ids = new Set((state.selectedTableIds || []).map(String));
+      if (!ids.size) return state;
+      const anchor = sketchProportionalSize(state.background);
+      const ratio = Number(factor);
+      if (!(ratio > 0)) return state;
+      let calibrated = null;
+      const tables = (state.tables || []).map((table) => {
+        if (!ids.has(String(table.id))) return table;
+        const current = displayedOuter(table);
+        const next = clampTableVisualSize(current * ratio, anchor);
+        calibrated = next;
+        return {
+          ...table,
+          x: table.x,
+          y: table.y,
+          rotation: table.rotation,
+          seats: table.seats,
+          seatedGuests: table.seatedGuests,
+          visualSize: next,
+        };
+      });
+      const background =
+        calibrated && state.background && typeof state.background === "object"
+          ? { ...state.background, defaultVisualSize: calibrated }
+          : state.background;
+      return { tables, background };
+    }),
+
+  setSelectedLayoutPercent: (percent) =>
+    set((state) => {
+      const ids = new Set((state.selectedTableIds || []).map(String));
+      if (!ids.size) return state;
+      const anchor = sketchProportionalSize(state.background);
+      const ratio = clampLayoutScale(Number(percent) / 100, 1);
+      const next = clampTableVisualSize(anchor * ratio, anchor);
+      const tables = (state.tables || []).map((table) =>
+        ids.has(String(table.id))
+          ? {
+              ...table,
+              x: table.x,
+              y: table.y,
+              rotation: table.rotation,
+              seats: table.seats,
+              seatedGuests: table.seatedGuests,
+              visualSize: next,
+            }
+          : table
+      );
+      const background =
+        state.background && typeof state.background === "object"
+          ? { ...state.background, defaultVisualSize: next }
+          : state.background;
+      return { tables, background };
+    }),
 
   seatingModalTableId: null,
   showSeatingModal: false,
@@ -233,7 +335,8 @@ export const useSeatingStore = create((set, get) => ({
   setSelectedGuest: (guestId) => set({ selectedGuestId: guestId }),
   clearSelectedGuest: () => set({ selectedGuestId: null }),
 
-  setBackground: (background) => set({ background }),
+  setBackground: (background) =>
+    set({ background: normalizeBackground(background) ?? background }),
 
   setCanvasView: (view) =>
     set({
@@ -827,15 +930,19 @@ export const useSeatingStore = create((set, get) => ({
             Number(table.x ?? 0) === Number(next.x ?? 0) &&
             Number(table.y ?? 0) === Number(next.y ?? 0) &&
             Number(table.rotation ?? 0) === Number(next.rotation ?? 0) &&
+            Number(table.layoutScale ?? 1) === Number(next.layoutScale ?? 1) &&
+            Number(table.visualSize ?? 0) === Number(next.visualSize ?? 0) &&
             String(table.type ?? "") === String(next.type ?? "") &&
             String(table.name ?? "") === String(next.name ?? "")
           );
         });
 
+      const nextBackground = normalizeBackground(background) ?? background;
+
       if (
         sameGuests &&
         sameTables &&
-        state.background === background &&
+        state.background === nextBackground &&
         (canvasView == null || state.canvasView === canvasView)
       ) {
         return state;
@@ -847,7 +954,7 @@ export const useSeatingStore = create((set, get) => ({
         guests: nextGuests,
         liveArrivals:
           nextLiveArrivals != null ? nextLiveArrivals : state.liveArrivals,
-        background,
+        background: nextBackground,
         canvasView:
           canvasView ?? state.canvasView ?? { scale: 1, x: 0, y: 0 },
         hasSavedCanvasView: canvasView != null,
@@ -904,6 +1011,8 @@ export const useSeatingStore = create((set, get) => ({
         x: table.x ?? 200,
         y: table.y ?? 200,
         rotation: table.rotation || 0,
+        layoutScale: table.layoutScale,
+        visualSize: table.visualSize,
         seatedGuests: table.seatedGuests || [],
       })
     );
@@ -915,7 +1024,9 @@ export const useSeatingStore = create((set, get) => ({
       tables,
       groups: session?.groups || [],
       liveArrivals: {},
-      background: null,
+      background: session?.background ?? null,
+      canvasView: session?.canvasView || { scale: 1, x: 0, y: 0 },
+      hasSavedCanvasView: Boolean(session?.canvasView),
       highlightedTable: null,
       highlightedSeats: [],
       draggingGuest: null,
@@ -972,7 +1083,7 @@ export const useSeatingStore = create((set, get) => ({
   /* ---------------- ADD TABLE ---------------- */
 
   addTable: (type, seats, position) => {
-    const { tables, canvasView } = get();
+    const { tables, canvasView, background } = get();
 
     const fallbackX =
       (-Number(canvasView?.x ?? 0) + 600) / Number(canvasView?.scale ?? 1);
@@ -991,6 +1102,8 @@ export const useSeatingStore = create((set, get) => ({
       x: position?.x ?? fallbackX,
       y: position?.y ?? fallbackY,
       rotation: 0,
+      visualSize: resolveDefaultVisualSize(background),
+      layoutScale: 1,
       seatedGuests: [],
     };
 
@@ -1076,8 +1189,10 @@ export const useSeatingStore = create((set, get) => ({
     const hoveredTable = tables.find((t) => {
       const dx = pointer.x - t.x;
       const dy = pointer.y - t.y;
+      const layoutScale = clampLayoutScale(t.layoutScale, 1);
       const radius =
-        t.type === "round" ? 90 : t.type === "square" ? 110 : 160;
+        (t.type === "round" ? 90 : t.type === "square" ? 110 : 160) *
+        layoutScale;
 
       return Math.sqrt(dx * dx + dy * dy) < radius;
     });

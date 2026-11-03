@@ -716,7 +716,8 @@ function SeatingPageInner() {
           : isVenueView
             ? "?venueView=1"
             : "";
-        const res = await fetch(`/api/seating/tables/${eventId}${qs}`, {
+        const metaQs = qs ? `${qs}&meta=1` : "?meta=1";
+        const res = await fetch(`/api/seating/tables/${eventId}${metaQs}`, {
           credentials: "include",
           cache: "no-store",
         });
@@ -732,17 +733,24 @@ function SeatingPageInner() {
         lastVenueTemplateSyncAtRef.current = stamp;
         if (isFirstObservation) return;
 
-        // Reload full seating (guests + tables) when template version changes
+        // Reload full seating when the template version changes.
+        // The poll itself only reads the stamp, so it never replaces tables.
         if (invitationId) {
           await loadSeatingData(eventId, invitationId);
         } else {
+          const fullRes = await fetch(`/api/seating/tables/${eventId}${qs}`, {
+            credentials: "include",
+            cache: "no-store",
+          });
+          const full = await fullRes.json().catch(() => null);
+          if (!fullRes.ok || !full?.success) return;
           init(
-            data.tables || [],
+            full.tables || [],
             useSeatingStore.getState().guests || [],
-            data.background ?? null,
-            data.canvasView ?? useSeatingStore.getState().canvasView
+            full.background ?? null,
+            full.canvasView ?? useSeatingStore.getState().canvasView
           );
-          if (Array.isArray(data.zones)) setZones(data.zones);
+          if (Array.isArray(full.zones)) setZones(full.zones);
         }
       } catch {
         /* ignore transient poll errors */
@@ -771,10 +779,17 @@ function SeatingPageInner() {
   const handleBackgroundSelect = (bgUrl: string) => {
     if (!bgUrl) return;
 
+    const previous = useSeatingStore.getState().background;
+    const calibrated =
+      previous && typeof previous === "object"
+        ? Number(previous.defaultVisualSize)
+        : 0;
+
     setBackground({
       url: bgUrl,
       opacity: 0.28,
       fitOnLoad: true,
+      ...(calibrated > 0 ? { defaultVisualSize: calibrated } : {}),
     });
   };
 
@@ -1703,7 +1718,11 @@ function SeatingPageInner() {
 
           <div className="relative z-10 h-full w-full min-h-0 min-w-0">
             <SeatingEditor
-              background={background?.url || null}
+              background={
+                typeof background === "string"
+                  ? background
+                  : background?.url || null
+              }
               invitationId={invitationId}
               onAutoSave={async () => {
                 if (isVenueTemplateMode) return false;
