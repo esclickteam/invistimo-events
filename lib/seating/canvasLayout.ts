@@ -26,9 +26,12 @@ export type BackgroundLike = {
   naturalHeight?: number;
 } | string | null | undefined;
 
-export const MIN_LAYOUT_SCALE = 0.25;
-export const MAX_LAYOUT_SCALE = 3;
+export const MIN_LAYOUT_SCALE = 0.2;
+export const MAX_LAYOUT_SCALE = 2.5;
 export const DEFAULT_TABLE_FOOTPRINT = 230;
+/** Shrinks the drawn table (chairs, frame, text) without rewriting saved layoutScale. */
+export const TABLE_BASE_DRAW = 0.38;
+export const CONTROL_SCREEN_PX = 26;
 
 export function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -367,9 +370,41 @@ export function preserveWorldCenterOnResize(options: {
   };
 }
 
+/** Inverse of camera zoom so a control stays a constant size on screen. */
+export function controlCounterScale(cameraScale: number) {
+  const scale = Number(cameraScale);
+  if (!(scale > 0)) return 1;
+  return 1 / scale;
+}
+
 /**
- * Suggest an initial visual scale so a new table is roughly ~8% of the
- * shorter sketch side (clamped), without changing seat count.
+ * Multiply layoutScale for the given tables. x/y/rotation/seats are unchanged,
+ * so each table stays centered on its own position.
+ */
+export function scaleTablesLayout<T extends { id?: unknown; layoutScale?: number }>(
+  tables: T[],
+  ids: Array<string | number>,
+  factor: number
+): T[] {
+  const selected = new Set(ids.map((id) => String(id)));
+  const ratio = Number(factor);
+  if (!selected.size || !(ratio > 0)) return tables;
+
+  return tables.map((table) => {
+    if (!selected.has(String(table.id))) return table;
+    return {
+      ...table,
+      layoutScale: clampLayoutScale(
+        (Number(table.layoutScale) || 1) * ratio,
+        1
+      ),
+    };
+  });
+}
+
+/**
+ * Suggest an initial visual scale so a new table is roughly ~3.4% of the
+ * shorter sketch side (after TABLE_BASE_DRAW), without changing seat count.
  */
 export function suggestInitialLayoutScale(background: BackgroundLike): number {
   const rect = getBackgroundRect(background);
@@ -378,7 +413,7 @@ export function suggestInitialLayoutScale(background: BackgroundLike): number {
   const shorter = Math.min(rect.width, rect.height);
   if (!(shorter > 0)) return 1;
 
-  const targetFootprint = shorter * 0.08;
-  const baseFootprint = DEFAULT_TABLE_FOOTPRINT;
+  const targetFootprint = shorter * 0.034;
+  const baseFootprint = DEFAULT_TABLE_FOOTPRINT * TABLE_BASE_DRAW;
   return clampLayoutScale(targetFootprint / baseFootprint, 1);
 }

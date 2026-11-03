@@ -3,6 +3,7 @@ import { findFreeBlock } from "../logic/seatingEngine";
 import {
   clampLayoutScale,
   normalizeBackground,
+  scaleTablesLayout,
   suggestInitialLayoutScale,
 } from "../lib/seating/canvasLayout";
 
@@ -220,6 +221,63 @@ export const useSeatingStore = create((set, get) => ({
   highlightedSeats: [],
 
   selectedGuestId: null,
+  selectedTableId: null,
+  selectedTableIds: [],
+
+  selectTable: (id, options = {}) =>
+    set((state) => {
+      const sid = String(id || "");
+      if (!sid) return state;
+      const current = (state.selectedTableIds || []).map(String);
+      const additive = Boolean(options.additive);
+      let next;
+      if (additive) {
+        next = current.includes(sid)
+          ? current.filter((value) => value !== sid)
+          : [...current, sid];
+      } else {
+        next = [sid];
+      }
+      return {
+        selectedTableIds: next,
+        selectedTableId: next[next.length - 1] || null,
+      };
+    }),
+
+  selectAllTables: () =>
+    set((state) => {
+      const ids = (state.tables || []).map((table) => String(table.id));
+      return {
+        selectedTableIds: ids,
+        selectedTableId: ids[0] || null,
+      };
+    }),
+
+  clearTableSelection: () =>
+    set({ selectedTableId: null, selectedTableIds: [] }),
+
+  scaleSelectedTables: (factor) =>
+    set((state) => ({
+      tables: scaleTablesLayout(
+        state.tables || [],
+        state.selectedTableIds || [],
+        factor
+      ),
+    })),
+
+  setSelectedLayoutPercent: (percent) =>
+    set((state) => {
+      const scale = clampLayoutScale(Number(percent) / 100, 1);
+      const ids = new Set((state.selectedTableIds || []).map(String));
+      if (!ids.size) return state;
+      return {
+        tables: (state.tables || []).map((table) =>
+          ids.has(String(table.id))
+            ? { ...table, layoutScale: scale }
+            : table
+        ),
+      };
+    }),
 
   seatingModalTableId: null,
   showSeatingModal: false,
