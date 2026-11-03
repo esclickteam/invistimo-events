@@ -22,6 +22,16 @@ import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
 import MobileGuests from "./MobileGuests";
 import { captureSeatingStage, SEATING_EXPORT_HIDE_NAME } from "./seatingExport";
+import {
+  clamp,
+  computeCanonicalBackgroundRect,
+  fitViewToBounds,
+  getBackgroundRect,
+  getContentBounds,
+  preserveWorldCenterOnResize,
+  type BackgroundLike,
+  type CanvasView,
+} from "@/lib/seating/canvasLayout";
 
 /* ============================================================
    GLOBAL WINDOW TYPE
@@ -29,6 +39,7 @@ import { captureSeatingStage, SEATING_EXPORT_HIDE_NAME } from "./seatingExport";
 declare global {
   interface Window {
     __captureInvistimoSeatingMap?: () => HTMLCanvasElement | null;
+    __fitInvistimoSeatingToScreen?: () => void;
   }
 }
 
@@ -47,29 +58,6 @@ type SeatingEditorProps = {
   initialViewReady?: boolean;
 };
 
-type CanvasViewState = { x: number; y: number; scale: number };
-
-type BackgroundState = {
-  url?: string;
-  opacity?: number;
-  x?: number;
-  y?: number;
-  width?: number;
-  height?: number;
-  fitOnLoad?: boolean;
-} | null;
-
-function getBackgroundRect(bg: BackgroundState) {
-  if (!bg) return null;
-  const x = Number(bg.x);
-  const y = Number(bg.y);
-  const width = Number(bg.width);
-  const height = Number(bg.height);
-  if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
-  if (!(width > 0) || !(height > 0)) return null;
-  return { x, y, width, height };
-}
-
 type Guest = {
   id?: string;
   _id?: string;
@@ -86,17 +74,11 @@ type Table = {
   y: number;
   capacity?: number;
   seatedGuests?: SeatedGuest[];
+  layoutScale?: number;
 };
 
-type Bounds = {
-  minX: number;
-  minY: number;
-  maxX: number;
-  maxY: number;
-};
-
-const clamp = (v: number, min: number, max: number) =>
-  Math.min(Math.max(v, min), max);
+const MIN_SCALE = 0.04;
+const MAX_SCALE = 6;
 
 /* ============================================================
    INNER
@@ -112,10 +94,15 @@ function SeatingEditorInner({
   initialViewReady,
 }: SeatingEditorProps) {
   const [bgImage] = useImage(background || "", "anonymous");
-  const storeBackground = useSeatingStore((s) => s.background) as BackgroundState;
+  const storeBackground = useSeatingStore(
+    (s) => s.background
+  ) as BackgroundLike;
   const setBackground = useSeatingStore((s) => s.setBackground);
   const backgroundRect =
-    storeBackground?.url && storeBackground.url === background
+    storeBackground &&
+    typeof storeBackground === "object" &&
+    storeBackground.url &&
+    storeBackground.url === background
       ? getBackgroundRect(storeBackground)
       : null;
 
@@ -206,9 +193,20 @@ function SeatingEditorInner({
     const updateSize = () => {
       const rect = viewportElement.getBoundingClientRect();
 
-      setSize({
-        width: Math.max(1, rect.width),
-        height: Math.max(1, rect.height),
+      setSize((prev) => {
+        const next = {
+          width: Math.max(1, rect.width),
+          height: Math.max(1, rect.height),
+        };
+
+        if (
+          prev.width === next.width &&
+          prev.height === next.height
+        ) {
+          return prev;
+        }
+
+        return next;
       });
     };
 
@@ -228,9 +226,6 @@ function SeatingEditorInner({
   }, []);
 
   /* ================= ZOOM & PAN ================= */
-  const MIN_SCALE = 0.04;
-  const MAX_SCALE = 6;
-
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -238,106 +233,133 @@ function SeatingEditorInner({
   const panStart = useRef<{ x: number; y: number } | null>(null);
   const stageStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const lastTouchDist = useRef<number | null>(null);
+  const viewRef = useRef<CanvasView>({ x: 0, y: 0, scale: 1 });
 
   const didFitCanvasOnEntryRef = useRef(false);
   const prevInvitationIdRef = useRef<string | null>(invitationId ?? null);
+  const didResolveBackgroundRef = useRef(false);
 
-  const getContentBounds = useCallback((): Bounds | null => {
-    const xs: number[] = [];
-    const ys: number[] = [];
+  useEffect(() => {
+    viewRef.current = { x: stagePos.x, y: stagePos.y, scale };
+  }, [scale, stagePos.x, stagePos.y]);
 
-    const tableSafeSize = isMobile ? 260 : 230;
+  const computeBounds = useCallback(() => {
+    return getContentBounds({
+      tables,
+      zones,
+      background: storeBackground,
+      mobile: isMobile,
+    });
+  }, [isMobile, storeBackground, tables, zones]);
 
-    tables.forEach((table: any) => {
-      if (!Number.isFinite(table.x) || !Number.isFinite(table.y)) return;
+  const applyView = useCallback(
+    (nextView: CanvasView, persist = true) => {
+      setScale(nextView.scale);
+      setStagePos({ x: nextView.x, y: nextView.y });
+      if (persist) setCanvasView(nextView);
+    },
+    [setCanvasView]
+  );
 
-      xs.push(table.x - tableSafeSize);
-      xs.push(table.x + tableSafeSize);
-      ys.push(table.y - tableSafeSize);
-      ys.push(table.y + tableSafeSize);
+  const fitContentToScreen = useCallback(() => {
+    if (size.width <= 0 || size.height <= 0) return false;
+
+    const bounds = computeBounds();
+    if (!bounds) return false;
+
+    const nextView = fitViewToBounds({
+      bounds,
+      viewportWidth: size.width,
+      viewportHeight: size.height,
+      paddingX: isMobile ? 36 : 110,
+      paddingY: isMobile ? 92 : 110,
+      minScale: isMobile ? 0.08 : 0.14,
+      maxScale: isMobile ? 0.9 : 1.25,
     });
 
-    zones.forEach((zone: any) => {
-      if (!Number.isFinite(zone.x) || !Number.isFinite(zone.y)) return;
+    applyView(nextView, true);
+    return true;
+  }, [applyView, computeBounds, isMobile, size.height, size.width]);
 
-      const width = Number.isFinite(zone.width) ? zone.width : 0;
-      const height = Number.isFinite(zone.height) ? zone.height : 0;
-
-      xs.push(zone.x);
-      xs.push(zone.x + width);
-      ys.push(zone.y);
-      ys.push(zone.y + height);
-    });
-
-    if (!xs.length || !ys.length) return null;
-
-    return {
-      minX: Math.min(...xs),
-      minY: Math.min(...ys),
-      maxX: Math.max(...xs),
-      maxY: Math.max(...ys),
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.__fitInvistimoSeatingToScreen = () => {
+      fitContentToScreen();
     };
-  }, [isMobile, tables, zones]);
-
-  const fitAllTablesIntoScreen = useCallback(() => {
-    if (size.width <= 0 || size.height <= 0) return;
-
-    const bounds = getContentBounds();
-    if (!bounds) return;
-
-    const contentW = Math.max(1, bounds.maxX - bounds.minX);
-    const contentH = Math.max(1, bounds.maxY - bounds.minY);
-
-    const contentCenterX = bounds.minX + contentW / 2;
-    const contentCenterY = bounds.minY + contentH / 2;
-
-    const paddingX = isMobile ? 36 : 110;
-    const paddingY = isMobile ? 92 : 110;
-
-    const availableW = Math.max(240, size.width - paddingX);
-    const availableH = Math.max(240, size.height - paddingY);
-
-    const nextScale = Math.max(
-      isMobile ? 0.08 : 0.14,
-      Math.min(
-        isMobile ? 0.9 : 1.25,
-        Math.min(availableW / contentW, availableH / contentH)
-      )
-    );
-
-    const nextX = size.width / 2 - contentCenterX * nextScale;
-    const nextY = size.height / 2 - contentCenterY * nextScale;
-
-    const nextView = {
-      x: nextX,
-      y: nextY,
-      scale: nextScale,
+    return () => {
+      if (window.__fitInvistimoSeatingToScreen) {
+        delete window.__fitInvistimoSeatingToScreen;
+      }
     };
+  }, [fitContentToScreen]);
 
-    setScale(nextView.scale);
-    setStagePos({ x: nextView.x, y: nextView.y });
-    setCanvasView(nextView);
-  }, [getContentBounds, isMobile, setCanvasView, size.height, size.width]);
+  const prevSizeForResizeRef = useRef({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const prev = prevSizeForResizeRef.current;
+
+    if (
+      didFitCanvasOnEntryRef.current &&
+      prev.width > 0 &&
+      prev.height > 0 &&
+      size.width > 0 &&
+      size.height > 0 &&
+      (prev.width !== size.width || prev.height !== size.height)
+    ) {
+      const nextView = preserveWorldCenterOnResize({
+        prevWidth: prev.width,
+        prevHeight: prev.height,
+        nextWidth: size.width,
+        nextHeight: size.height,
+        view: viewRef.current,
+      });
+      applyView(nextView, true);
+    }
+
+    prevSizeForResizeRef.current = {
+      width: size.width,
+      height: size.height,
+    };
+  }, [applyView, size.height, size.width]);
 
   useEffect(() => {
     const currentInvitationId = invitationId ?? null;
 
     if (prevInvitationIdRef.current !== currentInvitationId) {
       didFitCanvasOnEntryRef.current = false;
+      didResolveBackgroundRef.current = false;
       prevInvitationIdRef.current = currentInvitationId;
     }
   }, [invitationId]);
 
-  const isViewShowingTables = useCallback(
-    (view: CanvasViewState) => {
-      if (!tables.length) return true;
-      return tables.some((table: any) => {
-        const sx = Number(table.x) * view.scale + view.x;
-        const sy = Number(table.y) * view.scale + view.y;
-        return sx >= 0 && sx <= size.width && sy >= 0 && sy <= size.height;
+  useEffect(() => {
+    // New upload / URL change must re-resolve world rect.
+    didResolveBackgroundRef.current = false;
+  }, [background]);
+
+  const isViewShowingContent = useCallback(
+    (view: CanvasView) => {
+      const bounds = computeBounds();
+      if (!bounds) return true;
+
+      const corners = [
+        { x: bounds.minX, y: bounds.minY },
+        { x: bounds.maxX, y: bounds.minY },
+        { x: bounds.minX, y: bounds.maxY },
+        { x: bounds.maxX, y: bounds.maxY },
+        {
+          x: (bounds.minX + bounds.maxX) / 2,
+          y: (bounds.minY + bounds.maxY) / 2,
+        },
+      ];
+
+      return corners.some((point) => {
+        const sx = point.x * view.scale + view.x;
+        const sy = point.y * view.scale + view.y;
+        return sx >= -40 && sx <= size.width + 40 && sy >= -40 && sy <= size.height + 40;
       });
     },
-    [size.height, size.width, tables]
+    [computeBounds, size.height, size.width]
   );
 
   const [viewSettled, setViewSettled] = useState(false);
@@ -347,15 +369,16 @@ function SeatingEditorInner({
     if (size.width <= 0 || size.height <= 0) return;
     if (initialViewReady === false) return;
 
-    const hasContent = tables.length > 0 || zones.length > 0;
-    if (initialViewReady === undefined && !hasContent) return;
+    const hasContent =
+      tables.length > 0 || zones.length > 0 || Boolean(backgroundRect);
+    if (initialViewReady === undefined && !hasContent && !background) return;
 
     const timer = window.setTimeout(() => {
       didFitCanvasOnEntryRef.current = true;
 
       const { canvasView: savedView, hasSavedCanvasView } =
         useSeatingStore.getState() as {
-          canvasView: CanvasViewState | null;
+          canvasView: CanvasView | null;
           hasSavedCanvasView?: boolean;
         };
 
@@ -365,13 +388,12 @@ function SeatingEditorInner({
         Number(savedView.scale) > 0 &&
         Number.isFinite(Number(savedView.x)) &&
         Number.isFinite(Number(savedView.y)) &&
-        isViewShowingTables(savedView);
+        isViewShowingContent(savedView);
 
       if (canRestore && savedView) {
-        setScale(savedView.scale);
-        setStagePos({ x: savedView.x, y: savedView.y });
-      } else if (hasContent) {
-        fitAllTablesIntoScreen();
+        applyView(savedView, false);
+      } else if (hasContent || background) {
+        fitContentToScreen();
       }
 
       setViewSettled(true);
@@ -379,59 +401,75 @@ function SeatingEditorInner({
 
     return () => window.clearTimeout(timer);
   }, [
-    fitAllTablesIntoScreen,
+    applyView,
+    background,
+    backgroundRect,
+    fitContentToScreen,
     initialViewReady,
-    isViewShowingTables,
+    isViewShowingContent,
     size.height,
     size.width,
     tables.length,
     zones.length,
   ]);
 
-  /* The background lives in canvas coordinates so tables stay aligned to the hall sketch on any screen. */
+  /*
+    Resolve missing background world rect once image loads.
+    Never pin sketch size to the current viewport/zoom — that breaks
+    shared coordinates with tables.
+  */
   useEffect(() => {
     if (readOnly) return;
     if (!viewSettled) return;
     if (!background || backgroundRect) return;
     if (!bgImage || bgImage.width <= 0 || bgImage.height <= 0) return;
-    if (size.width <= 0 || size.height <= 0) return;
+    if (didResolveBackgroundRef.current) return;
 
-    const current = useSeatingStore.getState().background as BackgroundState;
-    if (!current?.url || current.url !== background) return;
-
-    const viewX = -stagePos.x / scale;
-    const viewY = -stagePos.y / scale;
-    const viewW = size.width / scale;
-    const viewH = size.height / scale;
-
-    let rect = { x: viewX, y: viewY, width: viewW, height: viewH };
-
-    if (current.fitOnLoad) {
-      const ratio = Math.min(viewW / bgImage.width, viewH / bgImage.height);
-      const width = bgImage.width * ratio;
-      const height = bgImage.height * ratio;
-      rect = {
-        x: viewX + (viewW - width) / 2,
-        y: viewY + (viewH - height) / 2,
-        width,
-        height,
-      };
+    const current = useSeatingStore.getState().background as BackgroundLike;
+    if (!current || typeof current !== "object" || current.url !== background) {
+      return;
     }
 
+    didResolveBackgroundRef.current = true;
+
+    const contentWithoutBg = getContentBounds({
+      tables,
+      zones,
+      background: null,
+      mobile: isMobile,
+    });
+
+    const preferNaturalOrigin = Boolean(current.fitOnLoad);
+    const rect = computeCanonicalBackgroundRect({
+      imageWidth: bgImage.width,
+      imageHeight: bgImage.height,
+      contentBounds: contentWithoutBg,
+      preferNaturalOrigin,
+    });
+
     const { fitOnLoad: _fitOnLoad, ...rest } = current;
-    setBackground({ ...rest, ...rect });
+    setBackground({
+      ...rest,
+      ...rect,
+      naturalWidth: bgImage.width,
+      naturalHeight: bgImage.height,
+    });
+
+    // After placing the sketch in world space, fit the camera to everything.
+    window.setTimeout(() => {
+      fitContentToScreen();
+    }, 0);
   }, [
     background,
     backgroundRect,
     bgImage,
+    fitContentToScreen,
+    isMobile,
     readOnly,
-    scale,
     setBackground,
-    size.height,
-    size.width,
-    stagePos.x,
-    stagePos.y,
+    tables,
     viewSettled,
+    zones,
   ]);
 
   useEffect(() => {
@@ -462,9 +500,14 @@ function SeatingEditorInner({
     };
   };
 
-  const persistCanvasView = (next: { x: number; y: number; scale: number }) => {
+  const persistCanvasView = (next: CanvasView) => {
     setCanvasView(next);
   };
+
+  const pointerToWorld = (pointer: { x: number; y: number }) => ({
+    x: (pointer.x - stagePos.x) / scale,
+    y: (pointer.y - stagePos.y) / scale,
+  });
 
   const handleMouseMove = (e: any) => {
     if (readOnly) return;
@@ -495,8 +538,9 @@ function SeatingEditorInner({
       return;
     }
 
-    updateGhost(pos);
-    evalHover(pos);
+    const world = pointerToWorld(pos);
+    updateGhost(world);
+    evalHover(world);
   };
 
   const handleWheel = (e: any) => {
@@ -756,17 +800,20 @@ function SeatingEditorInner({
             {bgImage &&
               bgImage.width > 0 &&
               bgImage.height > 0 &&
-              size.width > 0 &&
-              size.height > 0 && (
+              backgroundRect && (
                 <KonvaImage
                   image={bgImage}
-                  x={backgroundRect ? backgroundRect.x : -stagePos.x / scale}
-                  y={backgroundRect ? backgroundRect.y : -stagePos.y / scale}
-                  width={backgroundRect ? backgroundRect.width : size.width / scale}
-                  height={
-                    backgroundRect ? backgroundRect.height : size.height / scale
+                  x={backgroundRect.x}
+                  y={backgroundRect.y}
+                  width={backgroundRect.width}
+                  height={backgroundRect.height}
+                  opacity={
+                    typeof storeBackground === "object" &&
+                    storeBackground &&
+                    typeof storeBackground.opacity === "number"
+                      ? storeBackground.opacity
+                      : 0.28
                   }
-                  opacity={0.28}
                 />
               )}
           </Layer>
@@ -814,6 +861,20 @@ function SeatingEditorInner({
           )}
         </Stage>
       )}
+
+      <button
+        type="button"
+        data-tour="fit-to-screen"
+        onClick={() => fitContentToScreen()}
+        className="
+          absolute bottom-4 left-4 z-20 rounded-2xl border border-[#e5d2b8]
+          bg-white/90 px-3 py-2 text-xs font-black text-[#6f5536]
+          shadow-sm backdrop-blur-md transition hover:bg-[#fff8ee]
+          md:bottom-6 md:left-6 md:px-4 md:text-sm
+        "
+      >
+        Fit to Screen
+      </button>
 
       {!readOnly && showAddModal && (
         <AddTableDrawer

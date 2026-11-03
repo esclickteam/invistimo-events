@@ -1703,7 +1703,11 @@ function SeatingPageInner() {
 
           <div className="relative z-10 h-full w-full min-h-0 min-w-0">
             <SeatingEditor
-              background={background?.url || null}
+              background={
+                typeof background === "string"
+                  ? background
+                  : background?.url || null
+              }
               invitationId={invitationId}
               onAutoSave={async () => {
                 if (isVenueTemplateMode) return false;

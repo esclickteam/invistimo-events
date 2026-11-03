@@ -7,6 +7,7 @@ import { useSeatingStore } from "@/store/seatingStore";
 import { useSearchParams } from "next/navigation";
 import { useGroupStore } from "@/store/groupStore";
 import { SEATING_EXPORT_HIDE_NAME } from "@/app/dashboard/seating/seatingExport";
+import { clampLayoutScale } from "@/lib/seating/canvasLayout";
 
 /* ============================================================
    חישוב דינמי של צורת השולחן + כסאות
@@ -172,10 +173,15 @@ function TableRenderer({ table, hideSeats = false }) {
   const tableRef = useRef(null);
 
   const [rotating, setRotating] = useState(false);
+  const [resizing, setResizing] = useState(false);
 
   const rotateActiveRef = useRef(false);
   const startAngleRef = useRef(0);
   const startRotationRadRef = useRef(0);
+
+  const resizeActiveRef = useRef(false);
+  const resizeStartDistRef = useRef(1);
+  const resizeStartScaleRef = useRef(1);
 
   const demoMode = useSeatingStore((s) => s.demoMode);
   const highlightedTable = useSeatingStore((s) => s.highlightedTable);
@@ -774,6 +780,8 @@ function TableRenderer({ table, hideSeats = false }) {
     table.openAddGuestModal();
   };
 
+  const layoutScale = clampLayoutScale(table.layoutScale, 1);
+
   const updatePositionInStore = () => {
     if (!tableRef.current) return;
 
@@ -788,6 +796,26 @@ function TableRenderer({ table, hideSeats = false }) {
               x: pos.x,
               y: pos.y,
               rotation,
+              layoutScale: clampLayoutScale(
+                t.layoutScale ?? table.layoutScale,
+                1
+              ),
+            }
+          : t
+      ),
+    }));
+  };
+
+  const updateLayoutScaleInStore = (nextScale) => {
+    const safeScale = clampLayoutScale(nextScale, 1);
+
+    useSeatingStore.setState((state) => ({
+      tables: state.tables.map((t) =>
+        t.id === table.id
+          ? {
+              ...t,
+              // Visual size only — never touch seats / seatedGuests.
+              layoutScale: safeScale,
             }
           : t
       ),
@@ -833,13 +861,82 @@ function TableRenderer({ table, hideSeats = false }) {
 
       stage.off("mousemove.tableRotate", move);
       stage.off("mouseup.tableRotate", end);
+      stage.off("touchmove.tableRotate", move);
+      stage.off("touchend.tableRotate", end);
     };
 
     stage.on("mousemove.tableRotate", move);
     stage.on("mouseup.tableRotate", end);
+    stage.on("touchmove.tableRotate", move);
+    stage.on("touchend.tableRotate", end);
+  };
+
+  const startResize = (e) => {
+    e.cancelBubble = true;
+    if (!tableRef.current) return;
+
+    const stage = e.target.getStage();
+    const pointer = stage.getPointerPosition();
+    if (!pointer) return;
+
+    const center = tableRef.current.getAbsolutePosition();
+    const dist = Math.max(
+      8,
+      Math.hypot(pointer.x - center.x, pointer.y - center.y)
+    );
+
+    resizeStartDistRef.current = dist;
+    resizeStartScaleRef.current = layoutScale;
+    resizeActiveRef.current = true;
+    setResizing(true);
+
+    const move = () => {
+      if (!resizeActiveRef.current || !tableRef.current) return;
+
+      const p = stage.getPointerPosition();
+      if (!p) return;
+
+      const c = tableRef.current.getAbsolutePosition();
+      const nextDist = Math.max(8, Math.hypot(p.x - c.x, p.y - c.y));
+      const ratio = nextDist / resizeStartDistRef.current;
+      const nextScale = clampLayoutScale(
+        resizeStartScaleRef.current * ratio,
+        1
+      );
+
+      tableRef.current.scale({ x: nextScale, y: nextScale });
+      tableRef.current.getLayer()?.batchDraw();
+    };
+
+    const end = () => {
+      resizeActiveRef.current = false;
+      setResizing(false);
+
+      if (tableRef.current) {
+        const sx = Number(tableRef.current.scaleX() || 1);
+        updateLayoutScaleInStore(sx);
+      }
+
+      stage.off("mousemove.tableResize", move);
+      stage.off("mouseup.tableResize", end);
+      stage.off("touchmove.tableResize", move);
+      stage.off("touchend.tableResize", end);
+    };
+
+    stage.on("mousemove.tableResize", move);
+    stage.on("mouseup.tableResize", end);
+    stage.on("touchmove.tableResize", move);
+    stage.on("touchend.tableResize", end);
   };
 
   const { size, width, height, radius } = layout;
+  const isSelected = String(selectedTableId || "") === String(table.id);
+  const resizeHandleOffset =
+    layout.type === "round"
+      ? radius + 28
+      : layout.type === "square"
+        ? size / 2 + 28
+        : Math.max(width, height) / 2 + 28;
 
   return (
     <Group
@@ -847,7 +944,9 @@ function TableRenderer({ table, hideSeats = false }) {
       x={table.x}
       y={table.y}
       rotation={table.rotation || 0}
-      draggable={!rotating}
+      scaleX={layoutScale}
+      scaleY={layoutScale}
+      draggable={!rotating && !resizing}
       onDragEnd={updatePositionInStore}
       onMouseUp={handleDrop}
       onClick={handleClick}
@@ -1032,6 +1131,7 @@ function TableRenderer({ table, hideSeats = false }) {
                 : -height / 2 - 42
           }
           onMouseDown={startRotate}
+          onTouchStart={startRotate}
         >
           <Circle
             radius={12}
@@ -1051,6 +1151,38 @@ function TableRenderer({ table, hideSeats = false }) {
             verticalAlign="middle"
             fill="#9A6A2F"
             fontSize={14}
+            listening={false}
+            perfectDrawEnabled={false}
+          />
+        </Group>
+      )}
+
+      {/* שינוי גודל ויזואלי בלבד — לא משנה מספר מקומות */}
+      {!hideSeats && isSelected && (
+        <Group
+          name={SEATING_EXPORT_HIDE_NAME}
+          x={resizeHandleOffset}
+          y={resizeHandleOffset}
+          onMouseDown={startResize}
+          onTouchStart={startResize}
+        >
+          <Circle
+            radius={11}
+            fill="#17203A"
+            stroke="#FFF9ED"
+            strokeWidth={1.5}
+            perfectDrawEnabled={false}
+          />
+          <Text
+            text="⤡"
+            width={22}
+            height={22}
+            offsetX={11}
+            offsetY={11}
+            align="center"
+            verticalAlign="middle"
+            fill="#FFF9ED"
+            fontSize={12}
             listening={false}
             perfectDrawEnabled={false}
           />

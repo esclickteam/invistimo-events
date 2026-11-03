@@ -126,6 +126,14 @@ const TableSchema = new Schema(
       default: 60,
     },
 
+    /* Visual scale only — does not change seat count / assignments */
+    layoutScale: {
+      type: Number,
+      default: 1,
+      min: 0.25,
+      max: 3,
+    },
+
     /* ⭐ ויזואל */
     color: {
       type: String,
@@ -184,6 +192,8 @@ const BackgroundSchema = new Schema(
     y: { type: Number },
     width: { type: Number },
     height: { type: Number },
+    naturalWidth: { type: Number },
+    naturalHeight: { type: Number },
   },
   { _id: false }
 );

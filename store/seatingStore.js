@@ -1,5 +1,10 @@
 import { create } from "zustand";
 import { findFreeBlock } from "../logic/seatingEngine";
+import {
+  clampLayoutScale,
+  normalizeBackground,
+  suggestInitialLayoutScale,
+} from "../lib/seating/canvasLayout";
 
 function extractNumberFromName(name) {
   const m = String(name || "").match(/(\d+)/);
@@ -88,6 +93,7 @@ function normalizeTableForStore(table) {
     seats,
     capacity: seats,
     number: table?.number ?? extractNumberFromName(table?.name) ?? null,
+    layoutScale: clampLayoutScale(table?.layoutScale, 1),
     seatedGuests: normalizeSeatIndexList(table?.seatedGuests || [], seats),
   };
 }
@@ -233,7 +239,8 @@ export const useSeatingStore = create((set, get) => ({
   setSelectedGuest: (guestId) => set({ selectedGuestId: guestId }),
   clearSelectedGuest: () => set({ selectedGuestId: null }),
 
-  setBackground: (background) => set({ background }),
+  setBackground: (background) =>
+    set({ background: normalizeBackground(background) ?? background }),
 
   setCanvasView: (view) =>
     set({
@@ -827,15 +834,18 @@ export const useSeatingStore = create((set, get) => ({
             Number(table.x ?? 0) === Number(next.x ?? 0) &&
             Number(table.y ?? 0) === Number(next.y ?? 0) &&
             Number(table.rotation ?? 0) === Number(next.rotation ?? 0) &&
+            Number(table.layoutScale ?? 1) === Number(next.layoutScale ?? 1) &&
             String(table.type ?? "") === String(next.type ?? "") &&
             String(table.name ?? "") === String(next.name ?? "")
           );
         });
 
+      const nextBackground = normalizeBackground(background) ?? background;
+
       if (
         sameGuests &&
         sameTables &&
-        state.background === background &&
+        state.background === nextBackground &&
         (canvasView == null || state.canvasView === canvasView)
       ) {
         return state;
@@ -847,7 +857,7 @@ export const useSeatingStore = create((set, get) => ({
         guests: nextGuests,
         liveArrivals:
           nextLiveArrivals != null ? nextLiveArrivals : state.liveArrivals,
-        background,
+        background: nextBackground,
         canvasView:
           canvasView ?? state.canvasView ?? { scale: 1, x: 0, y: 0 },
         hasSavedCanvasView: canvasView != null,
@@ -972,7 +982,7 @@ export const useSeatingStore = create((set, get) => ({
   /* ---------------- ADD TABLE ---------------- */
 
   addTable: (type, seats, position) => {
-    const { tables, canvasView } = get();
+    const { tables, canvasView, background } = get();
 
     const fallbackX =
       (-Number(canvasView?.x ?? 0) + 600) / Number(canvasView?.scale ?? 1);
@@ -991,6 +1001,7 @@ export const useSeatingStore = create((set, get) => ({
       x: position?.x ?? fallbackX,
       y: position?.y ?? fallbackY,
       rotation: 0,
+      layoutScale: suggestInitialLayoutScale(background),
       seatedGuests: [],
     };
 
@@ -1076,8 +1087,10 @@ export const useSeatingStore = create((set, get) => ({
     const hoveredTable = tables.find((t) => {
       const dx = pointer.x - t.x;
       const dy = pointer.y - t.y;
+      const layoutScale = clampLayoutScale(t.layoutScale, 1);
       const radius =
-        t.type === "round" ? 90 : t.type === "square" ? 110 : 160;
+        (t.type === "round" ? 90 : t.type === "square" ? 110 : 160) *
+        layoutScale;
 
       return Math.sqrt(dx * dx + dy * dy) < radius;
     });
