@@ -1245,7 +1245,15 @@ if (!canDeleteAllGuests) {
         const session = data.session;
         const sig = JSON.stringify({
           event: session.event?.title,
-          guests: (session.guests || []).map((guest) => [
+          guests: (session.guests || []).map((guest: {
+            _id?: string;
+            id?: string;
+            rsvp?: unknown;
+            tableId?: unknown;
+            arrivedCount?: unknown;
+            actualArrivedCount?: unknown;
+            guestsCount?: unknown;
+          }) => [
             guest._id || guest.id,
             guest.rsvp,
             guest.tableId,
