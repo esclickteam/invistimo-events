@@ -10,7 +10,8 @@ import {
 } from "./canvasLayout";
 import { legacyOuterDiameter } from "./legacyTableLayout";
 
-export const SKETCH_TABLE_RATIO = 0.042;
+/** Share of the sketch's shorter side. Matches a table drawn on a full hall plan. */
+export const SKETCH_TABLE_RATIO = 0.08;
 export const EMPTY_CANVAS_VISUAL = 150;
 export const MIN_VISUAL_SIZE = 36;
 export const MAX_VISUAL_SIZE = 2400;
