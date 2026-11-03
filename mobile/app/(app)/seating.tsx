@@ -211,7 +211,7 @@ export default function SeatingScreen() {
     const calibrated = Number(sketch?.defaultVisualSize);
     const shorter = sketch ? Math.min(sketch.width, sketch.height) : 0;
     const visualSize =
-      calibrated > 0 ? calibrated : shorter > 0 ? shorter * 0.042 : 150;
+      calibrated > 0 ? calibrated : shorter > 0 ? shorter * 0.08 : 150;
     const next: SeatingTable = {
       id: `table-${Date.now()}`,
       name: `שולחן ${tables.length + 1}`,
