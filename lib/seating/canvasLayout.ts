@@ -297,6 +297,53 @@ export function fitViewToBounds(options: {
   };
 }
 
+/**
+ * Camera "cover" for a sketch rect: maximize the sketch inside the viewport
+ * while preserving aspect ratio. Overflow is reachable via pan — world table
+ * coordinates are never modified.
+ */
+export function fillViewToRect(options: {
+  rect: Rect;
+  viewportWidth: number;
+  viewportHeight: number;
+  minScale?: number;
+  maxScale?: number;
+}): CanvasView {
+  const {
+    rect,
+    viewportWidth,
+    viewportHeight,
+    minScale = 0.04,
+    maxScale = 6,
+  } = options;
+
+  const width = Math.max(1, rect.width);
+  const height = Math.max(1, rect.height);
+  const centerX = rect.x + width / 2;
+  const centerY = rect.y + height / 2;
+
+  const nextScale = clamp(
+    Math.max(viewportWidth / width, viewportHeight / height),
+    minScale,
+    maxScale
+  );
+
+  return {
+    scale: nextScale,
+    x: viewportWidth / 2 - centerX * nextScale,
+    y: viewportHeight / 2 - centerY * nextScale,
+  };
+}
+
+/** Display-only sketch opacity — does not rewrite stored seating payloads. */
+export const SKETCH_DISPLAY_OPACITY = 0.58;
+
+export function getSketchDisplayOpacity(stored?: number | null) {
+  const n = Number(stored);
+  if (Number.isFinite(n) && n >= SKETCH_DISPLAY_OPACITY) return clamp(n, 0, 1);
+  return SKETCH_DISPLAY_OPACITY;
+}
+
 /** Keep the same world point centered when the viewport size changes. */
 export function preserveWorldCenterOnResize(options: {
   prevWidth: number;

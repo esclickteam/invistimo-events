@@ -4,9 +4,11 @@ import assert from "node:assert/strict";
 import {
   clampLayoutScale,
   computeCanonicalBackgroundRect,
+  fillViewToRect,
   fitViewToBounds,
   getBackgroundRect,
   getContentBounds,
+  getSketchDisplayOpacity,
   normalizeBackground,
   preserveWorldCenterOnResize,
   suggestInitialLayoutScale,
@@ -138,4 +140,62 @@ test("unionBounds merges tables and sketch", () => {
     maxX: 100,
     maxY: 50,
   });
+});
+
+test("fillViewToRect covers the viewport while preserving aspect", () => {
+  const landscape = fillViewToRect({
+    rect: { x: 0, y: 0, width: 2400, height: 1400 },
+    viewportWidth: 1200,
+    viewportHeight: 800,
+  });
+  const portrait = fillViewToRect({
+    rect: { x: 0, y: 0, width: 1000, height: 2000 },
+    viewportWidth: 1200,
+    viewportHeight: 800,
+  });
+
+  // Cover uses max(vw/w, vh/h)
+  assert.ok(Math.abs(landscape.scale - 800 / 1400) < 1e-9);
+  assert.ok(Math.abs(portrait.scale - 1200 / 1000) < 1e-9);
+
+  const visibleW = 1200 / landscape.scale;
+  const visibleH = 800 / landscape.scale;
+  assert.ok(visibleW <= 2400 + 1e-6);
+  assert.ok(visibleH <= 1400 + 1e-6);
+  // At least one axis is fully covered (no empty bands on that axis)
+  assert.ok(
+    Math.abs(visibleH - 1400) < 1e-6 || Math.abs(visibleW - 2400) < 1e-6
+  );
+});
+
+test("Fit vs Fill only change camera — table world coords stay fixed", () => {
+  const tables = [
+    { id: "t1", x: 120, y: 80, rotation: 15, layoutScale: 0.9 },
+    { id: "t2", x: 400, y: 220, rotation: 0, layoutScale: 1 },
+  ];
+  const snapshot = structuredClone(tables);
+
+  const fit = fitViewToBounds({
+    bounds: { minX: 0, minY: 0, maxX: 2400, maxY: 1400 },
+    viewportWidth: 1200,
+    viewportHeight: 800,
+    paddingX: 40,
+    paddingY: 40,
+    minScale: 0.05,
+    maxScale: 6,
+  });
+  const fill = fillViewToRect({
+    rect: { x: 0, y: 0, width: 2400, height: 1400 },
+    viewportWidth: 1200,
+    viewportHeight: 800,
+  });
+
+  assert.notEqual(fit.scale, fill.scale);
+  assert.deepEqual(tables, snapshot);
+});
+
+test("sketch display opacity brightens faint stored values without rewriting them", () => {
+  assert.equal(getSketchDisplayOpacity(0.28), 0.58);
+  assert.equal(getSketchDisplayOpacity(null), 0.58);
+  assert.equal(getSketchDisplayOpacity(0.7), 0.7);
 });
