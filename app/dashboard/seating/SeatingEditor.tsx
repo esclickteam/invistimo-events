@@ -11,6 +11,7 @@ import {
 import { Stage, Layer, Image as KonvaImage } from "react-konva";
 import useImage from "use-image";
 
+import { displayedOuter } from "@/lib/seating/tableVisual";
 import { useSeatingStore } from "@/store/seatingStore";
 import { useZoneStore } from "@/store/zoneStore";
 
@@ -24,14 +25,12 @@ import { captureSeatingStage, SEATING_EXPORT_HIDE_NAME } from "./seatingExport";
 import {
   clamp,
   computeCanonicalBackgroundRect,
-  estimateTableFootprint,
   fillViewToRect,
   fitViewToBounds,
   getBackgroundRect,
   getContentBounds,
   getSketchDisplayOpacity,
   preserveWorldCenterOnResize,
-  TABLE_BASE_DRAW,
   type BackgroundLike,
   type CanvasView,
 } from "@/lib/seating/canvasLayout";
@@ -595,14 +594,16 @@ function SeatingEditorInner({
       scaleSelectedTables?: (factor: number) => void;
     };
     const selected = new Set((seating.selectedTableIds || []).map(String));
-    const overSelected = (seating.tables || []).some((table) => {
-      if (!selected.has(String(table.id))) return false;
-      const radius =
-        estimateTableFootprint(table) * TABLE_BASE_DRAW;
-      const dx = world.x - Number(table.x);
-      const dy = world.y - Number(table.y);
-      return Math.hypot(dx, dy) <= radius;
-    });
+    const zoomCamera = Boolean(e.evt.ctrlKey || e.evt.metaKey);
+    const overSelected =
+      !zoomCamera &&
+      (seating.tables || []).some((table) => {
+        if (!selected.has(String(table.id))) return false;
+        const radius = displayedOuter(table) / 2;
+        const dx = world.x - Number(table.x);
+        const dy = world.y - Number(table.y);
+        return Math.hypot(dx, dy) <= radius;
+      });
 
     if (overSelected && selected.size && seating.scaleSelectedTables) {
       const factor = e.evt.deltaY < 0 ? 1.06 : 1 / 1.06;

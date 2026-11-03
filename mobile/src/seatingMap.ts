@@ -15,6 +15,8 @@ export type SeatingTable = {
   x: number;
   y: number;
   rotation?: number;
+  layoutScale?: number;
+  visualSize?: number;
   seatedGuests: SeatedGuest[];
 };
 
@@ -56,6 +58,8 @@ export function parseSeatingTable(raw: Record<string, unknown>, index: number): 
     typeRaw === "rectangle" || typeRaw === "rect" || typeRaw === "knight"
       ? "banquet"
       : typeRaw;
+  const layoutScale = Number(raw.layoutScale);
+  const visualSize = Number(raw.visualSize);
   const seatedGuests = Array.isArray(raw.seatedGuests)
     ? (raw.seatedGuests as Record<string, unknown>[]).map((seat) => ({
         guestId: String(seat.guestId || seat._id || ""),
@@ -75,6 +79,8 @@ export function parseSeatingTable(raw: Record<string, unknown>, index: number): 
     x: Number(raw.x || 0),
     y: Number(raw.y || 0),
     rotation: Number(raw.rotation || 0),
+    ...(layoutScale > 0 ? { layoutScale } : {}),
+    ...(visualSize > 0 ? { visualSize } : {}),
     seatedGuests,
   };
 }

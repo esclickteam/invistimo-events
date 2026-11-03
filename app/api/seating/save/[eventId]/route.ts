@@ -33,6 +33,7 @@ type BackgroundPayload = {
   height?: number;
   naturalWidth?: number;
   naturalHeight?: number;
+  defaultVisualSize?: number;
 };
 
 function cleanString(value: unknown) {
@@ -261,6 +262,9 @@ function normalizeBackground(rawBackground: any): BackgroundPayload | null {
     if (naturalWidth > 0) background.naturalWidth = naturalWidth;
     if (naturalHeight > 0) background.naturalHeight = naturalHeight;
 
+    const defaultVisualSize = Number(rawBackground.defaultVisualSize);
+    if (defaultVisualSize > 0) background.defaultVisualSize = defaultVisualSize;
+
     return background;
   }
 
@@ -276,6 +280,7 @@ const TABLE_GEOMETRY_KEYS = [
   "height",
   "radius",
   "layoutScale",
+  "visualSize",
 ] as const;
 
 function tableGeometryChanged(previousTables: any[], nextTables: any[]) {

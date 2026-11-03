@@ -3,9 +3,13 @@ import { findFreeBlock } from "../logic/seatingEngine";
 import {
   clampLayoutScale,
   normalizeBackground,
-  scaleTablesLayout,
-  suggestInitialLayoutScale,
 } from "../lib/seating/canvasLayout";
+import {
+  clampTableVisualSize,
+  displayedOuter,
+  resolveDefaultVisualSize,
+  sketchProportionalSize,
+} from "../lib/seating/tableVisual";
 
 function extractNumberFromName(name) {
   const m = String(name || "").match(/(\d+)/);
@@ -257,26 +261,60 @@ export const useSeatingStore = create((set, get) => ({
     set({ selectedTableId: null, selectedTableIds: [] }),
 
   scaleSelectedTables: (factor) =>
-    set((state) => ({
-      tables: scaleTablesLayout(
-        state.tables || [],
-        state.selectedTableIds || [],
-        factor
-      ),
-    })),
+    set((state) => {
+      const ids = new Set((state.selectedTableIds || []).map(String));
+      if (!ids.size) return state;
+      const anchor = sketchProportionalSize(state.background);
+      const ratio = Number(factor);
+      if (!(ratio > 0)) return state;
+      let calibrated = null;
+      const tables = (state.tables || []).map((table) => {
+        if (!ids.has(String(table.id))) return table;
+        const current = displayedOuter(table);
+        const next = clampTableVisualSize(current * ratio, anchor);
+        calibrated = next;
+        return {
+          ...table,
+          x: table.x,
+          y: table.y,
+          rotation: table.rotation,
+          seats: table.seats,
+          seatedGuests: table.seatedGuests,
+          visualSize: next,
+        };
+      });
+      const background =
+        calibrated && state.background && typeof state.background === "object"
+          ? { ...state.background, defaultVisualSize: calibrated }
+          : state.background;
+      return { tables, background };
+    }),
 
   setSelectedLayoutPercent: (percent) =>
     set((state) => {
-      const scale = clampLayoutScale(Number(percent) / 100, 1);
       const ids = new Set((state.selectedTableIds || []).map(String));
       if (!ids.size) return state;
-      return {
-        tables: (state.tables || []).map((table) =>
-          ids.has(String(table.id))
-            ? { ...table, layoutScale: scale }
-            : table
-        ),
-      };
+      const anchor = sketchProportionalSize(state.background);
+      const ratio = clampLayoutScale(Number(percent) / 100, 1);
+      const next = clampTableVisualSize(anchor * ratio, anchor);
+      const tables = (state.tables || []).map((table) =>
+        ids.has(String(table.id))
+          ? {
+              ...table,
+              x: table.x,
+              y: table.y,
+              rotation: table.rotation,
+              seats: table.seats,
+              seatedGuests: table.seatedGuests,
+              visualSize: next,
+            }
+          : table
+      );
+      const background =
+        state.background && typeof state.background === "object"
+          ? { ...state.background, defaultVisualSize: next }
+          : state.background;
+      return { tables, background };
     }),
 
   seatingModalTableId: null,
@@ -893,6 +931,7 @@ export const useSeatingStore = create((set, get) => ({
             Number(table.y ?? 0) === Number(next.y ?? 0) &&
             Number(table.rotation ?? 0) === Number(next.rotation ?? 0) &&
             Number(table.layoutScale ?? 1) === Number(next.layoutScale ?? 1) &&
+            Number(table.visualSize ?? 0) === Number(next.visualSize ?? 0) &&
             String(table.type ?? "") === String(next.type ?? "") &&
             String(table.name ?? "") === String(next.name ?? "")
           );
@@ -1059,7 +1098,8 @@ export const useSeatingStore = create((set, get) => ({
       x: position?.x ?? fallbackX,
       y: position?.y ?? fallbackY,
       rotation: 0,
-      layoutScale: suggestInitialLayoutScale(background),
+      visualSize: resolveDefaultVisualSize(background),
+      layoutScale: 1,
       seatedGuests: [],
     };
 

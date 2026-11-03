@@ -771,10 +771,17 @@ function SeatingPageInner() {
   const handleBackgroundSelect = (bgUrl: string) => {
     if (!bgUrl) return;
 
+    const previous = useSeatingStore.getState().background;
+    const calibrated =
+      previous && typeof previous === "object"
+        ? Number(previous.defaultVisualSize)
+        : 0;
+
     setBackground({
       url: bgUrl,
       opacity: 0.28,
       fitOnLoad: true,
+      ...(calibrated > 0 ? { defaultVisualSize: calibrated } : {}),
     });
   };
 
