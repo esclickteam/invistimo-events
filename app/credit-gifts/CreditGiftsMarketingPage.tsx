@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Image from "next/image";
 import Link from "next/link";
@@ -76,7 +76,7 @@ function PrimaryCta({ href, children }: { href: string; children: React.ReactNod
   return (
     <Link
       href={href}
-      className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#2C241C] px-7 py-3.5 text-base font-black !text-white shadow-[0_16px_36px_rgba(44,36,28,0.22)] transition hover:-translate-y-0.5 hover:bg-[#3A2B22]"
+      className="inline-flex min-h-12 items-center justify-center rounded-none bg-[#2C241C] px-7 py-3.5 text-base font-black !text-white shadow-[0_16px_36px_rgba(44,36,28,0.22)] transition hover:-translate-y-0.5 hover:bg-[#3A2B22]"
     >
       {children}
     </Link>
@@ -87,7 +87,7 @@ function SecondaryCta({ href, children }: { href: string; children: React.ReactN
   return (
     <Link
       href={href}
-      className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/80 px-7 py-3.5 text-base font-black !text-[#2C241C] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
+      className="inline-flex min-h-12 items-center justify-center rounded-none border border-[#DCC7A6] bg-white/80 px-7 py-3.5 text-base font-black !text-[#2C241C] backdrop-blur transition hover:-translate-y-0.5 hover:bg-white"
     >
       {children}
     </Link>
@@ -576,7 +576,7 @@ export default function CreditGiftsMarketingPage() {
             <li key={link.href}>
               <Link
                 href={link.href}
-                className="inline-flex min-h-11 items-center rounded-full border border-[#E6D2AA] bg-white px-4 py-2 text-sm font-bold text-[#5E4735] transition hover:border-[#C9A45C]"
+                className="inline-flex min-h-11 items-center rounded-none border border-[#E6D2AA] bg-white px-4 py-2 text-sm font-bold text-[#5E4735] transition hover:border-[#C9A45C]"
               >
                 {link.label}
               </Link>
@@ -610,3 +610,4 @@ export default function CreditGiftsMarketingPage() {
     </div>
   );
 }
+

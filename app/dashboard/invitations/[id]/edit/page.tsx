@@ -453,7 +453,7 @@ function EditEventPageInner() {
                 h-[42px]
                 items-center
                 gap-2
-                rounded-full
+                rounded-none
                 border
                 border-[#D9B46F]/45
                 bg-white/75

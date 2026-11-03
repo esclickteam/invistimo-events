@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import {
   useEffect,
@@ -49,7 +49,7 @@ export function EditorButton({
       title={label}
       aria-label={iconOnly ? label : undefined}
       aria-pressed={active === undefined ? undefined : active}
-      className={`inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-xl px-3 text-xs font-black transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E8D5A8] disabled:cursor-not-allowed disabled:opacity-40 ${
+      className={`inline-flex min-h-[36px] items-center justify-center gap-1.5 rounded-none px-3 text-xs font-black transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#E8D5A8] disabled:cursor-not-allowed disabled:opacity-40 ${
         active ? "bg-white text-[#1a1410]" : TONES[tone]
       } ${iconOnly ? "w-9 px-0" : ""} ${className}`}
       {...rest}
@@ -322,7 +322,7 @@ export function EditorModal({
             type="button"
             onClick={onClose}
             aria-label="סגירה"
-            className="min-h-[36px] min-w-[36px] rounded-xl text-lg font-black text-[#8A7B69] hover:bg-[#F7F1E8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C9A962]"
+            className="min-h-[36px] min-w-[36px] rounded-none text-lg font-black text-[#8A7B69] hover:bg-[#F7F1E8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C9A962]"
           >
             ×
           </button>
@@ -359,3 +359,4 @@ export function ModalButton({
     </button>
   );
 }
+

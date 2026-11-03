@@ -19,13 +19,13 @@ import { PRICING_PAGE_FAQS } from "@/components/marketing/pricingFaqs";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import { EVENT_TYPES, EVENT_TYPE_SECTION } from "@/lib/seo/eventTypes";
 import { formatIls, formatRate, packageRate, servicePrice } from "@/lib/pricing/packageQuote";
+import { btnPrimaryDark, btnSecondary, btnSizeSm } from "@/lib/ui/buttonClasses";
+import { cn } from "@/lib/utils";
 
 export { PRICING_PAGE_FAQS };
 
-const ctaClass =
-  "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3 text-base font-black text-white shadow-[0_18px_40px_rgba(58,39,20,0.22)] transition hover:-translate-y-0.5";
-const secondaryClass =
-  "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-[#FBF6EE] px-8 py-3 text-base font-black !text-[#2C241C] shadow-[0_12px_30px_rgba(91,63,32,0.08)] transition hover:bg-white";
+const ctaClass = btnPrimaryDark;
+const secondaryClass = btnSecondary;
 
 const SERVICE_ICONS = [
   { title: "הזמנות דיגיטליות", Icon: InvitationIcon, href: "/invitations/chatuna" },
@@ -313,7 +313,7 @@ export default function PricingMarketingExtras() {
                   <p className="mt-3 text-sm font-black text-[#8A5A25]">{service.price}</p>
                   <TrackedCtaLink
                     href={service.href}
-                    className={`${secondaryClass} mt-5 !min-h-11 text-sm`}
+                    className={cn(secondaryClass, btnSizeSm, "mt-5")}
                     location={`extra_service:/pricing:${service.title}`}
                   >
                     {service.cta}

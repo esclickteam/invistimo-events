@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
@@ -292,7 +292,7 @@ export default function Header() {
                 className="
                   group inline-flex items-center gap-2
                   whitespace-nowrap
-                  rounded-[13px]
+                  rounded-none
                   bg-[#2F261E]
                   px-5 py-2.5
                   text-[14px] font-extrabold
@@ -319,7 +319,7 @@ export default function Header() {
                       href={dashboardHref}
                       className="
                         whitespace-nowrap
-                        rounded-[13px]
+                        rounded-none
                         border border-[#C9A45C]/70
                         bg-white
                         px-5 py-2.5
@@ -337,7 +337,7 @@ export default function Header() {
                       onClick={logout}
                       className="
                         whitespace-nowrap
-                        rounded-[13px]
+                        rounded-none
                         border border-[#D8C5A7]
                         bg-white
                         px-5 py-2.5
@@ -357,7 +357,7 @@ export default function Header() {
                     className="
                       inline-flex items-center gap-2
                       whitespace-nowrap
-                      rounded-[13px]
+                      rounded-none
                       border border-[#C9A45C]/75
                       bg-white
                       px-5 py-2.5
@@ -447,7 +447,7 @@ export default function Header() {
                 onClick={openDemoChoice}
                 className="
                   inline-flex w-full items-center justify-center gap-2
-                  rounded-[16px]
+                  rounded-none
                   bg-[#2F261E]
                   px-6 py-4
                   text-[16px] font-extrabold
@@ -468,7 +468,7 @@ export default function Header() {
                       onClick={() => setMobileOpen(false)}
                       className="
                         flex w-full items-center justify-center
-                        rounded-[16px]
+                        rounded-none
                         border border-[#C9A45C]/70
                         bg-white
                         px-6 py-4
@@ -486,7 +486,7 @@ export default function Header() {
                       }}
                       className="
                         flex w-full items-center justify-center
-                        rounded-[16px]
+                        rounded-none
                         border border-[#E2C9C9]
                         bg-white
                         px-6 py-4
@@ -503,7 +503,7 @@ export default function Header() {
                     onClick={() => setMobileOpen(false)}
                     className="
                       inline-flex w-full items-center justify-center gap-2
-                      rounded-[16px]
+                      rounded-none
                       border border-[#C9A45C]/75
                       bg-white
                       px-6 py-4
@@ -698,3 +698,4 @@ export default function Header() {
     </>
   );
 }
+

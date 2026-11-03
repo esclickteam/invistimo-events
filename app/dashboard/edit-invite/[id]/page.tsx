@@ -548,7 +548,7 @@ export default function EditInvitePage() {
             <button
               type="button"
               onClick={handlePreview}
-              className="rounded-full border border-[#d8c7ad] bg-white px-5 py-2.5 text-sm font-semibold text-[#5a4634] shadow-sm hover:bg-[#fbf7f0]"
+              className="rounded-none border border-[#d8c7ad] bg-white px-5 py-2.5 text-sm font-semibold text-[#5a4634] shadow-sm hover:bg-[#fbf7f0]"
             >
               👁 תצוגה מקדימה
             </button>
@@ -557,7 +557,7 @@ export default function EditInvitePage() {
               type="button"
               onClick={handleSave}
               disabled={saving}
-              className={`rounded-full px-6 py-2.5 text-sm font-bold text-white shadow-lg transition ${
+              className={`rounded-none px-6 py-2.5 text-sm font-bold text-white shadow-lg transition ${
                 saving
                   ? "bg-gray-400 cursor-not-allowed"
                   : "bg-gradient-to-l from-[#c79a55] to-[#8f6437] hover:shadow-xl"
@@ -599,7 +599,7 @@ export default function EditInvitePage() {
                     <button
                       type="button"
                       onClick={() => setImageMode("portrait")}
-                      className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                      className={`rounded-none px-4 py-2 text-sm font-bold transition ${
                         imageMode === "portrait"
                           ? "bg-[#2d241c] text-white shadow"
                           : "text-[#6d5b49] hover:bg-[#f7f1e8]"
@@ -611,7 +611,7 @@ export default function EditInvitePage() {
                     <button
                       type="button"
                       onClick={() => setImageMode("square")}
-                      className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                      className={`rounded-none px-4 py-2 text-sm font-bold transition ${
                         imageMode === "square"
                           ? "bg-[#2d241c] text-white shadow"
                           : "text-[#6d5b49] hover:bg-[#f7f1e8]"

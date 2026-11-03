@@ -21,6 +21,7 @@ import {
 import InvitationArt from "@/components/marketing/invitations/InvitationArt";
 import "@/components/marketing/invitations/invite-motion.css";
 import { addonPrice } from "@/lib/pricing/packageQuote";
+import { btnPrimaryDark, btnSecondary } from "@/lib/ui/buttonClasses";
 
 const display = localFont({
   src: "../../../lib/fonts/FrankRuhlLibre-wght.ttf",
@@ -38,10 +39,8 @@ const fadeUp = {
   visible: { opacity: 1, y: 0 },
 };
 
-const primaryCta =
-  "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#2C211B] via-[#5A4333] to-[#3A2B22] px-8 py-3 text-base font-bold text-[#F7F1E6] shadow-[0_18px_40px_rgba(58,39,20,0.22)] transition hover:-translate-y-0.5";
-const secondaryCta =
-  "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/80 px-8 py-3 text-base font-bold text-[#5E4735] backdrop-blur transition hover:bg-white";
+const primaryCta = btnPrimaryDark;
+const secondaryCta = btnSecondary;
 
 function SectionShell({
   id,

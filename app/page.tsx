@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import HomePageClient from "./HomePageClient";
 import JsonLd from "@/components/seo/JsonLd";
 import { getDashboardPathFromAuthCookies } from "@/lib/auth/getDashboardRedirectPath";
+import { HERO_DESKTOP, HERO_MOBILE } from "@/lib/marketing/homeHeroAssets";
 import { HOME_FAQS } from "@/lib/seo/homeIntentMap";
 import {
   breadcrumbNode,
@@ -55,11 +56,11 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* Single LCP preload: cinematic hero poster (video starts after first paint). */}
+      {/* LCP preload — same versioned URLs as HomePageClient (no stale unversioned cache). */}
       <link
         rel="preload"
         as="image"
-        href="/marketing/videos/home-cinematic-hero-poster.webp"
+        href={HERO_DESKTOP.posterWebp}
         type="image/webp"
         fetchPriority="high"
         media="(min-width: 768px)"
@@ -67,7 +68,7 @@ export default async function HomePage() {
       <link
         rel="preload"
         as="image"
-        href="/marketing/videos/home-cinematic-hero-mobile-poster.webp"
+        href={HERO_MOBILE.posterWebp}
         type="image/webp"
         fetchPriority="high"
         media="(max-width: 767px)"
