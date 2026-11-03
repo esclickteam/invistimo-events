@@ -716,7 +716,8 @@ function SeatingPageInner() {
           : isVenueView
             ? "?venueView=1"
             : "";
-        const res = await fetch(`/api/seating/tables/${eventId}${qs}`, {
+        const metaQs = qs ? `${qs}&meta=1` : "?meta=1";
+        const res = await fetch(`/api/seating/tables/${eventId}${metaQs}`, {
           credentials: "include",
           cache: "no-store",
         });
@@ -732,17 +733,24 @@ function SeatingPageInner() {
         lastVenueTemplateSyncAtRef.current = stamp;
         if (isFirstObservation) return;
 
-        // Reload full seating (guests + tables) when template version changes
+        // Reload full seating when the template version changes.
+        // The poll itself only reads the stamp, so it never replaces tables.
         if (invitationId) {
           await loadSeatingData(eventId, invitationId);
         } else {
+          const fullRes = await fetch(`/api/seating/tables/${eventId}${qs}`, {
+            credentials: "include",
+            cache: "no-store",
+          });
+          const full = await fullRes.json().catch(() => null);
+          if (!fullRes.ok || !full?.success) return;
           init(
-            data.tables || [],
+            full.tables || [],
             useSeatingStore.getState().guests || [],
-            data.background ?? null,
-            data.canvasView ?? useSeatingStore.getState().canvasView
+            full.background ?? null,
+            full.canvasView ?? useSeatingStore.getState().canvasView
           );
-          if (Array.isArray(data.zones)) setZones(data.zones);
+          if (Array.isArray(full.zones)) setZones(full.zones);
         }
       } catch {
         /* ignore transient poll errors */

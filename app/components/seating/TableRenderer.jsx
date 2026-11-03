@@ -12,17 +12,14 @@ import { legacyTableLayout } from "@/lib/seating/legacyTableLayout";
 import {
   clampTableVisualSize,
   displayedOuter,
-  explicitVisualSize,
-  fitTableLayout,
   sketchProportionalSize,
+  uniformTableScale,
 } from "@/lib/seating/tableVisual";
 
 /* ============================================================
    חישוב דינמי של צורת השולחן + כסאות
 ============================================================ */
 function getTableLayout(rawTable) {
-  const explicit = explicitVisualSize(rawTable);
-  if (explicit) return fitTableLayout(rawTable, explicit);
   return legacyTableLayout(rawTable);
 }
 
@@ -423,10 +420,9 @@ function TableRenderer({ table, hideSeats = false, cameraScale = 1 }) {
     seatsTotal,
   ]);
 
-  const explicitSize = explicitVisualSize(table);
   const layout = useMemo(
     () => getTableLayout(table),
-    [table.type, table.seats, table.capacity, explicitSize]
+    [table.type, table.seats, table.capacity]
   );
 
   const seatsCoords = layout.coords;
@@ -608,7 +604,7 @@ function TableRenderer({ table, hideSeats = false, cameraScale = 1 }) {
           : 22
         : compact
           ? 21
-          : 26) * textScale;
+          : 26);
 
     const totalHeight = tableLines.length * lineHeight;
 
@@ -633,7 +629,7 @@ function TableRenderer({ table, hideSeats = false, cameraScale = 1 }) {
           align="center"
           verticalAlign="middle"
           fill={line.fill}
-          fontSize={safeFontSize * textScale}
+          fontSize={safeFontSize}
           fontStyle={line.fontStyle}
           listening={false}
           perfectDrawEnabled={false}
@@ -844,10 +840,7 @@ function TableRenderer({ table, hideSeats = false, cameraScale = 1 }) {
   const isSelected =
     (selectedTableIds || []).map(String).includes(String(table.id)) ||
     String(selectedTableId || "") === String(table.id);
-  const visualScale = explicitSize ? 1 : layoutScale;
-  const textScale = explicitSize
-    ? Math.min(1, Math.max(0.42, explicitSize / 260))
-    : 1;
+  const visualScale = uniformTableScale(table);
   const counter = controlCounterScale(cameraScale);
   const edgeX = ((layout.outerWidth || size) / 2) * visualScale;
   const edgeY = ((layout.outerHeight || height) / 2) * visualScale;
@@ -1126,4 +1119,25 @@ function TableRenderer({ table, hideSeats = false, cameraScale = 1 }) {
   );
 }
 
-export default TableRenderer;
+function seatingPropsAreEqual(prev, next) {
+  if (prev.hideSeats !== next.hideSeats) return false;
+  if (prev.cameraScale !== next.cameraScale) return false;
+  const a = prev.table || {};
+  const b = next.table || {};
+  return (
+    a.id === b.id &&
+    a.x === b.x &&
+    a.y === b.y &&
+    a.rotation === b.rotation &&
+    a.type === b.type &&
+    a.seats === b.seats &&
+    a.capacity === b.capacity &&
+    a.layoutScale === b.layoutScale &&
+    a.visualSize === b.visualSize &&
+    a.name === b.name &&
+    a.statsLabel === b.statsLabel &&
+    a.seatedGuests === b.seatedGuests
+  );
+}
+
+export default React.memo(TableRenderer, seatingPropsAreEqual);
