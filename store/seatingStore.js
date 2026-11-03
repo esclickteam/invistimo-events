@@ -1011,6 +1011,8 @@ export const useSeatingStore = create((set, get) => ({
         x: table.x ?? 200,
         y: table.y ?? 200,
         rotation: table.rotation || 0,
+        layoutScale: table.layoutScale,
+        visualSize: table.visualSize,
         seatedGuests: table.seatedGuests || [],
       })
     );
@@ -1022,7 +1024,9 @@ export const useSeatingStore = create((set, get) => ({
       tables,
       groups: session?.groups || [],
       liveArrivals: {},
-      background: null,
+      background: session?.background ?? null,
+      canvasView: session?.canvasView || { scale: 1, x: 0, y: 0 },
+      hasSavedCanvasView: Boolean(session?.canvasView),
       highlightedTable: null,
       highlightedSeats: [],
       draggingGuest: null,
