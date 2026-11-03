@@ -36,11 +36,17 @@ export default function DemoSeatingPage() {
         background:
           background && typeof background === "object"
             ? {
-                url: background.url,
+                bytes: typeof background.url === "string" ? background.url.length : 0,
+                tail:
+                  typeof background.url === "string"
+                    ? background.url.slice(-24)
+                    : "",
                 x: background.x,
                 y: background.y,
                 width: background.width,
                 height: background.height,
+                naturalWidth: background.naturalWidth,
+                naturalHeight: background.naturalHeight,
                 defaultVisualSize: background.defaultVisualSize,
               }
             : background,

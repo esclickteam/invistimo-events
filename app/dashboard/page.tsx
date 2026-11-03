@@ -14,7 +14,6 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import {
   coalesceJson,
   readFreshGuestCache,
-  seatingTablesSignature,
   writeGuestCache,
 } from "@/lib/dashboard/desktopPerf";
 import { useVirtualRange } from "./components/useVirtualRange";
@@ -396,7 +395,6 @@ const actualArrivedSaveTimersRef = useRef<
 >({});
 const actualArrivedRequestVersionRef = useRef<Record<string, number>>({});
 const guestsAutoRefreshRef = useRef(false);
-const seatingSignatureRef = useRef("");
 const demoSessionFingerprintRef = useRef("");
 
 
@@ -933,7 +931,7 @@ const canViewActualArrived =
       const res = await fetch(
         `/api/seating/tables/${eventId}?invitationId=${encodeURIComponent(
           invitationId
-        )}${isVenueView ? "&venueView=1" : ""}`,
+        )}&omitBackground=1${isVenueView ? "&venueView=1" : ""}`,
         {
           credentials: "include",
           cache: "no-store",
@@ -953,10 +951,19 @@ const canViewActualArrived =
       }
 
       const nextTables = data.tables || [];
-      const signature = seatingTablesSignature(nextTables);
-      if (signature === seatingSignatureRef.current) return;
-      seatingSignatureRef.current = signature;
-      setSeatingTables(nextTables);
+      const current = useSeatingStore.getState().tables || [];
+      const unchanged =
+        current.length === nextTables.length &&
+        current.every((table: { id?: string; x?: number; y?: number; seatedGuests?: unknown[] }, index: number) => {
+          const next = nextTables[index];
+          return (
+            String(table?.id || "") === String(next?.id || "") &&
+            Number(table?.x || 0) === Number(next?.x || 0) &&
+            Number(table?.y || 0) === Number(next?.y || 0) &&
+            (table?.seatedGuests || []).length === (next?.seatedGuests || []).length
+          );
+        });
+      if (!unchanged) setSeatingTables(nextTables);
     } catch (err) {
       console.error("Load seating tables error:", err);
     }
@@ -1233,6 +1240,7 @@ if (!canDeleteAllGuests) {
     let cancelled = false;
     useSeatingStore.getState().setDemoMode(true);
 
+    let lastDemoSig = "";
     async function loadDemo() {
       try {
         const res = await fetch("/api/demo/interactive", {
@@ -1242,6 +1250,28 @@ if (!canDeleteAllGuests) {
         const data = await res.json().catch(() => null);
         if (cancelled || !data?.session) return;
         const session = data.session;
+        const sig = JSON.stringify({
+          event: session.event?.title,
+          guests: (session.guests || []).map((guest: {
+            _id?: string;
+            id?: string;
+            rsvp?: unknown;
+            tableId?: unknown;
+            arrivedCount?: unknown;
+            actualArrivedCount?: unknown;
+            guestsCount?: unknown;
+          }) => [
+            guest._id || guest.id,
+            guest.rsvp,
+            guest.tableId,
+            guest.arrivedCount,
+            guest.actualArrivedCount,
+            guest.guestsCount,
+          ]),
+          groups: (session.groups || []).length,
+        });
+        if (sig === lastDemoSig) return;
+        lastDemoSig = sig;
         const invitation = session.invitation || {};
         const demoFingerprint =
           JSON.stringify(session.guests || []) +

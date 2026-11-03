@@ -1,12 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { legacyTableLayout } from "../../lib/seating/legacyTableLayout";
 import {
-  chairsStayInside,
   displayedOuter,
   explicitVisualSize,
-  fitTableLayout,
   resolveDefaultVisualSize,
+  uniformTableScale,
 } from "../../lib/seating/tableVisual";
 import { normalizeBackground } from "../../lib/seating/canvasLayout";
 
@@ -49,21 +49,30 @@ test("a new 12-seat and 20-seat table share one visual size", () => {
     height: 440,
   });
 
-  const wide = fitTableLayout({ seats: 12, type: "round" }, size);
-  const crowded = fitTableLayout({ seats: 20, type: "round" }, size);
-  assert.equal(wide.outerWidth, crowded.outerWidth);
-  assert.equal(wide.outerHeight, crowded.outerHeight);
-  assert.ok(chairsStayInside(wide));
-  assert.ok(crowded.compact || chairsStayInside(crowded));
+  const wide = legacyTableLayout({ seats: 12, type: "round" });
+  const crowded = legacyTableLayout({ seats: 20, type: "round" });
+  assert.equal(wide.chairScale, 1);
+  assert.equal(crowded.chairScale, 1);
+  assert.notEqual(wide.radius, crowded.radius);
+  const wideScale = uniformTableScale({ seats: 12, type: "round", visualSize: size });
+  const crowdedScale = uniformTableScale({ seats: 20, type: "round", visualSize: size });
+  const wideOuter = Math.max(wide.outerWidth, wide.outerHeight) * wideScale;
+  const crowdedOuter = Math.max(crowded.outerWidth, crowded.outerHeight) * crowdedScale;
+  assert.ok(Math.abs(wideOuter - size) < 0.01);
+  assert.ok(Math.abs(crowdedOuter - size) < 0.01);
+  assert.ok(Math.abs(wide.coords[0].x / wide.coords[1].x - (wide.coords[0].x * wideScale) / (wide.coords[1].x * wideScale)) < 1e-9);
   assert.ok(Math.abs(size / 2200 - lowRes / 440) < 1e-9);
+  assert.equal(resolveDefaultVisualSize(null), 150);
 });
 
 test("changing seats does not change an explicit visual size", () => {
-  const size = 140;
-  const before = fitTableLayout({ seats: 8, type: "square" }, size);
-  const after = fitTableLayout({ seats: 16, type: "square" }, size);
-  assert.equal(before.outerWidth, after.outerWidth);
-  assert.equal(before.outerHeight, after.outerHeight);
+  const saved = { seats: 8, type: "square", visualSize: 140, x: 4, y: 9 };
+  assert.equal(explicitVisualSize(saved), 140);
+  assert.equal(explicitVisualSize({ ...saved, seats: 16 }), 140);
+  assert.notEqual(
+    legacyTableLayout({ seats: 8, type: "square" }).size,
+    legacyTableLayout({ seats: 16, type: "square" }).size
+  );
 });
 
 test("calibration is kept on the background and legacy tables stay untouched", () => {
