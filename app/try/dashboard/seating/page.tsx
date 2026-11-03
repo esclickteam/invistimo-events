@@ -10,13 +10,43 @@ export default function DemoSeatingPage() {
   useEffect(() => {
     let cancelled = false;
     let baseline = "";
-    const signatureOf = () =>
-      JSON.stringify(
-        (useSeatingStore.getState().tables || []).map((table: { id?: string; seatedGuests?: Array<{ guestId?: string }> }) => [
+    const signatureOf = () => {
+      const state = useSeatingStore.getState();
+      const background = state.background;
+      return JSON.stringify({
+        tables: (state.tables || []).map((table: {
+          id?: string;
+          x?: number;
+          y?: number;
+          rotation?: number;
+          seats?: number;
+          layoutScale?: number;
+          visualSize?: number;
+          seatedGuests?: Array<{ guestId?: string; seatIndex?: number }>;
+        }) => [
           table.id,
-          (table.seatedGuests || []).map((seat) => `${seat.guestId}`),
-        ])
-      );
+          table.x,
+          table.y,
+          table.rotation,
+          table.seats,
+          table.layoutScale,
+          table.visualSize,
+          (table.seatedGuests || []).map((seat) => `${seat.guestId}:${seat.seatIndex}`),
+        ]),
+        background:
+          background && typeof background === "object"
+            ? {
+                url: background.url,
+                x: background.x,
+                y: background.y,
+                width: background.width,
+                height: background.height,
+                defaultVisualSize: background.defaultVisualSize,
+              }
+            : background,
+        canvasView: state.canvasView,
+      });
+    };
 
     async function load() {
       const res = await fetch("/api/demo/interactive", {
@@ -48,12 +78,17 @@ export default function DemoSeatingPage() {
       baseline = signature;
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
-        const tables = useSeatingStore.getState().tables || [];
+        const state = useSeatingStore.getState();
         void fetch("/api/demo/interactive/action", {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ type: "syncSeating", tables }),
+          body: JSON.stringify({
+            type: "syncSeating",
+            tables: state.tables || [],
+            background: state.background,
+            canvasView: state.canvasView,
+          }),
         }).then(() => {
           window.dispatchEvent(
             new CustomEvent("invistimo:demo-action", { detail: { action: "seat-guest" } })

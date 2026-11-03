@@ -61,6 +61,8 @@ export type DemoTable = {
   x: number;
   y: number;
   rotation: number;
+  layoutScale?: number;
+  visualSize?: number;
   seatedGuests: DemoSeat[];
 };
 
@@ -123,6 +125,8 @@ export type DemoSession = {
   invitation: Record<string, unknown>;
   guests: DemoGuest[];
   tables: DemoTable[];
+  background?: unknown;
+  canvasView?: { scale?: number; x?: number; y?: number } | null;
   groups: DemoGroup[];
   messages: DemoMessageRound[];
   ivrSchedule: Array<{

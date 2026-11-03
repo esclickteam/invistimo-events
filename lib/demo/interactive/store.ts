@@ -486,7 +486,8 @@ export function simulateHumanCall(id: string, guestId?: string): DemoSession | n
 
 export function syncSeating(
   id: string,
-  tables: DemoTable[]
+  tables: DemoTable[],
+  view?: { background?: unknown; canvasView?: DemoSession["canvasView"] }
 ): DemoSession | null {
   const session = mutate(id);
   if (!session) return null;
@@ -496,6 +497,8 @@ export function syncSeating(
     capacity: Number(table.capacity || table.seats || 0),
     seatedGuests: Array.isArray(table.seatedGuests) ? table.seatedGuests : [],
   }));
+  if (view && "background" in view) session.background = view.background ?? null;
+  if (view?.canvasView) session.canvasView = view.canvasView;
   syncGuestTables(session);
   const occupied = session.tables.reduce(
     (sum, table) => sum + table.seatedGuests.length,
