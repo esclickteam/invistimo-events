@@ -25,9 +25,11 @@ import { captureSeatingStage, SEATING_EXPORT_HIDE_NAME } from "./seatingExport";
 import {
   clamp,
   computeCanonicalBackgroundRect,
+  fillViewToRect,
   fitViewToBounds,
   getBackgroundRect,
   getContentBounds,
+  getSketchDisplayOpacity,
   preserveWorldCenterOnResize,
   type BackgroundLike,
   type CanvasView,
@@ -40,8 +42,11 @@ declare global {
   interface Window {
     __captureInvistimoSeatingMap?: () => HTMLCanvasElement | null;
     __fitInvistimoSeatingToScreen?: () => void;
+    __fillInvistimoSeatingToScreen?: () => void;
   }
 }
+
+type ViewMode = "fill" | "fit";
 
 /* ============================================================
    TYPES
@@ -261,6 +266,8 @@ function SeatingEditorInner({
     [setCanvasView]
   );
 
+  const [viewMode, setViewMode] = useState<ViewMode>("fill");
+
   const fitContentToScreen = useCallback(() => {
     if (size.width <= 0 || size.height <= 0) return false;
 
@@ -274,24 +281,61 @@ function SeatingEditorInner({
       paddingX: isMobile ? 36 : 110,
       paddingY: isMobile ? 92 : 110,
       minScale: isMobile ? 0.08 : 0.14,
-      maxScale: isMobile ? 0.9 : 1.25,
+      // Allow zooming in enough that small layouts are readable; never
+      // mutates table/sketch world geometry.
+      maxScale: isMobile ? 1.4 : 2.5,
     });
 
+    setViewMode("fit");
     applyView(nextView, true);
     return true;
   }, [applyView, computeBounds, isMobile, size.height, size.width]);
+
+  const fillSketchToScreen = useCallback(() => {
+    if (size.width <= 0 || size.height <= 0) return false;
+
+    const rect = backgroundRect;
+    if (!rect) {
+      // No sketch yet — fall back to fitting tables/zones only.
+      return fitContentToScreen();
+    }
+
+    const nextView = fillViewToRect({
+      rect,
+      viewportWidth: size.width,
+      viewportHeight: size.height,
+      minScale: MIN_SCALE,
+      maxScale: MAX_SCALE,
+    });
+
+    setViewMode("fill");
+    applyView(nextView, true);
+    return true;
+  }, [
+    applyView,
+    backgroundRect,
+    fitContentToScreen,
+    size.height,
+    size.width,
+  ]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.__fitInvistimoSeatingToScreen = () => {
       fitContentToScreen();
     };
+    window.__fillInvistimoSeatingToScreen = () => {
+      fillSketchToScreen();
+    };
     return () => {
       if (window.__fitInvistimoSeatingToScreen) {
         delete window.__fitInvistimoSeatingToScreen;
       }
+      if (window.__fillInvistimoSeatingToScreen) {
+        delete window.__fillInvistimoSeatingToScreen;
+      }
     };
-  }, [fitContentToScreen]);
+  }, [fillSketchToScreen, fitContentToScreen]);
 
   const prevSizeForResizeRef = useRef({ width: 0, height: 0 });
 
@@ -337,31 +381,6 @@ function SeatingEditorInner({
     didResolveBackgroundRef.current = false;
   }, [background]);
 
-  const isViewShowingContent = useCallback(
-    (view: CanvasView) => {
-      const bounds = computeBounds();
-      if (!bounds) return true;
-
-      const corners = [
-        { x: bounds.minX, y: bounds.minY },
-        { x: bounds.maxX, y: bounds.minY },
-        { x: bounds.minX, y: bounds.maxY },
-        { x: bounds.maxX, y: bounds.maxY },
-        {
-          x: (bounds.minX + bounds.maxX) / 2,
-          y: (bounds.minY + bounds.maxY) / 2,
-        },
-      ];
-
-      return corners.some((point) => {
-        const sx = point.x * view.scale + view.x;
-        const sy = point.y * view.scale + view.y;
-        return sx >= -40 && sx <= size.width + 40 && sy >= -40 && sy <= size.height + 40;
-      });
-    },
-    [computeBounds, size.height, size.width]
-  );
-
   const [viewSettled, setViewSettled] = useState(false);
 
   useEffect(() => {
@@ -376,22 +395,11 @@ function SeatingEditorInner({
     const timer = window.setTimeout(() => {
       didFitCanvasOnEntryRef.current = true;
 
-      const { canvasView: savedView, hasSavedCanvasView } =
-        useSeatingStore.getState() as {
-          canvasView: CanvasView | null;
-          hasSavedCanvasView?: boolean;
-        };
-
-      const canRestore =
-        hasSavedCanvasView &&
-        savedView &&
-        Number(savedView.scale) > 0 &&
-        Number.isFinite(Number(savedView.x)) &&
-        Number.isFinite(Number(savedView.y)) &&
-        isViewShowingContent(savedView);
-
-      if (canRestore && savedView) {
-        applyView(savedView, false);
+      // Default camera: Fill Screen when a sketch exists (aspect preserved,
+      // overflow via pan). Fit remains available as an explicit mode.
+      // Camera-only — never rewrites table x/y/rotation/layoutScale.
+      if (backgroundRect) {
+        fillSketchToScreen();
       } else if (hasContent || background) {
         fitContentToScreen();
       }
@@ -401,12 +409,11 @@ function SeatingEditorInner({
 
     return () => window.clearTimeout(timer);
   }, [
-    applyView,
     background,
     backgroundRect,
+    fillSketchToScreen,
     fitContentToScreen,
     initialViewReady,
-    isViewShowingContent,
     size.height,
     size.width,
     tables.length,
@@ -447,6 +454,8 @@ function SeatingEditorInner({
       preferNaturalOrigin,
     });
 
+    // Only backfill a missing world rect (new upload / legacy url-only).
+    // Never rewrite an existing rect, table geometry, or seating assignments.
     const { fitOnLoad: _fitOnLoad, ...rest } = current;
     setBackground({
       ...rest,
@@ -455,18 +464,29 @@ function SeatingEditorInner({
       naturalHeight: bgImage.height,
     });
 
-    // After placing the sketch in world space, fit the camera to everything.
-    window.setTimeout(() => {
-      fitContentToScreen();
-    }, 0);
+    // Apply Fill using the just-computed rect (state backgroundRect is still
+    // stale in this tick). Camera-only — tables stay put.
+    if (size.width > 0 && size.height > 0) {
+      const nextView = fillViewToRect({
+        rect,
+        viewportWidth: size.width,
+        viewportHeight: size.height,
+        minScale: MIN_SCALE,
+        maxScale: MAX_SCALE,
+      });
+      setViewMode("fill");
+      applyView(nextView, true);
+    }
   }, [
+    applyView,
     background,
     backgroundRect,
     bgImage,
-    fitContentToScreen,
     isMobile,
     readOnly,
     setBackground,
+    size.height,
+    size.width,
     tables,
     viewSettled,
     zones,
@@ -807,13 +827,13 @@ function SeatingEditorInner({
                   y={backgroundRect.y}
                   width={backgroundRect.width}
                   height={backgroundRect.height}
-                  opacity={
+                  opacity={getSketchDisplayOpacity(
                     typeof storeBackground === "object" &&
-                    storeBackground &&
-                    typeof storeBackground.opacity === "number"
+                      storeBackground &&
+                      typeof storeBackground.opacity === "number"
                       ? storeBackground.opacity
-                      : 0.28
-                  }
+                      : null
+                  )}
                 />
               )}
           </Layer>
@@ -862,19 +882,46 @@ function SeatingEditorInner({
         </Stage>
       )}
 
-      <button
-        type="button"
-        data-tour="fit-to-screen"
-        onClick={() => fitContentToScreen()}
+      <div
         className="
-          absolute bottom-4 left-4 z-20 rounded-2xl border border-[#e5d2b8]
-          bg-white/90 px-3 py-2 text-xs font-black text-[#6f5536]
-          shadow-sm backdrop-blur-md transition hover:bg-[#fff8ee]
-          md:bottom-6 md:left-6 md:px-4 md:text-sm
+          absolute bottom-4 left-4 z-20 flex flex-col gap-2
+          md:bottom-6 md:left-6
         "
+        dir="rtl"
       >
-        Fit to Screen
-      </button>
+        <button
+          type="button"
+          data-tour="fill-screen"
+          onClick={() => fillSketchToScreen()}
+          className={`
+            rounded-2xl border px-3 py-2 text-xs font-black shadow-sm
+            backdrop-blur-md transition md:px-4 md:text-sm
+            ${
+              viewMode === "fill"
+                ? "border-[#17203a] bg-[#17203a] text-white"
+                : "border-[#e5d2b8] bg-white/90 text-[#6f5536] hover:bg-[#fff8ee]"
+            }
+          `}
+        >
+          מלא את המסך
+        </button>
+        <button
+          type="button"
+          data-tour="fit-to-screen"
+          onClick={() => fitContentToScreen()}
+          className={`
+            rounded-2xl border px-3 py-2 text-xs font-black shadow-sm
+            backdrop-blur-md transition md:px-4 md:text-sm
+            ${
+              viewMode === "fit"
+                ? "border-[#17203a] bg-[#17203a] text-white"
+                : "border-[#e5d2b8] bg-white/90 text-[#6f5536] hover:bg-[#fff8ee]"
+            }
+          `}
+        >
+          התאם למסך
+        </button>
+      </div>
 
       {!readOnly && showAddModal && (
         <AddTableDrawer
