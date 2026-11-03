@@ -29,6 +29,14 @@ import { colors } from "@/src/theme";
 
 type CanvasView = { x: number; y: number; scale: number };
 type GuestGroup = { _id: string; name: string };
+type BackgroundRect = {
+  url: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  opacity?: number;
+};
 
 const TABLE_TYPES = [
   { id: "banquet", name: "אבירים", subtitle: "שולחן מלבני ארוך" },
@@ -41,7 +49,9 @@ export default function SeatingScreen() {
   const eventId = String(invitation?.eventId || event?._id || "");
   const invitationId = String(invitation?._id || "");
   const [tables, setTables] = useState<SeatingTable[]>([]);
-  const [background, setBackground] = useState<string | null>(null);
+  const [background, setBackground] = useState<BackgroundRect | string | null>(
+    null
+  );
   const [groups, setGroups] = useState<GuestGroup[]>([]);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("שמירה אוטומטית פעילה");
@@ -91,8 +101,43 @@ export default function SeatingScreen() {
       return;
     }
     setTables((result.data.tables || []).map((table, index) => parseSeatingTable(table, index)));
-    const bg = result.data.background;
-    setBackground(typeof bg === "string" ? bg : bg?.url || null);
+    const bg = result.data.background as
+      | string
+      | {
+          url?: string;
+          x?: number;
+          y?: number;
+          width?: number;
+          height?: number;
+          opacity?: number;
+        }
+      | null
+      | undefined;
+    if (typeof bg === "string" && bg.trim()) {
+      setBackground(bg.trim());
+    } else if (bg && typeof bg === "object" && bg.url) {
+      const width = Number(bg.width);
+      const height = Number(bg.height);
+      if (
+        Number.isFinite(Number(bg.x)) &&
+        Number.isFinite(Number(bg.y)) &&
+        width > 0 &&
+        height > 0
+      ) {
+        setBackground({
+          url: String(bg.url),
+          x: Number(bg.x),
+          y: Number(bg.y),
+          width,
+          height,
+          opacity: typeof bg.opacity === "number" ? bg.opacity : 0.28,
+        });
+      } else {
+        setBackground(String(bg.url));
+      }
+    } else {
+      setBackground(null);
+    }
     if (result.data.canvasView) view.current = result.data.canvasView;
     setTick((n) => n + 1);
   }, [eventId, invitationId]);
@@ -308,9 +353,6 @@ export default function SeatingScreen() {
         onLayout={(e) => setCanvasSize(e.nativeEvent.layout)}
         {...pan.panHandlers}
       >
-        {background ? (
-          <Image source={{ uri: background }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-        ) : null}
         <View
           style={{
             transform: [
@@ -320,6 +362,34 @@ export default function SeatingScreen() {
             ],
           }}
         >
+          {typeof background === "string" && background ? (
+            <Image
+              source={{ uri: background }}
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                width: Math.max(canvasSize.width / Math.max(view.current.scale, 0.01), 800),
+                height: Math.max(canvasSize.height / Math.max(view.current.scale, 0.01), 600),
+                opacity: 0.28,
+              }}
+              resizeMode="contain"
+            />
+          ) : null}
+          {background && typeof background === "object" ? (
+            <Image
+              source={{ uri: background.url }}
+              style={{
+                position: "absolute",
+                left: background.x,
+                top: background.y,
+                width: background.width,
+                height: background.height,
+                opacity: background.opacity ?? 0.28,
+              }}
+              resizeMode="stretch"
+            />
+          ) : null}
           {tables.map((table) => (
             <TableNode
               key={table.id}
