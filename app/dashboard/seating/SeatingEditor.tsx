@@ -98,16 +98,19 @@ function SeatingEditorInner({
   sidebarOpen = false,
   initialViewReady,
 }: SeatingEditorProps) {
-  const [bgImage] = useImage(background || "", "anonymous");
   const storeBackground = useSeatingStore(
     (s) => s.background
   ) as BackgroundLike;
+  const backgroundUrl =
+    typeof storeBackground === "string"
+      ? storeBackground
+      : (storeBackground && storeBackground.url) ||
+        (typeof background === "string" ? background : "") ||
+        "";
+  const [bgImage] = useImage(backgroundUrl, "anonymous");
   const setBackground = useSeatingStore((s) => s.setBackground);
   const backgroundRect =
-    storeBackground &&
-    typeof storeBackground === "object" &&
-    storeBackground.url &&
-    storeBackground.url === background
+    storeBackground && typeof storeBackground === "object"
       ? getBackgroundRect(storeBackground)
       : null;
 
