@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   clampLayoutScale,
   computeCanonicalBackgroundRect,
+  controlCounterScale,
   fillViewToRect,
   fitViewToBounds,
   getBackgroundRect,
@@ -11,7 +12,9 @@ import {
   getSketchDisplayOpacity,
   normalizeBackground,
   preserveWorldCenterOnResize,
+  scaleTablesLayout,
   suggestInitialLayoutScale,
+  TABLE_BASE_DRAW,
   unionBounds,
 } from "../../lib/seating/canvasLayout";
 
@@ -116,8 +119,8 @@ test("preserveWorldCenterOnResize keeps the same world point centered", () => {
 
 test("layoutScale clamp and initial suggestion stay independent of seat count", () => {
   assert.equal(clampLayoutScale(0, 1), 1);
-  assert.equal(clampLayoutScale(99, 1), 3);
-  assert.equal(clampLayoutScale(0.1, 1), 0.25);
+  assert.equal(clampLayoutScale(99, 1), 2.5);
+  assert.equal(clampLayoutScale(0.1, 1), 0.2);
 
   const scale = suggestInitialLayoutScale({
     url: "x",
@@ -198,4 +201,31 @@ test("sketch display opacity brightens faint stored values without rewriting the
   assert.equal(getSketchDisplayOpacity(0.28), 0.58);
   assert.equal(getSketchDisplayOpacity(null), 0.58);
   assert.equal(getSketchDisplayOpacity(0.7), 0.7);
+});
+
+test("control size stays constant across zoom while staying in world space", () => {
+  for (const camera of [0.2, 1, 2.5, 6]) {
+    const screenPx = 26 * controlCounterScale(camera) * camera;
+    assert.ok(Math.abs(screenPx - 26) < 1e-6);
+  }
+});
+
+test("scaling selected tables keeps each center and does not touch others", () => {
+  const tables = [
+    { id: "a", x: 10, y: 20, rotation: 15, seats: 12, layoutScale: 1, seatedGuests: [{ guestId: "g1" }] },
+    { id: "b", x: 80, y: 40, rotation: 0, seats: 10, layoutScale: 1.2 },
+    { id: "c", x: 140, y: 90, rotation: 40, seats: 8, layoutScale: 1 },
+  ];
+  const next = scaleTablesLayout(tables, ["a", "b"], 0.5);
+  assert.equal(next[0].x, 10);
+  assert.equal(next[0].y, 20);
+  assert.equal(next[0].rotation, 15);
+  assert.equal(next[0].seats, 12);
+  assert.deepEqual(next[0].seatedGuests, [{ guestId: "g1" }]);
+  assert.ok(Math.abs(next[0].layoutScale - 0.5) < 1e-9);
+  assert.equal(next[1].x, 80);
+  assert.equal(next[1].y, 40);
+  assert.ok(Math.abs((next[1].layoutScale || 0) - 0.6) < 1e-9);
+  assert.equal(next[2].layoutScale, 1);
+  assert.ok(TABLE_BASE_DRAW < 0.5);
 });

@@ -18,19 +18,20 @@ import TableRenderer from "@/app/components/seating/TableRenderer";
 import ZoneRenderer from "@/app/components/zones/ZoneRenderer";
 import GhostPreview from "@/app/components/GhostPreview";
 import AddTableDrawer from "./AddTableDrawer";
-import DeleteTableButton from "@/app/components/seating/DeleteTableButton";
 import AddGuestToTableModal from "@/app/components/AddGuestToTableModal";
 import MobileGuests from "./MobileGuests";
 import { captureSeatingStage, SEATING_EXPORT_HIDE_NAME } from "./seatingExport";
 import {
   clamp,
   computeCanonicalBackgroundRect,
+  estimateTableFootprint,
   fillViewToRect,
   fitViewToBounds,
   getBackgroundRect,
   getContentBounds,
   getSketchDisplayOpacity,
   preserveWorldCenterOnResize,
+  TABLE_BASE_DRAW,
   type BackgroundLike,
   type CanvasView,
 } from "@/lib/seating/canvasLayout";
@@ -113,6 +114,13 @@ function SeatingEditorInner({
 
   /* ================= STORES ================= */
   const tables = useSeatingStore((s) => s.tables) as Table[];
+  const selectedTableIds = useSeatingStore(
+    (s) => s.selectedTableIds
+  ) as string[];
+  const selectAllTables = useSeatingStore((s) => s.selectAllTables);
+  const setSelectedLayoutPercent = useSeatingStore(
+    (s) => s.setSelectedLayoutPercent
+  );
   const guests = useSeatingStore((s) => s.guests) as Guest[];
 
   const draggedGuest = useSeatingStore((s) => s.draggingGuest);
@@ -570,6 +578,38 @@ function SeatingEditorInner({
     const pointer = stage.getPointerPosition();
     if (!pointer) return;
 
+    const world = {
+      x: (pointer.x - stagePos.x) / scale,
+      y: (pointer.y - stagePos.y) / scale,
+    };
+    const seating = useSeatingStore.getState() as {
+      tables: Array<{
+        id: string;
+        x: number;
+        y: number;
+        seats?: number;
+        type?: string;
+        layoutScale?: number;
+      }>;
+      selectedTableIds?: string[];
+      scaleSelectedTables?: (factor: number) => void;
+    };
+    const selected = new Set((seating.selectedTableIds || []).map(String));
+    const overSelected = (seating.tables || []).some((table) => {
+      if (!selected.has(String(table.id))) return false;
+      const radius =
+        estimateTableFootprint(table) * TABLE_BASE_DRAW;
+      const dx = world.x - Number(table.x);
+      const dy = world.y - Number(table.y);
+      return Math.hypot(dx, dy) <= radius;
+    });
+
+    if (overSelected && selected.size && seating.scaleSelectedTables) {
+      const factor = e.evt.deltaY < 0 ? 1.06 : 1 / 1.06;
+      seating.scaleSelectedTables(factor);
+      return;
+    }
+
     const scaleBy = 1.05;
     const direction = e.evt.deltaY > 0 ? -1 : 1;
     const rawScale = direction > 0 ? scale * scaleBy : scale / scaleBy;
@@ -719,6 +759,15 @@ function SeatingEditorInner({
     if (readOnly) return;
 
     function onKeyDown(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "a") {
+        e.preventDefault();
+        useSeatingStore.getState().selectAllTables();
+        return;
+      }
+
       if (!selectedZoneId) return;
 
       if (e.key === "Delete" || e.key === "Backspace") {
@@ -778,6 +827,10 @@ function SeatingEditorInner({
           onMouseDown={(e) => {
             if (e.evt.button !== 0) return;
             if (e.target !== e.target.getStage()) return;
+
+            if (!e.evt.shiftKey) {
+              useSeatingStore.getState().clearTableSelection();
+            }
 
             setIsPanning(true);
 
@@ -861,6 +914,7 @@ function SeatingEditorInner({
                       : undefined,
                   }}
                   hideSeats={hideSeats}
+                  cameraScale={scale}
                 />
               );
             })}
@@ -872,13 +926,6 @@ function SeatingEditorInner({
             </Layer>
           )}
 
-          {!readOnly && (
-            <Layer name={SEATING_EXPORT_HIDE_NAME}>
-              {tables.map((table) => (
-                <DeleteTableButton key={table.id} table={table} />
-              ))}
-            </Layer>
-          )}
         </Stage>
       )}
 
@@ -921,6 +968,49 @@ function SeatingEditorInner({
         >
           התאם למסך
         </button>
+        <button
+          type="button"
+          data-tour="select-all-tables"
+          onClick={() => selectAllTables()}
+          className="
+            rounded-2xl border border-[#e5d2b8] bg-white/90 px-3 py-2
+            text-xs font-black text-[#6f5536] shadow-sm backdrop-blur-md
+            transition hover:bg-[#fff8ee] md:px-4 md:text-sm
+          "
+        >
+          בחר הכל
+          {selectedTableIds?.length ? ` (${selectedTableIds.length})` : ""}
+        </button>
+        {selectedTableIds?.length ? (
+          <label className="flex items-center gap-2 rounded-2xl border border-[#e5d2b8] bg-white/90 px-3 py-2 text-xs font-black text-[#6f5536] shadow-sm">
+            גודל %
+            <input
+              type="number"
+              min={20}
+              max={250}
+              step={1}
+              defaultValue={Math.round(
+                (Number(
+                  tables.find((table) =>
+                    selectedTableIds.map(String).includes(String(table.id))
+                  )?.layoutScale
+                ) || 1) * 100
+              )}
+              key={selectedTableIds.join(",")}
+              onBlur={(event) => {
+                const value = Number(event.target.value);
+                if (!Number.isFinite(value)) return;
+                setSelectedLayoutPercent(value);
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  (event.target as HTMLInputElement).blur();
+                }
+              }}
+              className="w-16 rounded-lg border border-[#e5d2b8] bg-white px-2 py-1 text-center"
+            />
+          </label>
+        ) : null}
       </div>
 
       {!readOnly && showAddModal && (
