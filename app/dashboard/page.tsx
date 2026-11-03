@@ -2,6 +2,7 @@
 
 import {
   Suspense,
+  memo,
   useState,
   useEffect,
   useMemo,
@@ -9,6 +10,14 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
+
+import {
+  coalesceJson,
+  readFreshGuestCache,
+  seatingTablesSignature,
+  writeGuestCache,
+} from "@/lib/dashboard/desktopPerf";
+import { useVirtualRange } from "./components/useVirtualRange";
 
 import EditGuestModal from "../components/EditGuestModal";
 import AddGuestModal from "../components/AddGuestModal";
@@ -387,6 +396,8 @@ const actualArrivedSaveTimersRef = useRef<
 >({});
 const actualArrivedRequestVersionRef = useRef<Record<string, number>>({});
 const guestsAutoRefreshRef = useRef(false);
+const seatingSignatureRef = useRef("");
+const demoSessionFingerprintRef = useRef("");
 
 
   const groups = useGroupStore((s) => s.groups);
@@ -684,14 +695,9 @@ const canViewActualArrived =
       : "/api/invitations/my";
 
     try {
-      const res = await fetch(url, {
-        credentials: "include",
-        cache: "no-store",
-      });
+      const { ok, data } = await coalesceJson(url);
 
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok || !data?.success || !data?.invitation) {
+      if (!ok || !data?.success || !data?.invitation) {
         setInvitation(null);
         setInvitationId("");
         return;
@@ -889,6 +895,8 @@ const canViewActualArrived =
 
       return nextGuests;
     });
+
+    writeGuestCache(invitationId, nextGuests);
   }
 
   async function loadSeatingTables() {
@@ -944,7 +952,11 @@ const canViewActualArrived =
         return;
       }
 
-      setSeatingTables(data.tables || []);
+      const nextTables = data.tables || [];
+      const signature = seatingTablesSignature(nextTables);
+      if (signature === seatingSignatureRef.current) return;
+      seatingSignatureRef.current = signature;
+      setSeatingTables(nextTables);
     } catch (err) {
       console.error("Load seating tables error:", err);
     }
@@ -954,6 +966,7 @@ const canViewActualArrived =
     if (isDemo || !invitationId || !canShowActualArrived) return;
 
     const interval = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
       void loadSeatingTables();
     }, 3000);
 
@@ -1230,6 +1243,16 @@ if (!canDeleteAllGuests) {
         if (cancelled || !data?.session) return;
         const session = data.session;
         const invitation = session.invitation || {};
+        const demoFingerprint =
+          JSON.stringify(session.guests || []) +
+          "|" +
+          JSON.stringify(session.groups || []) +
+          "|" +
+          String(invitation.eventDate || "") +
+          "|" +
+          String(invitation.title || "");
+        if (demoFingerprint === demoSessionFingerprintRef.current) return;
+        demoSessionFingerprintRef.current = demoFingerprint;
         setUser({
           role: "user",
           plan: "premium",
@@ -1261,7 +1284,10 @@ if (!canDeleteAllGuests) {
 
     loadDemo();
     window.addEventListener("invistimo:demo-sync", loadDemo);
-    const timer = window.setInterval(loadDemo, 2500);
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      void loadDemo();
+    }, 2500);
     return () => {
       cancelled = true;
       window.removeEventListener("invistimo:demo-sync", loadDemo);
@@ -1323,6 +1349,12 @@ if (!canDeleteAllGuests) {
     if (!invitationId) return;
 
     let cancelled = false;
+
+    const cachedGuests = readFreshGuestCache<Guest>(invitationId);
+    if (cachedGuests) {
+      setGuests(cachedGuests);
+      setLoading(false);
+    }
 
     async function load() {
       await loadGuests();
@@ -1419,11 +1451,9 @@ if (!canDeleteAllGuests) {
 
     source.addEventListener("snapshot", (event) => {
       applySnapshot((event as MessageEvent).data);
-      void loadSeatingTables();
     });
     source.onmessage = (event) => {
       applySnapshot(event.data);
-      void loadSeatingTables();
     };
 
     return () => {
@@ -2587,7 +2617,33 @@ const approveSuggestedTableMove = async (
     );
   };
 
+  const [guestTableScrollEl, setGuestTableScrollEl] =
+    useState<HTMLDivElement | null>(null);
+  const guestWindow = useVirtualRange(
+    displayGuests.length,
+    guestTableScrollEl,
+    84,
+    `${displayGuests.length}:${sortKey}:${sortDir}:${quickFilter}:${search}:${selectedGroupId}`
+  );
+  const [guestLayout, setGuestLayout] = useState<
+    "pending" | "desktop" | "mobile"
+  >("pending");
+
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 768px)");
+    const apply = () => setGuestLayout(media.matches ? "desktop" : "mobile");
+    apply();
+    media.addEventListener("change", apply);
+    return () => media.removeEventListener("change", apply);
+  }, []);
+
+  const showDesktopGuests = guestLayout !== "mobile";
+  const showMobileGuests = guestLayout !== "desktop";
+
   if (loading) return null;
+
+  const visibleGuests = displayGuests.slice(guestWindow.start, guestWindow.end);
+  const guestColumnCount = canShowActualArrived ? 14 : 12;
 
   const eventTitle = resolveEventTitle(invitation, event);
 
@@ -2838,7 +2894,9 @@ const eventLocation = resolveEventLocation(invitation, event);
       </section>
 
       {/* ===================== DESKTOP TABLE ===================== */}
+      {showDesktopGuests && (
       <div
+  ref={setGuestTableScrollEl}
   className="
     hidden
     md:block
@@ -2960,9 +3018,25 @@ const eventLocation = resolveEventLocation(invitation, event);
           </thead>
 
           <tbody>
-            {displayGuests.map((g) => (
+            {guestWindow.paddingTop > 0 && (
+              <tr aria-hidden="true">
+                <td
+                  colSpan={guestColumnCount}
+                  style={{
+                    height: guestWindow.paddingTop,
+                    padding: 0,
+                    border: 0,
+                    lineHeight: 0,
+                  }}
+                />
+              </tr>
+            )}
+            {visibleGuests.map((g, index) => (
               <tr
                 key={g._id}
+                ref={(node) =>
+                  guestWindow.measure(guestWindow.start + index, node)
+                }
                 className="
                   border-b
                   border-[#F0ECE6]
@@ -3336,6 +3410,20 @@ const eventLocation = resolveEventLocation(invitation, event);
               </tr>
             ))}
 
+            {guestWindow.paddingBottom > 0 && (
+              <tr aria-hidden="true">
+                <td
+                  colSpan={guestColumnCount}
+                  style={{
+                    height: guestWindow.paddingBottom,
+                    padding: 0,
+                    border: 0,
+                    lineHeight: 0,
+                  }}
+                />
+              </tr>
+            )}
+
             {displayGuests.length === 0 && (
               <tr>
                 <td
@@ -3349,8 +3437,10 @@ const eventLocation = resolveEventLocation(invitation, event);
           </tbody>
         </table>
       </div>
+      )}
 
       {/* ===================== MOBILE LIST ===================== */}
+{showMobileGuests && (
 <div className="md:hidden">
   <GuestsMobileList
     guests={displayGuests}
@@ -3384,6 +3474,7 @@ const eventLocation = resolveEventLocation(invitation, event);
     invitationId={invitationId}
   />
 </div>
+)}
 
       {openFreeTablesGuestId && (() => {
         const guest = guests.find(
@@ -3939,21 +4030,6 @@ function GoldenEventHero({
   setWorkMode: (mode: "regular" | "live") => void;
   hideCountdown?: boolean;
 }) {
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setNow(Date.now());
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const countdown = useMemo(
-    () => getEventCountdown(eventDateRaw, time, now),
-    [eventDateRaw, time, now]
-  );
-
   void _date;
   void _location;
   void _responsePercent;
@@ -3979,7 +4055,7 @@ function GoldenEventHero({
           bg-no-repeat
         "
         style={{
-          backgroundImage: "url('/background1.png')",
+          backgroundImage: "url('/background1.webp')",
           backgroundSize: "100% 100%",
           backgroundPosition: "center",
         }}
@@ -4001,25 +4077,11 @@ function GoldenEventHero({
         ✦
       </div>
 
-      {countdown.isEventDay && !hideCountdown && (
-        <>
-          {/* 🎇 זיקוקים על כל הכרטיסייה העליונה ביום האירוע */}
-          <CountdownFireworksCanvas />
-
-          <div
-            className="
-              pointer-events-none
-              absolute
-              inset-0
-              z-20
-              bg-gradient-to-b
-              from-white/10
-              via-transparent
-              to-white/16
-            "
-          />
-        </>
-      )}
+      <EventDayFireworks
+        eventDateRaw={eventDateRaw}
+        time={time}
+        hide={hideCountdown}
+      />
 
       <div
         dir="ltr"
@@ -4102,7 +4164,9 @@ function GoldenEventHero({
             {title}
           </h1>
 
-          {!hideCountdown && <GoldenCountdown countdown={countdown} />}
+          {!hideCountdown && (
+            <LiveGoldenCountdown eventDateRaw={eventDateRaw} time={time} />
+          )}
         </div>
       </div>
     </div>
@@ -4301,7 +4365,10 @@ function CountdownFireworksCanvas() {
       }
     }
 
+    let running = false;
+
     function draw() {
+      if (!running) return;
       ctx.clearRect(0, 0, w, h);
 
       for (let i = particles.length - 1; i >= 0; i--) {
@@ -4323,32 +4390,48 @@ function CountdownFireworksCanvas() {
         ctx.fill();
       }
 
+      if (!running) return;
       rafRef.current = window.requestAnimationFrame(draw);
     }
 
-    resize();
+    function pause() {
+      running = false;
+      if (intervalRef.current !== null) {
+        window.clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+      if (rafRef.current !== null) {
+        window.cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+    }
 
-    intervalRef.current = window.setInterval(() => {
-      createBurst(
-        Math.random() * w,
-        Math.random() * (h * 0.68) + h * 0.08
-      );
-    }, 520);
+    function start() {
+      if (running) return;
+      running = true;
+      resize();
+      intervalRef.current = window.setInterval(() => {
+        createBurst(
+          Math.random() * w,
+          Math.random() * (h * 0.68) + h * 0.08
+        );
+      }, 520);
+      draw();
+    }
 
-    draw();
+    function onVisibility() {
+      if (document.visibilityState === "hidden") pause();
+      else start();
+    }
 
+    if (document.visibilityState !== "hidden") start();
     window.addEventListener("resize", resize);
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       window.removeEventListener("resize", resize);
-
-      if (intervalRef.current !== null) {
-        window.clearInterval(intervalRef.current);
-      }
-
-      if (rafRef.current !== null) {
-        window.cancelAnimationFrame(rafRef.current);
-      }
+      document.removeEventListener("visibilitychange", onVisibility);
+      pause();
     };
   }, []);
 
@@ -4359,6 +4442,100 @@ function CountdownFireworksCanvas() {
       aria-hidden="true"
     />
   );
+}
+
+function EventDayFireworks({
+  eventDateRaw,
+  time,
+  hide = false,
+}: {
+  eventDateRaw?: string;
+  time: string;
+  hide?: boolean;
+}) {
+  const [isEventDay, setIsEventDay] = useState(() =>
+    getEventCountdown(eventDateRaw, time, Date.now()).isEventDay
+  );
+
+  useEffect(() => {
+    const read = () =>
+      getEventCountdown(eventDateRaw, time, Date.now()).isEventDay;
+
+    setIsEventDay((prev) => {
+      const next = read();
+      return prev === next ? prev : next;
+    });
+
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "hidden") return;
+      setIsEventDay((prev) => {
+        const next = read();
+        return prev === next ? prev : next;
+      });
+    }, 30000);
+
+    return () => window.clearInterval(timer);
+  }, [eventDateRaw, time]);
+
+  if (hide || !isEventDay) return null;
+
+  return (
+    <>
+      <CountdownFireworksCanvas />
+      <div
+        className="
+          pointer-events-none
+          absolute
+          inset-0
+          z-20
+          bg-gradient-to-b
+          from-white/10
+          via-transparent
+          to-white/16
+        "
+      />
+    </>
+  );
+}
+
+function LiveGoldenCountdown({
+  eventDateRaw,
+  time,
+}: {
+  eventDateRaw?: string;
+  time: string;
+}) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    let timer = 0;
+
+    const stop = () => window.clearInterval(timer);
+    const start = () => {
+      stop();
+      setNow(Date.now());
+      timer = window.setInterval(() => setNow(Date.now()), 1000);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") stop();
+      else start();
+    };
+
+    if (document.visibilityState !== "hidden") start();
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, []);
+
+  const countdown = useMemo(
+    () => getEventCountdown(eventDateRaw, time, now),
+    [eventDateRaw, time, now]
+  );
+
+  return <GoldenCountdown countdown={countdown} />;
 }
 
 function GoldenCountdown({
@@ -4424,7 +4601,7 @@ function GoldenCountdown({
 );
 }
 
-function CountdownUnit({
+const CountdownUnit = memo(function CountdownUnit({
   label,
   value,
   isLive,
@@ -4461,7 +4638,7 @@ function CountdownUnit({
       </div>
     </div>
   );
-}
+});
 
 function GoldenHeroDetail({
   icon,
@@ -4487,7 +4664,7 @@ function GoldenHeroDetail({
   );
 }
 
-function GoldenStatCard({
+const GoldenStatCard = memo(function GoldenStatCard({
   title,
   value,
   tone,
@@ -4564,7 +4741,7 @@ function GoldenStatCard({
       </div>
     </div>
   );
-}
+});
 
 function GoldenStatusBarsCard({
   coming,
@@ -5607,7 +5784,7 @@ function GoldenDetailRow({
   );
 }
 
-function GoldenRecentActivityCard({
+const GoldenRecentActivityCard = memo(function GoldenRecentActivityCard({
   logs,
 }: {
   logs: {
@@ -5619,6 +5796,15 @@ function GoldenRecentActivityCard({
     subtitle: string;
   }[];
 }) {
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const rowWindow = useVirtualRange(
+    logs.length,
+    scrollEl,
+    48,
+    String(logs.length)
+  );
+  const visibleLogs = logs.slice(rowWindow.start, rowWindow.end);
+
   return (
     <div data-tour="activity" className="flex h-[400px] flex-col overflow-hidden rounded-[28px] border border-[#E3D6C3] bg-white p-4 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
       <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
@@ -5631,6 +5817,7 @@ function GoldenRecentActivityCard({
       </div>
 
       <div
+        ref={setScrollEl}
         className="
           min-h-0
           flex-1
@@ -5642,15 +5829,26 @@ function GoldenRecentActivityCard({
         "
       >
         {logs.length > 0 ? (
-          logs.map((log) => (
-            <GoldenActivityRow
-              key={`${log.id}-${log.timestamp}`}
-              icon={log.icon}
-              tone={log.tone}
-              title={log.title}
-              time={log.subtitle}
-            />
-          ))
+          <div
+            style={{
+              paddingTop: rowWindow.paddingTop,
+              paddingBottom: rowWindow.paddingBottom,
+            }}
+          >
+            {visibleLogs.map((log, index) => (
+              <GoldenActivityRow
+                key={`${log.id}-${log.timestamp}`}
+                icon={log.icon}
+                tone={log.tone}
+                title={log.title}
+                time={log.subtitle}
+                isLast={rowWindow.start + index === logs.length - 1}
+                rowRef={(node) =>
+                  rowWindow.measure(rowWindow.start + index, node)
+                }
+              />
+            ))}
+          </div>
         ) : (
           <div className="rounded-2xl bg-[#FBF7F0] p-4 text-sm font-bold text-[#8A7A68]">
             עדיין אין פעילות להצגה.
@@ -5659,9 +5857,9 @@ function GoldenRecentActivityCard({
       </div>
     </div>
   );
-}
+});
 
-function GoldenLinkViewsCard({
+const GoldenLinkViewsCard = memo(function GoldenLinkViewsCard({
   guests,
 }: {
   guests: Guest[];
@@ -5700,6 +5898,9 @@ function GoldenLinkViewsCard({
   const list = viewingOpened ? opened : notOpened;
   const count = viewingOpened ? openedCount : notOpenedCount;
   const percent = viewingOpened ? openedPercent : notOpenedPercent;
+  const [scrollEl, setScrollEl] = useState<HTMLDivElement | null>(null);
+  const rowWindow = useVirtualRange(list.length, scrollEl, 36, `${tab}:${list.length}`);
+  const visibleGuests = list.slice(rowWindow.start, rowWindow.end);
 
   return (
     <div className="flex h-[400px] flex-col overflow-hidden rounded-[28px] border border-[#E3D6C3] bg-white p-4 shadow-[0_14px_34px_rgba(80,55,32,0.055)]">
@@ -5761,12 +5962,23 @@ function GoldenLinkViewsCard({
         </p>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+      <div ref={setScrollEl} className="min-h-0 flex-1 overflow-y-auto pr-1">
         {list.length > 0 ? (
-          list.map((guest) => (
+          <div
+            style={{
+              paddingTop: rowWindow.paddingTop,
+              paddingBottom: rowWindow.paddingBottom,
+            }}
+          >
+          {visibleGuests.map((guest, index) => (
             <div
               key={guest._id}
-              className="flex items-center justify-between gap-3 border-b border-[#F0E6D8] px-1 py-1.5 last:border-0"
+              ref={(node) => rowWindow.measure(rowWindow.start + index, node)}
+              className={`flex items-center justify-between gap-3 border-[#F0E6D8] px-1 py-1.5 ${
+                rowWindow.start + index === list.length - 1
+                  ? ""
+                  : "border-b"
+              }`}
             >
               <p className="truncate text-sm font-black text-[#241A14]">
                 {guest.name || "אורח"}
@@ -5779,7 +5991,8 @@ function GoldenLinkViewsCard({
                   : "טרם נפתח"}
               </p>
             </div>
-          ))
+          ))}
+          </div>
         ) : (
           <div className="rounded-2xl bg-[#FBF7F0] p-4 text-sm font-bold text-[#8A7A68]">
             {viewingOpened
@@ -5790,18 +6003,22 @@ function GoldenLinkViewsCard({
       </div>
     </div>
   );
-}
+});
 
 function GoldenActivityRow({
   icon,
   tone,
   title,
   time,
+  rowRef,
+  isLast = false,
 }: {
   icon: string;
   tone: "green" | "gold" | "rose" | "bronze" | "lilac";
   title: string;
   time: string;
+  rowRef?: (node: HTMLDivElement | null) => void;
+  isLast?: boolean;
 }) {
   const tones = {
     green: "bg-emerald-50 text-emerald-700",
@@ -5812,7 +6029,12 @@ function GoldenActivityRow({
   };
 
   return (
-    <div className="flex items-start gap-2 border-b border-[#F0E6D8] py-1.5 last:border-0">
+    <div
+      ref={rowRef}
+      className={`flex items-start gap-2 border-[#F0E6D8] py-1.5 ${
+        isLast ? "" : "border-b"
+      }`}
+    >
       <div
         className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-black ${tones[tone]}`}
       >
