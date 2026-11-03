@@ -212,7 +212,7 @@ export default function ReminderTab({
     async function loadTables() {
       try {
         const res = await fetch(
-          `/api/seating/tables/${eventId}?invitationId=${encodeURIComponent(invitationId)}`,
+          `/api/seating/tables/${eventId}?invitationId=${encodeURIComponent(invitationId)}&omitBackground=1`,
           { credentials: "include", cache: "no-store" }
         );
         const data = await res.json();

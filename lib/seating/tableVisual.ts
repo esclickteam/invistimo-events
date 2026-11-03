@@ -8,7 +8,7 @@ import {
   getBackgroundRect,
   type BackgroundLike,
 } from "./canvasLayout";
-import { legacyOuterDiameter } from "./legacyTableLayout";
+import { legacyOuterDiameter, legacyTableLayout } from "./legacyTableLayout";
 
 /** Share of the sketch's shorter side. Matches a table drawn on a full hall plan. */
 export const SKETCH_TABLE_RATIO = 0.08;
@@ -78,6 +78,25 @@ export function displayedOuter(table: {
   const explicit = explicitVisualSize(table);
   if (explicit) return explicit;
   return legacyOuterDiameter(table);
+}
+
+/**
+ * One scale for the whole table. The legacy chair layout stays intact;
+ * body, chairs and text grow or shrink together.
+ */
+export function uniformTableScale(table: {
+  visualSize?: number;
+  layoutScale?: number;
+  seats?: number;
+  capacity?: number;
+  type?: string;
+} | null | undefined): number {
+  const layout = legacyTableLayout(table);
+  const base = Math.max(layout.outerWidth, layout.outerHeight, 1);
+  const explicit = explicitVisualSize(table);
+  if (explicit) return explicit / base;
+  const saved = Number(table?.layoutScale);
+  return Number.isFinite(saved) && saved > 0 ? saved : 1;
 }
 
 function layoutRound(seats: number, outer: number): FittedTableLayout {

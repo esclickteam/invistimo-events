@@ -226,6 +226,8 @@ export async function GET(req: NextRequest, context: RouteContext) {
     }
 
     const invitationId = cleanString(searchParams.get("invitationId"));
+    const metaOnly = searchParams.get("meta") === "1";
+    const omitBackground = metaOnly || searchParams.get("omitBackground") === "1";
 
     console.log("📤 LOAD SEATING TABLES:", {
       eventId: cleanEventId,
@@ -247,18 +249,26 @@ export async function GET(req: NextRequest, context: RouteContext) {
 
     const eventObjectId = toObjectId(cleanEventId);
 
-    let record = await SeatingTable.findOne({
+    const projection = metaOnly
+      ? "source sourceTemplateId sourceTemplateUpdatedAt updatedAt eventId invitationId userId venueOwnerId tables.id"
+      : omitBackground
+        ? "-background"
+        : "";
+
+    const findSeating = (filter: Record<string, unknown>) => {
+      const query = SeatingTable.findOne(filter).sort({ updatedAt: -1, createdAt: -1 });
+      if (projection) query.select(projection);
+      return query.lean();
+    };
+
+    let record = await findSeating({
       eventId: { $in: eventObjectId ? [eventObjectId, cleanEventId] : [cleanEventId] },
-    })
-      .sort({ updatedAt: -1, createdAt: -1 })
-      .lean();
+    });
 
     if (!record) {
-      record = await SeatingTable.findOne({
+      record = await findSeating({
         $or: idQueries,
-      })
-        .sort({ updatedAt: -1, createdAt: -1 })
-        .lean();
+      });
     }
 
     const recordHasTables =
@@ -279,12 +289,10 @@ export async function GET(req: NextRequest, context: RouteContext) {
       });
 
       if (fallbackQueries.length) {
-        const fallbackRecord = await SeatingTable.findOne({
+        const fallbackRecord = await findSeating({
           $or: fallbackQueries,
           "tables.0": { $exists: true },
-        })
-          .sort({ updatedAt: -1, createdAt: -1 })
-          .lean();
+        });
 
         if (fallbackRecord) {
           record = fallbackRecord;
@@ -355,8 +363,8 @@ export async function GET(req: NextRequest, context: RouteContext) {
       userId: record?.userId ? String(record.userId) : null,
       venueOwnerId: record?.venueOwnerId ? String(record.venueOwnerId) : null,
 
-      tables: Array.isArray(record?.tables) ? record.tables : [],
-      background: record?.background ?? null,
+      tables: metaOnly ? [] : Array.isArray(record?.tables) ? record.tables : [],
+      background: omitBackground ? null : record?.background ?? null,
       zones: Array.isArray(record?.zones) ? record.zones : [],
       canvasView: record?.canvasView ?? null,
     });

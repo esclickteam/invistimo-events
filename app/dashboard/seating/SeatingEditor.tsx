@@ -249,6 +249,7 @@ function SeatingEditorInner({
   const stageStart = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const lastTouchDist = useRef<number | null>(null);
   const viewRef = useRef<CanvasView>({ x: 0, y: 0, scale: 1 });
+  const viewPersistTimer = useRef<number | null>(null);
 
   const didFitCanvasOnEntryRef = useRef(false);
   const prevInvitationIdRef = useRef<string | null>(invitationId ?? null);
@@ -531,8 +532,28 @@ function SeatingEditorInner({
   };
 
   const persistCanvasView = (next: CanvasView) => {
-    setCanvasView(next);
+    viewRef.current = next;
+    if (viewPersistTimer.current) window.clearTimeout(viewPersistTimer.current);
+    viewPersistTimer.current = window.setTimeout(() => {
+      viewPersistTimer.current = null;
+      setCanvasView(viewRef.current);
+    }, 280);
   };
+
+  const flushCanvasView = () => {
+    if (!viewPersistTimer.current) return;
+    window.clearTimeout(viewPersistTimer.current);
+    viewPersistTimer.current = null;
+    setCanvasView(viewRef.current);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (!viewPersistTimer.current) return;
+      window.clearTimeout(viewPersistTimer.current);
+      setCanvasView(viewRef.current);
+    };
+  }, [setCanvasView]);
 
   const pointerToWorld = (pointer: { x: number; y: number }) => ({
     x: (pointer.x - stagePos.x) / scale,
@@ -851,10 +872,12 @@ function SeatingEditorInner({
           onMouseUp={() => {
             setIsPanning(false);
             panStart.current = null;
+            flushCanvasView();
           }}
           onMouseLeave={() => {
             setIsPanning(false);
             panStart.current = null;
+            flushCanvasView();
           }}
           onMouseMove={handleMouseMove}
           onWheel={handleWheel}
@@ -867,6 +890,7 @@ function SeatingEditorInner({
             handleTouchEnd();
             panStart.current = null;
             setIsPanning(false);
+            flushCanvasView();
           }}
           style={{
             touchAction: "none",
