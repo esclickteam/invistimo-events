@@ -105,7 +105,7 @@ export default function ManageGroupsModal({
           <button
             onClick={handleAdd}
             disabled={saving}
-            className="flex items-center gap-1 rounded-full bg-[#EAD3C4] px-4 py-2 text-sm font-medium disabled:opacity-50"
+            className="flex items-center gap-1 rounded-none bg-[#EAD3C4] px-4 py-2 text-sm font-medium disabled:opacity-50"
           >
             <Plus className="w-4 h-4" />
             הוסף
@@ -149,7 +149,7 @@ export default function ManageGroupsModal({
         <div className="mt-4 flex justify-end">
           <button
             onClick={onClose}
-            className="rounded-full border px-5 py-2 text-sm"
+            className="rounded-none border px-5 py-2 text-sm"
           >
             סגור
           </button>

@@ -16,6 +16,8 @@ import {
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import { EVENT_INVITATION_BODY } from "@/lib/whatsapp/approvedTemplates";
 import { HOME_FAQS } from "@/lib/seo/homeIntentMap";
+import { btnPrimary, btnPrimaryDark, btnSecondary } from "@/lib/ui/buttonClasses";
+import { cn } from "@/lib/utils";
 
 function LazyInViewVideo({
   src,
@@ -99,11 +101,10 @@ function GoldCta({
     <TrackedCtaLink
       href={href}
       location={location}
-      className={
-        dark
-          ? "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full bg-[#C9A45C] px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black !text-[#1C1612] transition hover:bg-[#D4B06A]"
-          : "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full bg-[#2C241C] px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black !text-[#F7F1E8] shadow-[0_16px_36px_rgba(44,36,28,0.18)] transition hover:bg-[#3A3028]"
-      }
+      className={cn(
+        dark ? btnPrimary : btnPrimaryDark,
+        "w-full max-w-md text-sm sm:w-auto"
+      )}
     >
       {children}
     </TrackedCtaLink>
@@ -125,11 +126,11 @@ function SoftCta({
     <TrackedCtaLink
       href={href}
       location={location}
-      className={
-        light
-          ? "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full border border-[#F7F1E8]/50 bg-[#F7F1E8] px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black !text-[#1C1612] transition hover:bg-white"
-          : "inline-flex min-h-12 w-full max-w-md items-center justify-center rounded-full border border-[#2C241C]/22 bg-[#FFFDF8]/80 px-6 sm:w-auto sm:px-8 py-3.5 text-sm font-black !text-[#2C241C] transition hover:bg-white"
-      }
+      className={cn(
+        btnSecondary,
+        light && "border-[#F7F1E8]/50 bg-[#F7F1E8] !text-[#1C1612] hover:bg-white",
+        "w-full max-w-md text-sm sm:w-auto"
+      )}
     >
       {children}
     </TrackedCtaLink>

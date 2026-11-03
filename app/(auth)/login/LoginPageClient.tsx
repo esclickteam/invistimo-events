@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { useState } from "react";
@@ -206,7 +206,7 @@ export default function LoginPageClient() {
                 type="submit"
                 disabled={loading}
                 className="
-                  mt-2 w-full rounded-[20px]
+                  mt-2 w-full rounded-none
                   bg-gradient-to-l from-[#A86F2B] via-[#C68F46] to-[#D8A85F]
                   px-6 py-3.5 text-base font-black text-white
                   shadow-[0_16px_32px_rgba(168,111,43,0.24)]

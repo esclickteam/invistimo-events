@@ -14,6 +14,17 @@
   --brown-soft: #8f7a67;   /* טקסט כהה – לא שחור */
   --brown-dark: #4a413a;   /* טקסט עוצמתי */
   --white: #ffffff;
+
+  /* Invistimo editorial button system (Bizuply-like rectangular) */
+  --btn-radius: 0px;
+  --btn-gold: #c9a45c;
+  --btn-gold-hover: #d4b06a;
+  --btn-gold-active: #b8862d;
+  --btn-ink: #1c1612;
+  --btn-dark: #2c241c;
+  --btn-cream: #f7f1e8;
+  --btn-transition: 160ms ease;
+  --btn-min-height: 48px;
 }
 
 /* -----------------------------------------------------------
@@ -73,36 +84,112 @@
 }
 
 /* -----------------------------------------------------------
-   כפתורים – סטייל יוקרתי אמיתי
+   כפתורים – Editorial מלבני (radius 0), מותג Invistimo
 ----------------------------------------------------------- */
-.btn-primary {
-  background: var(--champagne);
-  color: white;
+.btn-primary,
+.btn-outline,
+.btn-secondary,
+.btn-tertiary,
+.btn-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: var(--btn-min-height);
+  min-width: 44px;
   padding: 12px 28px;
-  font-weight: 600;
-  border-radius: 50px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
-  transition: 0.25s ease-in-out;
-  display: inline-block;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  border-radius: var(--btn-radius);
+  border: 1px solid transparent;
+  transition:
+    background-color var(--btn-transition),
+    border-color var(--btn-transition),
+    color var(--btn-transition),
+    opacity var(--btn-transition),
+    transform var(--btn-transition);
+  text-decoration: none;
+  cursor: pointer;
 }
-.btn-primary:hover {
-  background: var(--champagne-dark);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.10);
+.btn-primary:focus-visible,
+.btn-outline:focus-visible,
+.btn-secondary:focus-visible,
+.btn-tertiary:focus-visible,
+.btn-danger:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--cream), 0 0 0 4px var(--btn-gold);
+}
+.btn-primary:active,
+.btn-outline:active,
+.btn-secondary:active,
+.btn-tertiary:active,
+.btn-danger:active {
+  transform: translateY(1px);
+}
+.btn-primary:disabled,
+.btn-outline:disabled,
+.btn-secondary:disabled,
+.btn-tertiary:disabled,
+.btn-danger:disabled,
+.btn-primary[aria-disabled="true"],
+.btn-outline[aria-disabled="true"] {
+  opacity: 0.45;
+  pointer-events: none;
+  cursor: not-allowed;
 }
 
-.btn-outline {
-  border: 2px solid var(--champagne);
-  color: var(--champagne-dark);
-  padding: 12px 28px;
-  font-weight: 600;
-  border-radius: 50px;
-  transition: 0.25s ease-in-out;
-  display: inline-block;
+.btn-primary {
+  background: var(--btn-gold);
+  color: var(--btn-ink);
 }
-.btn-outline:hover {
-  background: var(--champagne);
-  color: white;
+.btn-primary:hover {
+  background: var(--btn-gold-hover);
 }
+.btn-primary:active {
+  background: var(--btn-gold-active);
+}
+
+.btn-outline,
+.btn-secondary {
+  border-color: color-mix(in srgb, var(--btn-gold) 70%, transparent);
+  background: #fffdf8;
+  color: var(--btn-dark);
+}
+.btn-outline:hover,
+.btn-secondary:hover {
+  border-color: var(--btn-gold);
+  background: #ffffff;
+}
+
+.btn-tertiary {
+  background: transparent;
+  color: var(--btn-dark);
+}
+.btn-tertiary:hover {
+  background: color-mix(in srgb, var(--btn-dark) 6%, transparent);
+}
+
+.btn-danger {
+  border-color: #c45c5c;
+  background: #fff5f5;
+  color: #8b1e1e;
+}
+.btn-danger:hover {
+  background: #ffe8e8;
+}
+.btn-danger:focus-visible {
+  box-shadow: 0 0 0 2px var(--cream), 0 0 0 4px #c45c5c;
+}
+
+/*
+  No broad attribute nudges.
+  Rectangular CTAs must opt in via:
+  - .btn-primary / .btn-outline / .btn-secondary / .btn-tertiary / .btn-danger
+  - lib/ui/buttonClasses (btnPrimary, btnSecondary, …)
+  - components/ui/button (buttonVariants)
+  - explicit rounded-none on the control
+  Icon circles, chips, badges, wedding guest templates: leave untouched.
+*/
 
 /* -----------------------------------------------------------
    תגיות אירועים

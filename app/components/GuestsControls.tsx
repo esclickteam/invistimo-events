@@ -358,7 +358,7 @@ export default function GuestsControls({
               className="
                 h-9
                 w-fit
-                rounded-full
+                rounded-none
                 border
                 border-[#D8C4A5]
                 bg-white/85
@@ -424,7 +424,7 @@ export default function GuestsControls({
                 type="button"
                 onClick={() => setSearch("")}
                 className="
-                  rounded-full
+                  rounded-none
                   bg-[#F4EEE5]
                   px-3
                   py-1
@@ -502,7 +502,7 @@ export default function GuestsControls({
                 onClick={() => handleBaseFilterClick(filter.key)}
                 className={`
                   h-9
-                  rounded-full
+                  rounded-none
                   border
                   px-4
                   text-xs
@@ -525,7 +525,7 @@ export default function GuestsControls({
             onClick={onManageGroups}
             className="
               h-9
-              rounded-full
+              rounded-none
               border
               border-[#D8C4A5]
               bg-white/80
@@ -591,7 +591,7 @@ export default function GuestsControls({
                       onClick={() => handleRoundClick(roundNumber)}
                       className={`
                         h-8
-                        rounded-full
+                        rounded-none
                         border
                         px-4
                         text-[11px]
@@ -660,7 +660,7 @@ export default function GuestsControls({
                       }
                       className={`
                         h-8
-                        rounded-full
+                        rounded-none
                         border
                         px-4
                         text-[11px]
@@ -697,7 +697,7 @@ export default function GuestsControls({
                         onClick={() => handleResultClick(filter.key)}
                         className={`
                           h-8
-                          rounded-full
+                          rounded-none
                           border
                           px-3
                           text-[11px]
@@ -735,7 +735,7 @@ export default function GuestsControls({
                         onClick={() => handleResultClick(filter.key)}
                         className={`
                           h-8
-                          rounded-full
+                          rounded-none
                           border
                           px-3
                           text-[11px]

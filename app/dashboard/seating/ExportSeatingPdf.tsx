@@ -197,7 +197,7 @@ export default function ExportSeatingPdf({ eventId }: ExportSeatingPdfProps) {
                 type="button"
                 onClick={() => setIsExportMenuOpen(false)}
                 disabled={!!working}
-                className="shrink-0 rounded-full bg-[#F6F1EA] px-4 py-2 text-sm font-black text-[#3F2F1F] transition hover:bg-[#EFE3D4] disabled:opacity-50"
+                className="shrink-0 rounded-none bg-[#F6F1EA] px-4 py-2 text-sm font-black text-[#3F2F1F] transition hover:bg-[#EFE3D4] disabled:opacity-50"
               >
                 סגור
               </button>

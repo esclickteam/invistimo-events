@@ -24,6 +24,7 @@ import {
   formatIls,
   type PackageId,
 } from "@/lib/pricing/packageQuote";
+import { btnPrimaryDark, btnSecondary } from "@/lib/ui/buttonClasses";
 
 const display = localFont({
   src: "../../../lib/fonts/FrankRuhlLibre-wght.ttf",
@@ -52,10 +53,7 @@ function SectionEyebrow({ children, light = false }: { children: React.ReactNode
 
 function PrimaryCta({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link
-      href={href}
-      className="inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3.5 text-base font-black !text-white shadow-[0_18px_45px_rgba(58,43,34,0.28)] transition hover:-translate-y-0.5 hover:shadow-[0_24px_55px_rgba(58,43,34,0.36)]"
-    >
+    <Link href={href} className={btnPrimaryDark}>
       {children}
     </Link>
   );
@@ -71,10 +69,7 @@ function exampleTotal(packageId: PackageId) {
 
 function SecondaryCta({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link
-      href={href}
-      className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-[#FBF6EE] px-8 py-3.5 text-base font-black !text-[#2C241C] shadow-[0_12px_30px_rgba(91,63,32,0.08)] transition hover:-translate-y-0.5 hover:bg-white"
-    >
+    <Link href={href} className={btnSecondary}>
       {children}
     </Link>
   );

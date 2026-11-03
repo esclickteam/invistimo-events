@@ -24,15 +24,17 @@ import {
   resolveHeroTemplate,
 } from "./content";
 import { getWeddingTemplate } from "@/config/weddingWebsite/templates";
+import {
+  btnPrimary,
+  btnPrimaryDark,
+  btnSecondary,
+  btnSecondaryOnDark,
+} from "@/lib/ui/buttonClasses";
 
-const ctaPrimary =
-  "inline-flex min-h-12 items-center justify-center rounded-full bg-[#2A2118] px-8 py-3.5 text-base font-black text-[#F7F1E8] shadow-[0_18px_40px_rgba(42,33,24,0.22)] transition hover:-translate-y-0.5 hover:bg-[#3D2E22]";
-const ctaSecondary =
-  "inline-flex min-h-12 items-center justify-center rounded-full border border-[#D4C0A0] bg-[#FFFDF8]/90 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
-const ctaOnDark =
-  "inline-flex min-h-12 items-center justify-center rounded-full bg-[#E8D5A8] px-8 py-3.5 text-base font-black text-[#2A2118] transition hover:-translate-y-0.5 hover:bg-[#F3E6C4]";
-const ctaOnDarkSecondary =
-  "inline-flex min-h-12 items-center justify-center rounded-full border border-white/25 bg-white/5 px-8 py-3.5 text-base font-black text-[#F7F1E8] transition hover:bg-white/10";
+const ctaPrimary = btnPrimaryDark;
+const ctaSecondary = btnSecondary;
+const ctaOnDark = btnPrimary;
+const ctaOnDarkSecondary = btnSecondaryOnDark;
 
 function Eyebrow({ children, onDark }: { children: React.ReactNode; onDark?: boolean }) {
   return (

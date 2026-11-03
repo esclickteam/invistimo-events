@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import HomePageClient from "./HomePageClient";
 import JsonLd from "@/components/seo/JsonLd";
 import { getDashboardPathFromAuthCookies } from "@/lib/auth/getDashboardRedirectPath";
+import { HERO_DESKTOP, HERO_MOBILE } from "@/lib/marketing/homeHeroAssets";
 import { HOME_FAQS } from "@/lib/seo/homeIntentMap";
 import {
   breadcrumbNode,
@@ -55,8 +56,23 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* Single LCP preload: hero atmosphere image (CSS background). Poster/video load after paint. */}
-      <link rel="preload" as="image" href="/homep1.webp" fetchPriority="high" />
+      {/* LCP preload — same versioned URLs as HomePageClient (no stale unversioned cache). */}
+      <link
+        rel="preload"
+        as="image"
+        href={HERO_DESKTOP.posterWebp}
+        type="image/webp"
+        fetchPriority="high"
+        media="(min-width: 768px)"
+      />
+      <link
+        rel="preload"
+        as="image"
+        href={HERO_MOBILE.posterWebp}
+        type="image/webp"
+        fetchPriority="high"
+        media="(max-width: 767px)"
+      />
       <JsonLd
         data={graph([
           organizationNode(),

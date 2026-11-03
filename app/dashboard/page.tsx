@@ -3258,7 +3258,7 @@ const eventLocation = resolveEventLocation(invitation, event);
       }}
       className="
         w-fit
-        rounded-full
+        rounded-none
         border
         border-[#D9B46F]/60
         bg-gradient-to-l
@@ -3289,7 +3289,7 @@ const eventLocation = resolveEventLocation(invitation, event);
       onClick={() => setSeatReleaseGuestId(String(g._id))}
       className="
         w-fit
-        rounded-full
+        rounded-none
         border
         border-amber-200
         bg-amber-50
@@ -3649,7 +3649,7 @@ const eventLocation = resolveEventLocation(invitation, event);
                             onClick={() =>
                               forceSyncActualArrived(openFreeTablesGuestId)
                             }
-                            className="rounded-full bg-gradient-to-l from-emerald-700 to-emerald-600 px-6 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+                            className="rounded-none bg-gradient-to-l from-emerald-700 to-emerald-600 px-6 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
                           >
                             להושיב בשולחן{" "}
                             {currentTable?.tableNumber ||
@@ -3762,7 +3762,7 @@ const eventLocation = resolveEventLocation(invitation, event);
                                     approveSuggestedTableMove(guest as Guest, table)
                                   }
                                   disabled={!guest}
-                                  className="w-full rounded-full bg-[#1E1B2E] px-5 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-black hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
+                                  className="w-full rounded-none bg-[#1E1B2E] px-5 py-3 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:bg-black hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                   להושיב בשולחן הזה
                                 </button>
@@ -3806,7 +3806,7 @@ const eventLocation = resolveEventLocation(invitation, event);
                       <button
                         type="button"
                         onClick={() => guest && checkSeatOptionsForGuest(guest)}
-                        className="mt-5 rounded-full border border-rose-200 bg-white px-6 py-3 text-sm font-black text-rose-800 shadow-sm transition hover:bg-rose-50"
+                        className="mt-5 rounded-none border border-rose-200 bg-white px-6 py-3 text-sm font-black text-rose-800 shadow-sm transition hover:bg-rose-50"
                       >
                         בדוק שוב
                       </button>
@@ -3823,7 +3823,7 @@ const eventLocation = resolveEventLocation(invitation, event);
                     <button
                       type="button"
                       onClick={() => setOpenFreeTablesGuestId(null)}
-                      className="rounded-full border border-[#D9B46F]/50 bg-white px-7 py-2.5 text-sm font-black text-[#6B451E] shadow-sm transition hover:bg-[#FFF8E6]"
+                      className="rounded-none border border-[#D9B46F]/50 bg-white px-7 py-2.5 text-sm font-black text-[#6B451E] shadow-sm transition hover:bg-[#FFF8E6]"
                     >
                       סגור
                     </button>
@@ -3897,14 +3897,14 @@ const eventLocation = resolveEventLocation(invitation, event);
                 <button
                   type="button"
                   onClick={() => forceSyncActualArrived(seatReleaseGuestId)}
-                  className="rounded-full bg-[#1E1B2E] px-5 py-3 text-sm font-black text-white"
+                  className="rounded-none bg-[#1E1B2E] px-5 py-3 text-sm font-black text-white"
                 >
                   {`שחרור ${surplus} כיסאות`}
                 </button>
                 <button
                   type="button"
                   onClick={() => setSeatReleaseGuestId(null)}
-                  className="rounded-full border border-[#D9B46F]/50 bg-white px-5 py-3 text-sm font-black text-[#6B451E]"
+                  className="rounded-none border border-[#D9B46F]/50 bg-white px-5 py-3 text-sm font-black text-[#6B451E]"
                 >
                   לא עכשיו
                 </button>
@@ -4139,7 +4139,7 @@ function GoldenEventHero({
               <button
                 onClick={() => setWorkMode("regular")}
                 className={`
-                  px-5 py-2.5 rounded-full text-sm font-black transition
+                  px-5 py-2.5 rounded-none text-sm font-black transition
                   ${
                     workMode === "regular"
                       ? "bg-[#241A2E] text-white shadow"
@@ -4154,7 +4154,7 @@ function GoldenEventHero({
                 data-tour="live-mode"
                 onClick={() => setWorkMode("live")}
                 className={`
-                  px-5 py-2.5 rounded-full text-sm font-black transition
+                  px-5 py-2.5 rounded-none text-sm font-black transition
                   ${
                     workMode === "live"
                       ? "bg-[#B85C3A] text-white shadow"
@@ -6165,7 +6165,7 @@ function PremiumEventHero({
               <button
                 onClick={() => setWorkMode("regular")}
                 className={`
-                  px-5 py-2.5 rounded-full text-sm font-black transition
+                  px-5 py-2.5 rounded-none text-sm font-black transition
                   ${
                     workMode === "regular"
                       ? "bg-[#1E1B2E] text-white shadow"
@@ -6179,7 +6179,7 @@ function PremiumEventHero({
               <button
                 onClick={() => setWorkMode("live")}
                 className={`
-                  px-5 py-2.5 rounded-full text-sm font-black transition
+                  px-5 py-2.5 rounded-none text-sm font-black transition
                   ${
                     workMode === "live"
                       ? "bg-rose-600 text-white shadow"

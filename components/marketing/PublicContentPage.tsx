@@ -7,6 +7,7 @@ import { answerFor, tableFor, type FactTable } from "@/lib/seo/answers";
 import { clusterSiblings } from "@/lib/seo/clusters";
 import { EVENT_TYPES, EVENT_TYPE_SECTION } from "@/lib/seo/eventTypes";
 import { breadcrumbNode, faqNode, graph, organizationNode } from "@/lib/seo/jsonld";
+import { btnPrimaryDark, btnSecondary } from "@/lib/ui/buttonClasses";
 
 export type { FactTable };
 
@@ -38,11 +39,8 @@ export type ContentMedia = {
   variant?: "phone" | "wide";
 };
 
-const ctaClass =
-  "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3 text-base font-black !text-white shadow-[0_18px_40px_rgba(58,39,20,0.22)] transition hover:-translate-y-0.5";
-
-const secondaryClass =
-  "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-[#FBF6EE] px-8 py-3 text-base font-black !text-[#2C241C] shadow-[0_12px_30px_rgba(91,63,32,0.08)] transition hover:bg-white";
+const ctaClass = btnPrimaryDark;
+const secondaryClass = btnSecondary;
 
 export default function PublicContentPage({
   eyebrow,
