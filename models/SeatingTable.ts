@@ -134,6 +134,11 @@ const TableSchema = new Schema(
       max: 3,
     },
 
+    /* Explicit visual size for new or user-resized tables. No default — legacy tables omit it. */
+    visualSize: {
+      type: Number,
+    },
+
     /* ⭐ ויזואל */
     color: {
       type: String,
@@ -194,6 +199,7 @@ const BackgroundSchema = new Schema(
     height: { type: Number },
     naturalWidth: { type: Number },
     naturalHeight: { type: Number },
+    defaultVisualSize: { type: Number },
   },
   { _id: false }
 );

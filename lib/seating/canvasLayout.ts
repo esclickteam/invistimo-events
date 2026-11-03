@@ -65,6 +65,7 @@ export function normalizeBackground(raw: BackgroundLike): {
   fitOnLoad?: boolean;
   naturalWidth?: number;
   naturalHeight?: number;
+  defaultVisualSize?: number;
 } | null {
   if (typeof raw === "string" && raw.trim()) {
     return { url: raw.trim(), opacity: 0.28 };
@@ -82,6 +83,7 @@ export function normalizeBackground(raw: BackgroundLike): {
     fitOnLoad?: boolean;
     naturalWidth?: number;
     naturalHeight?: number;
+    defaultVisualSize?: number;
   } = {
     url: String(raw.url).trim(),
     opacity: typeof raw.opacity === "number" ? raw.opacity : 0.28,
@@ -96,6 +98,11 @@ export function normalizeBackground(raw: BackgroundLike): {
   const naturalHeight = Number(raw.naturalHeight);
   if (naturalWidth > 0) next.naturalWidth = naturalWidth;
   if (naturalHeight > 0) next.naturalHeight = naturalHeight;
+
+  const defaultVisualSize = Number(
+    (raw as { defaultVisualSize?: number }).defaultVisualSize
+  );
+  if (defaultVisualSize > 0) next.defaultVisualSize = defaultVisualSize;
 
   return next;
 }
