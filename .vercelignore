@@ -1,0 +1,20 @@
+# Local / CI scratch — never upload into Vercel deployments.
+# Keeps Next.js output file tracing from bundling GB of working media
+# into Serverless Functions during `Deploying outputs`.
+tmp/
+temp/
+.tmp/
+.cache/
+
+# Local build / QA artifacts (not required to build the app)
+coverage/
+playwright-report/
+test-results/
+.turbo/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
