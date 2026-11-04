@@ -36,18 +36,18 @@ export default function LuxV2SaveTheDate() {
   const { ref, progress, reduceMotion } = useScrollProgress();
   // Keep copy/gallery visible on first paint — no empty sticky void.
   const reveal = reduceMotion ? 1 : 0.55 + segment(progress, 0, 0.18) * 0.45;
-  const scrub = reduceMotion ? 0.35 : segment(progress, 0.05, 0.92);
-  // Move gallery from right → left as user scrolls
-  const shift = reduceMotion ? -18 : 4 - scrub * 52;
+  const scrub = reduceMotion ? 0.35 : segment(progress, 0.08, 0.92);
+  // Gentler scrub so vertical wheel/trackpad doesn't feel like skipped frames.
+  const shift = reduceMotion ? -12 : 2 - scrub * 34;
 
   return (
     <section
       ref={ref as Ref<HTMLElement>}
       dir="rtl"
       aria-labelledby="lux-v2-std"
-      className="relative h-[155vh] bg-[#E8D9C8]"
+      className="relative h-[170vh] bg-[#E8D9C8]"
     >
-      <div className="sticky top-0 flex min-h-[100svh] flex-col justify-center overflow-hidden">
+      <div className="sticky top-0 flex min-h-[100svh] flex-col justify-center overflow-x-clip overflow-y-visible">
         <div
           className="pointer-events-none absolute inset-0"
           aria-hidden

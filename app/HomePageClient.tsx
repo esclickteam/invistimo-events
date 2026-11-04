@@ -187,7 +187,7 @@ function CinematicHomeHero() {
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-32 bg-gradient-to-b from-transparent to-[#F5EEE8] md:h-40"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-24 bg-gradient-to-b from-transparent via-[#F5EEE8]/55 to-[#F5EEE8] md:h-28"
         aria-hidden
       />
 
@@ -248,8 +248,25 @@ function CinematicHomeHero() {
 }
 
 export default function HomePageClient() {
+  useEffect(() => {
+    // Fresh loads (no hash) start at the top. Never fight intentional anchors.
+    if (typeof window === "undefined") return;
+    if (window.location.hash) return;
+    if ("scrollRestoration" in window.history) {
+      const prev = window.history.scrollRestoration;
+      window.history.scrollRestoration = "manual";
+      window.scrollTo(0, 0);
+      return () => {
+        window.history.scrollRestoration = prev;
+      };
+    }
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
-    <div className="lux-home overflow-x-hidden pb-[max(5.5rem,env(safe-area-inset-bottom))] text-[#2A1A22]">
+    // Do NOT set overflow-x-hidden here — it makes this a scroll container and
+    // breaks position:sticky + feels like scroll hijacking on the homepage.
+    <div className="lux-home pb-[max(5.5rem,env(safe-area-inset-bottom))] text-[#2A1A22]">
       <CinematicHomeHero />
       <HomeMarketingSections />
     </div>

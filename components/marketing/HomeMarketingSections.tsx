@@ -173,30 +173,63 @@ const WEBSITE_GALLERY = [
 
 function WebsiteGalleryMotion() {
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const sectionRef = useRef<HTMLDivElement | null>(null);
   const [active, setActive] = useState(0);
   const reduceRef = useRef(false);
+  const inViewRef = useRef(false);
 
   useEffect(() => {
     reduceRef.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reduceRef.current) return;
+    const root = sectionRef.current;
+    if (!root) return;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        inViewRef.current = entries.some((e) => e.isIntersecting && e.intersectionRatio > 0.35);
+      },
+      { threshold: [0, 0.35, 0.6] }
+    );
+    io.observe(root);
+
+    if (reduceRef.current) {
+      return () => io.disconnect();
+    }
+
     const id = window.setInterval(() => {
+      // Only auto-advance while the gallery is actually on screen — never yank the page.
+      if (!inViewRef.current) return;
       setActive((i) => (i + 1) % WEBSITE_GALLERY.length);
     }, 4200);
-    return () => window.clearInterval(id);
+
+    return () => {
+      io.disconnect();
+      window.clearInterval(id);
+    };
   }, []);
 
   useEffect(() => {
-    const el = trackRef.current;
-    if (!el) return;
-    const child = el.children[active] as HTMLElement | undefined;
-    child?.scrollIntoView({ inline: "center", block: "nearest", behavior: reduceRef.current ? "auto" : "smooth" });
+    const track = trackRef.current;
+    if (!track) return;
+    const child = track.children[active] as HTMLElement | undefined;
+    if (!child) return;
+    // Horizontal delta only — avoids scrollIntoView, which can move the document vertically.
+    const delta =
+      child.getBoundingClientRect().left -
+      track.getBoundingClientRect().left -
+      (track.clientWidth - child.clientWidth) / 2;
+    if (Math.abs(delta) < 1) return;
+    if (reduceRef.current) {
+      track.scrollLeft += delta;
+      return;
+    }
+    track.scrollBy({ left: delta, behavior: "smooth" });
   }, [active]);
 
   return (
-    <div>
+    <div ref={sectionRef}>
       <div
         ref={trackRef}
-        className="flex gap-5 overflow-x-auto scroll-smooth pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex gap-5 overflow-x-auto overscroll-x-contain pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {WEBSITE_GALLERY.map((item, i) => (
           <button

@@ -71,9 +71,9 @@ export default function LuxV2SeatingStory() {
       ref={ref as Ref<HTMLElement>}
       dir="rtl"
       aria-labelledby="lux-v2-seating"
-      className="relative h-[195vh] bg-[#F5EEE8]"
+      className="relative h-[210vh] bg-[#F5EEE8]"
     >
-      <div className="sticky top-0 flex min-h-[100svh] items-center overflow-hidden">
+      <div className="sticky top-0 flex min-h-[100svh] items-center overflow-x-clip overflow-y-visible">
         {/* Soft cream → plum vignette only in later stages */}
         <div
           className="pointer-events-none absolute inset-0 transition-opacity duration-500"
