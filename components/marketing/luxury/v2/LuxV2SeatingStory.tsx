@@ -28,14 +28,15 @@ const TABLES = [
 ] as const;
 
 /**
- * Interactive seating demo: drag guests onto tables, live occupancy.
- * Links out to the real try seating experience.
+ * Interactive seating demo — tap-to-assign first (mobile-friendly),
+ * drag still works on desktop. Links to real try seating.
  */
 export default function LuxV2SeatingStory() {
   const [guests, setGuests] = useState(INITIAL_GUESTS);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [hoverTable, setHoverTable] = useState<string | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   const filledByTable = useMemo(() => {
     const map: Record<string, number> = { t1: 0, t2: 0, t3: 0 };
@@ -50,28 +51,36 @@ export default function LuxV2SeatingStory() {
     [guests],
   );
 
-  const assign = useCallback((guestId: string, tableId: string | null) => {
+  const selected = guests.find((g) => g.id === selectedId) || null;
+
+  const assign = useCallback((guestId: string, tableId: string) => {
+    const table = TABLES.find((t) => t.id === tableId);
+    const guest = guests.find((g) => g.id === guestId);
+    if (!guest || !table) return false;
+    const others = guests
+      .filter((g) => g.tableId === tableId && g.id !== guestId)
+      .reduce((s, g) => s + g.party, 0);
+    if (others + guest.party > table.seats) {
+      setToast("אין מקום בשולחן הזה");
+      window.setTimeout(() => setToast(null), 1600);
+      return false;
+    }
+
     setGuests((prev) =>
-      prev.map((g) => (g.id === guestId ? { ...g, tableId, status: tableId ? "משובצ/ת" : g.status } : g)),
+      prev.map((g) => (g.id === guestId ? { ...g, tableId, status: "משובצ/ת" } : g)),
     );
     setFlashId(guestId);
-    window.setTimeout(() => setFlashId((cur) => (cur === guestId ? null : cur)), 700);
-  }, []);
-
-  const onDropTable = (tableId: string) => {
-    if (!draggingId) return;
-    const guest = guests.find((g) => g.id === draggingId);
-    const table = TABLES.find((t) => t.id === tableId);
-    if (!guest || !table) return;
-    const others = filledByTable[tableId] - (guest.tableId === tableId ? guest.party : 0);
-    if (others + guest.party > table.seats) {
-      setDraggingId(null);
-      setHoverTable(null);
-      return;
-    }
-    assign(draggingId, tableId);
-    setDraggingId(null);
+    setToast(`${guest.name} → שולחן ${table.label}`);
+    window.setTimeout(() => setFlashId((cur) => (cur === guestId ? null : cur)), 900);
+    window.setTimeout(() => setToast(null), 1800);
+    setSelectedId(null);
     setHoverTable(null);
+    return true;
+  }, [guests]);
+
+  const onTableActivate = (tableId: string) => {
+    if (!selectedId) return;
+    assign(selectedId, tableId);
   };
 
   return (
@@ -98,12 +107,12 @@ export default function LuxV2SeatingStory() {
             id="lux-v2-seating"
             className="mt-4 text-[34px] font-black leading-[1.08] tracking-[-0.035em] text-[#42182F] sm:text-[48px]"
           >
-            גררו אורח לשולחן
+            בחרו אורח ולחצו על שולחן
             <span className="mt-1 block text-[#842B4C]">וראו את התפוסה מתעדכנת</span>
           </h2>
           <p className="mt-4 max-w-md text-lg leading-8 text-[#6B5360]">
-            מפת שולחנות לדוגמה — גררו כרטיס אורח לשולחן, או לחצו על שולחן אחרי בחירת אורח.
-            אחר כך אפשר לפתוח את דמו ההושבה האמיתי.
+            במובייל: Tap על אורח ואז על שולחן. במחשב אפשר גם לגרור. אחר כך אפשר לפתוח את דמו
+            ההושבה האמיתי.
           </p>
 
           <div
@@ -113,6 +122,17 @@ export default function LuxV2SeatingStory() {
             <span className="text-3xl font-black tabular-nums">{seatedTotal}</span>
             <span className="text-sm font-bold">אורחים משובצים על המפה</span>
           </div>
+
+          {selected ? (
+            <p className="mt-4 text-sm font-bold text-[#842B4C]" aria-live="polite">
+              נבחר/ה: {selected.name} · לחצו על שולחן לשיבוץ
+            </p>
+          ) : null}
+          {toast ? (
+            <p className="mt-2 text-sm font-extrabold text-[#42182F]" aria-live="assertive">
+              {toast}
+            </p>
+          ) : null}
 
           <div className="mt-8 flex flex-wrap gap-3">
             <TrackedCtaLink href="/seating-explained" location="lux_v2_seating" className={luxBtnPlum}>
@@ -138,38 +158,41 @@ export default function LuxV2SeatingStory() {
               <p className="text-sm font-extrabold text-[#42182F]">החתונה של מאיה ואיתי</p>
             </div>
             <ul>
-              {guests.map((g) => (
-                <li key={g.id}>
-                  <button
-                    type="button"
-                    draggable
-                    onDragStart={() => setDraggingId(g.id)}
-                    onDragEnd={() => {
-                      setDraggingId(null);
-                      setHoverTable(null);
-                    }}
-                    onClick={() => setDraggingId((cur) => (cur === g.id ? null : g.id))}
-                    className={cn(
-                      "flex w-full cursor-grab items-center justify-between border-b border-[#C5A582]/20 px-4 py-2.5 text-sm active:cursor-grabbing",
-                      draggingId === g.id && "bg-[#E8CFD8]/60",
-                      flashId === g.id && "bg-[#C5A582]/35",
-                      g.tableId ? "opacity-80" : "opacity-100",
-                    )}
-                  >
-                    <span className="font-bold text-[#42182F]">{g.name}</span>
-                    <span className="text-xs text-[#6B5360]">
-                      {g.party}
-                      {g.tableId ? ` · שולחן ${TABLES.find((t) => t.id === g.tableId)?.label}` : " · ממתין"}
-                    </span>
-                  </button>
-                </li>
-              ))}
+              {guests.map((g) => {
+                const selectedGuest = selectedId === g.id;
+                return (
+                  <li key={g.id}>
+                    <button
+                      type="button"
+                      draggable
+                      onDragStart={() => setSelectedId(g.id)}
+                      onDragEnd={() => {
+                        setHoverTable(null);
+                      }}
+                      onClick={() => setSelectedId((cur) => (cur === g.id ? null : g.id))}
+                      className={cn(
+                        "flex w-full touch-manipulation items-center justify-between border-b border-[#C5A582]/20 px-4 py-3 text-sm transition md:py-2.5",
+                        selectedGuest && "bg-[#E8CFD8]/70 ring-2 ring-inset ring-[#842B4C]",
+                        flashId === g.id && "bg-[#C5A582]/40",
+                        g.tableId && !selectedGuest ? "opacity-80" : "opacity-100",
+                      )}
+                      aria-pressed={selectedGuest}
+                    >
+                      <span className="font-bold text-[#42182F]">{g.name}</span>
+                      <span className="text-xs text-[#6B5360]">
+                        {g.party}
+                        {g.tableId
+                          ? ` · שולחן ${TABLES.find((t) => t.id === g.tableId)?.label}`
+                          : " · ממתין"}
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
-            {draggingId ? (
-              <p className="px-4 py-2 text-[11px] font-medium text-[#842B4C]">
-                בחרו שולחן על המפה או גררו אליו
-              </p>
-            ) : null}
+            <p className="px-4 py-2 text-[11px] font-medium text-[#842B4C]">
+              {selectedId ? "עכשיו בחרו שולחן על המפה" : "לחצו על אורח כדי לבחור"}
+            </p>
           </div>
 
           <div className="relative aspect-[5/4] overflow-hidden border border-[#C5A582]/35 bg-[#2A1A22]">
@@ -185,7 +208,8 @@ export default function LuxV2SeatingStory() {
 
             {TABLES.map((t) => {
               const filled = filledByTable[t.id] || 0;
-              const active = hoverTable === t.id;
+              const active = hoverTable === t.id || (selectedId != null && hoverTable === t.id);
+              const awaiting = selectedId != null;
               return (
                 <button
                   key={t.id}
@@ -197,18 +221,20 @@ export default function LuxV2SeatingStory() {
                   onDragLeave={() => setHoverTable((cur) => (cur === t.id ? null : cur))}
                   onDrop={(e) => {
                     e.preventDefault();
-                    onDropTable(t.id);
+                    if (selectedId) assign(selectedId, t.id);
                   }}
-                  onClick={() => {
-                    if (draggingId) onDropTable(t.id);
-                  }}
-                  className="absolute flex h-[72px] w-[72px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border-2 transition md:h-[88px] md:w-[88px]"
+                  onClick={() => onTableActivate(t.id)}
+                  className={cn(
+                    "absolute flex h-[72px] w-[72px] -translate-x-1/2 -translate-y-1/2 touch-manipulation flex-col items-center justify-center rounded-full border-2 transition md:h-[88px] md:w-[88px]",
+                    awaiting && "animate-pulse",
+                  )}
                   style={{
                     left: `${t.x}%`,
                     top: `${t.y}%`,
-                    borderColor: active ? "#C5A582" : "rgba(197,165,130,0.45)",
-                    background: active ? "rgba(132,43,76,0.9)" : "rgba(66,24,47,0.78)",
-                    boxShadow: active ? "0 0 0 6px rgba(197,165,130,0.25)" : undefined,
+                    borderColor: active || awaiting ? "#C5A582" : "rgba(197,165,130,0.45)",
+                    background: active ? "rgba(132,43,76,0.95)" : "rgba(66,24,47,0.78)",
+                    boxShadow:
+                      active || awaiting ? "0 0 0 6px rgba(197,165,130,0.28)" : undefined,
                   }}
                   aria-label={`שולחן ${t.label}, ${Math.min(filled, t.seats)} מתוך ${t.seats}`}
                 >

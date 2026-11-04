@@ -216,14 +216,17 @@ export default function Header() {
                 <>
                   <button
                     onClick={() => setMobileOpen(true)}
-                    className="
+                    className={`
                       flex h-11 w-11 items-center justify-center
                       rounded-full
-                      border border-[#D7BE88]
-                      bg-white
-                      text-[#3F3328]
                       shadow-sm
-                    "
+                      transition
+                      ${
+                        cinematic
+                          ? "border border-[#F5EEE8]/55 bg-[#F5EEE8]/15 text-[#F5EEE8] backdrop-blur-[6px]"
+                          : "border border-[#D7BE88] bg-white text-[#3F3328]"
+                      }
+                    `}
                     aria-label="פתח תפריט"
                     aria-expanded={mobileOpen}
                     aria-controls="mobile-main-nav"
@@ -234,17 +237,24 @@ export default function Header() {
                   <button
                     type="button"
                     onClick={openDemoChoice}
-                    className="
+                    className={`
                       inline-flex items-center gap-1.5
                       rounded-none
-                      bg-[#42182F]
                       px-3.5 py-2
                       text-[13px] font-extrabold
-                      text-[#F5EEE8]
-                    "
+                      transition
+                      ${
+                        cinematic
+                          ? "border border-[#C5A582]/70 bg-[#C5A582] text-[#2A0F1D] shadow-[0_8px_20px_rgba(0,0,0,0.28)]"
+                          : "bg-[#42182F] text-[#F5EEE8]"
+                      }
+                    `}
                     title="דמו – צפייה בלבד"
                   >
-                    <Sparkles size={14} className="text-[#C5A582]" />
+                    <Sparkles
+                      size={14}
+                      className={cinematic ? "text-[#42182F]" : "text-[#C5A582]"}
+                    />
                     דמו
                   </button>
                 </>
@@ -328,25 +338,27 @@ export default function Header() {
               <button
                 type="button"
                 onClick={openDemoChoice}
-                className="
+                className={`
                   group inline-flex items-center gap-2
                   whitespace-nowrap
                   rounded-none
-                  bg-[#42182F]
                   px-5 py-2.5
                   text-[14px] font-extrabold
-                  text-[#F5EEE8]
-                  shadow-[0_10px_24px_rgba(66,24,47,0.14)]
                   transition
                   hover:-translate-y-0.5
-                  hover:bg-[#842B4C]
-                  hover:shadow-[0_14px_28px_rgba(66,24,47,0.18)]
-                "
+                  ${
+                    cinematic
+                      ? "border border-[#C5A582]/80 bg-[#C5A582] text-[#2A0F1D] shadow-[0_12px_28px_rgba(0,0,0,0.32)] hover:bg-[#D4B899]"
+                      : "bg-[#42182F] text-[#F5EEE8] shadow-[0_10px_24px_rgba(66,24,47,0.14)] hover:bg-[#842B4C] hover:shadow-[0_14px_28px_rgba(66,24,47,0.18)]"
+                  }
+                `}
                 title="דמו – צפייה בלבד"
               >
                 <Sparkles
                   size={16}
-                  className="text-[#C5A582] transition group-hover:rotate-12"
+                  className={`transition group-hover:rotate-12 ${
+                    cinematic ? "text-[#42182F]" : "text-[#C5A582]"
+                  }`}
                 />
                 נסו דמו עכשיו
               </button>
@@ -356,36 +368,36 @@ export default function Header() {
                   <>
                     <Link
                       href={dashboardHref}
-                      className="
+                      className={`
                         whitespace-nowrap
                         rounded-none
-                        border border-[#C9A45C]/70
-                        bg-white
                         px-5 py-2.5
                         text-[14px] font-bold
-                        text-[#4A3A2A]
                         transition
-                        hover:bg-[#F8EEDB]
-                        hover:text-[#B88A2D]
-                      "
+                        ${
+                          cinematic
+                            ? "border border-[#F5EEE8]/55 bg-[#F5EEE8]/14 text-[#F5EEE8] backdrop-blur-[6px] hover:bg-[#F5EEE8]/22"
+                            : "border border-[#C9A45C]/70 bg-white text-[#4A3A2A] hover:bg-[#F8EEDB] hover:text-[#B88A2D]"
+                        }
+                      `}
                     >
                       לוח בקרה
                     </Link>
 
                     <button
                       onClick={logout}
-                      className="
+                      className={`
                         whitespace-nowrap
                         rounded-none
-                        border border-[#D8C5A7]
-                        bg-white
                         px-5 py-2.5
                         text-[14px] font-bold
-                        text-[#4A3A2A]
                         transition
-                        hover:bg-red-50
-                        hover:text-red-600
-                      "
+                        ${
+                          cinematic
+                            ? "border border-[#F5EEE8]/45 bg-transparent text-[#F5EEE8] hover:bg-[#F5EEE8]/12"
+                            : "border border-[#D8C5A7] bg-white text-[#4A3A2A] hover:bg-red-50 hover:text-red-600"
+                        }
+                      `}
                     >
                       התנתקות
                     </button>
@@ -393,22 +405,25 @@ export default function Header() {
                 ) : (
                   <Link
                     href="/login"
-                    className="
+                    className={`
                       inline-flex items-center gap-2
                       whitespace-nowrap
                       rounded-none
-                      border border-[#C9A45C]/75
-                      bg-white
                       px-5 py-2.5
                       text-[14px] font-bold
-                      text-[#4A3A2A]
                       transition
-                      hover:bg-[#F8EEDB]
-                      hover:text-[#B88A2D]
-                    "
+                      ${
+                        cinematic
+                          ? "border border-[#F5EEE8]/60 bg-[#F5EEE8]/14 text-[#F5EEE8] backdrop-blur-[6px] hover:bg-[#F5EEE8]/24"
+                          : "border border-[#C9A45C]/75 bg-white text-[#4A3A2A] hover:bg-[#F8EEDB] hover:text-[#B88A2D]"
+                      }
+                    `}
                   >
                     התחברות
-                    <UserRound size={17} className="text-[#B88A2D]" />
+                    <UserRound
+                      size={17}
+                      className={cinematic ? "text-[#C5A582]" : "text-[#B88A2D]"}
+                    />
                   </Link>
                 ))}
             </div>

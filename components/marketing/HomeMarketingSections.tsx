@@ -99,6 +99,53 @@ function LuxPicture({
   );
 }
 
+/** Gentle scroll parallax for editorial full-bleed images — no hijacking. */
+function SoftParallax({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) return;
+
+    let raf = 0;
+    const measure = () => {
+      raf = 0;
+      const rect = el.getBoundingClientRect();
+      const view = window.innerHeight || 1;
+      const mid = rect.top + rect.height / 2;
+      const t = (mid - view / 2) / view;
+      const py = Math.max(-28, Math.min(28, t * -36));
+      el.style.setProperty("--lux-py", `${py.toFixed(1)}px`);
+    };
+    const onScroll = () => {
+      if (raf) return;
+      raf = requestAnimationFrame(measure);
+    };
+    measure();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
+
+  return (
+    <div ref={ref} className={cn("lux-parallax-host", className)}>
+      {children}
+    </div>
+  );
+}
+
 const SERVICE_MOSAIC = [
   {
     href: "/rsvp",
@@ -192,52 +239,66 @@ const WEBSITE_GALLERY = [
 ] as const;
 
 function WebsiteGalleryMotion() {
-  const [preview, setPreview] = useState<(typeof WEBSITE_GALLERY)[number] | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const preview = previewIndex == null ? null : WEBSITE_GALLERY[previewIndex];
+  const closeBtnRef = useRef<HTMLButtonElement | null>(null);
+  const touchX = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!preview) return;
+    if (previewIndex == null) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setPreview(null);
+      if (e.key === "Escape") setPreviewIndex(null);
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setPreviewIndex((i) => (i == null ? 0 : (i + 1) % WEBSITE_GALLERY.length));
+      }
+      if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setPreviewIndex((i) =>
+          i == null ? 0 : (i - 1 + WEBSITE_GALLERY.length) % WEBSITE_GALLERY.length,
+        );
+      }
     };
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", onKey);
+    queueMicrotask(() => closeBtnRef.current?.focus());
     return () => {
       document.body.style.overflow = prev;
       document.removeEventListener("keydown", onKey);
     };
-  }, [preview]);
+  }, [previewIndex]);
 
   return (
     <div>
       <div className="grid gap-4 md:grid-cols-12">
-        {WEBSITE_GALLERY.map((item) => (
+        {WEBSITE_GALLERY.map((item, index) => (
           <button
             key={item.src}
             type="button"
-            onClick={() => setPreview(item)}
+            onClick={() => setPreviewIndex(index)}
             className={cn(
-              "group relative min-h-[220px] overflow-hidden border border-[#C5A582]/35 text-right transition hover:border-[#842B4C]",
+              "group relative min-h-[220px] overflow-hidden border border-[#C5A582]/35 text-right outline-none transition hover:border-[#842B4C] focus-visible:ring-2 focus-visible:ring-[#C5A582] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5EEE8]",
               item.span,
             )}
           >
             <img
               src={item.src}
               alt={`תבנית אתר חתונה ${item.label}`}
-              className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]"
+              className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.045] group-focus-visible:scale-[1.03]"
               loading="lazy"
               decoding="async"
             />
             <div
-              className="absolute inset-0 bg-gradient-to-t from-[#42182F]/80 via-[#42182F]/15 to-transparent opacity-90 transition group-hover:opacity-100"
+              className="absolute inset-0 bg-gradient-to-t from-[#42182F]/82 via-[#42182F]/18 to-transparent opacity-95 transition group-hover:opacity-100"
               aria-hidden
             />
             <div className="absolute inset-x-0 bottom-0 p-5 text-[#F5EEE8]">
               <p className="text-[11px] font-bold tracking-[0.18em] text-[#C5A582]">{item.label}</p>
-              <p className="mt-1 text-lg font-extrabold translate-y-1 opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+              <p className="mt-1 text-lg font-extrabold transition duration-300 max-md:translate-y-0 max-md:opacity-100 md:translate-y-1 md:opacity-0 md:group-hover:translate-y-0 md:group-hover:opacity-100 md:group-focus-visible:translate-y-0 md:group-focus-visible:opacity-100">
                 {item.detail}
               </p>
-              <p className="mt-2 text-xs font-semibold text-[#F5EEE8]/80 opacity-0 transition group-hover:opacity-100">
+              <p className="mt-2 text-xs font-semibold text-[#F5EEE8]/80 transition max-md:opacity-100 md:opacity-0 md:group-hover:opacity-100 md:group-focus-visible:opacity-100">
                 לחצו לתצוגה מקדימה
               </p>
             </div>
@@ -245,35 +306,81 @@ function WebsiteGalleryMotion() {
         ))}
       </div>
 
-      {preview ? (
+      {preview && previewIndex != null ? (
         <div
           className="fixed inset-0 z-[80] flex items-center justify-center bg-[#2A0F1D]/72 p-4 backdrop-blur-[2px]"
           role="dialog"
           aria-modal="true"
           aria-label={`תצוגה מקדימה — ${preview.label}`}
-          onClick={() => setPreview(null)}
+          onClick={() => setPreviewIndex(null)}
         >
           <div
-            className="relative w-full max-w-4xl overflow-hidden border border-[#C5A582]/40 bg-[#F5EEE8] shadow-[0_40px_100px_rgba(0,0,0,0.35)]"
+            className="relative w-full max-w-4xl overflow-hidden border border-[#C5A582]/40 bg-[#F5EEE8] shadow-[0_40px_100px_rgba(0,0,0,0.35)] lux-lightbox-in"
             onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => {
+              touchX.current = e.changedTouches[0]?.clientX ?? null;
+            }}
+            onTouchEnd={(e) => {
+              const start = touchX.current;
+              const end = e.changedTouches[0]?.clientX;
+              touchX.current = null;
+              if (start == null || end == null) return;
+              const delta = end - start;
+              if (Math.abs(delta) < 48) return;
+              // RTL: swipe left → next
+              if (delta < 0) {
+                setPreviewIndex((i) => (i == null ? 0 : (i + 1) % WEBSITE_GALLERY.length));
+              } else {
+                setPreviewIndex((i) =>
+                  i == null ? 0 : (i - 1 + WEBSITE_GALLERY.length) % WEBSITE_GALLERY.length,
+                );
+              }
+            }}
           >
             <img
+              key={preview.src}
               src={preview.src}
               alt={`תבנית אתר חתונה ${preview.label}`}
               className="aspect-[16/10] w-full object-cover"
             />
-            <div className="flex items-center justify-between gap-4 px-5 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
               <div>
                 <p className="text-[11px] font-bold tracking-[0.18em] text-[#842B4C]">{preview.label}</p>
                 <p className="mt-1 text-base font-extrabold text-[#42182F]">{preview.detail}</p>
+                <p className="mt-1 text-[11px] text-[#6B5360]">
+                  ← / → לניווט · Escape לסגירה · החלקה במגע
+                </p>
               </div>
-              <button
-                type="button"
-                onClick={() => setPreview(null)}
-                className="border border-[#C5A582]/60 bg-white px-4 py-2 text-sm font-bold text-[#42182F]"
-              >
-                סגירה
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPreviewIndex(
+                      (previewIndex - 1 + WEBSITE_GALLERY.length) % WEBSITE_GALLERY.length,
+                    )
+                  }
+                  className="border border-[#C5A582]/60 bg-white px-3 py-2 text-sm font-bold text-[#42182F]"
+                  aria-label="תבנית קודמת"
+                >
+                  הקודם
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewIndex((previewIndex + 1) % WEBSITE_GALLERY.length)}
+                  className="border border-[#C5A582]/60 bg-white px-3 py-2 text-sm font-bold text-[#42182F]"
+                  aria-label="תבנית הבאה"
+                >
+                  הבא
+                </button>
+                <button
+                  ref={closeBtnRef}
+                  type="button"
+                  onClick={() => setPreviewIndex(null)}
+                  className="border border-[#42182F] bg-[#42182F] px-4 py-2 text-sm font-bold text-[#F5EEE8]"
+                >
+                  סגירה
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -291,7 +398,7 @@ export default function HomeMarketingSections() {
         aria-labelledby="home-intro"
         className="relative min-h-[88svh] overflow-hidden bg-[#F5EEE8]"
       >
-        <div className="absolute inset-0">
+        <SoftParallax className="absolute inset-0">
           <LuxPicture
             src={LUX_IMGS.bride}
             alt=""
@@ -306,7 +413,7 @@ export default function HomeMarketingSections() {
             className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-[#F5EEE8] to-transparent"
             aria-hidden
           />
-        </div>
+        </SoftParallax>
         <div className="relative z-10 mx-auto flex min-h-[88svh] max-w-[1180px] flex-col justify-center px-4 py-20 sm:px-6 md:px-10">
           <Reveal>
             <Eyebrow>כל מה שצריך לאירוע שלכם</Eyebrow>

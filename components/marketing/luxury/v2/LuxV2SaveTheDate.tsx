@@ -33,7 +33,7 @@ const DESIGNS = [
 ] as const;
 
 /**
- * Click-driven envelope + invitation reveal with design switching.
+ * Click-driven cinematic envelope + invitation reveal with design switching.
  * No tall sticky scrub / no page scroll hijacking.
  */
 export default function LuxV2SaveTheDate() {
@@ -111,7 +111,7 @@ export default function LuxV2SaveTheDate() {
                 type="button"
                 onClick={() => selectDesign(i)}
                 className={cn(
-                  "w-[104px] shrink-0 overflow-hidden border text-right transition",
+                  "w-[104px] shrink-0 overflow-hidden border text-right transition duration-300",
                   i === active
                     ? "border-[#842B4C] shadow-[0_12px_28px_rgba(66,24,47,0.14)]"
                     : "border-[#C5A582]/40 opacity-80 hover:opacity-100",
@@ -135,24 +135,45 @@ export default function LuxV2SaveTheDate() {
         </div>
 
         <div id="lux-envelope-stage" className="relative mx-auto w-full max-w-[420px]">
-          <div className="relative mx-auto aspect-[4/5] w-full max-w-[380px]">
-            {/* Invitation card — slides up from envelope */}
+          <div
+            className="relative mx-auto aspect-[4/5] w-full max-w-[380px]"
+            style={{ perspective: reduceMotion ? undefined : "1200px" }}
+          >
+            {/* Soft ground shadow */}
             <div
               className={cn(
-                "absolute inset-x-[12%] bottom-[18%] z-10 overflow-hidden border border-[#C5A582]/50 bg-[#FFFBFA] shadow-[0_24px_60px_rgba(66,24,47,0.16)]",
-                !reduceMotion && "transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                "pointer-events-none absolute inset-x-[8%] bottom-[6%] z-0 h-[18%] rounded-[100%] bg-[#42182F]/18 blur-xl",
+                !reduceMotion && "transition-opacity duration-500",
+              )}
+              style={{ opacity: open ? 0.55 : 0.35 }}
+              aria-hidden
+            />
+
+            {/* Invitation card — rises from pocket */}
+            <div
+              className={cn(
+                "absolute inset-x-[14%] bottom-[22%] z-[5] overflow-hidden border border-[#C5A582]/45 bg-[#FFFBFA]",
+                !reduceMotion &&
+                  "transition-[transform,box-shadow] duration-[720ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
               )}
               style={{
                 transform: open
-                  ? "translate3d(0,-38%,0) rotate(-1.5deg)"
-                  : "translate3d(0,18%,0) scale(0.92)",
+                  ? "translate3d(0,-42%,0) rotate(-2deg)"
+                  : "translate3d(0,22%,0) scale(0.94)",
+                boxShadow: open
+                  ? "0 36px 70px rgba(66,24,47,0.22), 0 8px 18px rgba(66,24,47,0.12)"
+                  : "0 10px 24px rgba(66,24,47,0.08)",
               }}
               aria-hidden={!open}
             >
               <img
+                key={design.src}
                 src={design.src}
                 alt={`${design.label} — ${design.couple}`}
-                className="aspect-[3/4] w-full object-cover object-top"
+                className={cn(
+                  "aspect-[3/4] w-full object-cover object-top",
+                  !reduceMotion && open && "lux-invite-swap",
+                )}
                 loading="eager"
                 decoding="async"
                 draggable={false}
@@ -163,41 +184,78 @@ export default function LuxV2SaveTheDate() {
               </div>
             </div>
 
-            {/* Envelope body */}
+            {/* Envelope assembly */}
             <button
               type="button"
               onClick={() => setOpen((v) => !v)}
-              className="group absolute inset-x-0 bottom-0 z-20 h-[58%] w-full cursor-pointer border-0 bg-transparent p-0 text-start"
+              className="group absolute inset-x-0 bottom-0 z-20 h-[62%] w-full cursor-pointer border-0 bg-transparent p-0 text-start"
               aria-label={open ? "סגירת המעטפה" : "פתיחת המעטפה"}
+              style={{ transformStyle: "preserve-3d" }}
             >
+              {/* Back liner */}
               <span
-                className="absolute inset-0 bg-[#F5EEE8] shadow-[0_28px_70px_rgba(66,24,47,0.14)]"
+                className="absolute inset-x-0 top-[18%] bottom-0 z-0"
                 style={{
-                  clipPath: "polygon(0 28%, 50% 0, 100% 28%, 100% 100%, 0 100%)",
-                  background:
-                    "linear-gradient(160deg, #FFFBFA 0%, #F5EEE8 40%, #E8D9C8 100%)",
+                  background: "linear-gradient(180deg, #E8D9C8 0%, #DCC7B0 100%)",
+                  boxShadow: "inset 0 12px 28px rgba(66,24,47,0.06)",
                 }}
                 aria-hidden
               />
+
+              {/* Front pocket */}
+              <span
+                className="absolute inset-x-0 bottom-0 z-10 h-[72%]"
+                style={{
+                  background:
+                    "linear-gradient(165deg, #FFFBFA 0%, #F5EEE8 42%, #E8D9C8 100%)",
+                  clipPath: "polygon(0 22%, 50% 0, 100% 22%, 100% 100%, 0 100%)",
+                  boxShadow: "0 28px 60px rgba(66,24,47,0.14)",
+                }}
+                aria-hidden
+              />
+              <span
+                className="pointer-events-none absolute inset-x-[12%] bottom-[18%] z-10 h-px bg-gradient-to-l from-transparent via-[#C5A582]/70 to-transparent"
+                aria-hidden
+              />
+
+              {/* Flap — folds back */}
               <span
                 className={cn(
-                  "absolute inset-x-0 top-0 z-30 h-[42%] origin-[50%_100%]",
+                  "absolute inset-x-0 top-0 z-30 h-[48%] origin-top",
                   !reduceMotion &&
-                    "transition-[transform,opacity] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                    "transition-[transform,opacity,filter] duration-[680ms] ease-[cubic-bezier(0.22,1,0.36,1)]",
                 )}
                 style={{
-                  // 2D fold-back — avoids broken rotateX without a 3D parent.
-                  transform: open ? "translateY(-92%) scaleY(0.18)" : "translateY(0) scaleY(1)",
+                  transform: open
+                    ? "rotateX(-168deg) translateY(-2%)"
+                    : "rotateX(0deg) translateY(0)",
+                  transformStyle: "preserve-3d",
+                  opacity: open ? 0.35 : 1,
+                  filter: open ? "brightness(0.85)" : "none",
                   background:
-                    "linear-gradient(180deg, #C5A582 0%, #B57591 55%, #842B4C 100%)",
-                  clipPath: "polygon(0 100%, 50% 8%, 100% 100%)",
-                  opacity: open ? 0 : 1,
-                  pointerEvents: "none",
+                    "linear-gradient(180deg, #D4B899 0%, #C5A582 38%, #B57591 78%, #842B4C 100%)",
+                  clipPath: "polygon(0 100%, 50% 6%, 100% 100%)",
+                  boxShadow: open ? "none" : "0 10px 24px rgba(66,24,47,0.18)",
+                  backfaceVisibility: "hidden",
                 }}
                 aria-hidden
               />
-              <span className="absolute inset-x-0 bottom-6 z-40 text-center text-[11px] font-bold tracking-[0.22em] text-[#842B4C] opacity-80 transition group-hover:opacity-100">
-                {open ? "לחצו לסגירה" : "לחצו לפתיחה"}
+
+              <span
+                className={cn(
+                  "absolute inset-x-0 bottom-5 z-40 text-center text-[11px] font-bold tracking-[0.22em] text-[#842B4C] transition",
+                  open ? "opacity-0" : "opacity-80 group-hover:opacity-100",
+                )}
+              >
+                לחצו לפתיחה
+              </span>
+              <span
+                className={cn(
+                  "absolute inset-x-0 bottom-5 z-40 text-center text-[11px] font-bold tracking-[0.22em] text-[#842B4C] transition",
+                  open ? "opacity-80 group-hover:opacity-100" : "opacity-0",
+                )}
+              >
+                לחצו לסגירה
               </span>
             </button>
           </div>
