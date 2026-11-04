@@ -28,8 +28,9 @@ async function run(label, contextOptions, viewport) {
     locale: "he-IL",
   });
   const page = await context.newPage();
-  await page.goto(BASE, { waitUntil: "networkidle", timeout: 90_000 });
-  await page.waitForTimeout(800);
+  await page.goto(BASE, { waitUntil: "domcontentloaded", timeout: 90_000 });
+  await page.waitForLoadState("load").catch(() => {});
+  await page.waitForTimeout(1500);
 
   // Full scroll
   const height = await page.evaluate(() => document.body.scrollHeight);
