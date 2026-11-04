@@ -159,7 +159,7 @@ export default function Header() {
         className={`
           sticky top-0 z-50
           w-full
-          bg-[#F8F5EE]
+          bg-[#F5EEE8]
           ${headerPad}
           print:hidden
         `}
@@ -168,10 +168,10 @@ export default function Header() {
           className="
             relative z-50 mx-auto max-w-[1500px]
             overflow-visible
-            rounded-[24px]
-            border border-[#D9BE80]/70
-            bg-[#FFFDF8]
-            shadow-[0_8px_24px_rgba(91,65,26,0.08)]
+            rounded-none
+            border border-[#C5A582]/55
+            bg-[#FFFBFA]
+            shadow-[0_8px_24px_rgba(66,24,47,0.06)]
           "
           dir="rtl"
         >
@@ -205,15 +205,15 @@ export default function Header() {
                     onClick={openDemoChoice}
                     className="
                       inline-flex items-center gap-1.5
-                      rounded-[12px]
-                      bg-[#2F261E]
+                      rounded-none
+                      bg-[#42182F]
                       px-3.5 py-2
                       text-[13px] font-extrabold
-                      text-[#FFFDF8]
+                      text-[#F5EEE8]
                     "
                     title="דמו – צפייה בלבד"
                   >
-                    <Sparkles size={14} className="text-[#D8B15E]" />
+                    <Sparkles size={14} className="text-[#C5A582]" />
                     דמו
                   </button>
                 </>
@@ -293,21 +293,21 @@ export default function Header() {
                   group inline-flex items-center gap-2
                   whitespace-nowrap
                   rounded-none
-                  bg-[#2F261E]
+                  bg-[#42182F]
                   px-5 py-2.5
                   text-[14px] font-extrabold
-                  text-[#FFFDF8]
-                  shadow-[0_10px_24px_rgba(47,38,30,0.16)]
+                  text-[#F5EEE8]
+                  shadow-[0_10px_24px_rgba(66,24,47,0.14)]
                   transition
                   hover:-translate-y-0.5
-                  hover:bg-[#3F3328]
-                  hover:shadow-[0_14px_28px_rgba(47,38,30,0.2)]
+                  hover:bg-[#842B4C]
+                  hover:shadow-[0_14px_28px_rgba(66,24,47,0.18)]
                 "
                 title="דמו – צפייה בלבד"
               >
                 <Sparkles
                   size={16}
-                  className="text-[#D8B15E] transition group-hover:rotate-12"
+                  className="text-[#C5A582] transition group-hover:rotate-12"
                 />
                 נסו דמו עכשיו
               </button>

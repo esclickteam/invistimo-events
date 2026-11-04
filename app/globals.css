@@ -429,3 +429,111 @@ button[aria-label*="נגישות"] {
 iframe[src*="userway"] {
   max-width: min(100vw - 24px, 420px) !important;
 }
+
+/* -----------------------------------------------------------
+   Invistimo Modern Romantic Luxury — homepage Stage A
+   Scoped under .lux-home so dashboard / product chrome stay untouched.
+----------------------------------------------------------- */
+:root {
+  --lux-champagne: #c5a582;
+  --lux-champagne-soft: #d4b899;
+  --lux-champagne-deep: #a88862;
+  --lux-cream: #f5eee8;
+  --lux-cream-deep: #ebe1d7;
+  --lux-blush: #b57591;
+  --lux-burgundy: #842b4c;
+  --lux-plum: #42182f;
+  --lux-plum-deep: #2a0f1d;
+  --lux-ink: #2a1a22;
+  --lux-muted: #6b5360;
+  --lux-white: #fffbfa;
+}
+
+.lux-home {
+  --btn-gold: var(--lux-champagne);
+  --btn-gold-hover: var(--lux-champagne-soft);
+  --btn-gold-active: var(--lux-champagne-deep);
+  --btn-ink: var(--lux-plum-deep);
+  --btn-dark: var(--lux-plum);
+  --btn-cream: var(--lux-cream);
+  background: var(--lux-cream);
+  color: var(--lux-ink);
+}
+
+.lux-home .lux-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--lux-burgundy);
+}
+
+.lux-home .lux-eyebrow-light {
+  color: var(--lux-champagne-soft);
+}
+
+.lux-home .lux-display {
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+  color: var(--lux-ink);
+}
+
+.lux-home .lux-display-light {
+  color: var(--lux-cream);
+}
+
+.lux-home .lux-lede {
+  font-size: 1.125rem;
+  line-height: 1.75;
+  color: var(--lux-muted);
+}
+
+.lux-home .lux-lede-light {
+  color: rgba(245, 238, 232, 0.82);
+}
+
+.lux-home .lux-hairline {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--lux-champagne),
+    transparent
+  );
+}
+
+.lux-home .lux-frame {
+  overflow: hidden;
+  background: var(--lux-cream-deep);
+}
+
+.lux-home .lux-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition:
+    opacity 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lux-home .lux-reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+.lux-home .lux-parallax-img {
+  will-change: transform;
+  transform: translate3d(0, var(--lux-py, 0px), 0) scale(1.06);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lux-home .lux-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .lux-home .lux-parallax-img {
+    transform: none;
+    will-change: auto;
+  }
+}
