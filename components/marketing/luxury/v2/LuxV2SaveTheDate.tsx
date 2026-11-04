@@ -45,7 +45,7 @@ export default function LuxV2SaveTheDate() {
       ref={ref as Ref<HTMLElement>}
       dir="rtl"
       aria-labelledby="lux-v2-std"
-      className="relative h-[220vh] bg-[#E8D9C8]"
+      className="relative h-[155vh] bg-[#E8D9C8]"
     >
       <div className="sticky top-0 flex min-h-[100svh] flex-col justify-center overflow-hidden">
         <div

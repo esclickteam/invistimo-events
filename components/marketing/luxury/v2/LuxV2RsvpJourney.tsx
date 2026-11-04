@@ -122,7 +122,7 @@ export default function LuxV2RsvpJourney() {
       ref={ref as Ref<HTMLElement>}
       dir="rtl"
       aria-labelledby="lux-v2-rsvp"
-      className="relative h-[260vh]"
+      className="relative h-[175vh]"
       style={{
         background:
           "linear-gradient(165deg, #F5EEE8 0%, #E8CFD8 28%, #B57591 62%, #842B4C 100%)",

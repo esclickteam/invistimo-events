@@ -195,9 +195,9 @@ export default function Footer() {
       dir="rtl"
       className="
         relative
-        border-t border-[#E4D2AF]
-        bg-[#F7F1E8]
-        text-[#4A3A2A]
+        border-t border-[#C5A582]/40
+        bg-[#F5EEE8]
+        text-[#42182F]
         print:hidden
       "
     >
@@ -205,7 +205,7 @@ export default function Footer() {
         aria-hidden
         className="
           pointer-events-none absolute inset-0
-          bg-[radial-gradient(circle_at_12%_0%,rgba(201,164,92,0.12),transparent_32%)]
+          bg-[radial-gradient(circle_at_12%_0%,rgba(181,117,145,0.14),transparent_34%),radial-gradient(circle_at_88%_100%,rgba(197,165,130,0.18),transparent_40%)]
         "
       />
 
@@ -227,10 +227,10 @@ export default function Footer() {
               draggable={false}
             />
           </Link>
-          <p className="mt-5 text-[28px] font-black leading-snug tracking-[-0.02em] text-[#2F261E]">
+          <p className="mt-5 text-[28px] font-black leading-snug tracking-[-0.02em] text-[#42182F]">
             ניהול אירוע חכם, מסודר ואלגנטי.
           </p>
-          <p className="mt-3 max-w-xl text-[15px] font-semibold leading-7 text-[#6B5A49]">
+          <p className="mt-3 max-w-xl text-[15px] font-semibold leading-7 text-[#6B5360]">
             הזמנות דיגיטליות, אישורי הגעה, סידורי הושבה וניהול אירוע — במקום אחד,
             בעיצוב שמרגיש פרימיום.
           </p>
@@ -238,7 +238,7 @@ export default function Footer() {
 
         <FooterColumns />
 
-        <div className="mt-8 border-t border-[#E4D2AF] pt-7 md:mt-12 md:pt-8">
+        <div className="mt-8 border-t border-[#C5A582]/35 pt-7 md:mt-12 md:pt-8">
           <div className="flex flex-col items-start gap-5 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-col gap-3">
               <Link
@@ -257,20 +257,20 @@ export default function Footer() {
                   draggable={false}
                 />
               </Link>
-              <p className="text-[13px] font-semibold text-[#7A6A58]">
+              <p className="text-[13px] font-semibold text-[#6B5360]">
                 © {year} Invistimo · כל הזכויות שמורות
               </p>
             </div>
 
             <nav
               aria-label="קישורים משפטיים"
-              className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] font-bold text-[#6B5A49]"
+              className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] font-bold text-[#6B5360]"
             >
               {FOOTER_LEGAL_LINKS.map((link) => (
                 <FooterAnchor
                   key={link.href}
                   link={link}
-                  className="transition hover:text-[#B8862D]"
+                  className="transition hover:text-[#842B4C]"
                 />
               ))}
             </nav>
