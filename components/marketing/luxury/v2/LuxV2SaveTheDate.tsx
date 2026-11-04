@@ -181,17 +181,18 @@ export default function LuxV2SaveTheDate() {
               />
               <span
                 className={cn(
-                  "absolute inset-x-0 top-0 z-30 h-[42%] origin-top",
-                  !reduceMotion && "transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
+                  "absolute inset-x-0 top-0 z-30 h-[42%] origin-[50%_100%]",
+                  !reduceMotion &&
+                    "transition-[transform,opacity] duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]",
                 )}
                 style={{
-                  transform: open ? "rotateX(168deg)" : "rotateX(0deg)",
-                  transformStyle: "preserve-3d",
-                  perspective: "800px",
+                  // 2D fold-back — avoids broken rotateX without a 3D parent.
+                  transform: open ? "translateY(-92%) scaleY(0.18)" : "translateY(0) scaleY(1)",
                   background:
                     "linear-gradient(180deg, #C5A582 0%, #B57591 55%, #842B4C 100%)",
                   clipPath: "polygon(0 100%, 50% 8%, 100% 100%)",
-                  opacity: open ? 0.92 : 1,
+                  opacity: open ? 0 : 1,
+                  pointerEvents: "none",
                 }}
                 aria-hidden
               />
