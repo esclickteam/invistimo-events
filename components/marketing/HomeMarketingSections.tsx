@@ -165,108 +165,119 @@ const EVENTS = [
 ] as const;
 
 const WEBSITE_GALLERY = [
-  { src: "/marketing/wedding-website/previews/eternal-gold-desktop.jpg", label: "Eternal Gold" },
-  { src: "/marketing/wedding-website/previews/garden-bloom-desktop.jpg", label: "Garden Bloom" },
-  { src: "/marketing/wedding-website/previews/midnight-velvet-desktop.jpg", label: "Midnight Velvet" },
-  { src: "/marketing/wedding-website/previews/minimal-noir-desktop.jpg", label: "Minimal Noir" },
+  {
+    src: "/marketing/wedding-website/previews/eternal-gold-desktop.jpg",
+    label: "Eternal Gold",
+    detail: "זהב חם, טיפוגרפיה קלאסית",
+    span: "md:col-span-7 md:row-span-2 md:min-h-[420px]",
+  },
+  {
+    src: "/marketing/wedding-website/previews/garden-bloom-desktop.jpg",
+    label: "Garden Bloom",
+    detail: "פרחוני רך לאור יום",
+    span: "md:col-span-5 md:min-h-[200px]",
+  },
+  {
+    src: "/marketing/wedding-website/previews/midnight-velvet-desktop.jpg",
+    label: "Midnight Velvet",
+    detail: "ערב אלגנטי ועמוק",
+    span: "md:col-span-5 md:min-h-[200px]",
+  },
+  {
+    src: "/marketing/wedding-website/previews/minimal-noir-desktop.jpg",
+    label: "Minimal Noir",
+    detail: "מינימליסטי מדויק",
+    span: "md:col-span-12 md:min-h-[240px]",
+  },
 ] as const;
 
 function WebsiteGalleryMotion() {
-  const trackRef = useRef<HTMLDivElement | null>(null);
-  const sectionRef = useRef<HTMLDivElement | null>(null);
-  const [active, setActive] = useState(0);
-  const reduceRef = useRef(false);
-  const inViewRef = useRef(false);
+  const [preview, setPreview] = useState<(typeof WEBSITE_GALLERY)[number] | null>(null);
 
   useEffect(() => {
-    reduceRef.current = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const root = sectionRef.current;
-    if (!root) return;
-
-    const io = new IntersectionObserver(
-      (entries) => {
-        inViewRef.current = entries.some((e) => e.isIntersecting && e.intersectionRatio > 0.35);
-      },
-      { threshold: [0, 0.35, 0.6] }
-    );
-    io.observe(root);
-
-    if (reduceRef.current) {
-      return () => io.disconnect();
-    }
-
-    const id = window.setInterval(() => {
-      // Only auto-advance while the gallery is actually on screen — never yank the page.
-      if (!inViewRef.current) return;
-      setActive((i) => (i + 1) % WEBSITE_GALLERY.length);
-    }, 4200);
-
-    return () => {
-      io.disconnect();
-      window.clearInterval(id);
+    if (!preview) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPreview(null);
     };
-  }, []);
-
-  useEffect(() => {
-    const track = trackRef.current;
-    if (!track) return;
-    const child = track.children[active] as HTMLElement | undefined;
-    if (!child) return;
-    // Horizontal delta only — avoids scrollIntoView, which can move the document vertically.
-    const delta =
-      child.getBoundingClientRect().left -
-      track.getBoundingClientRect().left -
-      (track.clientWidth - child.clientWidth) / 2;
-    if (Math.abs(delta) < 1) return;
-    if (reduceRef.current) {
-      track.scrollLeft += delta;
-      return;
-    }
-    track.scrollBy({ left: delta, behavior: "smooth" });
-  }, [active]);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [preview]);
 
   return (
-    <div ref={sectionRef}>
-      <div
-        ref={trackRef}
-        className="flex gap-5 overflow-x-auto overscroll-x-contain pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-      >
-        {WEBSITE_GALLERY.map((item, i) => (
+    <div>
+      <div className="grid gap-4 md:grid-cols-12">
+        {WEBSITE_GALLERY.map((item) => (
           <button
             key={item.src}
             type="button"
-            onClick={() => setActive(i)}
+            onClick={() => setPreview(item)}
             className={cn(
-              "w-[78vw] shrink-0 text-right transition sm:w-[420px] md:w-[520px]",
-              i === active ? "opacity-100" : "opacity-70"
+              "group relative min-h-[220px] overflow-hidden border border-[#C5A582]/35 text-right transition hover:border-[#842B4C]",
+              item.span,
             )}
           >
+            <img
+              src={item.src}
+              alt={`תבנית אתר חתונה ${item.label}`}
+              className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]"
+              loading="lazy"
+              decoding="async"
+            />
             <div
-              className={cn(
-                "lux-frame aspect-[16/10] border",
-                i === active ? "border-[#842B4C]" : "border-[#C5A582]/30"
-              )}
-            >
-              <img
-                src={item.src}
-                alt={`תבנית אתר חתונה ${item.label}`}
-                className="h-full w-full object-cover"
-                loading="lazy"
-                decoding="async"
-              />
+              className="absolute inset-0 bg-gradient-to-t from-[#42182F]/80 via-[#42182F]/15 to-transparent opacity-90 transition group-hover:opacity-100"
+              aria-hidden
+            />
+            <div className="absolute inset-x-0 bottom-0 p-5 text-[#F5EEE8]">
+              <p className="text-[11px] font-bold tracking-[0.18em] text-[#C5A582]">{item.label}</p>
+              <p className="mt-1 text-lg font-extrabold translate-y-1 opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100">
+                {item.detail}
+              </p>
+              <p className="mt-2 text-xs font-semibold text-[#F5EEE8]/80 opacity-0 transition group-hover:opacity-100">
+                לחצו לתצוגה מקדימה
+              </p>
             </div>
-            <p className="mt-3 text-sm font-bold tracking-[0.14em] text-[#842B4C]">{item.label}</p>
           </button>
         ))}
       </div>
-      <div className="mt-4 flex justify-center gap-2" aria-hidden>
-        {WEBSITE_GALLERY.map((item, i) => (
-          <span
-            key={item.src}
-            className={cn("h-1 w-8", i === active ? "bg-[#842B4C]" : "bg-[#C5A582]/40")}
-          />
-        ))}
-      </div>
+
+      {preview ? (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center bg-[#2A0F1D]/72 p-4 backdrop-blur-[2px]"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`תצוגה מקדימה — ${preview.label}`}
+          onClick={() => setPreview(null)}
+        >
+          <div
+            className="relative w-full max-w-4xl overflow-hidden border border-[#C5A582]/40 bg-[#F5EEE8] shadow-[0_40px_100px_rgba(0,0,0,0.35)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={preview.src}
+              alt={`תבנית אתר חתונה ${preview.label}`}
+              className="aspect-[16/10] w-full object-cover"
+            />
+            <div className="flex items-center justify-between gap-4 px-5 py-4">
+              <div>
+                <p className="text-[11px] font-bold tracking-[0.18em] text-[#842B4C]">{preview.label}</p>
+                <p className="mt-1 text-base font-extrabold text-[#42182F]">{preview.detail}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreview(null)}
+                className="border border-[#C5A582]/60 bg-white px-4 py-2 text-sm font-bold text-[#42182F]"
+              >
+                סגירה
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -274,7 +285,7 @@ function WebsiteGalleryMotion() {
 export default function HomeMarketingSections() {
   return (
     <>
-      {/* Intro — full-bleed editorial with overlay type */}
+      {/* Intro — full-bleed editorial with overlay type + soft mask reveal */}
       <section
         dir="rtl"
         aria-labelledby="home-intro"
@@ -284,11 +295,15 @@ export default function HomeMarketingSections() {
           <LuxPicture
             src={LUX_IMGS.bride}
             alt=""
-            className="h-full w-full object-cover"
+            className="lux-parallax-img h-full w-full object-cover"
             priority
           />
           <div
             className="absolute inset-0 bg-[linear-gradient(100deg,rgba(245,238,232,0.94)_0%,rgba(245,238,232,0.72)_42%,rgba(66,24,47,0.35)_100%)]"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-[#F5EEE8] to-transparent"
             aria-hidden
           />
         </div>

@@ -21,17 +21,24 @@ import {
 type MarketingHeaderNavProps = {
   pathname: string;
   onNavigate?: () => void;
+  /** Homepage hero overlay uses light nav text. */
+  tone?: "onLight" | "onDark";
 };
 
-function linkClass(active: boolean, compact?: boolean) {
+function linkClass(active: boolean, compact?: boolean, tone: "onLight" | "onDark" = "onLight") {
+  const onDark = tone === "onDark";
   return [
     "relative block transition",
     compact
       ? "rounded-xl px-3 py-2.5 text-[14px] font-bold"
       : "px-1 py-2 text-[15px] font-semibold",
-    active
-      ? "text-[#2F261E]"
-      : "text-[#5A4A3C] hover:text-[#B88A2D]",
+    onDark
+      ? active
+        ? "text-[#F5EEE8]"
+        : "text-[#F5EEE8]/82 hover:text-[#C5A582]"
+      : active
+        ? "text-[#2F261E]"
+        : "text-[#5A4A3C] hover:text-[#B88A2D]",
   ].join(" ");
 }
 
@@ -202,6 +209,7 @@ function ColumnLink({
 export function DesktopMarketingNav({
   pathname,
   onNavigate,
+  tone = "onLight",
 }: MarketingHeaderNavProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -298,11 +306,11 @@ export function DesktopMarketingNav({
                 key={item.id}
                 href={item.href}
                 onClick={onNavigate}
-                className={linkClass(active)}
+                className={linkClass(active, false, tone)}
                 aria-current={active ? "page" : undefined}
               >
                 {item.label}
-                <ActiveUnderline show={active} />
+                <ActiveUnderline show={active && tone === "onLight"} />
               </Link>
             );
           }
@@ -323,7 +331,7 @@ export function DesktopMarketingNav({
             <button
               key={item.id}
               type="button"
-              className={`${linkClass(sectionActive || isOpen)} inline-flex items-center gap-1`}
+              className={`${linkClass(sectionActive || isOpen, false, tone)} inline-flex items-center gap-1`}
               aria-expanded={isOpen}
               aria-controls={panelId}
               aria-haspopup="true"

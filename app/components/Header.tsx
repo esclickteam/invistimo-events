@@ -58,6 +58,27 @@ export default function Header() {
     };
   }, [mobileOpen]);
 
+  const isHome = pathname === "/";
+  const [pastHero, setPastHero] = useState(false);
+
+  useEffect(() => {
+    if (!isHome) {
+      setPastHero(false);
+      return;
+    }
+    const measure = () => {
+      const threshold = Math.min(window.innerHeight * 0.72, 720);
+      setPastHero(window.scrollY > threshold);
+    };
+    measure();
+    window.addEventListener("scroll", measure, { passive: true });
+    window.addEventListener("resize", measure, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", measure);
+      window.removeEventListener("resize", measure);
+    };
+  }, [isHome]);
+
   if (shouldHideHeader) {
     return null;
   }
@@ -149,9 +170,15 @@ export default function Header() {
     );
   }
 
-  // Homepage: no bottom padding under the nav chrome — that cream band
-  // read as an empty strip between Header and Hero. Other pages keep py-3.
-  const headerPad = pathname === "/" ? "px-3 pt-3 pb-0" : "px-3 py-3";
+  // Homepage: transparent overlay on the cinematic hero, then cream+plum after scroll.
+  // Other pages keep the solid cream chrome.
+  const cinematic = isHome && !pastHero;
+  const headerPad = isHome
+    ? cinematic
+      ? "px-3 pt-3 pb-0"
+      : "px-3 pt-3 pb-0"
+    : "px-3 py-3";
+  const navTone = cinematic ? "onDark" : "onLight";
 
   return (
     <>
@@ -159,20 +186,24 @@ export default function Header() {
         className={`
           sticky top-0 z-50
           w-full
-          bg-[#F5EEE8]
+          transition-[background-color,box-shadow] duration-300
+          ${cinematic ? "bg-transparent" : "bg-[#F5EEE8]"}
           ${headerPad}
           print:hidden
         `}
       >
         <div
-          className="
+          className={`
             relative z-50 mx-auto max-w-[1500px]
             overflow-visible
             rounded-none
-            border border-[#C5A582]/55
-            bg-[#FFFBFA]
-            shadow-[0_8px_24px_rgba(66,24,47,0.06)]
-          "
+            transition-[background-color,border-color,box-shadow] duration-300
+            ${
+              cinematic
+                ? "border border-transparent bg-transparent shadow-none"
+                : "border border-[#C5A582]/55 bg-[#FFFBFA] shadow-[0_8px_24px_rgba(66,24,47,0.06)]"
+            }
+          `}
           dir="rtl"
         >
           {/* Mobile: RTL right→left = hamburger | demo | space | logo (logo on left) */}
@@ -233,10 +264,14 @@ export default function Header() {
                 height={60}
                 decoding="async"
                 fetchPriority="low"
-                className="
-                  h-[48px] w-auto select-none
-                  drop-shadow-[0_6px_14px_rgba(158,116,42,0.14)]
-                "
+                className={`
+                  h-[48px] w-auto select-none transition
+                  ${
+                    cinematic
+                      ? "brightness-0 invert drop-shadow-[0_6px_18px_rgba(0,0,0,0.35)]"
+                      : "drop-shadow-[0_6px_14px_rgba(158,116,42,0.14)]"
+                  }
+                `}
                 draggable={false}
               />
             </Link>
@@ -272,17 +307,21 @@ export default function Header() {
                   height={60}
                   decoding="async"
                   fetchPriority="low"
-                  className="
-                    h-[56px] w-auto select-none
-                    drop-shadow-[0_6px_14px_rgba(158,116,42,0.14)]
-                  "
+                  className={`
+                    h-[56px] w-auto select-none transition
+                    ${
+                      cinematic
+                        ? "brightness-0 invert drop-shadow-[0_6px_18px_rgba(0,0,0,0.35)]"
+                        : "drop-shadow-[0_6px_14px_rgba(158,116,42,0.14)]"
+                    }
+                  `}
                   draggable={false}
                 />
               </Link>
             </div>
 
             <div className="relative z-[60] flex min-w-0 items-center justify-center overflow-visible">
-              <DesktopMarketingNav pathname={pathname} />
+              <DesktopMarketingNav pathname={pathname} tone={navTone} />
             </div>
 
             <div className="flex items-center justify-end gap-2.5">
