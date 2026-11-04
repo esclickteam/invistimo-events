@@ -4,7 +4,10 @@ import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import { HERO_DESKTOP, HERO_MOBILE } from "@/lib/marketing/homeHeroAssets";
-import { btnPrimaryOnDark, btnSecondaryOnDark } from "@/lib/ui/buttonClasses";
+import {
+  luxBtnPrimaryOnDark,
+  luxBtnSecondaryOnDark,
+} from "@/lib/ui/luxuryButtonClasses";
 
 const HomeMarketingSections = dynamic(
   () => import("@/components/marketing/HomeMarketingSections"),
@@ -105,7 +108,7 @@ function CinematicHeroVideo({ reduceMotion }: { reduceMotion: boolean }) {
   };
 
   return (
-    <div className="absolute inset-0 z-0 overflow-hidden bg-[#1A1410]" aria-hidden>
+    <div className="absolute inset-0 z-0 overflow-hidden bg-[#2A0F1D]" aria-hidden>
       <picture>
         <source
           media="(max-width: 767px)"
@@ -168,7 +171,7 @@ function CinematicHomeHero() {
 
   return (
     <section
-      className="relative isolate min-h-[100svh] overflow-hidden bg-[#1A1410] text-[#F7F1E8]"
+      className="relative isolate min-h-[100svh] overflow-hidden bg-[#2A0F1D] text-[#F5EEE8]"
       aria-labelledby="home-hero-heading"
     >
       <div className="absolute inset-0">
@@ -176,15 +179,15 @@ function CinematicHomeHero() {
       </div>
 
       <div
-        className="pointer-events-none absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(14,9,6,0.58)_0%,rgba(18,12,8,0.30)_34%,rgba(16,10,6,0.42)_68%,rgba(12,8,5,0.88)_100%)]"
+        className="pointer-events-none absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(42,15,29,0.55)_0%,rgba(66,24,47,0.28)_34%,rgba(42,15,29,0.40)_68%,rgba(42,15,29,0.90)_100%)]"
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_center,transparent_18%,rgba(8,5,3,0.38)_100%)]"
+        className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_center,transparent_18%,rgba(42,15,29,0.42)_100%)]"
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-32 bg-gradient-to-b from-transparent to-[#F7F1E8] md:h-40"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-32 bg-gradient-to-b from-transparent to-[#F5EEE8] md:h-40"
         aria-hidden
       />
 
@@ -193,21 +196,21 @@ function CinematicHomeHero() {
         lang="he"
         className="relative z-10 mx-auto flex min-h-[100svh] max-w-[1180px] flex-col items-center justify-center px-4 pb-28 pt-28 text-center max-[360px]:px-3 sm:px-6 md:px-10 md:pb-32 md:pt-32"
       >
-        <p className="mb-5 text-[11px] font-semibold tracking-[0.32em] text-[#E8D4A8] sm:mb-6 sm:text-xs">
+        <p className="mb-5 text-[11px] font-semibold tracking-[0.32em] text-[#C5A582] sm:mb-6 sm:text-xs">
           INVISTIMO
         </p>
 
         <h1
           id="home-hero-heading"
-          className="max-w-[16ch] text-[46px] font-black leading-[1.05] tracking-[-0.038em] text-white [text-shadow:0_2px_28px_rgba(0,0,0,0.58),0_10px_44px_rgba(0,0,0,0.42)] max-[360px]:text-[38px] sm:text-[56px] md:max-w-none md:text-[76px] lg:text-[88px]"
+          className="max-w-[16ch] text-[46px] font-black leading-[1.05] tracking-[-0.038em] text-white [text-shadow:0_2px_28px_rgba(42,15,29,0.58),0_10px_44px_rgba(42,15,29,0.42)] max-[360px]:text-[38px] sm:text-[56px] md:max-w-none md:text-[76px] lg:text-[88px]"
         >
           האירוע שלכם.
-          <span className="mt-1.5 block bg-gradient-to-l from-[#B88A2D] via-[#E8D4A8] to-[#C9A45C] bg-clip-text text-transparent [filter:drop-shadow(0_2px_20px_rgba(0,0,0,0.5))] sm:mt-2">
+          <span className="mt-1.5 block bg-gradient-to-l from-[#842B4C] via-[#C5A582] to-[#B57591] bg-clip-text text-transparent [filter:drop-shadow(0_2px_20px_rgba(42,15,29,0.5))] sm:mt-2">
             הסדר שלנו.
           </span>
         </h1>
 
-        <p className="mx-auto mt-6 max-w-[36rem] text-[15px] font-medium leading-7 text-[#F7F1E8] [text-shadow:0_2px_18px_rgba(0,0,0,0.5)] sm:mt-7 sm:text-[17px] sm:leading-8 md:text-[18px]">
+        <p className="mx-auto mt-6 max-w-[36rem] text-[15px] font-medium leading-7 text-[#F5EEE8] [text-shadow:0_2px_18px_rgba(42,15,29,0.5)] sm:mt-7 sm:text-[17px] sm:leading-8 md:text-[18px]">
           הזמנות דיגיטליות, אישורי הגעה והושבה חכמה — כל מה שצריך לאירוע מושלם, במקום
           אחד.
         </p>
@@ -216,7 +219,7 @@ function CinematicHomeHero() {
           <TrackedCtaLink
             href="/pricing"
             location="home_hero_primary"
-            className={`${btnPrimaryOnDark} group w-full min-w-0 sm:w-auto sm:min-w-[220px]`}
+            className={`${luxBtnPrimaryOnDark} group w-full min-w-0 sm:w-auto sm:min-w-[220px]`}
           >
             בואו נתחיל
             <span className="transition duration-150 group-hover:-translate-x-0.5" aria-hidden>
@@ -226,18 +229,18 @@ function CinematicHomeHero() {
           <TrackedCtaLink
             href="/try"
             location="home_hero_demo"
-            className={`${btnSecondaryOnDark} w-full min-w-0 sm:w-auto sm:min-w-[220px]`}
+            className={`${luxBtnSecondaryOnDark} w-full min-w-0 sm:w-auto sm:min-w-[220px]`}
           >
             צפו בהדגמה
           </TrackedCtaLink>
         </div>
 
         <div
-          className="pointer-events-none absolute bottom-8 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2 text-[#E8D4A8]/75"
+          className="pointer-events-none absolute bottom-8 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2 text-[#C5A582]/80"
           aria-hidden
         >
           <span className="text-[10px] font-semibold tracking-[0.24em]">גללו</span>
-          <span className="h-8 w-px bg-gradient-to-b from-[#E8D4A8] to-transparent" />
+          <span className="h-8 w-px bg-gradient-to-b from-[#C5A582] to-transparent" />
         </div>
       </div>
     </section>
@@ -246,7 +249,7 @@ function CinematicHomeHero() {
 
 export default function HomePageClient() {
   return (
-    <div className="overflow-x-hidden bg-[#F4F0E8] pb-[max(5.5rem,env(safe-area-inset-bottom))] text-[#2C241C]">
+    <div className="lux-home overflow-x-hidden pb-[max(5.5rem,env(safe-area-inset-bottom))] text-[#2A1A22]">
       <CinematicHomeHero />
       <HomeMarketingSections />
     </div>

@@ -1,23 +1,104 @@
 "use client";
 
-import { motion } from "framer-motion";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import {
-  Armchair,
-  CalendarHeart,
-  CheckCircle2,
-  Gift,
-  Heart,
-  Send,
-  Sparkles,
-  Users,
-} from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import { EVENT_INVITATION_BODY } from "@/lib/whatsapp/approvedTemplates";
 import { HOME_FAQS } from "@/lib/seo/homeIntentMap";
-import { btnPrimary, btnPrimaryDark, btnSecondary } from "@/lib/ui/buttonClasses";
+import { LUX_IMGS } from "@/lib/marketing/luxuryEditorial";
+import {
+  luxBtnGhostLight,
+  luxBtnPlum,
+  luxBtnPrimary,
+  luxBtnPrimaryOnDark,
+  luxBtnSecondary,
+} from "@/lib/ui/luxuryButtonClasses";
 import { cn } from "@/lib/utils";
+
+function useInViewOnce<T extends HTMLElement>(rootMargin = "0px 0px -8% 0px") {
+  const ref = useRef<T | null>(null);
+  const [inView, setInView] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || inView) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce) {
+      setInView(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setInView(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin, threshold: 0.12 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [inView, rootMargin]);
+
+  return { ref, inView };
+}
+
+function Reveal({
+  children,
+  className,
+  delayMs = 0,
+}: {
+  children: ReactNode;
+  className?: string;
+  delayMs?: number;
+}) {
+  const { ref, inView } = useInViewOnce<HTMLDivElement>();
+  return (
+    <div
+      ref={ref}
+      className={cn("lux-reveal", inView && "is-in", className)}
+      style={delayMs ? { transitionDelay: `${delayMs}ms` } : undefined}
+    >
+      {children}
+    </div>
+  );
+}
+
+function Eyebrow({ children, light = false }: { children: ReactNode; light?: boolean }) {
+  return (
+    <p className={cn("lux-eyebrow", light && "lux-eyebrow-light")}>{children}</p>
+  );
+}
+
+function LuxPicture({
+  src,
+  alt,
+  className,
+  priority = false,
+  parallax = false,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+  priority?: boolean;
+  parallax?: boolean;
+}) {
+  const jpg = src.replace(/\.webp$/i, ".jpg");
+  return (
+    <picture>
+      <source srcSet={src} type="image/webp" />
+      <img
+        src={jpg}
+        alt={alt}
+        className={cn(parallax && "lux-parallax-img", className)}
+        loading={priority ? "eager" : "lazy"}
+        decoding={priority ? "sync" : "async"}
+        fetchPriority={priority ? "high" : "auto"}
+        draggable={false}
+      />
+    </picture>
+  );
+}
 
 function LazyInViewVideo({
   src,
@@ -41,14 +122,14 @@ function LazyInViewVideo({
           io.disconnect();
         }
       },
-      { rootMargin: "220px 0px", threshold: 0.01 },
+      { rootMargin: "220px 0px", threshold: 0.01 }
     );
     io.observe(el);
     return () => io.disconnect();
   }, [active]);
 
   return (
-    <div ref={ref} className="aspect-video w-full overflow-hidden rounded-[28px] bg-[#1C1612]">
+    <div ref={ref} className="lux-frame aspect-video w-full bg-[#2A0F1D]">
       {active ? (
         <video
           src={src}
@@ -74,126 +155,39 @@ function LazyInViewVideo({
   );
 }
 
-function Eyebrow({ children, light = false }: { children: React.ReactNode; light?: boolean }) {
-  return (
-    <p
-      className={`text-sm font-black tracking-[0.18em] ${
-        light ? "text-[#D4B06A]" : "text-[#8B642B]"
-      }`}
-    >
-      {children}
-    </p>
-  );
-}
-
-function GoldCta({
-  href,
-  children,
-  dark = false,
-  location = "home_gold_cta",
-}: {
-  href: string;
-  children: React.ReactNode;
-  dark?: boolean;
-  location?: string;
-}) {
-  return (
-    <TrackedCtaLink
-      href={href}
-      location={location}
-      className={cn(
-        dark ? btnPrimary : btnPrimaryDark,
-        "w-full max-w-md text-sm sm:w-auto"
-      )}
-    >
-      {children}
-    </TrackedCtaLink>
-  );
-}
-
-function SoftCta({
-  href,
-  children,
-  light = false,
-  location = "home_soft_cta",
-}: {
-  href: string;
-  children: React.ReactNode;
-  light?: boolean;
-  location?: string;
-}) {
-  return (
-    <TrackedCtaLink
-      href={href}
-      location={location}
-      className={cn(
-        btnSecondary,
-        light && "border-[#F7F1E8]/50 bg-[#F7F1E8] !text-[#1C1612] hover:bg-white",
-        "w-full max-w-md text-sm sm:w-auto"
-      )}
-    >
-      {children}
-    </TrackedCtaLink>
-  );
-}
-
-const SERVICES = [
-  {
-    href: "/invitations/chatuna",
-    title: "הזמנות דיגיטליות",
-    body: "הזמנה מעוצבת שמספרת את הסיפור שלכם ומגיעה ישירות לאנשים שאתם אוהבים.",
-    cta: "להזמנות הדיגיטליות",
-    icon: Gift,
-  },
-  {
-    href: "/rsvp/save-the-date",
-    title: "Save the Date",
-    body: "מודיעים לכולם שיש תאריך, ונותנים להם סיבה טובה לשמור אותו ביומן.",
-    cta: "לשריין את הרגע",
-    icon: CalendarHeart,
-  },
+const FEATURED_SERVICES = [
   {
     href: "/rsvp",
     title: "אישורי הגעה",
     body: "יודעים מי מגיע, מי עדיין מתלבט וממי עוד מחכים לתשובה — לחתונה, בר/בת מצווה ואירועים נוספים.",
     cta: "איך עובדים אישורי ההגעה",
-    icon: CheckCircle2,
+    image: LUX_IMGS.reception,
+    tone: "cream" as const,
+  },
+  {
+    href: "/invitations/chatuna",
+    title: "הזמנות דיגיטליות",
+    body: "הזמנה מעוצבת שמספרת את הסיפור שלכם ומגיעה ישירות לאנשים שאתם אוהבים.",
+    cta: "להזמנות הדיגיטליות",
+    image: LUX_IMGS.details,
+    tone: "plum" as const,
   },
   {
     href: "/seating-explained",
     title: "סידורי הושבה",
     body: "מסדרים את השולחנות, משבצים אורחים ורואים את התמונה המלאה לפני האירוע.",
     cta: "סידורי הושבה לחתונה",
-    icon: Armchair,
+    image: LUX_IMGS.tablescape,
+    tone: "cream" as const,
   },
-  {
-    href: "/wedding-website",
-    title: "אתר חתונה",
-    body: "מקום אחד לכל הפרטים החשובים, עם עיצוב שמתאים לאירוע שלכם.",
-    cta: "לאתרי החתונה",
-    icon: Heart,
-  },
-  {
-    href: "/info/guides/guest-list",
-    title: "ניהול מוזמנים",
-    body: "רשימה אחת מסודרת, עם פרטי האורחים, סטטוסים ועדכונים.",
-    cta: "ניהול מוזמנים",
-    icon: Users,
-  },
-  {
-    href: "/rsvp/whatsapp",
-    title: "תזכורות והודעות",
-    body: "מזכירים לאורחים את הפרטים החשובים ושומרים על קשר גם אחרי האירוע.",
-    cta: "תזכורות והודעות",
-    icon: Send,
-  },
-  {
-    href: "/event-management",
-    title: "ניהול האירוע",
-    body: "משימות, ספקים, תקציב ולוח זמנים במקום אחד, לפני יום האירוע.",
-    cta: "לפלטפורמת ניהול האירוע",
-    icon: Sparkles,
-  },
+] as const;
+
+const SERVICE_LINKS = [
+  { href: "/rsvp/save-the-date", title: "Save the Date", body: "שומרים את התאריך ביומן — עוד לפני ההזמנה הרשמית." },
+  { href: "/wedding-website", title: "אתר חתונה", body: "מקום אחד לכל הפרטים החשובים, עם עיצוב שמתאים לאירוע." },
+  { href: "/info/guides/guest-list", title: "ניהול מוזמנים", body: "רשימה אחת מסודרת, עם פרטי האורחים, סטטוסים ועדכונים." },
+  { href: "/rsvp/whatsapp", title: "תזכורות והודעות", body: "מזכירים לאורחים את הפרטים החשובים ושומרים על קשר." },
+  { href: "/event-management", title: "ניהול האירוע", body: "משימות, ספקים, תקציב ולוח זמנים במקום אחד." },
 ] as const;
 
 const EVENTS = [
@@ -220,6 +214,25 @@ const EVENTS = [
     title: "ברית / בריתה",
     body: "משתפים את הבשורה ומזמינים את האנשים הקרובים.",
     image: "/marketing/invites/invite-brit.webp",
+  },
+] as const;
+
+const WEBSITE_GALLERY = [
+  {
+    src: "/marketing/wedding-website/previews/eternal-gold-desktop.jpg",
+    label: "Eternal Gold",
+  },
+  {
+    src: "/marketing/wedding-website/previews/garden-bloom-desktop.jpg",
+    label: "Garden Bloom",
+  },
+  {
+    src: "/marketing/wedding-website/previews/midnight-velvet-desktop.jpg",
+    label: "Midnight Velvet",
+  },
+  {
+    src: "/marketing/wedding-website/previews/minimal-noir-desktop.jpg",
+    label: "Minimal Noir",
   },
 ] as const;
 
@@ -251,7 +264,7 @@ const JOURNEY = [
     message: STD_MESSAGE,
     image: "/marketing/videos/home-save-the-date-poster.jpg",
     imageAlt: "כרטיס Save the Date — מיה ואלון",
-    cta: null,
+    cta: null as string | null,
     time: "10:12",
   },
   {
@@ -261,7 +274,7 @@ const JOURNEY = [
     message: INVITE_MESSAGE,
     image: "/marketing/invites/invite-wedding-mia-alon.webp",
     imageAlt: "הזמנה דיגיטלית — החתונה של מיה ואלון",
-    cta: null,
+    cta: null as string | null,
     time: "18:40",
   },
   {
@@ -276,7 +289,6 @@ const JOURNEY = [
   },
 ] as const;
 
-/** Official WhatsApp brand mark — green glyph, not a generic chat bubble. */
 function WhatsAppBrandIcon({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" fill="none" aria-hidden>
@@ -288,38 +300,6 @@ function WhatsAppBrandIcon({ size = 28 }: { size?: number }) {
       <path
         d="M13.14 11.15C12.86 10.53 12.57 10.52 12.31 10.51C12.1 10.5 11.86 10.5 11.62 10.5C11.38 10.5 10.98 10.59 10.64 10.96C10.3 11.34 9.35 12.2 9.35 13.95C9.35 15.7 10.67 17.39 10.85 17.63C11.03 17.87 13.27 21.47 16.78 22.84C19.69 23.98 20.29 23.75 20.93 23.69C21.57 23.63 22.99 22.84 23.28 22.05C23.57 21.26 23.57 20.58 23.48 20.43C23.39 20.28 23.14 20.19 22.77 20.01C22.41 19.83 20.59 18.93 20.26 18.81C19.93 18.69 19.69 18.63 19.45 18.99C19.21 19.35 18.54 20.13 18.33 20.37C18.12 20.61 17.9 20.64 17.54 20.46C17.17 20.28 15.98 19.9 14.56 18.63C13.45 17.64 12.69 16.42 12.48 16.06C12.27 15.7 12.46 15.51 12.64 15.33C12.8 15.17 13 14.91 13.18 14.7C13.36 14.49 13.42 14.34 13.54 14.1C13.66 13.86 13.6 13.65 13.51 13.47C13.42 13.29 12.76 11.52 13.14 11.15Z"
         fill="#25D366"
-      />
-    </svg>
-  );
-}
-
-function SmsIcon() {
-  return (
-    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden>
-      <rect x="2.5" y="4.5" width="23" height="15.5" rx="3.5" fill="#2C241C" />
-      <path d="M8.5 22.5 12 18.5H21.5a3.5 3.5 0 0 0 3.5-3.5V10" fill="#2C241C" />
-      <text
-        x="14"
-        y="14.6"
-        textAnchor="middle"
-        fill="#F7F1E8"
-        fontSize="8"
-        fontWeight="800"
-        fontFamily="Heebo, Arial, sans-serif"
-        letterSpacing="0.04em"
-      >
-        SMS
-      </text>
-    </svg>
-  );
-}
-
-function PhoneIconMark() {
-  return (
-    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M8.2 3.8c.4-.4 1-.5 1.5-.3l2.1.8c.6.2 1 .8.9 1.4l-.3 2.2a1.4 1.4 0 0 1-.8 1.1l-1.1.5a11.3 11.3 0 0 0 4.9 4.9l.5-1.1c.2-.5.7-.7 1.1-.8l2.2-.3c.6-.1 1.2.3 1.4.9l.8 2.1c.2.5.1 1.1-.3 1.5l-1.3 1.3c-.4.4-1 .6-1.6.5C10.4 18.6 5.4 13.6 4 6.7c-.1-.6.1-1.2.5-1.6L8.2 3.8Z"
-        fill="#2C241C"
       />
     </svg>
   );
@@ -341,10 +321,10 @@ function WhatsAppChatMock({
   return (
     <div
       dir="rtl"
-      className="overflow-hidden rounded-[22px] border border-[#D8CCB8] bg-[#E5DDD5] shadow-[0_18px_40px_rgba(44,36,28,0.1)]"
+      className="overflow-hidden border border-[#C5A582]/35 bg-[#E8DFD6] shadow-[0_24px_60px_rgba(66,24,47,0.12)]"
     >
       <div className="flex items-center gap-3 bg-[#075E54] px-3.5 py-2.5 text-white">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C9A45C] text-xs font-black text-[#1C1612]">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C5A582] text-xs font-black text-[#2A0F1D]">
           IN
         </span>
         <div className="min-w-0 flex-1">
@@ -355,10 +335,9 @@ function WhatsAppChatMock({
       <div
         className="px-2.5 py-3"
         style={{
-          backgroundImage:
-            "radial-gradient(rgba(0,0,0,0.04) 1px, transparent 1px)",
+          backgroundImage: "radial-gradient(rgba(0,0,0,0.04) 1px, transparent 1px)",
           backgroundSize: "14px 14px",
-          backgroundColor: "#E5DDD5",
+          backgroundColor: "#E8DFD6",
         }}
       >
         <div className="mr-auto max-w-[94%] overflow-hidden rounded-xl rounded-tr-sm bg-white shadow-[0_1px_2px_rgba(0,0,0,0.08)]">
@@ -391,233 +370,288 @@ function WhatsAppChatMock({
 export default function HomeMarketingSections() {
   return (
     <>
-      {/* 2. Intro */}
+      {/* Intro — editorial split with large still */}
       <section
         dir="rtl"
         aria-labelledby="home-intro"
-        className="relative overflow-hidden bg-[#F7F1E8] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
+        className="relative overflow-hidden bg-[#F5EEE8]"
       >
-        <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_20%,rgba(201,164,92,0.18),transparent_40%),radial-gradient(circle_at_88%_78%,rgba(255,255,255,0.7),transparent_42%)]"
-          aria-hidden
-        />
-        <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
-          <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <Eyebrow>כל מה שצריך לאירוע שלכם</Eyebrow>
+        <div className="mx-auto grid max-w-[1400px] lg:grid-cols-[0.92fr_1.08fr]">
+          <div className="flex flex-col justify-center px-4 py-16 max-[360px]:px-3 sm:px-6 md:px-10 md:py-24 lg:py-28">
+            <Reveal>
+              <Eyebrow>כל מה שצריך לאירוע שלכם</Eyebrow>
+              <h2
+                id="home-intro"
+                className="lux-display mt-5 text-[34px] md:text-[52px] lg:text-[58px]"
+              >
+                אתם מתכננים את הרגעים היפים. אנחנו דואגים לכל מה שמסביב.
+              </h2>
+              <p className="lux-lede mt-6 max-w-xl">
+                אירוע מוצלח מורכב מאלפי פרטים קטנים. רשימת המוזמנים, ההזמנות, אישורי
+                ההגעה, סידורי ההושבה והעדכונים של הרגע האחרון.
+              </p>
+              <p className="lux-lede mt-4 max-w-xl">
+                עם Invistimo הכול מתחבר לחוויה אחת מסודרת: אתם מנהלים את האירוע במקום
+                אחד, והאורחים נהנים מתהליך פשוט ונעים, בלי להוריד אפליקציה ובלי להסתבך.
+              </p>
+              <div className="mt-9 flex flex-wrap gap-3">
+                <TrackedCtaLink href="/pricing" location="home_intro_primary" className={luxBtnPlum}>
+                  בואו נתחיל
+                </TrackedCtaLink>
+                <TrackedCtaLink href="/try" location="home_intro_demo" className={luxBtnSecondary}>
+                  צפו בהדגמה
+                </TrackedCtaLink>
+              </div>
+            </Reveal>
+          </div>
+          <Reveal delayMs={80} className="relative min-h-[420px] lg:min-h-full">
+            <div className="absolute inset-0 lux-frame">
+              <LuxPicture
+                src={LUX_IMGS.bride}
+                alt="כלה בחתונה יוקרתית באור שקיעה — השראה עריכתית ל־Invistimo"
+                className="h-full w-full object-cover"
+                parallax
+              />
+              <div
+                className="pointer-events-none absolute inset-0 bg-gradient-to-l from-[#F5EEE8] via-transparent to-transparent lg:from-[#F5EEE8]/95"
+                aria-hidden
+              />
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
+      {/* Featured services — alternating full bands, not identical cards */}
+      <section dir="rtl" aria-labelledby="home-services" className="bg-[#FFFBFA]">
+        <div className="mx-auto max-w-[1400px] px-4 py-16 max-[360px]:px-3 sm:px-6 md:px-10 md:py-20">
+          <Reveal>
+            <Eyebrow>כל מה שצריך, בדיוק במקום הנכון</Eyebrow>
             <h2
-              id="home-intro"
-              className="mt-4 text-[32px] font-black leading-[1.15] tracking-[-0.03em] text-[#2C241C] md:text-5xl"
+              id="home-services"
+              className="lux-display mt-4 max-w-3xl text-[32px] md:text-[48px]"
             >
-              אתם מתכננים את הרגעים היפים. אנחנו דואגים לכל מה שמסביב.
+              כל הפרטים מתחברים לאירוע אחד מושלם
             </h2>
-            <p className="mt-5 max-w-xl text-lg leading-8 text-[#5C4A3A]">
-              אירוע מוצלח מורכב מאלפי פרטים קטנים. רשימת המוזמנים, ההזמנות, אישורי ההגעה,
-              סידורי ההושבה והעדכונים של הרגע האחרון.
+            <p className="lux-lede mt-5 max-w-3xl">
+              מהרגע שבו בוחרים תאריך ועד שהאורחים מגיעים לחגוג — בחרו את השירותים שיעזרו
+              לכם להפוך את ההכנות לפשוטות, נעימות ומסודרות יותר.
             </p>
-            <p className="mt-4 max-w-xl text-lg leading-8 text-[#5C4A3A]">
-              עם Invistimo הכול מתחבר לחוויה אחת מסודרת: אתם מנהלים את האירוע במקום אחד,
-              והאורחים נהנים מתהליך פשוט ונעים, בלי להוריד אפליקציה ובלי להסתבך.
-            </p>
-          </motion.div>
+          </Reveal>
+        </div>
 
-          <div className="grid gap-4">
-            {[
-              {
-                icon: Sparkles,
-                title: "הכול במקום אחד",
-                body: "מההזמנה הראשונה ועד יום האירוע.",
-              },
-              {
-                icon: Heart,
-                title: "חוויה אישית לכל אורח",
-                body: "הזמנה וקישור אישי, עם תהליך פשוט וברור.",
-              },
-              {
-                icon: CheckCircle2,
-                title: "יותר סדר, פחות התעסקות",
-                body: "כל התשובות והעדכונים מרוכזים במקום אחד.",
-              },
-            ].map((item, i) => (
-              <motion.div
-                key={item.title}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.08 }}
-                className="flex gap-4 rounded-[24px] border border-[#E7D3B0] bg-[#FFFDF8]/90 p-5 shadow-[0_18px_40px_rgba(44,36,28,0.06)]"
+        {FEATURED_SERVICES.map((service, i) => {
+          const imageFirst = i % 2 === 1;
+          const plum = service.tone === "plum";
+          return (
+            <div
+              key={service.href}
+              className={cn(
+                "border-t",
+                plum ? "border-[#842B4C]/25 bg-[#42182F]" : "border-[#C5A582]/25 bg-[#F5EEE8]"
+              )}
+            >
+              <div
+                className={cn(
+                  "mx-auto grid max-w-[1400px] items-stretch lg:grid-cols-2",
+                  imageFirst && "lg:[&>*:first-child]:order-2"
+                )}
               >
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-[#2C241C] text-[#C9A45C]">
-                  <item.icon size={22} />
-                </span>
-                <div>
-                  <h3 className="text-lg font-black text-[#2C241C]">{item.title}</h3>
-                  <p className="mt-1 text-[15px] leading-7 text-[#5C4A3A]">{item.body}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
+                <Reveal className="flex flex-col justify-center px-4 py-14 max-[360px]:px-3 sm:px-6 md:px-10 md:py-20">
+                  <p
+                    className={cn(
+                      "text-xs font-bold tracking-[0.2em]",
+                      plum ? "text-[#C5A582]" : "text-[#842B4C]"
+                    )}
+                  >
+                    0{i + 1}
+                  </p>
+                  <h3
+                    className={cn(
+                      "lux-display mt-4 text-[30px] md:text-[42px]",
+                      plum && "lux-display-light"
+                    )}
+                  >
+                    {service.title}
+                  </h3>
+                  <p className={cn("mt-5 max-w-lg text-lg leading-8", plum ? "text-[#E8D9CF]" : "lux-lede")}>
+                    {service.body}
+                  </p>
+                  <div className="mt-8">
+                    <TrackedCtaLink
+                      href={service.href}
+                      location={`home_service_${i}`}
+                      className={plum ? luxBtnPrimaryOnDark : luxBtnPrimary}
+                    >
+                      {service.cta}
+                      <span aria-hidden>←</span>
+                    </TrackedCtaLink>
+                  </div>
+                </Reveal>
+                <Reveal delayMs={60} className="relative min-h-[320px] md:min-h-[440px]">
+                  <LuxPicture
+                    src={service.image}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                  <div
+                    className={cn(
+                      "pointer-events-none absolute inset-0",
+                      plum
+                        ? "bg-gradient-to-t from-[#42182F]/55 to-transparent"
+                        : "bg-gradient-to-t from-[#F5EEE8]/20 to-transparent"
+                    )}
+                    aria-hidden
+                  />
+                </Reveal>
+              </div>
+            </div>
+          );
+        })}
+
+        <div className="mx-auto max-w-[1100px] px-4 py-14 max-[360px]:px-3 sm:px-6 md:px-10 md:py-16">
+          <Reveal>
+            <ul className="divide-y divide-[#C5A582]/30 border-y border-[#C5A582]/30">
+              {SERVICE_LINKS.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    className="group flex flex-col gap-1 py-5 transition hover:bg-[#F5EEE8]/70 sm:flex-row sm:items-baseline sm:justify-between sm:gap-8 sm:px-2"
+                  >
+                    <span className="text-lg font-extrabold text-[#42182F] transition group-hover:text-[#842B4C] md:text-xl">
+                      {item.title}
+                    </span>
+                    <span className="max-w-xl text-[15px] leading-7 text-[#6B5360] sm:text-left">
+                      {item.body}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Reveal>
         </div>
       </section>
 
-      {/* 3. Services — espresso */}
-      <section
-        dir="rtl"
-        aria-labelledby="home-services"
-        className="relative overflow-hidden bg-[#1C1612] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
-      >
-        <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_10%,rgba(201,164,92,0.16),transparent_36%),radial-gradient(circle_at_10%_90%,rgba(255,255,255,0.05),transparent_40%)]"
-          aria-hidden
-        />
-        <div className="relative mx-auto max-w-6xl">
-          <Eyebrow light>כל מה שצריך, בדיוק במקום הנכון</Eyebrow>
-          <h2
-            id="home-services"
-            className="mt-4 max-w-3xl text-[32px] font-black leading-[1.15] text-[#F7F1E8] md:text-5xl"
-          >
-            כל הפרטים מתחברים לאירוע אחד מושלם
-          </h2>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-[#C9BDAE]">
-            מהרגע שבו בוחרים תאריך ועד שהאורחים מגיעים לחגוג — בחרו את השירותים שיעזרו לכם
-            להפוך את ההכנות לפשוטות, נעימות ומסודרות יותר.
-          </p>
-
-          <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {SERVICES.map((service, i) => (
-              <motion.div
-                key={service.href + service.title}
-                initial={{ opacity: 0, y: 18 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.04 }}
-              >
-                <Link
-                  href={service.href}
-                  className="group flex h-full flex-col rounded-[24px] border border-[#C9A45C]/25 bg-[#FFF9EF] p-5 text-[#2C241C] shadow-[0_18px_40px_rgba(0,0,0,0.18)] transition hover:-translate-y-1 hover:border-[#C9A45C]/55"
-                >
-                  <span className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-[#2C241C] text-[#C9A45C]">
-                    <service.icon size={20} />
-                  </span>
-                  <h3 className="text-lg font-black">{service.title}</h3>
-                  <p className="mt-2 flex-1 text-[14px] leading-7 text-[#5C4A3A]">{service.body}</p>
-                  <span className="mt-4 text-sm font-black text-[#8B642B] transition group-hover:text-[#2C241C]">
-                    {service.cta} ←
-                  </span>
-                </Link>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* 4. Save the Date experiential */}
+      {/* Save the Date — cinematic band */}
       <section
         dir="rtl"
         aria-labelledby="home-std"
-        className="relative overflow-hidden bg-[#F4F0E8] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
+        className="relative overflow-hidden bg-[#2A0F1D]"
       >
-        <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
-          <div>
-            <Eyebrow>ההתרגשות מתחילה כאן</Eyebrow>
+        <div className="absolute inset-0">
+          <LuxPicture
+            src={LUX_IMGS.rings}
+            alt=""
+            className="h-full w-full object-cover opacity-45"
+            parallax
+          />
+          <div
+            className="absolute inset-0 bg-[linear-gradient(105deg,rgba(42,15,29,0.92)_0%,rgba(66,24,47,0.72)_48%,rgba(42,15,29,0.55)_100%)]"
+            aria-hidden
+          />
+        </div>
+        <div className="relative mx-auto grid max-w-[1400px] items-center gap-10 px-4 py-16 max-[360px]:px-3 sm:px-6 md:grid-cols-2 md:px-10 md:py-28">
+          <Reveal>
+            <Eyebrow light>ההתרגשות מתחילה כאן</Eyebrow>
             <h2
               id="home-std"
-              className="mt-4 text-[32px] font-black leading-[1.15] text-[#2C241C] md:text-5xl"
+              className="lux-display lux-display-light mt-4 text-[32px] md:text-[48px]"
             >
               יש תאריך. עכשיו אפשר להתחיל להתרגש.
             </h2>
-            <p className="mt-5 text-lg leading-8 text-[#5C4A3A]">
+            <p className="lux-lede-light mt-5 max-w-xl">
               לפני ההזמנות, לפני אישורי ההגעה ולפני כל הסידורים — יש רגע אחד שבו הכול מתחיל
               להיות אמיתי.
             </p>
-            <p className="mt-4 text-lg leading-8 text-[#5C4A3A]">
+            <p className="lux-lede-light mt-4 max-w-xl">
               עם Save the Date אתם משתפים את האנשים החשובים לכם בתאריך הגדול, כדי שיוכלו
               לשמור אותו מראש ולהתחיל להתרגש יחד איתכם.
             </p>
             <div className="mt-8">
-              <GoldCta href="/rsvp/save-the-date">לשריין את הרגע</GoldCta>
+              <TrackedCtaLink
+                href="/rsvp/save-the-date"
+                location="home_std"
+                className={luxBtnPrimaryOnDark}
+              >
+                לשריין את הרגע
+              </TrackedCtaLink>
             </div>
-          </div>
-          <LazyInViewVideo
-            src="/marketing/videos/home-save-the-date.webm"
-            poster="/marketing/videos/home-save-the-date-poster.jpg"
-            ariaLabel="אנימציית Save the Date — מיה ואלון, 24.06.2027"
-          />
+          </Reveal>
+          <Reveal delayMs={90}>
+            <LazyInViewVideo
+              src="/marketing/videos/home-save-the-date.webm"
+              poster="/marketing/videos/home-save-the-date-poster.jpg"
+              ariaLabel="אנימציית Save the Date — מיה ואלון, 24.06.2027"
+            />
+          </Reveal>
         </div>
       </section>
 
-      {/* 5. Message journey timeline */}
+      {/* Message journey */}
       <section
         dir="rtl"
         aria-labelledby="home-journey"
-        className="relative overflow-hidden bg-[#FFFDF8] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
+        className="relative overflow-hidden bg-[#F5EEE8] px-4 py-16 max-[360px]:px-3 sm:px-6 md:px-10 md:py-28"
       >
         <div className="mx-auto max-w-6xl">
-          <Eyebrow>לכל הודעה יש את הזמן שלה</Eyebrow>
-          <h2
-            id="home-journey"
-            className="mt-4 max-w-3xl text-[32px] font-black leading-[1.15] text-[#2C241C] md:text-5xl"
-          >
-            מההודעה הראשונה ועד לרגע שבו כולם אומרים &quot;מגיעים!&quot;
-          </h2>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-[#5C4A3A]">
-            לא צריך לבקש מהאורחים להתחייב חודשים מראש. כששולחים את ההודעה הנכונה בזמן הנכון,
-            נותנים להם ליהנות מההתרגשות, להיערך לאירוע ולהשיב כשהתאריך כבר מתקרב. המועדים
-            כאן הם המלצה לחתונה — לא כלל קשיח לכל אירוע.
-          </p>
+          <Reveal>
+            <Eyebrow>לכל הודעה יש את הזמן שלה</Eyebrow>
+            <h2
+              id="home-journey"
+              className="lux-display mt-4 max-w-3xl text-[32px] md:text-[48px]"
+            >
+              מההודעה הראשונה ועד לרגע שבו כולם אומרים &quot;מגיעים!&quot;
+            </h2>
+            <p className="lux-lede mt-5 max-w-3xl">
+              לא צריך לבקש מהאורחים להתחייב חודשים מראש. כששולחים את ההודעה הנכונה בזמן
+              הנכון, נותנים להם ליהנות מההתרגשות, להיערך לאירוע ולהשיב כשהתאריך כבר מתקרב.
+              המועדים כאן הם המלצה לחתונה — לא כלל קשיח לכל אירוע.
+            </p>
+          </Reveal>
 
           <ol className="relative mt-14 space-y-16 md:space-y-20">
-            {/* Center timeline — desktop only */}
             <div
-              className="pointer-events-none absolute bottom-12 top-12 left-1/2 hidden w-px -translate-x-1/2 bg-gradient-to-b from-[#C9A45C] via-[#E0D4C2] to-[#C9A45C] md:block"
+              className="pointer-events-none absolute bottom-12 top-12 left-1/2 hidden w-px -translate-x-1/2 bg-gradient-to-b from-[#C5A582] via-[#B57591]/50 to-[#C5A582] md:block"
               aria-hidden
             />
 
             {JOURNEY.map((step, index) => {
               const textFirst = index % 2 === 0;
               return (
-                <motion.li
+                <li
                   key={step.title}
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
                   className="relative grid items-start gap-5 md:grid-cols-[1fr_56px_1fr] md:items-center md:gap-5"
                 >
-                  {/* Mobile: number above the step, not over message text */}
                   <div className="flex items-center gap-3 md:hidden">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-[#C9A45C] bg-[#FFFDF8] text-sm font-black text-[#8B642B]">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#C5A582] bg-[#FFFBFA] text-sm font-black text-[#842B4C]">
                       {index + 1}
                     </span>
-                    <span className="h-px flex-1 bg-gradient-to-l from-transparent to-[#C9A45C]/70" aria-hidden />
+                    <span className="h-px flex-1 bg-gradient-to-l from-transparent to-[#C5A582]/70" aria-hidden />
                   </div>
 
-                  <div
+                  <Reveal
                     className={
                       textFirst ? "md:col-start-1 md:row-start-1" : "md:col-start-3 md:row-start-1"
                     }
                   >
-                    <div className="rounded-[28px] border border-[#E7D3B0] bg-[#F7F1E8] p-5 shadow-[0_20px_44px_rgba(44,36,28,0.07)] md:p-8">
-                      <span className="inline-flex rounded-full border border-[#C9A45C]/40 bg-white/70 px-4 py-1.5 text-xs font-black tracking-[0.12em] text-[#8B642B]">
+                    <div className="border border-[#C5A582]/35 bg-[#FFFBFA]/90 p-5 md:p-8">
+                      <span className="inline-flex border border-[#C5A582]/45 bg-[#F5EEE8] px-4 py-1.5 text-xs font-black tracking-[0.12em] text-[#842B4C]">
                         שלב {index + 1} · {step.when}
                       </span>
-                      <h3 className="mt-4 text-xl font-black text-[#2C241C] md:text-2xl">
+                      <h3 className="mt-4 text-xl font-black text-[#42182F] md:text-2xl">
                         {step.title}
                       </h3>
-                      <p className="mt-3 text-[15px] leading-7 text-[#5C4A3A]">{step.body}</p>
+                      <p className="mt-3 text-[15px] leading-7 text-[#6B5360]">{step.body}</p>
                     </div>
-                  </div>
+                  </Reveal>
 
-                  {/* Desktop number on center axis only */}
                   <div className="relative z-10 hidden md:col-start-2 md:row-start-1 md:flex md:justify-center">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-[#C9A45C] bg-[#FFFDF8] text-sm font-black text-[#8B642B] shadow-[0_0_0_6px_#FFFDF8]">
+                    <span className="flex h-10 w-10 items-center justify-center border-2 border-[#C5A582] bg-[#F5EEE8] text-sm font-black text-[#842B4C] shadow-[0_0_0_6px_#F5EEE8]">
                       {index + 1}
                     </span>
                   </div>
 
-                  <div
+                  <Reveal
+                    delayMs={70}
                     className={
                       textFirst ? "md:col-start-3 md:row-start-1" : "md:col-start-1 md:row-start-1"
                     }
@@ -629,264 +663,376 @@ export default function HomeMarketingSections() {
                       cta={step.cta}
                       time={step.time}
                     />
-                  </div>
-                </motion.li>
+                  </Reveal>
+                </li>
               );
             })}
           </ol>
         </div>
       </section>
 
-      {/* 6. RSVP channels */}
-      <section
-        dir="rtl"
-        aria-labelledby="home-rsvp"
-        className="relative bg-[#F7F1E8] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
-      >
-        <div className="mx-auto max-w-6xl">
-          <Eyebrow>פחות טלפונים, יותר תשובות</Eyebrow>
-          <h2
-            id="home-rsvp"
-            className="mt-4 max-w-3xl text-[32px] font-black leading-[1.15] text-[#2C241C] md:text-5xl"
-          >
-            במקום לרדוף אחרי תשובות, פשוט יודעים מי מגיע.
-          </h2>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-[#5C4A3A]">
-            מי מגיע? מי לא יוכל להגיע? ומי עדיין לא השיב? עם Invistimo אתם רואים את התמונה
-            מתבהרת, אורח אחרי אורח — והתשובות מתרכזות במערכת.
-          </p>
-
-          <div className="mt-12 grid gap-5 md:grid-cols-3">
-            <Link
-              href="/rsvp/whatsapp"
-              className="rounded-[28px] border border-[#E7D3B0] bg-[#FFFDF8] p-6 shadow-[0_18px_40px_rgba(44,36,28,0.06)] transition hover:-translate-y-1 hover:border-[#C9A45C]"
-            >
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FFF9EF] ring-1 ring-[#E7D3B0]">
-                <WhatsAppBrandIcon size={28} />
-              </span>
-              <h3 className="mt-5 text-xl font-black text-[#2C241C]">WhatsApp</h3>
-              <p className="mt-2 text-[15px] leading-7 text-[#5C4A3A]">
-                הודעה אישית עם קישור לאישור הגעה, בדרך שנוחה ומוכרת לאורחים.
+      {/* RSVP channels — photo + rows */}
+      <section dir="rtl" aria-labelledby="home-rsvp" className="bg-[#FFFBFA]">
+        <div className="mx-auto grid max-w-[1400px] lg:grid-cols-[1.05fr_0.95fr]">
+          <Reveal className="relative min-h-[380px] lg:min-h-full">
+            <LuxPicture
+              src={LUX_IMGS.bouquet}
+              alt="זר פרחים עדין — אווירת חתונה יוקרתית"
+              className="absolute inset-0 h-full w-full object-cover"
+            />
+            <div
+              className="absolute inset-0 bg-gradient-to-t from-[#42182F]/70 via-transparent to-transparent"
+              aria-hidden
+            />
+          </Reveal>
+          <div className="flex flex-col justify-center px-4 py-16 max-[360px]:px-3 sm:px-6 md:px-10 md:py-24">
+            <Reveal>
+              <Eyebrow>פחות טלפונים, יותר תשובות</Eyebrow>
+              <h2
+                id="home-rsvp"
+                className="lux-display mt-4 text-[32px] md:text-[44px]"
+              >
+                במקום לרדוף אחרי תשובות, פשוט יודעים מי מגיע.
+              </h2>
+              <p className="lux-lede mt-5">
+                מי מגיע? מי לא יוכל להגיע? ומי עדיין לא השיב? עם Invistimo אתם רואים את
+                התמונה מתבהרת, אורח אחרי אורח — והתשובות מתרכזות במערכת.
               </p>
-            </Link>
-            <Link
-              href="/rsvp/whatsapp"
-              className="rounded-[28px] border border-[#E7D3B0] bg-[#FFFDF8] p-6 shadow-[0_18px_40px_rgba(44,36,28,0.06)] transition hover:-translate-y-1 hover:border-[#C9A45C]"
-            >
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FFF9EF] ring-1 ring-[#E7D3B0]">
-                <SmsIcon />
-              </span>
-              <h3 className="mt-5 text-xl font-black text-[#2C241C]">SMS</h3>
-              <p className="mt-2 text-[15px] leading-7 text-[#5C4A3A]">
-                תזכורות והודעות חשובות שמגיעות ישירות לטלפון.
-              </p>
-            </Link>
-            <Link
-              href="/rsvp/calls"
-              className="rounded-[28px] border border-[#E7D3B0] bg-[#FFFDF8] p-6 shadow-[0_18px_40px_rgba(44,36,28,0.06)] transition hover:-translate-y-1 hover:border-[#C9A45C]"
-            >
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#FFF9EF] ring-1 ring-[#E7D3B0]">
-                <PhoneIconMark />
-              </span>
-              <h3 className="mt-5 text-xl font-black text-[#2C241C]">שיחות</h3>
-              <p className="mt-2 text-[15px] leading-7 text-[#5C4A3A]">
-                שיחות מוקלטות, אנושיות או משולבות, בהתאם לחבילה שנבחרה, כדי להגיע גם לאורחים שעדיין לא השיבו.
-              </p>
-            </Link>
-          </div>
-          <div className="mt-10">
-            <GoldCta href="/rsvp">איך עובדים אישורי ההגעה</GoldCta>
+              <ul className="mt-10 space-y-0 divide-y divide-[#C5A582]/30 border-y border-[#C5A582]/30">
+                <li>
+                  <Link href="/rsvp/whatsapp" className="flex items-start gap-4 py-5 transition hover:bg-[#F5EEE8]/80">
+                    <WhatsAppBrandIcon size={28} />
+                    <div>
+                      <h3 className="text-lg font-black text-[#42182F]">WhatsApp</h3>
+                      <p className="mt-1 text-[15px] leading-7 text-[#6B5360]">
+                        הודעה אישית עם קישור לאישור הגעה, בדרך שנוחה ומוכרת לאורחים.
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/rsvp/whatsapp" className="flex items-start gap-4 py-5 transition hover:bg-[#F5EEE8]/80">
+                    <span className="flex h-7 w-10 items-center justify-center bg-[#42182F] text-[10px] font-black tracking-wide text-[#F5EEE8]">
+                      SMS
+                    </span>
+                    <div>
+                      <h3 className="text-lg font-black text-[#42182F]">SMS</h3>
+                      <p className="mt-1 text-[15px] leading-7 text-[#6B5360]">
+                        תזכורות והודעות חשובות שמגיעות ישירות לטלפון.
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/rsvp/calls" className="flex items-start gap-4 py-5 transition hover:bg-[#F5EEE8]/80">
+                    <span className="flex h-7 w-7 items-center justify-center border border-[#C5A582] text-xs font-black text-[#842B4C]">
+                      ☎
+                    </span>
+                    <div>
+                      <h3 className="text-lg font-black text-[#42182F]">שיחות</h3>
+                      <p className="mt-1 text-[15px] leading-7 text-[#6B5360]">
+                        שיחות מוקלטות, אנושיות או משולבות, בהתאם לחבילה שנבחרה, כדי להגיע גם
+                        לאורחים שעדיין לא השיבו.
+                      </p>
+                    </div>
+                  </Link>
+                </li>
+              </ul>
+              <div className="mt-8">
+                <TrackedCtaLink href="/rsvp" location="home_rsvp" className={luxBtnPlum}>
+                  איך עובדים אישורי ההגעה
+                </TrackedCtaLink>
+              </div>
+            </Reveal>
           </div>
         </div>
       </section>
 
-      {/* 7. Seating */}
+      {/* Seating */}
       <section
         dir="rtl"
         aria-labelledby="home-seating"
-        className="relative overflow-hidden bg-[#1C1612] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
+        className="relative overflow-hidden bg-[#42182F] px-4 py-16 max-[360px]:px-3 sm:px-6 md:px-10 md:py-28"
       >
-        <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
-          <div>
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_80%_20%,rgba(197,165,130,0.18),transparent_40%)]"
+          aria-hidden
+        />
+        <div className="relative mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2">
+          <Reveal>
             <Eyebrow light>לכל אורח יש מקום</Eyebrow>
             <h2
               id="home-seating"
-              className="mt-4 text-[32px] font-black leading-[1.15] text-[#F7F1E8] md:text-5xl"
+              className="lux-display lux-display-light mt-4 text-[32px] md:text-[48px]"
             >
               הושבה חכמה מתחילה ברשימת מוזמנים מסודרת
             </h2>
-            <p className="mt-5 text-lg leading-8 text-[#C9BDAE]">
+            <p className="lux-lede-light mt-5">
               אחרי שמתחילות להגיע התשובות, אפשר להפוך את רשימת המוזמנים למפת הושבה ברורה —
               ליצור שולחנות, לשבץ אורחים ולבדוק תפוסה בלי ללכת לאיבוד בין קבצים.{" "}
-              <Link href="/info/guides/wedding-seating-arrangements" className="font-bold text-[#E8D1A5] underline-offset-4 hover:underline">מדריך לסידורי הושבה לחתונה</Link>{" "}
-              מסביר את הסדר לפני שנכנסים למערכת, ו<Link href="/info/guides/seating-plan" className="font-bold text-[#E8D1A5] underline-offset-4 hover:underline">מדריך הכנת ההושבה</Link>{" "}
+              <Link
+                href="/info/guides/wedding-seating-arrangements"
+                className="font-bold text-[#C5A582] underline-offset-4 hover:underline"
+              >
+                מדריך לסידורי הושבה לחתונה
+              </Link>{" "}
+              מסביר את הסדר לפני שנכנסים למערכת, ו
+              <Link
+                href="/info/guides/seating-plan"
+                className="font-bold text-[#C5A582] underline-offset-4 hover:underline"
+              >
+                מדריך הכנת ההושבה
+              </Link>{" "}
               מראה איך בונים את המפה בפועל.
             </p>
             <div className="mt-8">
-              <GoldCta href="/seating-explained" dark>
+              <TrackedCtaLink
+                href="/seating-explained"
+                location="home_seating"
+                className={luxBtnPrimaryOnDark}
+              >
                 סידורי הושבה לחתונה
-              </GoldCta>
+              </TrackedCtaLink>
             </div>
-          </div>
-          <div className="overflow-hidden rounded-[28px] border border-[#C9A45C]/25 bg-[#111] shadow-[0_30px_70px_rgba(0,0,0,0.35)]">
-            <img
-              src="/marketing/product/webp/desktop-try-seating.webp"
-              alt="מפת סידורי הושבה במערכת Invistimo עם שולחנות ושיבוצי אורחים"
-              className="aspect-[16/10] w-full object-cover object-top"
-              loading="lazy"
-              decoding="async"
-            />
-          </div>
+          </Reveal>
+          <Reveal delayMs={80}>
+            <div className="overflow-hidden border border-[#C5A582]/30 bg-[#2A0F1D] shadow-[0_30px_70px_rgba(0,0,0,0.35)]">
+              <img
+                src="/marketing/product/webp/desktop-try-seating.webp"
+                alt="מפת סידורי הושבה במערכת Invistimo עם שולחנות ושיבוצי אורחים"
+                className="aspect-[16/10] w-full object-cover object-top"
+                loading="lazy"
+                decoding="async"
+              />
+            </div>
+          </Reveal>
         </div>
       </section>
 
-      {/* 8. Event types */}
+      {/* Wedding website gallery */}
       <section
         dir="rtl"
-        aria-labelledby="home-events"
-        className="relative bg-[#F4F0E8] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
+        aria-labelledby="home-websites"
+        className="bg-[#F5EEE8] px-4 py-16 max-[360px]:px-3 sm:px-6 md:px-10 md:py-28"
       >
-        <div className="mx-auto max-w-6xl">
-          <Eyebrow>כל סיבה לחגוג</Eyebrow>
-          <h2
-            id="home-events"
-            className="mt-4 max-w-3xl text-[32px] font-black leading-[1.15] text-[#2C241C] md:text-5xl"
-          >
-            לכל חגיגה יש סיפור. אנחנו כאן כדי לעזור לכם לנהל אותו.
-          </h2>
-          <p className="mt-5 max-w-3xl text-lg leading-8 text-[#5C4A3A]">
-            חתונה, חינה, בר ובת מצווה או ברית ובריתה — לכל אירוע יש את האנשים שלו. עם Invistimo
-            אפשר לבחור את הכלים שמתאימים לאופי האירוע.
-          </p>
+        <div className="mx-auto max-w-[1400px]">
+          <Reveal>
+            <Eyebrow>אתר חתונה אישי</Eyebrow>
+            <h2
+              id="home-websites"
+              className="lux-display mt-4 max-w-3xl text-[32px] md:text-[48px]"
+            >
+              גלריית עיצובים שמרגישה כמו מגזין
+            </h2>
+            <p className="lux-lede mt-5 max-w-3xl">
+              בחרו שפה עיצובית לאתר החתונה שלכם — עם לוח זמנים, גלריה ופרטים חשובים במקום
+              אחד לאורחים.
+            </p>
+          </Reveal>
 
-          <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {EVENTS.map((event, i) => (
-              <motion.div
-                key={event.href}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.04 }}
-              >
-                <Link
-                  href={event.href}
-                  className="group block overflow-hidden rounded-[24px] border border-[#E7D3B0] bg-[#FFFDF8] shadow-[0_16px_36px_rgba(44,36,28,0.08)] transition hover:-translate-y-1 hover:border-[#C9A45C]"
-                >
-                  <div className="aspect-[4/3] overflow-hidden">
+          <div className="mt-12 flex gap-5 overflow-x-auto pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {WEBSITE_GALLERY.map((item, i) => (
+              <Reveal key={item.src} delayMs={i * 60} className="w-[78vw] shrink-0 sm:w-[420px] md:w-[520px]">
+                <Link href="/wedding-website" className="group block">
+                  <div className="lux-frame aspect-[16/10] border border-[#C5A582]/30">
                     <img
-                      src={event.image}
-                      alt={`הזמנה לדוגמה לאירוע ${event.title}`}
-                      className="h-full w-full object-cover transition duration-500 group-hover:scale-[1.04]"
+                      src={item.src}
+                      alt={`תבנית אתר חתונה ${item.label}`}
+                      className="h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]"
                       loading="lazy"
                       decoding="async"
                     />
                   </div>
-                  <div className="p-5">
-                    <h3 className="text-lg font-black text-[#2C241C]">{event.title}</h3>
-                    <p className="mt-2 text-[14px] leading-7 text-[#5C4A3A]">{event.body}</p>
+                  <p className="mt-3 text-sm font-bold tracking-[0.14em] text-[#842B4C]">
+                    {item.label}
+                  </p>
+                </Link>
+              </Reveal>
+            ))}
+          </div>
+
+          <div className="mt-8">
+            <TrackedCtaLink href="/wedding-website" location="home_websites" className={luxBtnPlum}>
+              לאתרי החתונה
+            </TrackedCtaLink>
+          </div>
+        </div>
+      </section>
+
+      {/* Event types — asymmetric magazine grid */}
+      <section
+        dir="rtl"
+        aria-labelledby="home-events"
+        className="bg-[#FFFBFA] px-4 py-16 max-[360px]:px-3 sm:px-6 md:px-10 md:py-28"
+      >
+        <div className="mx-auto max-w-6xl">
+          <Reveal>
+            <Eyebrow>כל סיבה לחגוג</Eyebrow>
+            <h2
+              id="home-events"
+              className="lux-display mt-4 max-w-3xl text-[32px] md:text-[48px]"
+            >
+              לכל חגיגה יש סיפור. אנחנו כאן כדי לעזור לכם לנהל אותו.
+            </h2>
+            <p className="lux-lede mt-5 max-w-3xl">
+              חתונה, חינה, בר ובת מצווה או ברית ובריתה — לכל אירוע יש את האנשים שלו. עם
+              Invistimo אפשר לבחור את הכלים שמתאימים לאופי האירוע.
+            </p>
+          </Reveal>
+
+          <div className="mt-12 grid gap-5 md:grid-cols-2 md:grid-rows-2">
+            {EVENTS.map((event, i) => (
+              <Reveal
+                key={event.href}
+                delayMs={i * 50}
+                className={cn(i === 0 && "md:row-span-2")}
+              >
+                <Link
+                  href={event.href}
+                  className="group relative block h-full min-h-[260px] overflow-hidden border border-[#C5A582]/30 md:min-h-[320px]"
+                >
+                  <img
+                    src={event.image}
+                    alt={`הזמנה לדוגמה לאירוע ${event.title}`}
+                    className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]"
+                    loading="lazy"
+                    decoding="async"
+                  />
+                  <div
+                    className="absolute inset-0 bg-gradient-to-t from-[#2A0F1D]/85 via-[#2A0F1D]/25 to-transparent"
+                    aria-hidden
+                  />
+                  <div className="absolute inset-x-0 bottom-0 p-6 text-[#F5EEE8]">
+                    <h3 className="text-2xl font-black">{event.title}</h3>
+                    <p className="mt-2 max-w-sm text-[15px] leading-7 text-[#E8D9CF]">
+                      {event.body}
+                    </p>
                   </div>
                 </Link>
-              </motion.div>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* 9. Pricing CTA */}
+      {/* Pricing */}
       <section
         dir="rtl"
         aria-labelledby="home-pricing"
-        className="relative overflow-hidden bg-[#241C16] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
+        className="relative overflow-hidden bg-[#F5EEE8] px-4 py-16 max-[360px]:px-3 sm:px-6 md:px-10 md:py-28"
       >
-        <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_70%_20%,rgba(201,164,92,0.2),transparent_40%)]"
-          aria-hidden
-        />
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-[radial-gradient(circle_at_left,rgba(181,117,145,0.18),transparent_70%)]" aria-hidden />
         <div className="relative mx-auto max-w-3xl text-center">
-          <Eyebrow light>בדיוק מה שמתאים לכם</Eyebrow>
-          <h2
-            id="home-pricing"
-            className="mt-4 text-[32px] font-black leading-[1.15] text-[#F7F1E8] md:text-5xl"
-          >
-            האירוע שלכם מיוחד. גם החבילה שלכם יכולה להיות.
-          </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[#C9BDAE]">
-            יש מי שצריכים רק הזמנה דיגיטלית, ויש מי שרוצים לנהל גם את אישורי ההגעה, השיחות,
-            סידורי ההושבה ויום האירוע. ב־Invistimo תוכלו לבחור את השירותים שמתאימים לכם.
-          </p>
-          <div className="mt-10 flex justify-center">
-            <GoldCta href="/pricing" dark location="home_pricing_section">
-              לצפייה בחבילות
-            </GoldCta>
-          </div>
+          <Reveal>
+            <div className="lux-hairline mx-auto mb-8 w-24" />
+            <Eyebrow>בדיוק מה שמתאים לכם</Eyebrow>
+            <h2
+              id="home-pricing"
+              className="lux-display mt-4 text-[32px] md:text-[48px]"
+            >
+              האירוע שלכם מיוחד. גם החבילה שלכם יכולה להיות.
+            </h2>
+            <p className="lux-lede mx-auto mt-5 max-w-2xl">
+              יש מי שצריכים רק הזמנה דיגיטלית, ויש מי שרוצים לנהל גם את אישורי ההגעה,
+              השיחות, סידורי ההושבה ויום האירוע. ב־Invistimo תוכלו לבחור את השירותים
+              שמתאימים לכם.
+            </p>
+            <div className="mt-10 flex justify-center">
+              <TrackedCtaLink
+                href="/pricing"
+                location="home_pricing_section"
+                className={luxBtnPlum}
+              >
+                לצפייה בחבילות
+              </TrackedCtaLink>
+            </div>
+          </Reveal>
         </div>
       </section>
 
-      {/* 10. FAQ */}
+      {/* FAQ */}
       <section
         dir="rtl"
         aria-labelledby="home-faq"
-        className="relative bg-[#FFFDF8] px-4 py-16 max-[360px]:px-3 sm:px-5 md:px-10 md:py-28"
+        className="bg-[#FFFBFA] px-4 py-16 max-[360px]:px-3 sm:px-6 md:px-10 md:py-28"
       >
         <div className="mx-auto max-w-3xl">
-          <Eyebrow>טוב לדעת לפני שמתחילים</Eyebrow>
-          <h2
-            id="home-faq"
-            className="mt-4 text-[32px] font-black leading-[1.15] text-[#2C241C] md:text-4xl"
-          >
-            כל מה שרציתם לדעת לפני שמתחילים לתכנן
-          </h2>
-          <div className="mt-10 space-y-3">
+          <Reveal>
+            <Eyebrow>טוב לדעת לפני שמתחילים</Eyebrow>
+            <h2
+              id="home-faq"
+              className="lux-display mt-4 text-[32px] md:text-[40px]"
+            >
+              כל מה שרציתם לדעת לפני שמתחילים לתכנן
+            </h2>
+          </Reveal>
+          <div className="mt-10 space-y-0 divide-y divide-[#C5A582]/30 border-y border-[#C5A582]/30">
             {HOME_FAQS.map((item) => (
-              <details
-                key={item.q}
-                className="group rounded-[22px] border border-[#E7D3B0] bg-[#F7F1E8]/80 px-5 py-4 open:bg-white"
-              >
-                <summary className="cursor-pointer list-none text-lg font-black text-[#2C241C] marker:content-none [&::-webkit-details-marker]:hidden">
+              <details key={item.q} className="group py-4 open:bg-transparent">
+                <summary className="cursor-pointer list-none text-lg font-black text-[#42182F] marker:content-none [&::-webkit-details-marker]:hidden">
                   <span className="flex items-center justify-between gap-4">
                     {item.q}
-                    <span className="text-[#C9A45C] transition group-open:rotate-45">+</span>
+                    <span className="text-[#C5A582] transition group-open:rotate-45">+</span>
                   </span>
                 </summary>
-                <p className="mt-3 text-[15px] leading-8 text-[#5C4A3A]">{item.a}</p>
+                <p className="mt-3 text-[15px] leading-8 text-[#6B5360]">{item.a}</p>
               </details>
             ))}
           </div>
           <div className="mt-8">
-            <SoftCta href="/faq">לכל השאלות והתשובות</SoftCta>
+            <TrackedCtaLink href="/faq" location="home_faq" className={luxBtnSecondary}>
+              לכל השאלות והתשובות
+            </TrackedCtaLink>
           </div>
         </div>
       </section>
 
-      {/* 11. Final CTA */}
+      {/* Final CTA */}
       <section
         dir="rtl"
         aria-labelledby="home-final"
-        className="relative overflow-hidden bg-[#1C1612] px-4 py-20 max-[360px]:px-3 sm:px-5 md:px-10 md:py-32"
+        className="relative overflow-hidden"
       >
-        <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(201,164,92,0.22),transparent_45%),radial-gradient(circle_at_20%_100%,rgba(255,255,255,0.05),transparent_35%)]"
-          aria-hidden
-        />
-        <div className="relative mx-auto max-w-3xl text-center">
-          <h2
-            id="home-final"
-            className="text-[34px] font-black leading-[1.15] text-[#F7F1E8] md:text-5xl"
-          >
-            אתם תתרגשו מהרגעים. אנחנו נעזור לכם לדאוג לכל השאר.
-          </h2>
-          <p className="mx-auto mt-5 max-w-2xl text-lg leading-8 text-[#C9BDAE]">
-            ההזמנות, המוזמנים, אישורי ההגעה וההושבה — כל מה שצריך כדי להגיע לאירוע שלכם
-            מסודרים, מוכנים ועם הרבה יותר מקום להתרגשות.
-          </p>
-          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-            <GoldCta href="/pricing" dark location="home_final_primary">
-              בואו נתחיל
-            </GoldCta>
-            <SoftCta href="/try" light location="home_final_demo">
-              נסו דמו
-            </SoftCta>
-          </div>
+        <div className="absolute inset-0">
+          <LuxPicture
+            src={LUX_IMGS.ceremony}
+            alt=""
+            className="h-full w-full object-cover"
+          />
+          <div
+            className="absolute inset-0 bg-[linear-gradient(180deg,rgba(42,15,29,0.72)_0%,rgba(42,15,29,0.88)_100%)]"
+            aria-hidden
+          />
+        </div>
+        <div className="relative mx-auto max-w-3xl px-4 py-20 text-center max-[360px]:px-3 sm:px-6 md:px-10 md:py-32">
+          <Reveal>
+            <h2
+              id="home-final"
+              className="lux-display lux-display-light text-[34px] md:text-[52px]"
+            >
+              אתם תתרגשו מהרגעים. אנחנו נעזור לכם לדאוג לכל השאר.
+            </h2>
+            <p className="lux-lede-light mx-auto mt-5 max-w-2xl">
+              ההזמנות, המוזמנים, אישורי ההגעה וההושבה — כל מה שצריך כדי להגיע לאירוע שלכם
+              מסודרים, מוכנים ועם הרבה יותר מקום להתרגשות.
+            </p>
+            <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+              <TrackedCtaLink
+                href="/pricing"
+                location="home_final_primary"
+                className={luxBtnPrimaryOnDark}
+              >
+                בואו נתחיל
+              </TrackedCtaLink>
+              <TrackedCtaLink
+                href="/try"
+                location="home_final_demo"
+                className={luxBtnGhostLight}
+              >
+                נסו דמו
+              </TrackedCtaLink>
+            </div>
+          </Reveal>
         </div>
       </section>
     </>
