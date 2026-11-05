@@ -341,7 +341,10 @@ test("marketing pages no longer point the RSVP call to action at a missing short
   assert.match(read("app/components/LocationAutocomplete.tsx"), /selectedPlaceRef/);
   assert.match(read("app/components/LocationAutocomplete.tsx"), /place_id/);
   assert.match(read("app/components/LocationAutocomplete.tsx"), /GoogleMapsPlacesScript/);
-  assert.match(read("app/HomePageClient.tsx"), /home-cinematic-hero/);
+  assert.match(
+    read("app/HomePageClient.tsx") + read("lib/marketing/homeHeroAssets.ts"),
+    /home-cinematic-hero/
+  );
   assert.match(read("app/HomePageClient.tsx"), /home_hero_primary/);
   assert.match(read("app/HomePageClient.tsx"), /prefers-reduced-motion|useReducedMotion/);
   assert.ok(fs.existsSync(path.join(root, "public/llms.txt")));
