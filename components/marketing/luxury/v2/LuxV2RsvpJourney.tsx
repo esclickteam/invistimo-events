@@ -84,13 +84,13 @@ export default function LuxV2RsvpJourney() {
       ref={ref as Ref<HTMLElement>}
       dir="rtl"
       aria-labelledby="lux-v2-rsvp"
-      className="relative lg:h-[150vh]"
+      className="relative lg:pb-[10vh]"
       style={{
         background:
           "linear-gradient(165deg, #F5EEE8 0%, #E8CFD8 28%, #B57591 62%, #842B4C 100%)",
       }}
     >
-      <div className="flex items-center overflow-x-clip lg:sticky lg:top-0 lg:min-h-[100svh]">
+      <div className="flex items-start overflow-x-clip lg:sticky lg:top-0">
         <div
           className="pointer-events-none absolute inset-0 opacity-40"
           aria-hidden

@@ -31,7 +31,7 @@ export default function RevealOnScroll({ children, className = "" }: RevealOnScr
         setVisible(true);
         observer.disconnect();
       },
-      { threshold: 0.12, rootMargin: "0px 0px -8% 0px" }
+      { threshold: 0, rootMargin: "0px 0px 24% 0px" }
     );
     observer.observe(node);
     return () => observer.disconnect();

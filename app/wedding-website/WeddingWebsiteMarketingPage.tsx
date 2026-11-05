@@ -64,8 +64,8 @@ function FadeIn({
       className={className}
       initial={{ opacity: 0, y: 22 }}
       whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "-80px" }}
-      transition={{ duration: 0.65, delay, ease: [0.22, 1, 0.36, 1] }}
+      viewport={{ once: true, margin: "0px 0px 18% 0px" }}
+      transition={{ duration: 0.42, delay, ease: [0.22, 1, 0.36, 1] }}
     >
       {children}
     </motion.div>
@@ -664,56 +664,6 @@ export default function WeddingWebsiteMarketingPage() {
               </FadeIn>
             ))}
           </ul>
-        </div>
-      </section>
-
-      {/* GEO answers strip — natural Q&A visible in content */}
-      <section
-        id="geo"
-        aria-labelledby="geo-heading"
-        className="bg-[#F3EBE0] px-5 py-16 md:px-8 md:py-20"
-      >
-        <div className="mx-auto max-w-3xl">
-          <FadeIn>
-            <Eyebrow>שאלות נפוצות בקצרה</Eyebrow>
-            <h2
-              id="geo-heading"
-              className="mt-3 font-['Cormorant_Garamond'] text-3xl font-semibold text-[#2A2118] md:text-4xl"
-            >
-              תשובות ברורות לשאלות שזוגות שואלים
-            </h2>
-          </FadeIn>
-          <div className="mt-10 space-y-8">
-            {[
-              {
-                q: "מה זה אתר חתונה?",
-                a: "עמוד אישי ומעוצב שמרכז פרטי אירוע, סיפור זוגי, תמונות ומידע שימושי לאורחים — מעבר להזמנה בלבד.",
-              },
-              {
-                q: "למה צריך אתר חתונה?",
-                a: "כדי לתת לאורחים מקום אחד מסודר לפרטים, להפחית שאלות חוזרות, ולשתף את הסיפור שלכם בצורה יפה.",
-              },
-              {
-                q: "האם אתר חתונה מתאים גם לאירוע קטן?",
-                a: "כן. גם באירוע אינטימי אפשר לשתף תאריך, מיקום, תמונות ומידע חשוב בקישור אחד.",
-              },
-              {
-                q: "מה כדאי לכלול באתר חתונה?",
-                a: "שמות, תאריך ושעה, מיקום וניווט, סיפור או טקסט אישי, גלריה, לוח זמנים ומידע לאורחים — לפי מה שהתבנית תומכת.",
-              },
-              {
-                q: "איך משתפים אתר חתונה?",
-                a: "שולחים את קישור האתר בערוץ המועדף. זה קישור משותף, נפרד מקישור RSVP אישי.",
-              },
-            ].map((item) => (
-              <FadeIn key={item.q}>
-                <div>
-                  <h3 className="text-lg font-black text-[#2A2118]">{item.q}</h3>
-                  <p className="mt-2 text-[15px] leading-7 text-[#5C4A3A]">{item.a}</p>
-                </div>
-              </FadeIn>
-            ))}
-          </div>
         </div>
       </section>
 
