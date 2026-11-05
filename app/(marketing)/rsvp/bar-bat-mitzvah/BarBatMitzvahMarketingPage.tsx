@@ -32,7 +32,7 @@ const display = localFont({
 });
 
 const fade = {
-  hidden: { opacity: 0, y: 22 },
+  hidden: { opacity: 1, y: 22 },
   show: { opacity: 1, y: 0 },
 };
 
@@ -230,7 +230,7 @@ export default function BarBatMitzvahMarketingPage() {
           </motion.div>
 
           <motion.div
-            initial={reduce ? false : { opacity: 0, y: 28 }}
+            initial={reduce ? false : { opacity: 1, y: 28 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.65, delay: 0.08 }}
             className="grid gap-4 sm:grid-cols-2"
@@ -493,7 +493,7 @@ export default function BarBatMitzvahMarketingPage() {
         </p>
         <div className="mt-10 grid gap-6 md:grid-cols-2">
           <motion.figure
-            initial={reduce ? false : { opacity: 0, y: 20 }}
+            initial={reduce ? false : { opacity: 1, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.5 }}
@@ -513,7 +513,7 @@ export default function BarBatMitzvahMarketingPage() {
             </figcaption>
           </motion.figure>
           <motion.figure
-            initial={reduce ? false : { opacity: 0, y: 20 }}
+            initial={reduce ? false : { opacity: 1, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true, amount: 0.3 }}
             transition={{ duration: 0.5, delay: 0.08 }}
@@ -547,7 +547,7 @@ export default function BarBatMitzvahMarketingPage() {
           {HOW_STEPS.map((s, i) => (
             <motion.li
               key={s.n}
-              initial={reduce ? false : { opacity: 0, y: 16 }}
+              initial={reduce ? false : { opacity: 1, y: 16 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.05, duration: 0.4 }}

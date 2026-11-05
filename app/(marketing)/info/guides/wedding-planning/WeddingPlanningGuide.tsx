@@ -231,7 +231,7 @@ export default function WeddingPlanningGuide() {
         <div className="relative mt-4 w-full">
           {!reduce ? (
             <motion.div
-              initial={{ opacity: 0, y: 16 }}
+              initial={{ opacity: 1, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55 }}
               className="overflow-hidden border-y border-[#E6D2AA]"

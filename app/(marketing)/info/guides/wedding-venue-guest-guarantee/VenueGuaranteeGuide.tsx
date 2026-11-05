@@ -148,7 +148,7 @@ export default function VenueGuaranteeGuide() {
                 <li key={item.label}>
                   {!reduce ? (
                     <motion.div
-                      initial={{ opacity: 0, y: 12 }}
+                      initial={{ opacity: 1, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.15 + i * 0.08 }}
                       className="rounded-[20px] border border-[#E6D2AA] bg-white/90 px-3 py-3 text-center shadow-[0_10px_24px_rgba(58,39,20,0.06)] backdrop-blur"

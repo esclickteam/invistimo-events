@@ -284,7 +284,7 @@ export default function SeatingPlanGuide() {
         <div className="relative">
           {!reduce ? (
             <motion.div
-              initial={{ opacity: 0, y: 12 }}
+              initial={{ opacity: 1, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
               className="overflow-hidden border-y border-[#E6D2AA]"

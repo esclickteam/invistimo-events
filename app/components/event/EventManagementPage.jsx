@@ -210,7 +210,7 @@ export default function EventManagementPage() {
         />
         <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 pb-16 pt-24 md:px-8 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:pb-24 lg:pt-28">
           <motion.div
-            initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+            initial={reduceMotion ? false : { opacity: 1, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
@@ -258,7 +258,7 @@ export default function EventManagementPage() {
           </motion.div>
 
           <motion.div
-            initial={reduceMotion ? false : { opacity: 0, y: 20 }}
+            initial={reduceMotion ? false : { opacity: 1, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.55, delay: reduceMotion ? 0 : 0.08 }}
             className="relative"

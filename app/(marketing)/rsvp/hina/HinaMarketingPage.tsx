@@ -33,7 +33,7 @@ const display = localFont({
 });
 
 const fade = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 1, y: 20 },
   show: { opacity: 1, y: 0 },
 };
 
@@ -369,7 +369,7 @@ export default function HinaMarketingPage() {
           </motion.div>
 
           <motion.div
-            initial={reduce ? false : { opacity: 0, y: 24 }}
+            initial={reduce ? false : { opacity: 1, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15, duration: 0.75 }}
             className="relative mx-auto grid w-full max-w-md grid-cols-[0.9fr_1fr] items-end gap-3"
@@ -423,7 +423,7 @@ export default function HinaMarketingPage() {
           {RSVP_BENEFITS.map((item, i) => (
             <motion.li
               key={item}
-              initial={reduce ? false : { opacity: 0, y: 12 }}
+              initial={reduce ? false : { opacity: 1, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.04 }}
@@ -860,7 +860,7 @@ export default function HinaMarketingPage() {
           {WORKFLOW_STEPS.map((step, i) => (
             <motion.li
               key={step.n}
-              initial={reduce ? false : { opacity: 0, x: 16 }}
+              initial={reduce ? false : { opacity: 1, x: 16 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.05 }}

@@ -59,8 +59,8 @@ function useWideScreen() {
 }
 
 /**
- * WhatsApp journey you can actually step through: open the invitation,
- * then confirm attendance. Scroll still advances the story on desktop.
+ * WhatsApp journey you can step through: open the invitation, then confirm.
+ * Scroll can advance the story, but the block is never pinned over empty space.
  */
 export default function LuxV2RsvpJourney() {
   const { ref, progress, reduceMotion } = useScrollProgress();
@@ -84,13 +84,13 @@ export default function LuxV2RsvpJourney() {
       ref={ref as Ref<HTMLElement>}
       dir="rtl"
       aria-labelledby="lux-v2-rsvp"
-      className="relative lg:pb-[10vh]"
+      className="relative"
       style={{
         background:
           "linear-gradient(165deg, #F5EEE8 0%, #E8CFD8 28%, #B57591 62%, #842B4C 100%)",
       }}
     >
-      <div className="flex items-start overflow-x-clip lg:sticky lg:top-0">
+      <div className="flex items-start">
         <div
           className="pointer-events-none absolute inset-0 opacity-40"
           aria-hidden

@@ -58,7 +58,7 @@
 @keyframes invite-reveal {
   0%,
   30% {
-    opacity: 0;
+    opacity: 1;
     transform: translateY(10px);
   }
   55%,
@@ -71,7 +71,7 @@
 @keyframes invite-type-in {
   0%,
   15% {
-    opacity: 0;
+    opacity: 1;
     letter-spacing: 0.35em;
   }
   40%,

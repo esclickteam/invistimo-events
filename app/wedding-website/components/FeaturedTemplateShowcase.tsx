@@ -37,7 +37,7 @@ export default function FeaturedTemplateShowcase({ styles }: Props) {
     <div>
       <style>{`
         @keyframes ww-design-in {
-          from { opacity: 0; transform: translateY(16px); }
+          from { opacity: 1; transform: translateY(16px); }
           to { opacity: 1; transform: none; }
         }
         .ww-design-stage { animation: ww-design-in 0.55s cubic-bezier(0.22, 1, 0.36, 1); }

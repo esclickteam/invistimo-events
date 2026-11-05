@@ -221,7 +221,7 @@ export default function WeddingVendorsGuide() {
         </div>
         <div className="relative mt-4 w-full">
           {!reduce ? (
-            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden border-y border-[#E6D2AA]">
+            <motion.div initial={{ opacity: 1, y: 16 }} animate={{ opacity: 1, y: 0 }} className="overflow-hidden border-y border-[#E6D2AA]">
               <Image
                 src="/images/rsvp/guides/wedding-vendors/contract.jpg"
                 alt="מסמכים ועט על שולחן — המחשה לבדיקת חוזה לפני חתימה"

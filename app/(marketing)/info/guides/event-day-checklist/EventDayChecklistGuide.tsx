@@ -294,7 +294,7 @@ export default function EventDayChecklistGuide() {
   const reduce = useReducedMotion();
   const fade = reduce
     ? undefined
-    : { initial: { opacity: 0, y: 16 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, margin: "-80px" }, transition: { duration: 0.45 } };
+    : { initial: { opacity: 1, y: 16 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, margin: "-80px" }, transition: { duration: 0.45 } };
 
   return (
     <article dir="rtl" className="min-h-screen overflow-hidden bg-[#FBF6EE] text-[#3F3025]">

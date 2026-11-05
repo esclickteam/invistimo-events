@@ -34,7 +34,7 @@ function TimelineMotion() {
         {steps.map((s, i) => (
           <div key={s} className="flex items-center gap-2 md:gap-3">
             <motion.span
-              initial={{ opacity: 0.4, scale: 0.92 }}
+              initial={{ opacity: 1, scale: 0.92 }}
               animate={{ opacity: [0.45, 1, 0.45], scale: [0.95, 1, 0.95] }}
               transition={{ duration: 4, repeat: Infinity, delay: i * 0.55 }}
               className="rounded-full border border-[#C9A45C]/50 bg-white px-4 py-2 text-sm font-black text-[#2C241C]"

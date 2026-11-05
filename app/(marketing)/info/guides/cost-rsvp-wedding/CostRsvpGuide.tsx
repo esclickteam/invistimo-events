@@ -160,7 +160,7 @@ export default function CostRsvpGuide() {
                 {!reduce ? (
                   <motion.span
                     className="mb-2 block text-xs font-black tracking-[0.14em] text-[#8A642E]"
-                    initial={{ opacity: 0 }}
+                    initial={{ opacity: 1 }}
                     whileInView={{ opacity: 1 }}
                     viewport={{ once: true }}
                     transition={{ delay: i * 0.04 }}
