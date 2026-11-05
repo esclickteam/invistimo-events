@@ -15,9 +15,9 @@ const PATH = "/info/guides/save-the-date-vs-invitation";
 const UPDATED_LABEL = "עודכן ב־2 בנובמבר 2026";
 
 const ctaPrimary =
-  "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3.5 text-base font-black text-white shadow-[0_18px_40px_rgba(58,39,20,0.22)] transition hover:-translate-y-0.5";
+  "inline-flex min-h-12 items-center justify-center rounded-none bg-[#42182F] hover:bg-[#842B4C] px-8 py-3.5 text-base font-black text-white shadow-[0_18px_40px_rgba(58,39,20,0.22)] transition hover:-translate-y-0.5";
 const ctaSecondary =
-  "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
+  "inline-flex min-h-12 items-center justify-center rounded-none border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
 
 function Eyebrow({ children, onDark }: { children: React.ReactNode; onDark?: boolean }) {
   return (
@@ -813,7 +813,7 @@ export default function SaveTheDateVsInvitationGuide() {
             </TrackedCtaLink>
             <TrackedCtaLink
               href="/rsvp/save-the-date#pricing"
-              className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/20 bg-white/5 px-8 py-3.5 text-base font-black text-[#FFF8EF] transition hover:bg-white/10"
+              className="inline-flex min-h-12 items-center justify-center rounded-none border border-white/20 bg-white/5 px-8 py-3.5 text-base font-black text-[#FFF8EF] transition hover:bg-white/10"
               location={`price_std:${PATH}`}
             >
               פירוט בעמוד Save the Date

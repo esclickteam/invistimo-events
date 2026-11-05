@@ -274,7 +274,7 @@ export default function ContactForm({
         <button
           disabled={loading}
           type="submit"
-          className="w-full rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] py-3.5 text-base font-black text-white transition hover:-translate-y-0.5 disabled:opacity-60"
+          className="w-full rounded-none bg-[#42182F] hover:bg-[#842B4C] py-3.5 text-base font-black text-white transition hover:-translate-y-0.5 disabled:opacity-60"
         >
           {loading ? "שולח..." : "שליחת פנייה לבדיקת התאמה"}
         </button>

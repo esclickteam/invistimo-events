@@ -166,14 +166,14 @@ export default function Page() {
             <TrackedCtaLink
               href="#contact"
               location="footer_cta:/event-management"
-              className="inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3 text-base font-black text-white"
+              className="inline-flex min-h-12 items-center justify-center rounded-none bg-[#42182F] hover:bg-[#842B4C] px-8 py-3 text-base font-black text-white"
             >
               לבדיקת התאמה
             </TrackedCtaLink>
             <TrackedCtaLink
               href="/try/event-management"
               location="footer_cta:/event-management"
-              className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white px-8 py-3 text-base font-black text-[#5E4735]"
+              className="inline-flex min-h-12 items-center justify-center rounded-none border border-[#DCC7A6] bg-white px-8 py-3 text-base font-black text-[#5E4735]"
             >
               התנסו במערכת
             </TrackedCtaLink>

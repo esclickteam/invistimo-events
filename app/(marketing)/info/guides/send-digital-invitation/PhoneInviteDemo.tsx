@@ -161,7 +161,7 @@ export default function PhoneInviteDemo() {
           <div className="flex flex-wrap gap-3">
             <Link
               href="/try"
-              className="inline-flex min-h-11 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-6 py-2.5 text-sm font-black text-white"
+              className="inline-flex min-h-11 items-center justify-center rounded-none bg-[#42182F] hover:bg-[#842B4C] px-6 py-2.5 text-sm font-black text-white"
             >
               לצפייה בדמו האמיתי
             </Link>

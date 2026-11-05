@@ -120,17 +120,16 @@ export default function RSVPPage() {
             initial={{ opacity: 1, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15, duration: 0.75 }}
-            className="relative mx-auto w-full max-w-[min(280px,calc((100svh-12rem)*420/760))] sm:max-w-[min(300px,calc((100svh-12rem)*420/760))] lg:max-w-[min(320px,calc((100svh-11rem)*420/760))]"
+            className="relative mx-auto w-full max-w-[280px] sm:max-w-[300px] lg:max-w-[320px]"
           >
-            <div className="absolute -inset-5 rounded-[42px] bg-[radial-gradient(circle_at_top,#E8D4AF,transparent_60%)] blur-2xl" />
-            <div className="relative rounded-[34px] border border-white/80 bg-gradient-to-br from-[#F8EFE1] via-[#FFFDF9] to-[#E7D7BF] p-2.5 shadow-[0_35px_90px_rgba(58,39,20,0.2)]">
-              <div className="overflow-hidden rounded-[26px] border border-[#221811]/10 bg-[#17120E]">
+            <div className="relative border border-[#C5A582] bg-[#F5EEE8] p-2 shadow-[0_28px_70px_rgba(66,24,47,0.16)]">
+              <div className="overflow-hidden border border-[#42182F]/15 bg-[#2A0F1D]">
                 <MarketingVideo
                   src={HERO_VIDEO.src}
                   poster={HERO_VIDEO.poster}
                   title={HERO_VIDEO.title}
                   eager
-                  className="aspect-[420/760] w-full"
+                  className="aspect-[9/16] w-full"
                 />
               </div>
             </div>
@@ -441,7 +440,7 @@ export default function RSVPPage() {
                 </ul>
                 <Link
                   href={pkg.href}
-                  className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-[#FBF6EE] px-5 text-sm font-black text-[#35281F] transition hover:bg-white"
+                  className="mt-6 inline-flex min-h-12 items-center justify-center rounded-none bg-[#FBF6EE] px-5 text-sm font-black text-[#35281F] transition hover:bg-white"
                 >
                   לקבלת הצעת מחיר
                 </Link>

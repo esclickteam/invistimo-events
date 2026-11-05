@@ -73,15 +73,28 @@
   --header-p: 1;
   background-color: transparent;
   background-color: rgb(245 238 232 / var(--header-p));
-  color: #fff8f0;
-  color: color-mix(
-    in srgb,
-    #fff8f0 calc((1 - var(--header-p)) * 100%),
-    #42182f calc(var(--header-p) * 100%)
+  /* Same variable drives the fill and the label, so they cannot update apart. */
+  color: rgb(
+    calc(255 - (255 - 66) * var(--header-p))
+    calc(248 - (248 - 24) * var(--header-p))
+    calc(240 - (240 - 47) * var(--header-p))
   );
   border-bottom: 1px solid transparent;
   border-bottom-color: rgb(66 24 47 / calc(var(--header-p) * 0.12));
   box-shadow: 0 10px 30px rgb(66 24 47 / calc(var(--header-p) * 0.07));
+  transition: none;
+}
+
+.site-header-cinematic {
+  --header-p: 0;
+}
+
+.site-header-logo-ink,
+.site-header-logo-light,
+.site-header nav a,
+.site-header nav button,
+.site-header-ghost {
+  transition: none;
 }
 
 .site-header-logo-ink {

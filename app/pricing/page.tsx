@@ -153,14 +153,14 @@ function PackageCard({
       ) : null}
 
       <div className="flex items-start gap-3">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-[#E5D1B7] bg-[#FFF8EE] text-[#A86F2B]">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center border border-[#C5A582] bg-[#FFF8F0] text-[#842B4C]">
           <Icon size={22} />
         </span>
         <div className="min-w-0">
-          <span className="inline-flex rounded-full bg-[#FFF4E2] px-3 py-1 text-[11px] font-black text-[#9A672B]">
+          <span className="inline-flex bg-[#F5EEE8] px-3 py-1 text-[11px] font-black text-[#842B4C]">
             {pkg.badge}
           </span>
-          <h3 className="mt-2 text-2xl font-black leading-tight text-[#8A4E19] sm:text-[1.7rem]">
+          <h3 className="mt-2 text-2xl font-black leading-tight text-[#42182F] sm:text-[1.7rem]">
             {pkg.name}
           </h3>
           <p className="mt-1 text-sm font-bold text-[#A07C52]">{pkg.hebrewName}</p>

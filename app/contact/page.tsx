@@ -92,7 +92,7 @@ function CheckIcon() {
 }
 
 const fieldClass =
-  "w-full rounded-lg border border-[#E0D0B8] bg-[#FFFCFA] px-3.5 py-2.5 text-[15px] text-[#2C2118] outline-none transition placeholder:text-[#A8947E] focus:border-[#C4A46A] focus:bg-white focus:ring-2 focus:ring-[#D4B27A]/25";
+  "w-full rounded-none border border-[#C5A582]/70 bg-[#FFF8F0] px-3.5 py-2.5 text-[15px] text-[#42182F] outline-none transition placeholder:text-[#8C7763] focus:border-[#842B4C] focus:bg-white focus:ring-2 focus:ring-[#C5A582]/40";
 
 const labelClass = "text-[13px] font-bold text-[#4A3728]";
 
@@ -212,7 +212,7 @@ export default function ContactPage() {
   return (
     <main
       dir="rtl"
-      className={`${display.variable} relative overflow-hidden bg-[#F8F3EA] text-[#2C2118]`}
+      className={`${display.variable} relative overflow-hidden bg-[#F5EEE8] text-[#42182F]`}
     >
       {/* Atmosphere — soft texture, not flat */}
       <div
@@ -261,7 +261,7 @@ export default function ContactPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 data-placement="contact_hero"
-                className="group inline-flex min-h-11 items-center justify-center gap-2.5 rounded-full bg-[#2C2118] px-6 py-2.5 text-[15px] font-bold text-white transition hover:-translate-y-px hover:bg-[#3D2E22] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4A46A]"
+                className="group inline-flex min-h-11 items-center justify-center gap-2.5 rounded-none bg-[#42182F] px-6 py-2.5 text-[15px] font-bold !text-[#FFF8F0] transition hover:-translate-y-px hover:bg-[#842B4C] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C5A582]"
               >
                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[#25D366] text-white">
                   <WhatsAppIcon className="h-3.5 w-3.5" />
@@ -271,7 +271,7 @@ export default function ContactPage() {
               <button
                 type="button"
                 onClick={scrollToForm}
-                className="inline-flex min-h-11 items-center justify-center rounded-full border border-[#D4C0A0] bg-[#FFFDF8]/80 px-6 py-2.5 text-[15px] font-bold text-[#2C2118] backdrop-blur transition hover:-translate-y-px hover:border-[#C4A46A] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4A46A]"
+                className="inline-flex min-h-11 items-center justify-center rounded-none border border-[#C5A582] bg-[#FFF8F0] px-6 py-2.5 text-[15px] font-bold text-[#42182F] transition hover:-translate-y-px hover:border-[#842B4C] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C5A582]"
               >
                 שלחו לנו פנייה
               </button>
@@ -313,13 +313,6 @@ export default function ContactPage() {
           {...motionProps}
           className="flex flex-col items-start gap-3 border-y border-[#E2D2B8]/80 py-4 sm:flex-row sm:items-center sm:gap-6 sm:py-5"
         >
-          <span
-            className={`${display.className} text-[12px] tracking-[0.2em] text-[#C4A46A]`}
-            aria-hidden
-          >
-            01
-          </span>
-          <div className="hidden h-px w-8 shrink-0 bg-[#C4A46A] sm:block" aria-hidden />
           <p
             className={`${display.className} max-w-3xl text-base font-medium leading-relaxed text-[#4A3728] sm:text-lg md:text-xl`}
           >
@@ -333,7 +326,7 @@ export default function ContactPage() {
         <div className="grid gap-10 lg:grid-cols-[1.35fr_0.85fr] lg:gap-12 lg:items-start">
           {/* Form column */}
           <motion.div {...motionProps} id="contact-form" className="scroll-mt-28">
-            <div className="rounded-2xl border border-[#E4D4BC] bg-[#FFFCFA] p-5 shadow-[0_18px_48px_rgba(70,48,28,0.06)] sm:p-7 md:p-8">
+            <div className="rounded-none border border-[#C5A582]/70 bg-[#FFF8F0] p-5 shadow-[0_18px_48px_rgba(66,24,47,0.06)] sm:p-7 md:p-8">
               {submitted ? (
                 <div
                   role="status"
@@ -352,7 +345,7 @@ export default function ContactPage() {
                   <button
                     type="button"
                     onClick={resetForm}
-                    className="mt-8 inline-flex min-h-11 items-center justify-center rounded-full border border-[#D4C0A0] bg-white px-6 py-2.5 text-[15px] font-bold text-[#2C2118] transition hover:-translate-y-px hover:border-[#C4A46A] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4A46A]"
+                    className="mt-8 inline-flex min-h-11 items-center justify-center rounded-none border border-[#C5A582] bg-white px-6 py-2.5 text-[15px] font-bold text-[#42182F] transition hover:-translate-y-px hover:border-[#842B4C] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C5A582]"
                   >
                     שליחת פנייה נוספת
                   </button>
@@ -512,7 +505,7 @@ export default function ContactPage() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="group mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#3A2A1C] px-6 py-2.5 text-[15px] font-bold text-white transition hover:-translate-y-px hover:bg-[#4A3728] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4A46A] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[200px]"
+                      className="group mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-none bg-[#42182F] px-6 py-2.5 text-[15px] font-bold !text-[#FFF8F0] transition hover:-translate-y-px hover:bg-[#842B4C] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C5A582] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[200px]"
                     >
                       {loading ? (
                         "שולחים..."

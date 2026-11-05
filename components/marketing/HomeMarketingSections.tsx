@@ -340,9 +340,12 @@ function WebsiteGalleryMotion() {
               <img
                 src={item.src}
                 alt=""
+                width={960}
+                height={600}
                 className="h-full w-full object-cover motion-safe:transition-transform motion-safe:duration-700 motion-safe:ease-out motion-safe:group-hover:scale-[1.035] motion-safe:group-focus-visible:scale-[1.035]"
-                loading="lazy"
+                loading={i < 2 ? "eager" : "lazy"}
                 decoding="async"
+                fetchPriority={i === 0 ? "high" : "auto"}
               />
             </div>
             <p
@@ -585,14 +588,17 @@ export default function HomeMarketingSections() {
               >
                 <Link
                   href={event.href}
-                  className="group relative block min-h-[240px] overflow-hidden border border-[#C5A582]/35 md:min-h-[280px]"
+                  className="group relative block min-h-[240px] overflow-hidden border border-[#C5A582]/35 bg-[#E8D9C8] md:min-h-[280px]"
                 >
                   <img
                     src={event.image}
                     alt={`הזמנה לדוגמה לאירוע ${event.title}`}
+                    width={960}
+                    height={640}
                     className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.04]"
-                    loading="lazy"
+                    loading={i === 0 ? "eager" : "lazy"}
                     decoding="async"
+                    fetchPriority={i === 0 ? "high" : "auto"}
                   />
                   <div
                     className="absolute inset-0 bg-gradient-to-t from-[#42182F]/80 via-[#42182F]/2 to-transparent"

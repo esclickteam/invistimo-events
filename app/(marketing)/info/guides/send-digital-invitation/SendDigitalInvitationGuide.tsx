@@ -14,9 +14,9 @@ import { SEND_INVITE_FAQS } from "./guideFaqs";
 const PATH = "/info/guides/send-digital-invitation";
 
 const ctaPrimary =
-  "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3.5 text-base font-black text-white shadow-[0_18px_40px_rgba(58,39,20,0.22)] transition hover:-translate-y-0.5";
+  "inline-flex min-h-12 items-center justify-center rounded-none bg-[#42182F] hover:bg-[#842B4C] px-8 py-3.5 text-base font-black text-white shadow-[0_18px_40px_rgba(58,39,20,0.22)] transition hover:-translate-y-0.5";
 const ctaSecondary =
-  "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
+  "inline-flex min-h-12 items-center justify-center rounded-none border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition hover:bg-white";
 
 const TOC: TocItem[] = [
   { id: "what-is", label: "מהי הזמנה דיגיטלית" },
@@ -1136,14 +1136,14 @@ export default function SendDigitalInvitationGuide() {
               <div className="mt-6 flex flex-wrap gap-3">
                 <TrackedCtaLink
                   href="/invitations/chatuna"
-                  className="inline-flex min-h-12 items-center justify-center rounded-full bg-white px-8 py-3.5 text-base font-black text-[#3A2B22] transition hover:-translate-y-0.5"
+                  className="inline-flex min-h-12 items-center justify-center rounded-none bg-white px-8 py-3.5 text-base font-black text-[#3A2B22] transition hover:-translate-y-0.5"
                   location={`footer_invitations:${PATH}`}
                 >
                   להזמנות דיגיטליות
                 </TrackedCtaLink>
                 <TrackedCtaLink
                   href="/pricing"
-                  className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/40 bg-transparent px-8 py-3.5 text-base font-black text-white transition hover:bg-white/10"
+                  className="inline-flex min-h-12 items-center justify-center rounded-none border border-white/40 bg-transparent px-8 py-3.5 text-base font-black text-white transition hover:bg-white/10"
                   location={`footer_pricing:${PATH}`}
                 >
                   לחבילות ומחירים

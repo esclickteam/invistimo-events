@@ -192,7 +192,7 @@ export default function QuoteForm() {
       <button
         type="submit"
         disabled={loading}
-        className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 text-base font-black text-white disabled:opacity-60 sm:w-auto"
+        className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-none bg-[#42182F] hover:bg-[#842B4C] px-8 text-base font-black text-white disabled:opacity-60 sm:w-auto"
       >
         {loading ? "שולחים…" : "לקבלת הצעת מחיר מותאמת לאירוע"}
       </button>

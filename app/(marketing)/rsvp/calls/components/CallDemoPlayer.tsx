@@ -141,7 +141,7 @@ export default function CallDemoPlayer() {
               type="button"
               onClick={toggle}
               disabled={unavailable}
-              className="inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-7 text-sm font-black text-white shadow-[0_14px_32px_rgba(58,39,20,0.2)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex min-h-12 items-center justify-center rounded-none bg-[#42182F] hover:bg-[#842B4C] px-7 text-sm font-black text-white shadow-[0_14px_32px_rgba(58,39,20,0.2)] transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
               aria-pressed={playing}
             >
               {playing ? "השהה הדגמה" : "נגן הדגמה"}
