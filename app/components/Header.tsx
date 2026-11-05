@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Menu, X, UserRound, Sparkles, Home } from "lucide-react";
 import { useAuth, getUserRedirectPath } from "@/context/AuthContext";
 import { usePathname } from "next/navigation";
@@ -79,30 +79,36 @@ export default function Header() {
     setMobileOpen(false);
   }, [pathname]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = headerRef.current;
     if (!el) return;
 
+    const apply = () => {
+      const progress = cinematic ? Math.min(1, Math.max(0, window.scrollY / 160)) : 1;
+      el.style.setProperty("--header-p", progress.toFixed(3));
+    };
+
+    apply();
     if (!cinematic) {
-      el.style.setProperty("--header-p", "1");
-      return;
+      return () => {
+        el.style.removeProperty("--header-p");
+      };
     }
 
     let frame = 0;
-    const update = () => {
-      const progress = Math.min(1, Math.max(0, window.scrollY / 160));
-      el.style.setProperty("--header-p", progress.toFixed(3));
-    };
     const onScroll = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(update);
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        apply();
+      });
     };
 
-    update();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("scroll", onScroll);
+      el.style.removeProperty("--header-p");
     };
   }, [cinematic, pathname]);
 
@@ -175,16 +181,11 @@ export default function Header() {
     );
   }
 
-  const headerStyle = {
-    "--header-p": cinematic ? 0 : 1,
-  } as CSSProperties;
-
   return (
     <>
       <header
         ref={headerRef}
-        style={headerStyle}
-        className={`site-header ${cinematic ? "fixed" : "sticky"} top-0 z-50 w-full pt-[env(safe-area-inset-top)] print:hidden`}
+        className={`site-header ${cinematic ? "site-header-cinematic fixed" : "sticky"} top-0 z-50 w-full pt-[env(safe-area-inset-top)] print:hidden`}
       >
         <div
           className="relative z-50 mx-auto max-w-[1500px] overflow-visible"

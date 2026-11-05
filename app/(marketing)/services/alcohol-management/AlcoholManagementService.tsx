@@ -18,13 +18,13 @@ const PATH = "/services/alcohol-management";
 const CALC = "/info/guides/wedding-alcohol-calculator";
 
 const ctaPrimary =
-  "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 py-3.5 text-base font-black text-white shadow-[0_18px_40px_rgba(58,39,20,0.22)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(58,39,20,0.3)]";
+  "inline-flex min-h-12 items-center justify-center rounded-none bg-[#42182F] hover:bg-[#842B4C] px-8 py-3.5 text-base font-black text-white shadow-[0_18px_40px_rgba(58,39,20,0.22)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_22px_48px_rgba(58,39,20,0.3)]";
 const ctaSecondary =
-  "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition duration-300 hover:bg-white hover:border-[#C9A45C]";
+  "inline-flex min-h-12 items-center justify-center rounded-none border border-[#DCC7A6] bg-white/85 px-8 py-3.5 text-base font-black text-[#5E4735] backdrop-blur transition duration-300 hover:bg-white hover:border-[#C9A45C]";
 const heroPrimary =
-  "inline-flex min-h-12 items-center justify-center rounded-full bg-[#F7E6C4] px-8 py-3.5 text-base font-black text-[#2C211B] shadow-[0_14px_36px_rgba(0,0,0,0.28)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#FFE9C2]";
+  "inline-flex min-h-12 items-center justify-center rounded-none bg-[#F7E6C4] px-8 py-3.5 text-base font-black text-[#2C211B] shadow-[0_14px_36px_rgba(0,0,0,0.28)] transition duration-300 hover:-translate-y-0.5 hover:bg-[#FFE9C2]";
 const heroSecondary =
-  "inline-flex min-h-12 items-center justify-center rounded-full border border-white/35 bg-white/10 px-8 py-3.5 text-base font-black text-[#FFF8EF] backdrop-blur-md transition duration-300 hover:bg-white/18 hover:border-[#E6D2AA]";
+  "inline-flex min-h-12 items-center justify-center rounded-none border border-white/35 bg-white/10 px-8 py-3.5 text-base font-black text-[#FFF8EF] backdrop-blur-md transition duration-300 hover:bg-white/18 hover:border-[#E6D2AA]";
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
   return <p className="text-sm font-black tracking-[0.14em] text-[#7A5530]">{children}</p>;
@@ -443,7 +443,7 @@ export default function AlcoholManagementService() {
             </TrackedCtaLink>
             <TrackedCtaLink
               href={CALC}
-              className="inline-flex min-h-12 items-center justify-center rounded-full border border-white/20 bg-white/5 px-8 py-3.5 text-base font-black text-[#FFF8EF] transition hover:bg-white/10"
+              className="inline-flex min-h-12 items-center justify-center rounded-none border border-white/20 bg-white/5 px-8 py-3.5 text-base font-black text-[#FFF8EF] transition hover:bg-white/10"
               location={`footer_calc:${PATH}`}
             >
               למחשבון האלכוהול

@@ -99,8 +99,11 @@ function InviteCard({
           src={item.src}
           alt={`${item.label} — ${item.couple}`}
           className="h-full w-full object-cover object-top"
-          loading="lazy"
+          width={600}
+          height={800}
+          loading={hidden ? "lazy" : "eager"}
           decoding="async"
+          fetchPriority={hidden ? "low" : "high"}
           draggable={false}
         />
       </div>

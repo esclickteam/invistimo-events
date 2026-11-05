@@ -596,13 +596,13 @@ export default function EventManagementPage() {
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <a
               href="#contact"
-              className="inline-flex min-h-12 items-center justify-center rounded-full bg-[#35281F] px-8 text-base font-black text-white"
+              className="inline-flex min-h-12 items-center justify-center rounded-none bg-[#35281F] px-8 text-base font-black text-white"
             >
               לבדיקת התאמה
             </a>
             <a
               href={EVENT_MANAGEMENT_DEMO_URL}
-              className="inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-white px-8 text-base font-black text-[#5E4735]"
+              className="inline-flex min-h-12 items-center justify-center rounded-none border border-[#DCC7A6] bg-white px-8 text-base font-black text-[#5E4735]"
             >
               התנסו במערכת
             </a>

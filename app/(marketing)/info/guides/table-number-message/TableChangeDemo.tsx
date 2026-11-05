@@ -82,7 +82,7 @@ export default function TableChangeDemo() {
           type="button"
           onClick={() => setStep("after")}
           disabled={step === "after"}
-          className="inline-flex min-h-11 items-center justify-center rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-6 py-2.5 text-sm font-black text-white disabled:cursor-default disabled:opacity-60"
+          className="inline-flex min-h-11 items-center justify-center rounded-none bg-[#42182F] hover:bg-[#842B4C] px-6 py-2.5 text-sm font-black text-white disabled:cursor-default disabled:opacity-60"
         >
           שינוי שיבוץ
         </button>

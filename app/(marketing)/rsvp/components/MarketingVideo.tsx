@@ -79,7 +79,14 @@ export default function MarketingVideo({
   }, [reducedMotion, pausedByUser, videoRef, src, inView]);
 
   return (
-    <div className={`relative overflow-hidden bg-[#17120E] ${className}`}>
+    <div
+      className={`relative overflow-hidden bg-[#2A0F1D] ${className}`}
+      style={
+        poster
+          ? { backgroundImage: `url(${poster})`, backgroundSize: "cover", backgroundPosition: "center top" }
+          : undefined
+      }
+    >
       <video
         ref={(node) => {
           localRef.current = node;

@@ -1060,7 +1060,7 @@ export default function AlcoholCalculator() {
           <button
             type="button"
             onClick={() => setStep((s) => Math.min(STEPS.length - 1, s + 1))}
-            className="min-h-12 rounded-full bg-gradient-to-l from-[#3A2B22] via-[#5A4333] to-[#2C211B] px-8 text-sm font-black text-white"
+            className="min-h-12 rounded-none bg-[#42182F] hover:bg-[#842B4C] px-8 text-sm font-black text-white"
           >
             המשך
           </button>
