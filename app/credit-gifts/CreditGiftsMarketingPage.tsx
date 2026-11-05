@@ -31,7 +31,7 @@ const display = localFont({
 });
 
 const fade = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 1, y: 12 },
   show: { opacity: 1, y: 0 },
 };
 
@@ -206,7 +206,7 @@ export default function CreditGiftsMarketingPage() {
           </motion.div>
 
           <motion.div
-            initial={reduceMotion ? false : { opacity: 0, y: 18 }}
+            initial={reduceMotion ? false : { opacity: 1, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.08 }}
             className="relative"
@@ -249,7 +249,7 @@ export default function CreditGiftsMarketingPage() {
           {GIFT_METHODS.map((method, index) => (
             <motion.article
               key={method.id}
-              initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+              initial={reduceMotion ? false : { opacity: 1, y: 12 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-40px" }}
               transition={{ duration: 0.35, delay: index * 0.04 }}

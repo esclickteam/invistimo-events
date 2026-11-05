@@ -35,7 +35,7 @@ const display = localFont({
 });
 
 const fade = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 1, y: 12 },
   show: { opacity: 1, y: 0 },
 };
 

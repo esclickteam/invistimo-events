@@ -35,7 +35,7 @@ const display = localFont({
 });
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 28 },
+  hidden: { opacity: 1, y: 12 },
   visible: { opacity: 1, y: 0 },
 };
 
@@ -117,7 +117,7 @@ export default function RSVPPage() {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
+            initial={{ opacity: 1, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15, duration: 0.75 }}
             className="relative mx-auto w-full max-w-[min(280px,calc((100svh-12rem)*420/760))] sm:max-w-[min(300px,calc((100svh-12rem)*420/760))] lg:max-w-[min(320px,calc((100svh-11rem)*420/760))]"
@@ -173,7 +173,7 @@ export default function RSVPPage() {
               return (
                 <motion.li
                   key={card.title}
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 1, y: 12 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, amount: 0.2 }}
                   transition={{ delay: index * 0.05, duration: 0.45 }}
@@ -273,7 +273,7 @@ export default function RSVPPage() {
                   key={point}
                   className="flex items-start gap-3 rounded-2xl border border-[#E6D2AA] bg-white/90 px-4 py-3 text-sm font-semibold text-[#544437]"
                 >
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#C7A56B] text-[11px] font-black text-white">
+                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#C7A56B] text-[11px] font-black text-[#1C1612]">
                     ✓
                   </span>
                   {point}
