@@ -85,7 +85,22 @@ const PACKAGE_AUDIENCE: Record<PackageId, string> = {
 };
 
 const ctaClassName =
-  "inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-[22px] px-5 py-4 text-center text-base font-black leading-6 transition duration-200";
+  "inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-none px-5 py-4 text-center text-base font-black leading-6 transition duration-200";
+
+const PACKAGE_DIFF: { label: string; values: Record<PackageId, string> }[] = [
+  {
+    label: "הזמנה, וואטסאפ ו־SMS",
+    values: { messages: "כלול", voice: "כלול", personal: "כלול", hybrid: "כלול" },
+  },
+  {
+    label: "סבבי שיחה מוקלטת",
+    values: { messages: "לא כלול", voice: "3", personal: "לא כלול", hybrid: "2" },
+  },
+  {
+    label: "סבב מוקד אנושי",
+    values: { messages: "לא כלול", voice: "לא כלול", personal: "3", hybrid: "1" },
+  },
+];
 
 function FeatureList({ items }: { items: string[] }) {
   return (
@@ -127,13 +142,13 @@ function PackageCard({
   return (
     <article
       data-testid={`package-${pkg.id}`}
-      className={`pricing-package-card relative flex min-w-0 flex-col rounded-[32px] border border-[#E5D3B8] bg-[#FFFDF9]/95 p-5 shadow-[0_22px_60px_rgba(91,64,35,0.1)] sm:p-6 ${
+      className={`pricing-package-card relative flex min-w-0 flex-col rounded-none border border-[#C5A582]/70 bg-[#F5EEE8] p-5 shadow-[0_22px_60px_rgba(66,24,47,0.08)] sm:p-6 ${
         selected ? "is-selected" : ""
       } ${priceFlash ? "is-price-flash" : ""}`}
     >
       {selected ? (
-        <span className="absolute -top-3 left-5 rounded-full bg-[#3E2D20] px-3 py-1 text-[11px] font-black text-[#F7E9D3]">
-          נבחר
+        <span className="absolute -top-3 left-5 bg-[#42182F] px-3 py-1 text-[11px] font-black text-[#F5EEE8]">
+          נבחר לסיכום
         </span>
       ) : null}
 
@@ -155,22 +170,33 @@ function PackageCard({
       <p className="mt-4 text-sm leading-6 text-[#7B6754] sm:leading-7">{pkg.description}</p>
       <p className="mt-2 text-sm font-bold leading-6 text-[#8A5A25]">{PACKAGE_AUDIENCE[pkg.id]}</p>
 
-      <div className="mt-5 rounded-[24px] border border-[#E8D9C7] bg-white/80 px-4 py-4 text-center">
-        <p className="text-xs font-bold text-[#9C866D]">מחיר לרשומה</p>
+      <div className="mt-5 border border-[#C5A582]/55 bg-[#FFF8F0] px-4 py-4 text-center">
+        <p className="text-xs font-bold tracking-[0.14em] text-[#842B4C]">סה״כ לתשלום</p>
         <AnimatedPrice
-          data-testid={`package-rate-${pkg.id}`}
-          value={formatRate(quote.rate)}
-          className="mt-1 text-3xl font-black text-[#3E2D20]"
+          data-testid={`package-total-${pkg.id}`}
+          value={formatIls(quote.total)}
+          className="mt-1 text-5xl font-black leading-none text-[#42182F]"
         />
-        <div className="mx-auto my-3 h-px w-16 bg-[#E8D9C7]" />
-        <p className="text-xs font-bold text-[#9C866D]">מחיר החבילה</p>
+        <p className="mt-2 text-sm font-bold text-[#6B5360]">
+          ל־{quote.records.toLocaleString("he-IL")} רשומות
+        </p>
+        <p className="mt-3 text-sm text-[#6B5360]">
+          מחיר לרשומה{" "}
+          <AnimatedPrice
+            data-testid={`package-rate-${pkg.id}`}
+            value={formatRate(quote.rate)}
+            className="font-black text-[#42182F]"
+          />
+        </p>
+        <div className="mx-auto my-3 h-px w-16 bg-[#C5A582]/50" />
+        <p className="text-xs font-bold text-[#6B5360]">מחיר החבילה לפני תוספות</p>
         <AnimatedPrice
           data-testid={`package-service-${pkg.id}`}
           value={formatIls(quote.servicePrice)}
-          className="mt-1 text-2xl font-black leading-none text-[#3E2D20]"
+          className="mt-1 text-lg font-black leading-none text-[#42182F]"
         />
         {selectedAddons.length > 0 ? (
-          <ul className="mt-3 space-y-1 text-xs font-bold leading-5 text-[#7B6754]">
+          <ul className="mt-3 space-y-1 text-xs font-bold leading-5 text-[#6B5360]">
             {selectedAddons.map((addon) => (
               <li key={addon.key} className="flex items-start justify-between gap-3">
                 <span className="min-w-0 text-right">{addon.label}</span>
@@ -179,26 +205,16 @@ function PackageCard({
             ))}
           </ul>
         ) : null}
-        <div className="mx-auto my-3 h-px w-16 bg-[#E8D9C7]" />
-        <p className="text-xs font-bold text-[#9C866D]">סה״כ לתשלום</p>
-        <AnimatedPrice
-          data-testid={`package-total-${pkg.id}`}
-          value={formatIls(quote.total)}
-          className="mt-1 text-4xl font-black leading-none text-[#3E2D20]"
-        />
-        <p className="mt-2 text-xs text-[#9C866D]">
-          ל־{quote.records.toLocaleString("he-IL")} רשומות
-        </p>
       </div>
 
       <button
         type="button"
         aria-pressed={selected}
         onClick={onSelect}
-        className={`mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-[18px] border px-4 text-sm font-black transition ${
+        className={`mt-4 inline-flex min-h-11 w-full items-center justify-center rounded-none border px-4 text-sm font-black transition ${
           selected
-            ? "border-[#C89545] bg-[#FFF3DF] text-[#8A4E19]"
-            : "border-[#E5D3B8] bg-white text-[#5A3E25] hover:border-[#D7B98D]"
+            ? "border-[#42182F] bg-[#42182F] text-[#FFF8F0]"
+            : "border-[#C5A582] bg-[#FFF8F0] text-[#42182F] hover:border-[#842B4C]"
         }`}
       >
         {selected ? "החבילה מסומנת לסיכום" : "סמנו חבילה זו לסיכום"}
@@ -396,6 +412,53 @@ export default function PricingPage() {
                 בחרו לפחות רשומה אחת כדי לשלוח בקשה.
               </p>
             ) : null}
+            <div className="mb-5 grid gap-3 md:hidden">
+              {packages.map((pkg) => (
+                <div key={pkg.id} className="border border-[#C5A582]/60 bg-[#FFF8F0] px-4 py-3">
+                  <p className="font-black text-[#42182F]">{pkg.name.replace("Invistimo ", "")}</p>
+                  <ul className="mt-2 space-y-1 text-sm text-[#6B5360]">
+                    {PACKAGE_DIFF.map((row) => (
+                      <li key={row.label} className="flex items-start justify-between gap-3">
+                        <span>{row.label}</span>
+                        <span className="shrink-0 font-black text-[#42182F]">{row.values[pkg.id]}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+              <p className="text-sm font-bold leading-6 text-[#42182F]">
+                ההבדל בין החבילות הוא אופן המענה. אין חבילה מומלצת אחת — הבחירה תלויה אם צריך שיחות, ומי עונה.
+              </p>
+            </div>
+            <div className="mb-5 hidden overflow-x-auto border border-[#C5A582]/60 bg-[#FFF8F0] md:block">
+              <table className="w-full min-w-[640px] border-collapse text-right text-sm">
+                <caption className="px-4 py-3 text-right text-sm font-black text-[#42182F]">
+                  ההבדל בין החבילות הוא אופן המענה. אין כאן חבילה מומלצת אחת — הבחירה תלויה אם צריך שיחות, ומי עונה.
+                </caption>
+                <thead>
+                  <tr className="border-y border-[#C5A582]/40 text-[#42182F]">
+                    <th className="px-3 py-2 font-black"> </th>
+                    {packages.map((pkg) => (
+                      <th key={pkg.id} className="px-3 py-2 font-black">
+                        {pkg.name.replace("Invistimo ", "")}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {PACKAGE_DIFF.map((row) => (
+                    <tr key={row.label} className="border-b border-[#C5A582]/25 last:border-b-0">
+                      <th className="px-3 py-2 font-bold text-[#42182F]">{row.label}</th>
+                      {packages.map((pkg) => (
+                        <td key={pkg.id} className="px-3 py-2 font-bold text-[#6B5360]">
+                          {row.values[pkg.id]}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
               {packages.map((pkg) => (
                 <PackageCard
@@ -428,7 +491,7 @@ export default function PricingPage() {
                     rel="noopener noreferrer"
                     data-package-id={selectedQuote.packageId}
                     data-placement="package_summary"
-                    className="pricing-gold-cta mt-4 inline-flex min-h-12 items-center justify-center gap-2 rounded-[18px] px-6 py-3 text-sm font-black text-white"
+                    className="mt-4 inline-flex min-h-12 items-center justify-center gap-2 rounded-none bg-[#42182F] px-6 py-3 text-sm font-black text-[#FFF8F0] hover:bg-[#842B4C]"
                   >
                     <WhatsAppBrandIcon />
                     אני רוצה את החבילה
@@ -583,7 +646,7 @@ function OrderButton({
         data-testid="whatsapp-cta"
         data-package-id={packageId}
         data-placement="package_card"
-        className={`${ctaClassName} pricing-gold-cta mt-5 text-white`}
+        className={`${ctaClassName} mt-5 bg-[#42182F] text-[#FFF8F0] hover:bg-[#842B4C]`}
       >
         <WhatsAppBrandIcon />
         אני רוצה את החבילה

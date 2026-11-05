@@ -186,6 +186,10 @@ function CinematicHomeHero() {
         className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-28 bg-gradient-to-b from-black/35 to-transparent"
         aria-hidden
       />
+      <div
+        className="pointer-events-none absolute left-1/2 top-1/2 z-[1] h-[min(62%,420px)] w-[min(88%,680px)] -translate-x-1/2 -translate-y-[46%] bg-[radial-gradient(ellipse_at_center,rgba(42,15,29,0.22)_0%,rgba(42,15,29,0.08)_42%,transparent_70%)]"
+        aria-hidden
+      />
 
       <div
         dir="rtl"
@@ -201,7 +205,7 @@ function CinematicHomeHero() {
           className="max-w-[16ch] text-[46px] font-black leading-[1.05] tracking-[-0.038em] text-white [text-shadow:0_2px_28px_rgba(42,15,29,0.58),0_10px_44px_rgba(42,15,29,0.42)] max-[360px]:text-[38px] sm:text-[56px] md:max-w-none md:text-[76px] lg:text-[88px]"
         >
           האירוע שלכם.
-          <span className="mt-1.5 block bg-gradient-to-l from-[#842B4C] via-[#C5A582] to-[#B57591] bg-clip-text text-transparent [filter:drop-shadow(0_2px_20px_rgba(42,15,29,0.5))] sm:mt-2">
+          <span className="mt-1.5 block text-[#FFF8F0] [text-shadow:0_2px_16px_rgba(42,15,29,0.82),0_10px_28px_rgba(42,15,29,0.55)] sm:mt-2">
             הסדר שלנו.
           </span>
         </h1>

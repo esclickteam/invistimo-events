@@ -69,8 +69,9 @@ export default function LuxV2SeatingStory() {
 
   const [selected, setSelected] = useState<string | null>(null);
   const [assignments, setAssignments] = useState<Record<string, string>>({});
-  const [hint, setHint] = useState("בחרו אורח, ואז שולחן.");
+  const [hint, setHint] = useState("שלב 1: בחרו אורח מהרשימה.");
   const [flash, setFlash] = useState<string | null>(null);
+  const [pulse, setPulse] = useState(false);
 
   const seatedExtra = Object.entries(assignments).reduce((sum, [guestId]) => {
     const guest = GUESTS.find((item) => item.id === guestId);
@@ -94,9 +95,19 @@ export default function LuxV2SeatingStory() {
       return;
     }
     setAssignments((prev) => ({ ...prev, [guest.id]: tableId }));
-    setHint(`${guest.name} בשולחן ${table.label}.`);
+    setHint(`${guest.name} שובץ בשולחן ${table.label}. אפשר לבחור אורח נוסף.`);
     setFlash(tableId);
+    setPulse(true);
     window.setTimeout(() => setFlash((current) => (current === tableId ? null : current)), 700);
+    window.setTimeout(() => setPulse(false), 700);
+  };
+
+  const resetDemo = () => {
+    setSelected(null);
+    setAssignments({});
+    setHint("שלב 1: בחרו אורח מהרשימה.");
+    setFlash(null);
+    setPulse(false);
   };
 
   return (
@@ -104,9 +115,9 @@ export default function LuxV2SeatingStory() {
       ref={ref as Ref<HTMLElement>}
       dir="rtl"
       aria-labelledby="lux-v2-seating"
-      className="relative bg-[#F5EEE8] lg:h-[150vh]"
+      className="relative bg-[#F5EEE8] lg:pb-[10vh]"
     >
-      <div className="flex items-center overflow-x-clip lg:sticky lg:top-0 lg:min-h-[100svh]">
+      <div className="flex items-start overflow-x-clip lg:sticky lg:top-0">
         <div
           className="pointer-events-none absolute inset-0"
           aria-hidden
@@ -140,6 +151,8 @@ export default function LuxV2SeatingStory() {
 
             <div
               className={`mt-8 inline-flex items-baseline gap-3 border px-4 py-3 ${
+                pulse ? "lux-seat-flash" : ""
+              } ${
                 onDark
                   ? "border-[#C5A582]/50 bg-[#42182F]/40 text-[#F5EEE8]"
                   : "border-[#C5A582]/50 bg-white/70 text-[#42182F]"
@@ -150,7 +163,11 @@ export default function LuxV2SeatingStory() {
               <span className="text-sm font-bold">אורחים משובצים על המפה</span>
             </div>
 
-            <p className={`mt-4 text-sm font-bold ${onDark ? "text-[#F5EEE8]" : "text-[#42182F]"}`} role="status">
+            <ol className={`mt-4 space-y-1 text-sm font-bold ${onDark ? "text-[#F5EEE8]" : "text-[#42182F]"}`}>
+              <li className={selected ? "text-[#C5A582]" : undefined}>1. בחרו אורח מהרשימה</li>
+              <li>2. לחצו על שולחן כדי לשבץ את הקבוצה</li>
+            </ol>
+            <p className={`mt-3 text-sm font-bold ${onDark ? "text-[#F5EEE8]" : "text-[#42182F]"}`} role="status">
               {hint}
             </p>
 
@@ -169,10 +186,22 @@ export default function LuxV2SeatingStory() {
               >
                 לפתוח דמו הושבה
               </TrackedCtaLink>
+              <button
+                type="button"
+                onClick={resetDemo}
+                className={luxBtnGhostLight}
+              >
+                איפוס ההדגמה
+              </button>
             </div>
-            <p className={`mt-4 text-[11px] font-medium ${onDark ? "text-[#F5EEE8]/65" : "text-[#6B5360]"}`}>
-              אנימציית הדגמה של הזרימה במערכת · לא ממשק חי
-            </p>
+            <div className={`mt-4 grid gap-2 text-[12px] leading-5 sm:grid-cols-2 ${onDark ? "text-[#F5EEE8]/80" : "text-[#6B5360]"}`}>
+              <p className="border border-[#C5A582]/40 px-3 py-2">
+                <span className="font-black">תכנון:</span> זו ההדגמה — משבצים אורח לשולחן מראש.
+              </p>
+              <p className="border border-[#C5A582]/40 px-3 py-2">
+                <span className="font-black">ניהול LIVE:</span> ביום האירוע עוקבים אחרי מי שהגיע. שירות נפרד, לא חלק מההדגמה.
+              </p>
+            </div>
           </div>
 
           <div className="grid items-stretch gap-3 xl:grid-cols-[0.72fr_1.28fr]">

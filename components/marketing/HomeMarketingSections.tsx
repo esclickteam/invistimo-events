@@ -56,7 +56,7 @@ function usePageParallax() {
   return ref;
 }
 
-function useInViewOnce<T extends HTMLElement>(rootMargin = "0px 0px -8% 0px") {
+function useInViewOnce<T extends HTMLElement>() {
   const ref = useRef<T | null>(null);
   const [inView, setInView] = useState(false);
 
@@ -68,18 +68,31 @@ function useInViewOnce<T extends HTMLElement>(rootMargin = "0px 0px -8% 0px") {
       setInView(true);
       return;
     }
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setInView(true);
-          io.disconnect();
-        }
-      },
-      { rootMargin, threshold: 0.12 }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [inView, rootMargin]);
+
+    let raf = 0;
+    const revealIfNear = () => {
+      raf = 0;
+      const node = ref.current;
+      if (!node) return;
+      const rect = node.getBoundingClientRect();
+      const vh = window.innerHeight || 1;
+      // Reveal just before the block enters, including a fast scroll that
+      // jumps past a single intersection frame.
+      if (rect.top < vh * 0.96 && rect.bottom > vh * -0.08) setInView(true);
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(revealIfNear);
+    };
+
+    revealIfNear();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, [inView]);
 
   return { ref, inView };
 }
@@ -146,28 +159,28 @@ const SERVICE_MOSAIC = [
   {
     href: "/rsvp",
     title: "אישורי הגעה",
-    body: "תשובות ברורות — מי מגיע ומי עוד מתלבט.",
+    body: "כל תשובה נרשמת לרשומה, לא נשארת בשרשור.",
     image: LUX_IMGS.reception,
     span: "lg:col-span-2 lg:row-span-2",
   },
   {
     href: "/invitations/chatuna",
     title: "הזמנות דיגיטליות",
-    body: "עיצוב שמספר את הסיפור שלכם.",
+    body: "ההזמנה יוצאת כקישור מעוצב, לא כקובץ שצריך להעביר.",
     image: LUX_IMGS.details,
     span: "",
   },
   {
     href: "/wedding-website",
     title: "אתר חתונה",
-    body: "כל הפרטים במקום אחד לאורחים.",
+    body: "תאריך, ניווט ולוח זמנים בקישור אחד לאורחים.",
     image: LUX_IMGS.couple,
     span: "",
   },
   {
     href: "/seating-explained",
     title: "סידורי הושבה",
-    body: "מרשימה למפת שולחנות מסודרת.",
+    body: "מהרשימה למפה — רואים מי יושב ואיפה נשאר מקום.",
     image: LUX_IMGS.tablescape,
     span: "lg:col-span-2",
   },
@@ -373,7 +386,7 @@ export default function HomeMarketingSections() {
       <section
         dir="rtl"
         aria-labelledby="home-intro"
-        className="relative min-h-[88svh] overflow-hidden bg-[#F5EEE8]"
+        className="relative min-h-[72svh] overflow-hidden bg-[#F5EEE8]"
       >
         <div className="absolute inset-0">
           <LuxPicture
@@ -388,7 +401,7 @@ export default function HomeMarketingSections() {
             aria-hidden
           />
         </div>
-        <div className="relative z-10 mx-auto flex min-h-[88svh] max-w-[1180px] flex-col justify-center px-4 py-20 sm:px-6 md:px-10">
+        <div className="relative z-10 mx-auto flex min-h-[72svh] max-w-[1180px] flex-col justify-center px-4 py-16 sm:px-6 md:px-10">
           <Reveal>
             <div className="relative max-w-xl">
               <div
@@ -404,8 +417,8 @@ export default function HomeMarketingSections() {
                   אתם מתכננים את הרגעים היפים. אנחנו דואגים לכל מה שמסביב.
                 </h2>
                 <p className="lux-lede mt-6 max-w-xl text-[#42182F]">
-                  אירוע מוצלח מורכב מאלפי פרטים קטנים. רשימת המוזמנים, ההזמנות, אישורי ההגעה,
-                  סידורי ההושבה והעדכונים של הרגע האחרון — עם Invistimo הכול במקום אחד.
+                  רשימת המוזמנים, ההזמנה, התשובות וההושבה נשארים מחוברים. שינוי אצל אורח אחד
+                  לא הולך לאיבוד בין הודעות.
                 </p>
                 <div className="mt-9 flex flex-wrap gap-3">
                   <TrackedCtaLink href="/pricing" location="home_intro_primary" className={luxBtnPlum}>
@@ -445,8 +458,8 @@ export default function HomeMarketingSections() {
               כל הפרטים מתחברים לאירוע אחד מושלם
             </h2>
             <p className="lux-lede mt-5 max-w-3xl">
-              מהרגע שבו בוחרים תאריך ועד שהאורחים מגיעים לחגוג — בחרו את השירותים שמתאימים
-              לכם. למטה תראו איך Save the Date, אישורי ההגעה וההושבה עובדים בפועל.
+              כל שירות עומד בפני עצמו. מתחילים מהזמנה, ומוסיפים אישורים או הושבה רק כשהאירוע
+              דורש את זה. למטה אפשר לנסות את הזרימה.
             </p>
           </Reveal>
 

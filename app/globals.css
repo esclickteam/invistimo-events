@@ -561,10 +561,10 @@ iframe[src*="userway"] {
 
 .lux-home .lux-reveal {
   opacity: 0;
-  transform: translateY(22px);
+  transform: translateY(12px);
   transition:
-    opacity 0.95s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.95s cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 0.42s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .lux-home .lux-reveal.is-in {

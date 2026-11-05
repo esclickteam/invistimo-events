@@ -62,7 +62,7 @@ export default function DevicePreviewPair({
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="group mx-auto w-[158px] shrink-0 sm:mx-0 sm:w-[168px] md:w-[180px]"
+          className="group mx-auto w-[176px] shrink-0 sm:mx-0 sm:w-[188px] md:w-[210px]"
           aria-label={`צפו באתר לדוגמה — ${name} בטלפון`}
         >
           <div className="overflow-hidden rounded-[1.55rem] border-[7px] border-[#1C1612] bg-[#0D0A08] shadow-[0_24px_56px_rgba(20,14,8,0.35)] transition group-hover:-translate-y-0.5">
@@ -75,9 +75,10 @@ export default function DevicePreviewPair({
                 unoptimized
                 priority={priority}
                 className="object-cover object-top"
-                sizes="180px"
+                sizes="210px"
               />
             </div>
+            <div className="mx-auto mb-1.5 h-1 w-10 rounded-full bg-white/25" aria-hidden />
           </div>
         </Link>
       </div>

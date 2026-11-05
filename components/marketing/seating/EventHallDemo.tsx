@@ -21,10 +21,11 @@ const TABLES = [
 ] as const;
 
 export default function EventHallDemo() {
-  const [selected, setSelected] = useState<string | null>("n");
+  const [selected, setSelected] = useState<string | null>(null);
   const [assignments, setAssignments] = useState<Record<string, string>>({});
-  const [hint, setHint] = useState("נועה כהן סומנה. בחרו שולחן.");
+  const [hint, setHint] = useState("שלב 1: בחרו אורח מהרשימה.");
   const [flash, setFlash] = useState<string | null>(null);
+  const [pulse, setPulse] = useState(false);
 
   const seated = useMemo(() => {
     const base = TABLES.reduce((sum, table) => sum + table.filled, 0);
@@ -56,9 +57,19 @@ export default function EventHallDemo() {
       return;
     }
     setAssignments((prev) => ({ ...prev, [guest.id]: tableId }));
-    setHint(`${guest.name} בשולחן ${table.label}.`);
+    setHint(`${guest.name} שובץ בשולחן ${table.label}. אפשר לבחור אורח נוסף.`);
     setFlash(tableId);
+    setPulse(true);
     window.setTimeout(() => setFlash((current) => (current === tableId ? null : current)), 700);
+    window.setTimeout(() => setPulse(false), 700);
+  };
+
+  const resetDemo = () => {
+    setSelected(null);
+    setAssignments({});
+    setHint("שלב 1: בחרו אורח מהרשימה.");
+    setFlash(null);
+    setPulse(false);
   };
 
   return (
@@ -68,11 +79,26 @@ export default function EventHallDemo() {
           <p className="text-[11px] font-bold tracking-[0.18em] text-[#842B4C]">אולם לדוגמה</p>
           <p className="text-sm font-extrabold text-[#42182F]">החתונה של מיה ואלון</p>
         </div>
-        <p className="text-left text-sm font-black tabular-nums text-[#42182F]" aria-live="polite">
-          {seated}/{capacity}
-          <span className="mt-0.5 block text-[10px] font-bold text-[#6B5360]">מקומות</span>
-        </p>
+        <div className="flex items-center gap-3">
+          <p
+            className={`text-left text-sm font-black tabular-nums text-[#42182F] ${pulse ? "hall-seat-flash" : ""}`}
+            aria-live="polite"
+          >
+            {seated}/{capacity}
+            <span className="mt-0.5 block text-[10px] font-bold text-[#6B5360]">משובצים מתוך המקומות</span>
+          </p>
+          <button
+            type="button"
+            onClick={resetDemo}
+            className="border border-[#C5A582] bg-[#F5EEE8] px-3 py-2 text-xs font-black text-[#42182F] hover:bg-[#FFF8F0]"
+          >
+            איפוס
+          </button>
+        </div>
       </div>
+      <p className="border-b border-[#C5A582]/25 px-4 py-2 text-xs font-bold text-[#42182F]">
+        {selected ? "שלב 2: לחצו על שולחן כדי לשבץ את האורח." : "שלב 1: בחרו אורח מהרשימה, ואז שולחן."}
+      </p>
 
       <div className="grid xl:grid-cols-[11.5rem_1fr]">
         <ul className="border-b border-[#C5A582]/25 xl:border-b-0 xl:border-l">
@@ -173,6 +199,16 @@ export default function EventHallDemo() {
       <p className="border-t border-[#C5A582]/30 px-4 py-3 text-sm font-bold text-[#42182F]" role="status">
         {hint}
       </p>
+      <div className="grid border-t border-[#C5A582]/30 sm:grid-cols-2">
+        <p className="px-4 py-3 text-xs leading-5 text-[#6B5360]">
+          <span className="font-black text-[#42182F]">תכנון הושבה: </span>
+          זו ההדגמה. בוחרים אורח ומשבצים אותו לשולחן מראש.
+        </p>
+        <p className="border-t border-[#C5A582]/25 px-4 py-3 text-xs leading-5 text-[#6B5360] sm:border-t-0 sm:border-r">
+          <span className="font-black text-[#42182F]">ניהול LIVE: </span>
+          ביום האירוע עוקבים אחרי מי שהגיע בפועל. זה שירות נפרד, לא חלק מההדגמה הזו.
+        </p>
+      </div>
     </div>
   );
 }
