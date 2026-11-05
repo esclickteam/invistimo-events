@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import Script from "next/script";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 export default function AccessibilityScript() {
   const pathname = usePathname();
@@ -15,6 +15,8 @@ export default function AccessibilityScript() {
   // Official UserWay bottom-left (position 7) before the widget boots.
   useEffect(() => {
     if (isInternal) return;
+    const embed = new URLSearchParams(window.location.search).get("embed");
+    if (embed === "1" || embed === "true") return;
     const w = window as Window & { _userway_config?: Record<string, unknown> };
     w._userway_config = {
       ...(w._userway_config || {}),
@@ -52,14 +54,40 @@ export default function AccessibilityScript() {
     return null;
   }
 
-  // ✅ רק באתר הציבורי
+  // Embedded gallery frames are the only surfaces that skip the widget.
+  // The marketing hub, the homepage, and a full demo tab still load it.
+  if (pathname.startsWith("/wedding-website/")) {
+    return <PublicAccessibilityWidget />;
+  }
+
   return (
     <Script
       id="userway-widget"
       src="https://cdn.userway.org/widget.js"
       data-account="HnP2BQ1axC"
       data-position="7"
-      // After LCP: avoid competing with hero image bandwidth on first paint.
+      strategy="lazyOnload"
+    />
+  );
+}
+
+function PublicAccessibilityWidget() {
+  const [allow, setAllow] = useState(false);
+
+  useEffect(() => {
+    const embed = new URLSearchParams(window.location.search).get("embed");
+    if (embed === "1" || embed === "true") return;
+    setAllow(true);
+  }, []);
+
+  if (!allow) return null;
+
+  return (
+    <Script
+      id="userway-widget"
+      src="https://cdn.userway.org/widget.js"
+      data-account="HnP2BQ1axC"
+      data-position="7"
       strategy="lazyOnload"
     />
   );

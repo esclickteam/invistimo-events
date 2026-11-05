@@ -1,7 +1,5 @@
-"use client";
-
-import Image from "next/image";
 import Link from "next/link";
+import DeferredShot from "./DeferredShot";
 
 type Shot = {
   src: string;
@@ -40,14 +38,12 @@ export default function SiteAnatomyPreview({ templateId, shots }: Props) {
           </span>
         </div>
         {primary ? (
-          <Image
+          <DeferredShot
             src={primary.src}
             alt={primary.alt}
             width={1440}
             height={900}
-            unoptimized
             className="block h-auto w-full"
-            sizes="(max-width: 1024px) 100vw, 48vw"
           />
         ) : null}
       </Link>
@@ -65,14 +61,12 @@ export default function SiteAnatomyPreview({ templateId, shots }: Props) {
               <p className="border-b border-[#E8D9BF]/70 px-3 py-2 text-[11px] font-bold tracking-[0.12em] text-[#7A5530]">
                 {shot.label}
               </p>
-              <Image
+              <DeferredShot
                 src={shot.src}
                 alt={shot.alt}
                 width={1280}
                 height={800}
-                unoptimized
                 className="block h-auto w-full"
-                sizes="(max-width: 640px) 100vw, 24vw"
               />
             </Link>
           ))}

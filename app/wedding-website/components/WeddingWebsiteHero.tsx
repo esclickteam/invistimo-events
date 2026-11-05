@@ -1,16 +1,11 @@
-"use client";
-
-import Image from "next/image";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
-import WeddingLiveFrame, { weddingLiveFrameCss } from "./WeddingLiveFrame";
+import HeroDevices from "./HeroDevices";
+import { weddingLiveFrameCss } from "./weddingLiveFrameCss";
+import { wwPrimary, wwSecondary } from "./wwButtons";
 import { WW_PATH } from "../content";
 
-export const wwPrimary =
-  "inline-flex min-h-12 items-center justify-center rounded-none bg-[#42182F] px-7 py-3 text-center text-base font-black !text-[#FFF8F0] transition hover:bg-[#842B4C]";
-export const wwSecondary =
-  "inline-flex min-h-12 items-center justify-center rounded-none border border-[#C5A582] bg-[#FFF8F0] px-7 py-3 text-center text-base font-black !text-[#42182F] transition hover:bg-[#F5EEE8]";
-export const wwOnPlum =
-  "inline-flex min-h-12 items-center justify-center rounded-none bg-[#F5EEE8] px-7 py-3 text-center text-base font-black !text-[#42182F] transition hover:bg-[#FFF8F0]";
+const HERO_IMAGE = "/marketing/luxury/editorial-ceremony.webp";
+const HERO_IMAGE_MOBILE = "/marketing/luxury/editorial-ceremony-828.webp";
 
 type Props = {
   templateId: string;
@@ -27,6 +22,20 @@ export default function WeddingWebsiteHero({
 }: Props) {
   return (
     <header className="relative isolate overflow-hidden bg-[#2A0F1D]">
+      <link
+        rel="preload"
+        as="image"
+        href={HERO_IMAGE_MOBILE}
+        fetchPriority="high"
+        media="(max-width: 900px)"
+      />
+      <link
+        rel="preload"
+        as="image"
+        href={HERO_IMAGE}
+        fetchPriority="high"
+        media="(min-width: 901px)"
+      />
       <style>{`
         ${weddingLiveFrameCss}
         @media (prefers-reduced-motion: no-preference) {
@@ -37,13 +46,15 @@ export default function WeddingWebsiteHero({
           to { transform: translateY(-12px); }
         }
       `}</style>
-      <Image
-        src="/marketing/luxury/editorial-ceremony.webp"
-        alt=""
-        fill
-        priority
-        className="object-cover object-[center_30%]"
+      <img
+        src={HERO_IMAGE}
+        srcSet={`${HERO_IMAGE_MOBILE} 828w, ${HERO_IMAGE} 1600w`}
         sizes="100vw"
+        width={1600}
+        height={1068}
+        alt=""
+        fetchPriority="high"
+        className="absolute inset-0 h-full w-full object-cover object-[center_30%]"
       />
       <div className="absolute inset-0 bg-gradient-to-l from-[#2A0F1D]/80 via-[#2A0F1D]/35 to-[#2A0F1D]/10" aria-hidden />
 
@@ -66,39 +77,12 @@ export default function WeddingWebsiteHero({
           </div>
         </div>
 
-        <div className="min-w-0">
-          <div className="grid grid-cols-[minmax(0,1fr)_88px] items-end gap-3 sm:grid-cols-[minmax(0,1fr)_128px] sm:gap-4 md:grid-cols-[minmax(0,1fr)_150px]">
-            <div className="min-w-0 border border-[#C5A582] bg-[#1C1210] shadow-[0_22px_50px_rgba(0,0,0,0.35)]">
-              <div className="flex items-center gap-1.5 border-b border-white/10 px-3 py-2">
-                <span className="h-2 w-2 rounded-full bg-[#C5A582]" />
-                <span className="h-2 w-2 rounded-full bg-white/30" />
-                <span className="h-2 w-2 rounded-full bg-white/30" />
-                <span className="mr-2 truncate text-[11px] text-[#F5EEE8]">{name}</span>
-              </div>
-              <WeddingLiveFrame
-                templateId={templateId}
-                name={name}
-                mode="desktop"
-                poster={desktopPoster}
-                eager
-              />
-            </div>
-            <div className="ww-hero-phone min-w-0">
-              <div className="overflow-hidden rounded-[36px] border-[6px] border-[#F5EEE8] bg-[#1C1210] shadow-[0_18px_40px_rgba(0,0,0,0.4)]">
-                <WeddingLiveFrame
-                  templateId={templateId}
-                  name={name}
-                  mode="phone"
-                  poster={mobilePoster}
-                  eager
-                />
-              </div>
-            </div>
-          </div>
-          <p className="mt-4 text-sm font-semibold text-[#F5EEE8]">
-            {name} · אתר חי לדוגמה, במחשב ובטלפון
-          </p>
-        </div>
+        <HeroDevices
+          templateId={templateId}
+          name={name}
+          desktopPoster={desktopPoster}
+          mobilePoster={mobilePoster}
+        />
       </div>
     </header>
   );

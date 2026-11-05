@@ -496,10 +496,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
 
-    refreshUser().finally(() => {
-      setBootstrapDone(true);
-      setLoading(false);
-    });
+    const finish = () => {
+      refreshUser().finally(() => {
+        setBootstrapDone(true);
+        setLoading(false);
+      });
+    };
+
+    /*
+      Anonymous visits to the wedding marketing page don't need the session
+      probe to paint. A hung /api/me (local Mongo) was sitting on the critical
+      path and stretching simulated LCP. Logged-in visitors still refresh
+      immediately from cache. Dashboard and the rest of the app are unchanged.
+    */
+    const delayAnonymousProbe =
+      !cached &&
+      (pathname === "/wedding-website" || pathname.startsWith("/wedding-website/"));
+
+    if (!delayAnonymousProbe) {
+      finish();
+      return;
+    }
+
+    setLoading(false);
+    let started = false;
+    const run = () => {
+      if (started) return;
+      started = true;
+      window.removeEventListener("pointerdown", run);
+      window.removeEventListener("keydown", run);
+      window.removeEventListener("scroll", run);
+      window.clearTimeout(timer);
+      finish();
+    };
+    const timer = window.setTimeout(run, 4000);
+    window.addEventListener("pointerdown", run, { once: true, passive: true });
+    window.addEventListener("keydown", run, { once: true });
+    window.addEventListener("scroll", run, { once: true, passive: true });
+    return () => {
+      started = true;
+      window.clearTimeout(timer);
+      window.removeEventListener("pointerdown", run);
+      window.removeEventListener("keydown", run);
+      window.removeEventListener("scroll", run);
+    };
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
