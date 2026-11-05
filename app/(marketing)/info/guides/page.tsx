@@ -15,9 +15,9 @@ export const metadata = pageMetadata({
 });
 
 const ctaClass =
-  "inline-flex min-h-12 items-center justify-center rounded-none bg-[#42182F] hover:bg-[#842B4C] px-8 py-3 text-base font-black text-white";
+  "inline-flex min-h-12 items-center justify-center rounded-none bg-[#42182F] px-8 py-3 text-base font-black !text-[#FFF8F0] hover:bg-[#842B4C]";
 const secondaryClass =
-  "inline-flex min-h-12 items-center justify-center rounded-none border border-[#DCC7A6] bg-white px-8 py-3 text-base font-black text-[#5E4735]";
+  "inline-flex min-h-12 items-center justify-center rounded-none border border-[#C5A582] bg-[#FFF8F0] px-8 py-3 text-base font-black !text-[#42182F]";
 
 export default function GuidesPage() {
   return (
@@ -48,9 +48,9 @@ export default function GuidesPage() {
           </span>
           <h1 className="mt-6 text-4xl font-black leading-[1.12] text-[#35281F] md:text-6xl">
             מדריכים לאישורי הגעה{" "}
-            <span className="mt-3 block bg-gradient-to-l from-[#B48A4A] via-[#D3B47C] to-[#84613A] bg-clip-text text-transparent">
-              להזמנות, הושבה וניהול אירוע
-            </span>
+          <span className="mt-6 block text-[#842B4C]">
+            להזמנות, הושבה וניהול אירוע
+          </span>
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-[#5C4A3A]">
             מרכז הידע של Invistimo: מדריכים לפי כוונת חיפוש — בחירת חברה, רשימת מוזמנים, מחיר לפי רשומות,
@@ -158,16 +158,16 @@ export default function GuidesPage() {
           );
         })}
 
-        <section className="overflow-hidden rounded-[32px] border border-[#E3C990] bg-gradient-to-l from-[#FFF8EA] via-white to-[#F7E8CA] p-7 md:p-10">
-          <h2 className="text-3xl font-black text-[#35281F]">מוכנים להתקדם מהמדריך לשירות?</h2>
-          <p className="mt-3 max-w-2xl leading-8 text-[#5C4A3A]">
+        <section className="border border-[#C5A582] bg-[#42182F] p-7 md:p-10">
+          <h2 className="text-3xl font-black text-[#FFF8F0]">מוכנים להתקדם מהמדריך לשירות?</h2>
+          <p className="mt-3 max-w-2xl leading-8 text-[#F5EEE8]">
             בדקו חבילות לפי מספר רשומות, או חזרו לעמודי השירות של אישורי הגעה, הזמנות והושבה.
           </p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-            <TrackedCtaLink href="/pricing" className={ctaClass} location="footer_cta:/info/guides">
+            <TrackedCtaLink href="/pricing" className="inline-flex min-h-12 items-center justify-center rounded-none bg-[#F5EEE8] px-8 py-3 text-base font-black !text-[#42182F] hover:bg-[#FFF8F0]" location="footer_cta:/info/guides">
               מחשבון חבילות
             </TrackedCtaLink>
-            <TrackedCtaLink href="/faq" className={secondaryClass} location="footer_cta:/info/guides">
+            <TrackedCtaLink href="/faq" className="inline-flex min-h-12 items-center justify-center rounded-none border border-[#C5A582] px-8 py-3 text-base font-black !text-[#FFF8F0] hover:bg-[#842B4C]" location="footer_cta:/info/guides">
               שאלות נפוצות
             </TrackedCtaLink>
           </div>

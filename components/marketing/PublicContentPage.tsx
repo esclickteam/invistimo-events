@@ -128,7 +128,7 @@ export default function PublicContentPage({
               {titleAccent ? (
                 <>
                   {" "}
-                  <span className="mt-3 block bg-gradient-to-l from-[#B48A4A] via-[#D3B47C] to-[#84613A] bg-clip-text text-transparent">
+                  <span className="mt-3 block text-[#842B4C]">
                     {titleAccent}
                   </span>
                 </>
@@ -331,15 +331,23 @@ export default function PublicContentPage({
             </section>
           ) : null}
 
-          <section className="mt-14 overflow-hidden rounded-[32px] border border-[#E3C990] bg-gradient-to-l from-[#FFF8EA] via-white to-[#F7E8CA] p-7 shadow-[0_24px_60px_rgba(95,68,34,0.1)] md:p-10">
-            <p className="text-sm font-black tracking-wide text-[#A67C3D]">הצטרפות</p>
-            <h2 className="mt-2 text-3xl font-black text-[#35281F]">{ctaTitle}</h2>
-            <p className="mt-3 max-w-2xl leading-8 text-[#5C4A3A]">{ctaLede}</p>
+          <section className="mt-14 border border-[#C5A582] bg-[#42182F] p-7 md:p-10">
+            <p className="text-[11px] font-bold tracking-[0.18em] text-[#C5A582]">הצטרפות</p>
+            <h2 className="mt-2 text-3xl font-black text-[#FFF8F0]">{ctaTitle}</h2>
+            <p className="mt-3 max-w-2xl leading-8 text-[#F5EEE8]">{ctaLede}</p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <TrackedCtaLink href={primaryCta.href} className={ctaClass} location={`footer_cta:${path}`}>
+              <TrackedCtaLink
+                href={primaryCta.href}
+                className="inline-flex min-h-12 items-center justify-center rounded-none bg-[#F5EEE8] px-8 py-3 text-base font-black !text-[#42182F] hover:bg-[#FFF8F0]"
+                location={`footer_cta:${path}`}
+              >
                 {primaryCta.label}
               </TrackedCtaLink>
-              <TrackedCtaLink href={secondaryCta.href} className={secondaryClass} location={`footer_cta:${path}`}>
+              <TrackedCtaLink
+                href={secondaryCta.href}
+                className="inline-flex min-h-12 items-center justify-center rounded-none border border-[#C5A582] bg-transparent px-8 py-3 text-base font-black !text-[#FFF8F0] hover:bg-[#842B4C]"
+                location={`footer_cta:${path}`}
+              >
                 {secondaryCta.label}
               </TrackedCtaLink>
             </div>

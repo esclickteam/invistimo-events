@@ -908,3 +908,104 @@ iframe[src*="userway"] {
     scroll-behavior: auto;
   }
 }
+
+/* Inner public pages share the homepage palette. Homepage (.lux-home) is outside
+   .public-brand, so this does not restyle the cinematic hero. */
+.public-brand {
+  background: #f5eee8;
+  color: #42182f;
+}
+
+.public-brand [class*="bg-[#FBF6EE]"],
+.public-brand [class*="bg-[#f7f3ee]"],
+.public-brand [class*="bg-[#F7F3EE]"],
+.public-brand [class*="bg-[#F8F3EA]"],
+.public-brand [class*="bg-[#F6EBDD]"] {
+  background-color: #f5eee8;
+}
+
+.public-brand [class*="bg-[#FFFDF8]"],
+.public-brand [class*="bg-[#FFFDF7]"],
+.public-brand [class*="bg-[#FFF8EA]"],
+.public-brand [class~="bg-white"],
+.public-brand [class*="bg-white/7"],
+.public-brand [class*="bg-white/8"],
+.public-brand [class*="bg-white/9"],
+.public-brand [class*="bg-white/50"] {
+  background-color: #fff8f0;
+}
+
+.public-brand [class*="bg-[#F3EADF]"],
+.public-brand [class*="bg-[#F3EBE0]"],
+.public-brand [class*="bg-[#F1E4D2]"],
+.public-brand [class*="bg-[#F7E8CA]"] {
+  background-color: #e8d9c8;
+}
+
+.public-brand [class*="text-[#35281F]"],
+.public-brand [class*="text-[#3F3025]"],
+.public-brand [class*="text-[#2C241C]"],
+.public-brand [class*="text-[#241E18]"],
+.public-brand [class*="text-[#2C2118]"],
+.public-brand [class*="text-[#2A2118]"],
+.public-brand [class*="text-[#3A2A1F]"],
+.public-brand [class*="text-[#2F261E]"] {
+  color: #42182f;
+}
+
+.public-brand [class*="text-[#5C4A3A]"],
+.public-brand [class*="text-[#5C4A38]"],
+.public-brand [class*="text-[#5c4632]"],
+.public-brand [class*="text-[#5C4632]"],
+.public-brand [class*="text-[#6B5745]"],
+.public-brand [class*="text-[#7b6754]"],
+.public-brand [class*="text-[#7B6754]"],
+.public-brand [class*="text-[#5A3E25]"],
+.public-brand [class*="text-[#4A3728]"] {
+  color: #6b5360;
+}
+
+.public-brand [class*="text-[#8A642E]"],
+.public-brand [class*="text-[#7A6042]"],
+.public-brand [class*="text-[#A67C3D]"],
+.public-brand [class*="text-[#9A6E24]"] {
+  color: #842b4c;
+}
+
+.public-brand [class*="border-[#E6D2AA]"],
+.public-brand [class*="border-[#EADDC8]"],
+.public-brand [class*="border-[#eadfce]"],
+.public-brand [class*="border-[#E7D3B0]"],
+.public-brand [class*="border-[#DCC7A6]"],
+.public-brand [class*="border-[#E3C990]"] {
+  border-color: #c5a582;
+}
+
+.public-brand [class*="bg-[#C7A56B]"] {
+  background-color: #42182f;
+  color: #fff8f0;
+}
+
+.public-brand [class*="bg-clip-text"] {
+  background-image: none;
+  -webkit-text-fill-color: #842b4c;
+  color: #842b4c;
+}
+
+.public-brand [class*="rounded-[22px]"],
+.public-brand [class*="rounded-[24px]"],
+.public-brand [class*="rounded-[26px]"],
+.public-brand [class*="rounded-[28px]"],
+.public-brand [class*="rounded-[32px]"],
+.public-brand [class*="rounded-2xl"],
+.public-brand [class*="rounded-3xl"] {
+  border-radius: 0;
+}
+
+.public-brand :is(a, button)[class*="rounded-"]:not(.lux-home-wa) {
+  border-radius: 0;
+}
+
+.public-brand span[class*="rounded-full"]:not([class*="h-5"]) {
+  border-radius: 0;
+}
