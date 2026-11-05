@@ -77,14 +77,12 @@ export default function LayoutShell({
   ========================================================= */
   return (
     <div className="min-h-screen flex flex-col">
-      {/* HEADER */}
+      {/* HEADER — cinematic pages use fixed overlay (zero flow height);
+          light marketing pages keep sticky in-flow chrome. */}
       {!shouldHideHeader && header && (
         <div className="shrink-0">{header}</div>
       )}
 
-      {/* CONTENT — header is already in document flow (shrink-0), so no
-          sticky/fixed offset padding. Extra pt-[64px] created a visible gap
-          between Header and Hero on marketing pages. */}
       <main className="flex-1">{children}</main>
 
       {/* FOOTER */}

@@ -1,6 +1,6 @@
 "use client";
 
-import type { Ref } from "react";
+import { useEffect, useState, type Ref } from "react";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import {
   luxBtnGhostLight,
@@ -18,9 +18,9 @@ const GUESTS = [
 ] as const;
 
 const TABLES = [
-  { id: "t1", label: "1", x: 28, y: 32, seats: 10, filled: 4 },
-  { id: "t2", label: "2", x: 62, y: 28, seats: 10, filled: 2 },
-  { id: "t3", label: "3", x: 45, y: 62, seats: 8, filled: 0 },
+  { id: "t1", label: "1", x: 27, y: 12, seats: 10, filled: 4 },
+  { id: "t2", label: "2", x: 73, y: 12, seats: 10, filled: 2 },
+  { id: "t3", label: "3", x: 50, y: 48, seats: 8, filled: 0 },
 ] as const;
 
 const STORY = [
@@ -42,41 +42,72 @@ const STORY = [
   },
 ] as const;
 
+function useWideScreen() {
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setWide(mq.matches);
+    sync();
+    mq.addEventListener?.("change", sync);
+    return () => mq.removeEventListener?.("change", sync);
+  }, []);
+  return wide;
+}
+
 /**
- * Leading interaction: sticky storytelling — guest list → hall map → seat assign → counters.
- * Illustrative demo of the real seating flow (not a live app embed).
+ * Seating demo you can use: pick a guest, then a table.
+ * Scroll still moves the editorial title on large screens, briefly.
  */
 export default function LuxV2SeatingStory() {
   const { ref, progress, reduceMotion } = useScrollProgress();
-  const p = reduceMotion ? 1 : progress;
-
-  const stage =
-    p < 0.22 ? 0 : p < 0.48 ? 1 : p < 0.74 ? 2 : 3;
-
-  const listOpacity = reduceMotion ? 0.35 : 1 - segment(p, 0.2, 0.55) * 0.55;
-  const mapOpacity = reduceMotion ? 1 : segment(p, 0.15, 0.4);
-  const mapScale = reduceMotion ? 1 : 0.92 + segment(p, 0.15, 0.55) * 0.08;
-  const chipProgress = reduceMotion ? 1 : segment(p, 0.45, 0.72);
-  const fillBoost = reduceMotion ? 3 : Math.round(segment(p, 0.7, 0.95) * 3);
-  const seatedTotal = 6 + (stage >= 2 ? 2 : 0) + fillBoost;
-
-  // Chip flies from list (right) toward table 3 center
-  const chipX = reduceMotion ? 45 : 78 - chipProgress * 33;
-  const chipY = reduceMotion ? 62 : 78 - chipProgress * 16;
-
+  const wide = useWideScreen();
+  const p = reduceMotion || !wide ? 0 : progress;
+  const stage = p < 0.22 ? 0 : p < 0.48 ? 1 : p < 0.74 ? 2 : 3;
   const story = STORY[stage];
+  const onDark = p > 0.4;
+
+  const [selected, setSelected] = useState<string | null>(null);
+  const [assignments, setAssignments] = useState<Record<string, string>>({});
+  const [hint, setHint] = useState("בחרו אורח, ואז שולחן.");
+  const [flash, setFlash] = useState<string | null>(null);
+
+  const seatedExtra = Object.entries(assignments).reduce((sum, [guestId]) => {
+    const guest = GUESTS.find((item) => item.id === guestId);
+    return sum + (guest?.party ?? 0);
+  }, 0);
+
+  const assign = (tableId: string) => {
+    if (!selected) {
+      setHint("בחרו קודם אורח מהרשימה.");
+      return;
+    }
+    const guest = GUESTS.find((item) => item.id === selected);
+    const table = TABLES.find((item) => item.id === tableId);
+    if (!guest || !table) return;
+    const used = Object.entries(assignments).reduce((sum, [guestId, assigned]) => {
+      if (assigned !== tableId || guestId === guest.id) return sum;
+      return sum + (GUESTS.find((item) => item.id === guestId)?.party ?? 0);
+    }, 0);
+    if (table.filled + used + guest.party > table.seats) {
+      setHint(`שולחן ${table.label} מלא מדי לקבוצה הזו.`);
+      return;
+    }
+    setAssignments((prev) => ({ ...prev, [guest.id]: tableId }));
+    setHint(`${guest.name} בשולחן ${table.label}.`);
+    setFlash(tableId);
+    window.setTimeout(() => setFlash((current) => (current === tableId ? null : current)), 700);
+  };
 
   return (
     <section
       ref={ref as Ref<HTMLElement>}
       dir="rtl"
       aria-labelledby="lux-v2-seating"
-      className="relative h-[210vh] bg-[#F5EEE8]"
+      className="relative bg-[#F5EEE8] lg:h-[150vh]"
     >
-      <div className="sticky top-0 flex min-h-[100svh] items-center overflow-x-clip overflow-y-visible">
-        {/* Soft cream → plum vignette only in later stages */}
+      <div className="flex items-center overflow-x-clip lg:sticky lg:top-0 lg:min-h-[100svh]">
         <div
-          className="pointer-events-none absolute inset-0 transition-opacity duration-500"
+          className="pointer-events-none absolute inset-0"
           aria-hidden
           style={{
             opacity: segment(p, 0.35, 0.7),
@@ -84,49 +115,49 @@ export default function LuxV2SeatingStory() {
               "radial-gradient(ellipse at 70% 40%, rgba(66,24,47,0.55), transparent 55%), linear-gradient(180deg, #F5EEE8 0%, #42182F 100%)",
           }}
         />
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 z-[5] h-16 bg-gradient-to-b from-[#842B4C] to-transparent"
+          aria-hidden
+        />
 
-        <div className="relative z-10 mx-auto grid w-full max-w-[1280px] items-center gap-8 px-4 py-14 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-10">
+        <div className="relative z-10 mx-auto grid w-full max-w-[1280px] items-center gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[0.82fr_1.18fr] lg:px-10">
           <div>
-            <p
-              className={`text-xs font-bold tracking-[0.28em] ${
-                p > 0.4 ? "text-[#C5A582]" : "text-[#842B4C]"
-              }`}
-            >
+            <p className={`text-xs font-bold tracking-[0.28em] ${onDark ? "text-[#C5A582]" : "text-[#842B4C]"}`}>
               סידורי הושבה · הדגמת זרימה
             </p>
             <h2
               id="lux-v2-seating"
               className={`mt-4 text-[34px] font-black leading-[1.08] tracking-[-0.035em] sm:text-[48px] ${
-                p > 0.4 ? "text-[#F5EEE8]" : "text-[#42182F]"
+                onDark ? "text-[#F5EEE8]" : "text-[#42182F]"
               }`}
             >
               {story.title}
             </h2>
-            <p
-              className={`mt-4 max-w-md text-lg leading-8 ${
-                p > 0.4 ? "text-[#F5EEE8]/85" : "text-[#6B5360]"
-              }`}
-            >
+            <p className={`mt-4 max-w-md text-lg leading-8 ${onDark ? "text-[#F5EEE8]/85" : "text-[#6B5360]"}`}>
               {story.body}
             </p>
 
             <div
               className={`mt-8 inline-flex items-baseline gap-3 border px-4 py-3 ${
-                p > 0.4
+                onDark
                   ? "border-[#C5A582]/50 bg-[#42182F]/40 text-[#F5EEE8]"
                   : "border-[#C5A582]/50 bg-white/70 text-[#42182F]"
               }`}
               aria-live="polite"
             >
-              <span className="text-3xl font-black tabular-nums">{seatedTotal}</span>
+              <span className="text-3xl font-black tabular-nums">{6 + seatedExtra}</span>
               <span className="text-sm font-bold">אורחים משובצים על המפה</span>
             </div>
+
+            <p className={`mt-4 text-sm font-bold ${onDark ? "text-[#F5EEE8]" : "text-[#42182F]"}`} role="status">
+              {hint}
+            </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
               <TrackedCtaLink
                 href="/seating-explained"
                 location="lux_v2_seating"
-                className={p > 0.4 ? luxBtnPrimaryOnDark : luxBtnPlum}
+                className={onDark ? luxBtnPrimaryOnDark : luxBtnPlum}
               >
                 סידורי הושבה לחתונה
               </TrackedCtaLink>
@@ -138,96 +169,104 @@ export default function LuxV2SeatingStory() {
                 לפתוח דמו הושבה
               </TrackedCtaLink>
             </div>
-            <p
-              className={`mt-4 text-[11px] font-medium ${
-                p > 0.4 ? "text-[#F5EEE8]/65" : "text-[#6B5360]"
-              }`}
-            >
+            <p className={`mt-4 text-[11px] font-medium ${onDark ? "text-[#F5EEE8]/65" : "text-[#6B5360]"}`}>
               אנימציית הדגמה של הזרימה במערכת · לא ממשק חי
             </p>
           </div>
 
-          <div className="relative mx-auto aspect-[5/4] w-full max-w-[640px]">
-            {/* Guest list layer */}
-            <div
-              className="absolute inset-y-[8%] end-0 z-20 w-[46%] overflow-hidden border border-[#C5A582]/40 bg-[#FFFBFA]/95 shadow-[0_24px_60px_rgba(66,24,47,0.1)]"
-              style={{ opacity: listOpacity }}
-            >
+          <div className="grid items-stretch gap-3 md:grid-cols-[0.9fr_1.1fr]">
+            <div className="overflow-hidden border border-[#C5A582]/40 bg-[#FFFBFA]/95">
               <div className="border-b border-[#C5A582]/30 px-4 py-3">
                 <p className="text-xs font-bold tracking-[0.16em] text-[#842B4C]">מוזמנים</p>
                 <p className="text-sm font-extrabold text-[#42182F]">החתונה של מאיה ואיתי</p>
               </div>
               <ul>
-                {GUESTS.map((g) => (
-                  <li
-                    key={g.id}
-                    className={`flex items-center justify-between border-b border-[#C5A582]/20 px-4 py-2.5 text-sm ${
-                      g.id === "g3" && stage >= 2 ? "bg-[#E8CFD8]/50" : ""
-                    }`}
-                  >
-                    <span className="font-bold text-[#42182F]">{g.name}</span>
-                    <span className="text-xs text-[#6B5360]">
-                      {g.party} · {g.status}
-                    </span>
-                  </li>
-                ))}
+                {GUESTS.map((guest) => {
+                  const table = TABLES.find((item) => item.id === assignments[guest.id]);
+                  const on = selected === guest.id;
+                  return (
+                    <li key={guest.id} className="border-b border-[#C5A582]/20">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelected(guest.id);
+                          setHint(
+                            table
+                              ? `${guest.name} בשולחן ${table.label}. אפשר להעביר.`
+                              : `${guest.name} סומן. בחרו שולחן.`
+                          );
+                        }}
+                        aria-pressed={on}
+                        className={`flex w-full items-center justify-between px-4 py-2.5 text-right text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C5A582] ${
+                          on ? "bg-[#E8CFD8]" : "hover:bg-[#F5EEE8]"
+                        }`}
+                      >
+                        <span className="font-bold text-[#42182F]">{guest.name}</span>
+                        <span className="text-xs text-[#6B5360]">
+                          {guest.party} · {table ? `שולחן ${table.label}` : guest.status}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
 
-            {/* Map layer */}
-            <div
-              className="absolute inset-0 z-10 overflow-hidden border border-[#C5A582]/35 bg-[#2A1A22]"
-              style={{
-                opacity: mapOpacity,
-                transform: `scale(${mapScale})`,
-                transformOrigin: "center",
-              }}
-            >
-              <img
-                src="/images/seating/seating-map.webp"
-                alt=""
-                className="absolute inset-0 h-full w-full object-cover opacity-35"
-                loading="lazy"
-                decoding="async"
+            <div className="relative h-full min-h-[440px] overflow-hidden border border-[#C5A582]/35 bg-[#2A0F1D] sm:min-h-[460px]">
+              <div
+                className="pointer-events-none absolute inset-0"
+                aria-hidden
+                style={{
+                  background:
+                    "radial-gradient(ellipse at 50% 42%, rgba(197,165,130,0.28), transparent 46%), radial-gradient(ellipse at 50% 100%, rgba(66,24,47,0.55), transparent 42%), linear-gradient(180deg, #42182F 0%, #2A0F1D 100%)",
+                }}
               />
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_45%,rgba(197,165,130,0.2),transparent_55%)]" />
-
-              {TABLES.map((t) => {
-                const filled =
-                  t.filled + (t.id === "t3" ? (stage >= 2 ? 2 : 0) + fillBoost : 0);
-                const active = t.id === "t3" && stage >= 2;
+              <div
+                className="pointer-events-none absolute left-1/2 top-[46%] h-[58%] w-[76%] -translate-x-1/2 -translate-y-1/2 border border-[#C5A582]/30"
+                style={{ borderRadius: "50%" }}
+                aria-hidden
+              />
+              {TABLES.map((table) => {
+                const extra = Object.entries(assignments).reduce((sum, [guestId, assigned]) => {
+                  if (assigned !== table.id) return sum;
+                  return sum + (GUESTS.find((item) => item.id === guestId)?.party ?? 0);
+                }, 0);
+                const filled = Math.min(table.seats, table.filled + extra);
+                const names = GUESTS.filter((guest) => assignments[guest.id] === table.id).map(
+                  (guest) => guest.name
+                );
                 return (
                   <div
-                    key={t.id}
-                    className="absolute flex h-[72px] w-[72px] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-full border-2 md:h-[88px] md:w-[88px]"
-                    style={{
-                      left: `${t.x}%`,
-                      top: `${t.y}%`,
-                      borderColor: active ? "#C5A582" : "rgba(197,165,130,0.45)",
-                      background: active ? "rgba(132,43,76,0.85)" : "rgba(66,24,47,0.75)",
-                      boxShadow: active ? "0 0 0 6px rgba(197,165,130,0.25)" : undefined,
-                    }}
+                    key={table.id}
+                    className="absolute flex w-[9.5rem] -translate-x-1/2 flex-col items-center"
+                    style={{ left: `${table.x}%`, top: `${table.y}%` }}
                   >
-                    <span className="text-lg font-black text-[#F5EEE8]">{t.label}</span>
-                    <span className="text-[10px] font-bold text-[#C5A582]">
-                      {Math.min(filled, t.seats)}/{t.seats}
-                    </span>
+                    <button
+                      type="button"
+                      onClick={() => assign(table.id)}
+                      aria-label={`שולחן ${table.label}, ${filled} מתוך ${table.seats}`}
+                      className={`flex h-[72px] w-[72px] flex-col items-center justify-center rounded-full border-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F5EEE8] md:h-[84px] md:w-[84px] ${
+                        flash === table.id ? "lux-seat-flash" : ""
+                      }`}
+                      style={{
+                        borderColor: names.length ? "#C5A582" : "rgba(197,165,130,0.45)",
+                        background: names.length ? "rgba(132,43,76,0.92)" : "rgba(66,24,47,0.82)",
+                        boxShadow: "0 10px 24px rgba(20,8,14,0.35)",
+                      }}
+                    >
+                      <span className="text-lg font-black text-[#F5EEE8]">{table.label}</span>
+                      <span className="text-[10px] font-bold text-[#C5A582]">
+                        {filled}/{table.seats}
+                      </span>
+                    </button>
+                    {names.length > 0 ? (
+                      <p className="mt-2 w-full border border-[#C5A582] bg-[#F5EEE8] px-2 py-1 text-center text-[10px] font-black leading-4 text-[#42182F]">
+                        {names.join(" · ")}
+                      </p>
+                    ) : null}
                   </div>
                 );
               })}
-
-              {/* Flying guest chip */}
-              <div
-                className="absolute z-30 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap border border-[#C5A582] bg-[#F5EEE8] px-3 py-1.5 text-xs font-black text-[#42182F] shadow-lg"
-                style={{
-                  left: `${chipX}%`,
-                  top: `${chipY}%`,
-                  opacity: stage >= 1 ? Math.min(1, 0.2 + chipProgress * 1.2) : 0,
-                  transform: `translate(-50%, -50%) scale(${0.9 + chipProgress * 0.15})`,
-                }}
-              >
-                מיכל אברהם · 2
-              </div>
             </div>
           </div>
         </div>

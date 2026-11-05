@@ -92,21 +92,7 @@ export default function SupportBotButton() {
           type="button"
           onClick={() => setOpen(true)}
           aria-label="פתיחת תמיכה בוואטסאפ"
-          className="
-            fixed z-[9999]
-            bottom-[max(1.25rem,calc(env(safe-area-inset-bottom)+1.25rem))]
-            right-[max(1.25rem,calc(env(safe-area-inset-right)+1.25rem))]
-            flex h-[54px] w-[54px] items-center justify-center
-            rounded-full
-            bg-[#25D366]
-            shadow-[0_6px_18px_rgba(0,0,0,0.22)]
-            transition-transform duration-200
-            hover:scale-[1.04]
-            active:scale-95
-            focus-visible:outline focus-visible:outline-2
-            focus-visible:outline-offset-2 focus-visible:outline-[#128C7E]
-            max-[360px]:h-[50px] max-[360px]:w-[50px]
-          "
+          className="lux-home-wa fixed z-[9999] bottom-[max(1.25rem,calc(env(safe-area-inset-bottom)+1.25rem))] right-[max(1.25rem,calc(env(safe-area-inset-right)+1.25rem))] flex h-[54px] w-[54px] items-center justify-center rounded-full bg-[#25D366] shadow-[0_6px_18px_rgba(0,0,0,0.22)] transition-transform duration-200 hover:scale-[1.04] active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#128C7E] max-[360px]:h-[50px] max-[360px]:w-[50px]"
         >
           <svg
             width="28"

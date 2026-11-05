@@ -26,7 +26,8 @@ export function useScrollProgress() {
       const rect = el.getBoundingClientRect();
       const total = Math.max(1, el.offsetHeight - window.innerHeight);
       const scrolled = Math.min(total, Math.max(0, -rect.top));
-      setProgress(scrolled / total);
+      const next = scrolled / total;
+      setProgress((prev) => (Math.abs(prev - next) < 0.012 ? prev : next));
     };
 
     const onScroll = () => {

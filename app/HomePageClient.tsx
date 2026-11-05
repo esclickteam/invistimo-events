@@ -171,7 +171,7 @@ function CinematicHomeHero() {
 
   return (
     <section
-      className="relative isolate min-h-[100svh] overflow-hidden bg-[#2A0F1D] text-[#F5EEE8]"
+      className="relative isolate h-screen w-full overflow-hidden bg-[#1A1216] text-[#F5EEE8] supports-[height:100dvh]:h-[100dvh]"
       aria-labelledby="home-hero-heading"
     >
       <div className="absolute inset-0">
@@ -179,22 +179,18 @@ function CinematicHomeHero() {
       </div>
 
       <div
-        className="pointer-events-none absolute inset-0 z-[1] bg-[linear-gradient(180deg,rgba(42,15,29,0.55)_0%,rgba(66,24,47,0.28)_34%,rgba(42,15,29,0.40)_68%,rgba(42,15,29,0.90)_100%)]"
+        className="pointer-events-none absolute inset-0 z-[1] bg-black/20"
         aria-hidden
       />
       <div
-        className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_center,transparent_18%,rgba(42,15,29,0.42)_100%)]"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-24 bg-gradient-to-b from-transparent via-[#F5EEE8]/55 to-[#F5EEE8] md:h-28"
+        className="pointer-events-none absolute inset-x-0 top-0 z-[1] h-28 bg-gradient-to-b from-black/35 to-transparent"
         aria-hidden
       />
 
       <div
         dir="rtl"
         lang="he"
-        className="relative z-10 mx-auto flex min-h-[100svh] max-w-[1180px] flex-col items-center justify-center px-4 pb-28 pt-28 text-center max-[360px]:px-3 sm:px-6 md:px-10 md:pb-32 md:pt-32"
+        className="relative z-10 mx-auto flex h-full w-full max-w-[1180px] flex-col items-center justify-center px-4 pb-16 pt-[calc(5.5rem+env(safe-area-inset-top))] text-center max-[360px]:px-3 sm:px-6 md:px-10"
       >
         <p className="mb-5 text-[11px] font-semibold tracking-[0.32em] text-[#C5A582] sm:mb-6 sm:text-xs">
           INVISTIMO
@@ -266,7 +262,7 @@ export default function HomePageClient() {
   return (
     // Do NOT set overflow-x-hidden here — it makes this a scroll container and
     // breaks position:sticky + feels like scroll hijacking on the homepage.
-    <div className="lux-home pb-[max(5.5rem,env(safe-area-inset-bottom))] text-[#2A1A22]">
+    <div className="lux-home pb-[max(9.5rem,calc(env(safe-area-inset-bottom)+8rem))] text-[#2A1A22] lg:pb-[max(5.5rem,env(safe-area-inset-bottom))]">
       <CinematicHomeHero />
       <HomeMarketingSections />
     </div>

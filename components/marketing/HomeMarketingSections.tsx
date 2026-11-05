@@ -16,6 +16,46 @@ import {
 } from "@/lib/ui/luxuryButtonClasses";
 import { cn } from "@/lib/utils";
 
+function usePageParallax() {
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const root = ref.current;
+    if (!root) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const fine = window.matchMedia("(pointer: fine)").matches;
+    const amp = fine ? 12 : 5;
+    let frame = 0;
+
+    const tick = () => {
+      frame = 0;
+      const vh = window.innerHeight;
+      root.querySelectorAll<HTMLElement>("[data-lux-parallax]").forEach((el) => {
+        const rect = el.getBoundingClientRect();
+        if (rect.bottom < -80 || rect.top > vh + 80) return;
+        const delta = (rect.top + rect.height * 0.5 - vh * 0.5) / vh;
+        el.style.setProperty("--lux-py", `${(-delta * amp).toFixed(2)}px`);
+      });
+    };
+
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(tick);
+    };
+
+    tick();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll, { passive: true });
+    return () => {
+      if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
+
+  return ref;
+}
+
 function useInViewOnce<T extends HTMLElement>(rootMargin = "0px 0px -8% 0px") {
   const ref = useRef<T | null>(null);
   const [inView, setInView] = useState(false);
@@ -76,20 +116,23 @@ function LuxPicture({
   alt,
   className,
   priority = false,
+  parallax = false,
 }: {
   src: string;
   alt: string;
   className?: string;
   priority?: boolean;
+  parallax?: boolean;
 }) {
   const jpg = src.replace(/\.webp$/i, ".jpg");
   return (
-    <picture>
+    <picture className={parallax ? "block h-full w-full" : undefined}>
       <source srcSet={src} type="image/webp" />
       <img
         src={jpg}
         alt={alt}
-        className={className}
+        className={cn(className, parallax && "lux-parallax-img")}
+        data-lux-parallax={parallax ? "" : undefined}
         loading={priority ? "eager" : "lazy"}
         decoding={priority ? "sync" : "async"}
         fetchPriority={priority ? "high" : "auto"}
@@ -175,6 +218,7 @@ function WebsiteGalleryMotion() {
   const trackRef = useRef<HTMLDivElement | null>(null);
   const sectionRef = useRef<HTMLDivElement | null>(null);
   const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
   const reduceRef = useRef(false);
   const inViewRef = useRef(false);
 
@@ -196,16 +240,16 @@ function WebsiteGalleryMotion() {
     }
 
     const id = window.setInterval(() => {
-      // Only auto-advance while the gallery is actually on screen — never yank the page.
-      if (!inViewRef.current) return;
+      // Only auto-advance while the gallery is on screen and nobody is using it.
+      if (!inViewRef.current || paused) return;
       setActive((i) => (i + 1) % WEBSITE_GALLERY.length);
-    }, 4200);
+    }, 5200);
 
     return () => {
       io.disconnect();
       window.clearInterval(id);
     };
-  }, []);
+  }, [paused]);
 
   useEffect(() => {
     const track = trackRef.current;
@@ -225,46 +269,95 @@ function WebsiteGalleryMotion() {
     track.scrollBy({ left: delta, behavior: "smooth" });
   }, [active]);
 
+  const step = (dir: number) => {
+    setPaused(true);
+    setActive((i) => (i + dir + WEBSITE_GALLERY.length) % WEBSITE_GALLERY.length);
+  };
+
   return (
-    <div ref={sectionRef}>
+    <div
+      ref={sectionRef}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
+      onFocusCapture={() => setPaused(true)}
+      onBlurCapture={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+          setPaused(false);
+        }
+      }}
+    >
       <div
         ref={trackRef}
-        className="flex gap-5 overflow-x-auto overscroll-x-contain pb-4 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        tabIndex={0}
+        role="region"
+        aria-label="גלריית אתרי חתונה"
+        onKeyDown={(event) => {
+          if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            step(1);
+          }
+          if (event.key === "ArrowRight") {
+            event.preventDefault();
+            step(-1);
+          }
+        }}
+        className="flex gap-5 overflow-x-auto overscroll-x-contain pb-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#C5A582] [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {WEBSITE_GALLERY.map((item, i) => (
           <button
             key={item.src}
             type="button"
-            onClick={() => setActive(i)}
+            onClick={() => {
+              setPaused(true);
+              setActive(i);
+            }}
+            aria-label={item.label}
+            aria-current={i === active ? "true" : undefined}
             className={cn(
-              "w-[78vw] shrink-0 text-right transition sm:w-[420px] md:w-[520px]",
-              i === active ? "opacity-100" : "opacity-70"
+              "group w-[78vw] shrink-0 text-right motion-safe:transition-opacity motion-safe:duration-700 sm:w-[420px] md:w-[520px]",
+              i === active ? "opacity-100" : "opacity-75 hover:opacity-100"
             )}
           >
             <div
               className={cn(
-                "lux-frame aspect-[16/10] border",
-                i === active ? "border-[#842B4C]" : "border-[#C5A582]/30"
+                "lux-frame relative aspect-[16/10] overflow-hidden border motion-safe:transition-[border-color,transform] motion-safe:duration-700",
+                i === active ? "border-[#842B4C]" : "scale-[0.985] border-[#C5A582]/30"
               )}
             >
               <img
                 src={item.src}
-                alt={`תבנית אתר חתונה ${item.label}`}
-                className="h-full w-full object-cover"
+                alt=""
+                className="h-full w-full object-cover motion-safe:transition-transform motion-safe:duration-700 motion-safe:ease-out motion-safe:group-hover:scale-[1.035] motion-safe:group-focus-visible:scale-[1.035]"
                 loading="lazy"
                 decoding="async"
               />
             </div>
-            <p className="mt-3 text-sm font-bold tracking-[0.14em] text-[#842B4C]">{item.label}</p>
+            <p
+              className={cn(
+                "mt-3 border-b pb-1 text-sm font-bold tracking-[0.14em] motion-safe:transition-colors motion-safe:duration-500",
+                i === active ? "border-[#842B4C] text-[#842B4C]" : "border-transparent text-[#6B5360]"
+              )}
+            >
+              {item.label}
+            </p>
           </button>
         ))}
       </div>
-      <div className="mt-4 flex justify-center gap-2" aria-hidden>
+      <div className="mt-2 flex justify-center gap-1">
         {WEBSITE_GALLERY.map((item, i) => (
-          <span
+          <button
             key={item.src}
-            className={cn("h-1 w-8", i === active ? "bg-[#842B4C]" : "bg-[#C5A582]/40")}
-          />
+            type="button"
+            aria-label={item.label}
+            aria-current={i === active ? "true" : undefined}
+            onClick={() => {
+              setPaused(true);
+              setActive(i);
+            }}
+            className="flex h-10 w-10 items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C5A582]"
+          >
+            <span className={cn("h-1 w-8 motion-safe:transition-colors motion-safe:duration-500", i === active ? "bg-[#842B4C]" : "bg-[#C5A582]/40")} />
+          </button>
         ))}
       </div>
     </div>
@@ -272,8 +365,31 @@ function WebsiteGalleryMotion() {
 }
 
 export default function HomeMarketingSections() {
+  const motionRef = usePageParallax();
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.add("lux-public-home");
+    let timer = 0;
+    const onScroll = () => {
+      if (window.matchMedia("(min-width: 1024px)").matches) {
+        root.classList.remove("lux-scrolling");
+        return;
+      }
+      root.classList.add("lux-scrolling");
+      window.clearTimeout(timer);
+      timer = window.setTimeout(() => root.classList.remove("lux-scrolling"), 680);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener("scroll", onScroll);
+      root.classList.remove("lux-public-home", "lux-scrolling");
+    };
+  }, []);
+
   return (
-    <>
+    <div ref={motionRef}>
       {/* Intro — full-bleed editorial with overlay type */}
       <section
         dir="rtl"
@@ -284,37 +400,50 @@ export default function HomeMarketingSections() {
           <LuxPicture
             src={LUX_IMGS.bride}
             alt=""
-            className="h-full w-full object-cover"
+            className="h-[115%] w-full max-w-none object-cover"
             priority
+            parallax
           />
           <div
-            className="absolute inset-0 bg-[linear-gradient(100deg,rgba(245,238,232,0.94)_0%,rgba(245,238,232,0.72)_42%,rgba(66,24,47,0.35)_100%)]"
+            className="absolute inset-0 bg-[linear-gradient(100deg,rgba(245,238,232,0.55)_0%,rgba(245,238,232,0.28)_48%,rgba(66,24,47,0.22)_100%)]"
             aria-hidden
           />
         </div>
         <div className="relative z-10 mx-auto flex min-h-[88svh] max-w-[1180px] flex-col justify-center px-4 py-20 sm:px-6 md:px-10">
           <Reveal>
-            <Eyebrow>כל מה שצריך לאירוע שלכם</Eyebrow>
-            <h2
-              id="home-intro"
-              className="lux-display mt-5 max-w-[16ch] text-[40px] text-[#42182F] md:text-[64px]"
-            >
-              אתם מתכננים את הרגעים היפים. אנחנו דואגים לכל מה שמסביב.
-            </h2>
-            <p className="lux-lede mt-6 max-w-xl text-[#42182F]/85">
-              אירוע מוצלח מורכב מאלפי פרטים קטנים. רשימת המוזמנים, ההזמנות, אישורי ההגעה,
-              סידורי ההושבה והעדכונים של הרגע האחרון — עם Invistimo הכול במקום אחד.
-            </p>
-            <div className="mt-9 flex flex-wrap gap-3">
-              <TrackedCtaLink href="/pricing" location="home_intro_primary" className={luxBtnPlum}>
-                בואו נתחיל
-              </TrackedCtaLink>
-              <TrackedCtaLink href="/try" location="home_intro_demo" className={luxBtnSecondary}>
-                צפו בהדגמה
-              </TrackedCtaLink>
+            <div className="relative max-w-xl">
+              <div
+                className="pointer-events-none absolute -inset-x-5 -inset-y-7 bg-[linear-gradient(100deg,rgba(245,238,232,0.94)_0%,rgba(245,238,232,0.86)_58%,rgba(245,238,232,0.35)_82%,rgba(245,238,232,0)_100%)]"
+                aria-hidden
+              />
+              <div className="relative">
+                <Eyebrow>כל מה שצריך לאירוע שלכם</Eyebrow>
+                <h2
+                  id="home-intro"
+                  className="lux-display mt-5 max-w-[16ch] text-[40px] text-[#42182F] md:text-[64px]"
+                >
+                  אתם מתכננים את הרגעים היפים. אנחנו דואגים לכל מה שמסביב.
+                </h2>
+                <p className="lux-lede mt-6 max-w-xl text-[#42182F]">
+                  אירוע מוצלח מורכב מאלפי פרטים קטנים. רשימת המוזמנים, ההזמנות, אישורי ההגעה,
+                  סידורי ההושבה והעדכונים של הרגע האחרון — עם Invistimo הכול במקום אחד.
+                </p>
+                <div className="mt-9 flex flex-wrap gap-3">
+                  <TrackedCtaLink href="/pricing" location="home_intro_primary" className={luxBtnPlum}>
+                    בואו נתחיל
+                  </TrackedCtaLink>
+                  <TrackedCtaLink href="/try" location="home_intro_demo" className={luxBtnSecondary}>
+                    צפו בהדגמה
+                  </TrackedCtaLink>
+                </div>
+              </div>
             </div>
           </Reveal>
         </div>
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-24 bg-gradient-to-b from-transparent to-[#E8D9C8]"
+          aria-hidden
+        />
       </section>
 
       {/* Services — champagne mosaic, not identical cards */}
@@ -373,7 +502,7 @@ export default function HomeMarketingSections() {
                 <li key={item.href}>
                   <Link
                     href={item.href}
-                    className="group flex flex-col gap-1 py-4 transition hover:bg-[#F5EEE8]/45 sm:flex-row sm:items-baseline sm:justify-between sm:gap-8"
+                    className="lux-row-link group flex flex-col gap-1 py-4 transition-colors hover:bg-[#F5EEE8]/45 sm:flex-row sm:items-baseline sm:justify-between sm:gap-8"
                   >
                     <span className="text-lg font-extrabold text-[#42182F] group-hover:text-[#842B4C]">
                       {item.title}
@@ -401,6 +530,10 @@ export default function HomeMarketingSections() {
             "linear-gradient(180deg, #F5EEE8 0%, #E8CFD8 45%, #F5EEE8 100%)",
         }}
       >
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 hidden h-20 bg-gradient-to-b from-[#42182F]/20 to-transparent lg:block"
+          aria-hidden
+        />
         <div className="mx-auto max-w-[1400px]">
           <Reveal>
             <Eyebrow>אתר חתונה אישי</Eyebrow>
@@ -488,7 +621,7 @@ export default function HomeMarketingSections() {
       <section
         dir="rtl"
         aria-labelledby="home-pricing"
-        className="relative overflow-hidden bg-[#FFFBFA] px-4 py-16 sm:px-6 md:px-10 md:py-24"
+        className="relative overflow-hidden bg-[linear-gradient(180deg,#F5EEE8_0%,#E8D9C8_42%,#F5EEE8_100%)] px-4 py-16 sm:px-6 md:px-10 md:py-24"
       >
         <div className="pointer-events-none absolute inset-x-0 top-0 h-2 bg-gradient-to-l from-[#C5A582] via-[#B57591] to-[#842B4C]" aria-hidden />
         <div className="relative mx-auto max-w-3xl text-center">
@@ -556,7 +689,12 @@ export default function HomeMarketingSections() {
       {/* Final cinematic CTA */}
       <section dir="rtl" aria-labelledby="home-final" className="relative overflow-hidden">
         <div className="absolute inset-0">
-          <LuxPicture src={LUX_IMGS.ceremony} alt="" className="h-full w-full object-cover" />
+          <LuxPicture
+            src={LUX_IMGS.ceremony}
+            alt=""
+            className="h-[115%] w-full max-w-none object-cover"
+            parallax
+          />
           <div
             className="absolute inset-0 bg-[linear-gradient(180deg,rgba(66,24,47,0.55)_0%,rgba(42,15,29,0.88)_100%)]"
             aria-hidden
@@ -589,6 +727,6 @@ export default function HomeMarketingSections() {
           </Reveal>
         </div>
       </section>
-    </>
+    </div>
   );
 }
