@@ -123,9 +123,9 @@ export async function POST(req: Request) {
 
     await resend.emails.send({
       // נשלח רק לצוות. הפונה לא מקבל עותק.
+      // נמענים מגיעים אך ורק מ־SUPPORT_EMAIL בשרת. אין כתובת קבועה בקוד.
       from: "Invistimo <support@invistimo.com>",
       to: recipients,
-      bcc: ["invistimo9@gmail.com"],
       ...(email ? { replyTo: email } : {}),
 
       subject: subject
