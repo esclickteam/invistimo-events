@@ -241,7 +241,7 @@ export default function ContactPage() {
         <div className="grid items-center gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:gap-10">
           <div className="order-1">
             <p className="font-[family-name:var(--font-contact-display)] text-[11px] font-medium tracking-[0.28em] text-[#8A6A3E] sm:text-xs">
-              INVISTIMO&nbsp;&nbsp;/&nbsp;&nbsp;GET IN TOUCH
+              INVISTIMO&nbsp;&nbsp;/&nbsp;&nbsp;יצירת קשר
             </p>
 
             <h1
@@ -300,7 +300,7 @@ export default function ContactPage() {
                 />
               </div>
               <figcaption className="mt-2 text-center font-[family-name:var(--font-contact-display)] text-[10px] tracking-[0.18em] text-[#9A8164] lg:text-start">
-                Every detail begins here
+                כל פרט מתחיל כאן
               </figcaption>
             </figure>
           </div>
@@ -316,7 +316,7 @@ export default function ContactPage() {
           <p
             className={`${display.className} max-w-3xl text-base font-medium leading-relaxed text-[#4A3728] sm:text-lg md:text-xl`}
           >
-            Every beautiful celebration begins with a conversation.
+            כל חגיגה יפה מתחילה בשיחה.
           </p>
         </motion.div>
       </section>
@@ -606,7 +606,7 @@ export default function ContactPage() {
       <section className="border-t border-[#E2D2B8]/80 bg-[#F3EBE0]/55" aria-labelledby="quick-help-heading">
         <div className="mx-auto max-w-6xl px-5 py-12 md:px-8 md:py-14">
           <motion.div {...motionProps}>
-            <p className="text-[11px] font-black tracking-[0.16em] text-[#8A6A3E]">QUICK HELP</p>
+            <p className="text-[11px] font-black tracking-[0.16em] text-[#8A6A3E]">עזרה מהירה</p>
             <h2 id="quick-help-heading" className={`${display.className} mt-2 text-2xl font-medium text-[#2C2118] sm:text-[1.85rem]`}>
               אולי התשובה כבר מחכה לכם
             </h2>
@@ -641,7 +641,7 @@ export default function ContactPage() {
       <section className="bg-[#F8F3EA]" aria-labelledby="contact-faq-heading">
         <div className="mx-auto max-w-6xl px-5 py-12 md:px-8 md:py-16">
           <motion.div {...motionProps}>
-            <p className="text-[11px] font-black tracking-[0.16em] text-[#8A6A3E]">FAQ</p>
+            <p className="text-[11px] font-black tracking-[0.16em] text-[#8A6A3E]">שאלות נפוצות</p>
             <h2
               id="contact-faq-heading"
               className={`${display.className} mt-2 max-w-2xl text-2xl font-medium text-[#2C2118] sm:text-[1.85rem]`}

@@ -202,9 +202,9 @@ function GalleryModal({
 
 function HeroComposition({ reduce }: { reduce: boolean | null }) {
   return (
-    <div className="relative mx-auto w-full max-w-[560px] px-1 pt-4 sm:pt-6">
+    <div className="relative mx-auto w-full min-w-0 max-w-[560px] px-1 pt-4 sm:pt-6">
       <div className="pointer-events-none absolute inset-x-[8%] top-10 bottom-8 rounded-[36px] bg-[radial-gradient(circle_at_top,#E8D4AF_0%,transparent_55%)] blur-2xl" />
-      <div className="relative flex items-end justify-center pb-2">
+      <div className="relative flex w-full min-w-0 items-end justify-center pb-2">
         <div
           className={`w-[34%] shrink-0 origin-bottom -translate-y-2 -rotate-[12deg] ${
             reduce ? "" : "invite-float"
@@ -361,7 +361,7 @@ export default function ChatunaInvitationsPage() {
         <div className="absolute left-[6%] top-20 -z-10 h-56 w-56 rounded-full bg-[#D8B77C]/20 blur-3xl" />
         <div className="absolute bottom-8 right-[10%] -z-10 h-64 w-64 rounded-full bg-[#B59668]/15 blur-3xl" />
 
-        <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12">
+        <div className="mx-auto grid min-w-0 max-w-6xl items-center gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 [&>*]:min-w-0">
           <motion.div initial="hidden" animate="visible" variants={fadeUp} transition={{ duration: 0.7 }}>
             <nav aria-label="מיקום בעמוד" className="mb-6 text-sm font-semibold text-[#7A6042]">
               <Link href="/" className="hover:text-[#8A642E]">

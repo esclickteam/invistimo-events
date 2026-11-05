@@ -35,7 +35,6 @@
     box-shadow var(--pricing-dur) var(--pricing-ease),
     border-color var(--pricing-dur) var(--pricing-ease),
     background-color var(--pricing-dur) var(--pricing-ease);
-  will-change: transform;
 }
 
 @media (hover: hover) and (pointer: fine) {

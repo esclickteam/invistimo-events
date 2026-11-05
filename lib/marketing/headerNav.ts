@@ -215,6 +215,90 @@ export const GUIDE_COLUMNS: HeaderNavColumn[] = [
       },
     ],
   },
+  {
+    id: "rsvp-followup",
+    title: "מעקב אחרי התשובות",
+    links: [
+      {
+        href: "/info/guides/tracking-rsvp-responses",
+        label: "מעקב אחרי תשובות אישורי הגעה",
+      },
+      {
+        href: "/info/guides/how-phone-rsvp-works",
+        label: "איך עובדות שיחות אישור ההגעה",
+      },
+      {
+        href: "/info/guides/rsvp-reminder-rounds",
+        label: "סבבי תזכורת למי שלא ענה",
+      },
+      {
+        href: "/info/guides/personal-rsvp-link",
+        label: "קישור אישי לאישור הגעה",
+      },
+      {
+        href: "/info/guides/manage-guests-after-rsvp",
+        label: "ניהול אורחים אחרי האישור",
+      },
+      {
+        href: "/info/guides/import-guest-list",
+        label: "בניית וייבוא רשימת מוזמנים",
+      },
+      {
+        href: "/info/guides/plus-ones-and-kids-rsvp",
+        label: "מלווים וילדים באישור ההגעה",
+      },
+      {
+        href: "/info/guides/overseas-guests-rsvp",
+        label: "אורחים מחו״ל",
+      },
+      {
+        href: "/info/guides/last-minute-guest-changes",
+        label: "שינויי הגעה ברגע האחרון",
+      },
+      {
+        href: "/info/guides/whatsapp-invitation-wording",
+        label: "ניסוח הודעת הזמנה ב־WhatsApp",
+      },
+      {
+        href: "/info/guides/rsvp-corporate-events",
+        label: "אישורי הגעה לאירוע חברה",
+      },
+    ],
+  },
+  {
+    id: "day-of",
+    title: "אתר החתונה ויום האירוע",
+    links: [
+      {
+        href: "/info/guides/wedding-website-guide",
+        label: "מדריך אתר חתונה",
+      },
+      {
+        href: "/info/guides/wedding-website-vs-digital-invitation",
+        label: "אתר חתונה מול הזמנה דיגיטלית",
+      },
+      {
+        href: "/info/guides/when-to-send-save-the-date",
+        label: "מתי שולחים Save the Date",
+      },
+      {
+        href: "/info/guides/seating-live-day-of",
+        label: "הושבה ביום האירוע",
+      },
+      {
+        href: "/info/guides/seating-families-groups",
+        label: "הושבת משפחות וקבוצות",
+      },
+      {
+        href: "/info/guides/venue-guest-check-in",
+        label: "קבלת אורחים באולם",
+      },
+      {
+        href: "/info/guides/reduce-meal-waste",
+        label: "צמצום בזבוז מנות",
+      },
+    ],
+  },
 ];
 
 export const HEADER_PRIMARY: HeaderNavItem[] = [

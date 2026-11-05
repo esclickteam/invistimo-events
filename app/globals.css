@@ -625,9 +625,28 @@ iframe[src*="userway"] {
   transform: none;
 }
 
+/* Stay in normal document paint. A promoted full-bleed layer (will-change +
+   translate3d) is discarded for a frame on a fast fling and the section reads empty. */
 .lux-home .lux-parallax-img {
-  will-change: transform;
-  transform: translate3d(0, var(--lux-py, 0px), 0) scale(1.08);
+  transform: none;
+  will-change: auto;
+}
+
+.home-cinematic-hero {
+  background-color: #1a1216;
+  background-repeat: no-repeat;
+  background-position: center;
+  background-size: cover;
+}
+
+.home-hero-video {
+  visibility: hidden;
+}
+
+.home-hero-video.is-playing {
+  visibility: visible;
+  transform: translate3d(0, 0, 0);
+  backface-visibility: hidden;
 }
 
 .lux-home .lux-row-link span:first-child {

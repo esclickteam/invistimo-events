@@ -202,28 +202,6 @@ export default function PublicPageShell({ children }: PublicPageShellProps) {
             opacity: 0 !important;
             pointer-events: none !important;
           }
-
-          #userwayAccessibilityIcon,
-          #userwayAccessibilityIconRoot,
-          #userwayAccessibilityIconWrapper,
-          .userway_accessibility_icon,
-          .userway_p1,
-          .uwy,
-          .uwy-user-way,
-          iframe[src*="userway"],
-          iframe[title*="Accessibility"],
-          iframe[title*="נגישות"],
-          [aria-label*="Accessibility"],
-          [aria-label*="נגישות"],
-          [class*="accessibility"],
-          [class*="Accessibility"],
-          [id*="accessibility"],
-          [id*="Accessibility"] {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
-          }
         `}</style>
 
         {children}
