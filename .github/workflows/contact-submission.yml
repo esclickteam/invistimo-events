@@ -1,0 +1,33 @@
+name: Contact submission trace
+
+on:
+  pull_request:
+    paths:
+      - "app/api/contact/**"
+      - "app/contact/**"
+      - "app/components/event/ContactForm.jsx"
+      - "app/(marketing)/services/alcohol-management/QuoteForm.tsx"
+      - "lib/contact/**"
+      - "lib/analytics/**"
+      - "lib/seo/analytics.ts"
+      - "models/CustomerFile.ts"
+      - "scripts/tests/contact-*.test.ts"
+      - "scripts/tests/public-conversion-events.test.ts"
+      - ".github/workflows/contact-submission.yml"
+
+jobs:
+  contact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Contact submission tests
+        run: npm run test:contact-inquiry-measurement
