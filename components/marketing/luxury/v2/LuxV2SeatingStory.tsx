@@ -7,6 +7,7 @@ import {
   luxBtnPlum,
   luxBtnPrimaryOnDark,
 } from "@/lib/ui/luxuryButtonClasses";
+import RoundTableMark from "@/components/marketing/seating/RoundTableMark";
 import { segment, useScrollProgress } from "./useScrollProgress";
 
 const GUESTS = [
@@ -18,9 +19,9 @@ const GUESTS = [
 ] as const;
 
 const TABLES = [
-  { id: "t1", label: "1", x: 27, y: 12, seats: 10, filled: 4 },
-  { id: "t2", label: "2", x: 73, y: 12, seats: 10, filled: 2 },
-  { id: "t3", label: "3", x: 50, y: 48, seats: 8, filled: 0 },
+  { id: "t1", label: "1", x: 22, y: 36, seats: 10, filled: 4 },
+  { id: "t2", label: "2", x: 78, y: 36, seats: 10, filled: 2 },
+  { id: "t3", label: "3", x: 50, y: 74, seats: 8, filled: 0 },
 ] as const;
 
 const STORY = [
@@ -174,7 +175,7 @@ export default function LuxV2SeatingStory() {
             </p>
           </div>
 
-          <div className="grid items-stretch gap-3 md:grid-cols-[0.9fr_1.1fr]">
+          <div className="grid items-stretch gap-3 xl:grid-cols-[0.72fr_1.28fr]">
             <div className="overflow-hidden border border-[#C5A582]/40 bg-[#FFFBFA]/95">
               <div className="border-b border-[#C5A582]/30 px-4 py-3">
                 <p className="text-xs font-bold tracking-[0.16em] text-[#842B4C]">מוזמנים</p>
@@ -212,7 +213,7 @@ export default function LuxV2SeatingStory() {
               </ul>
             </div>
 
-            <div className="relative h-full min-h-[440px] overflow-hidden border border-[#C5A582]/35 bg-[#2A0F1D] sm:min-h-[460px]">
+            <div className="relative h-full min-h-[520px] overflow-hidden border border-[#C5A582]/35 bg-[#2A0F1D] sm:min-h-[560px]">
               <div
                 className="pointer-events-none absolute inset-0"
                 aria-hidden
@@ -238,29 +239,19 @@ export default function LuxV2SeatingStory() {
                 return (
                   <div
                     key={table.id}
-                    className="absolute flex w-[9.5rem] -translate-x-1/2 flex-col items-center"
+                    className="absolute w-[6.7rem] -translate-x-1/2 -translate-y-1/2 sm:w-[9.25rem] xl:w-[10.5rem]"
                     style={{ left: `${table.x}%`, top: `${table.y}%` }}
                   >
-                    <button
-                      type="button"
+                    <RoundTableMark
+                      label={table.label}
+                      seats={table.seats}
+                      filled={filled}
+                      tone="dark"
+                      flash={flash === table.id}
                       onClick={() => assign(table.id)}
-                      aria-label={`שולחן ${table.label}, ${filled} מתוך ${table.seats}`}
-                      className={`flex h-[72px] w-[72px] flex-col items-center justify-center rounded-full border-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F5EEE8] md:h-[84px] md:w-[84px] ${
-                        flash === table.id ? "lux-seat-flash" : ""
-                      }`}
-                      style={{
-                        borderColor: names.length ? "#C5A582" : "rgba(197,165,130,0.45)",
-                        background: names.length ? "rgba(132,43,76,0.92)" : "rgba(66,24,47,0.82)",
-                        boxShadow: "0 10px 24px rgba(20,8,14,0.35)",
-                      }}
-                    >
-                      <span className="text-lg font-black text-[#F5EEE8]">{table.label}</span>
-                      <span className="text-[10px] font-bold text-[#C5A582]">
-                        {filled}/{table.seats}
-                      </span>
-                    </button>
+                    />
                     {names.length > 0 ? (
-                      <p className="mt-2 w-full border border-[#C5A582] bg-[#F5EEE8] px-2 py-1 text-center text-[10px] font-black leading-4 text-[#42182F]">
+                      <p className="pointer-events-none absolute left-1/2 top-[calc(100%-0.4rem)] w-max max-w-[11rem] -translate-x-1/2 border border-[#C5A582] bg-[#F5EEE8] px-2 py-1 text-center text-[10px] font-black leading-4 text-[#42182F]">
                         {names.join(" · ")}
                       </p>
                     ) : null}

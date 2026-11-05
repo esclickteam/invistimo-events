@@ -592,7 +592,8 @@ iframe[src*="userway"] {
   background-size: 100% 1px;
 }
 
-.lux-home .lux-seat-flash {
+.lux-home .lux-seat-flash,
+.hall-seat-flash {
   animation: lux-seat-flash 0.7s ease-out;
 }
 
@@ -719,6 +720,7 @@ iframe[src*="userway"] {
   }
   .lux-home .lux-row-link span:first-child,
   .lux-home .lux-seat-flash,
+  .hall-seat-flash,
   .lux-home .lux-env-card,
   .lux-home .lux-env-flap {
     transition: none;
