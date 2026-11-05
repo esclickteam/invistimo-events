@@ -4,11 +4,10 @@ import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
-import MarketingVideo from "@/app/(marketing)/rsvp/components/MarketingVideo";
-import DevicePreviewPair from "./components/DevicePreviewPair";
-import FeaturedTemplateShowcase from "./components/FeaturedTemplateShowcase";
-import MobileShowcasePreview from "./components/MobileShowcasePreview";
+import GuestJourneyPhone from "./components/GuestJourneyPhone";
 import SiteAnatomyPreview from "./components/SiteAnatomyPreview";
+import WeddingDesignGallery from "./components/WeddingDesignGallery";
+import WeddingWebsiteHero, { wwPrimary } from "./components/WeddingWebsiteHero";
 import { WEDDING_WEBSITE_FAQS } from "./weddingFaqs";
 import {
   COMPARE_ROWS,
@@ -26,13 +25,9 @@ import {
 import { getWeddingTemplate } from "@/config/weddingWebsite/templates";
 import {
   btnPrimary,
-  btnPrimaryDark,
-  btnSecondary,
   btnSecondaryOnDark,
 } from "@/lib/ui/buttonClasses";
 
-const ctaPrimary = btnPrimaryDark;
-const ctaSecondary = btnSecondary;
 const ctaOnDark = btnPrimary;
 const ctaOnDarkSecondary = btnSecondaryOnDark;
 
@@ -73,111 +68,22 @@ function FadeIn({
 }
 
 export default function WeddingWebsiteMarketingPage() {
-  const reduce = useReducedMotion();
   const heroTemplate = resolveHeroTemplate();
   const featured = resolveFeaturedStyles();
-  const videoExistsHint = WW_MEDIA.video.src;
   const mobileTemplate =
     getWeddingTemplate(WW_MEDIA.mobileDemoTemplateId) || heroTemplate;
 
   return (
     <article
       dir="rtl"
-      className="ww-marketing min-h-screen overflow-x-clip bg-[#F7F1E8] text-[#3F3025]"
+      className="ww-marketing min-h-screen overflow-x-clip bg-[#F5EEE8] text-[#42182F]"
     >
-      {/* HERO */}
-      <header className="relative isolate overflow-hidden">
-        <div
-          className="absolute inset-0 -z-10"
-          aria-hidden
-          style={{
-            background:
-              "radial-gradient(ellipse 70% 55% at 12% 8%, rgba(201,169,98,0.28), transparent 55%), radial-gradient(ellipse 50% 40% at 92% 0%, rgba(122,42,54,0.08), transparent 50%), linear-gradient(180deg, #FFFDF8 0%, #F3EBE0 42%, #F7F1E8 100%)",
-          }}
-        />
-        <div
-          className="pointer-events-none absolute inset-0 -z-10 opacity-[0.35]"
-          aria-hidden
-          style={{
-            backgroundImage:
-              "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E\")",
-            mixBlendMode: "soft-light",
-          }}
-        />
-
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 pb-16 pt-4 md:gap-14 md:px-8 md:pb-24 md:pt-6 lg:grid-cols-[1.02fr_0.98fr]">
-          <div>
-            <p className="font-['Cormorant_Garamond'] text-3xl font-semibold tracking-tight text-[#2A2118] md:text-4xl">
-              Invistimo
-            </p>
-            <p className="mt-3 text-sm font-black tracking-[0.16em] text-[#7A5530]">
-              אתר חתונה אישי
-            </p>
-
-            <h1 className="mt-4 max-w-xl font-['Cormorant_Garamond'] text-[2.05rem] font-semibold leading-[1.12] text-[#2A2118] md:text-[2.75rem]">
-              הסיפור שלכם. האתר שלכם. החתונה שלכם.
-            </h1>
-
-            <p className="mt-5 max-w-xl text-xl font-bold leading-9 text-[#5E4735]">
-              אתר חתונה מעוצב שמרכז את כל מה שהאורחים צריכים לדעת — ונותן לסיפור שלכם מקום
-              מיוחד משלו.
-            </p>
-
-            <div className="mt-5 max-w-xl space-y-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
-              <p>
-                מהרגע שבו אתם מודיעים על התאריך ועד ליום החתונה, אתר חתונה אישי מאפשר לכם
-                לשתף את האורחים בפרטים החשובים בצורה יפה, מסודרת ונוחה.
-              </p>
-              <p>
-                פרטי האירוע, מיקום, ניווט, לוח זמנים, תמונות ותוכן אישי — הכול במקום אחד,
-                בעיצוב שמתאים לכם.
-              </p>
-            </div>
-
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-              <TrackedCtaLink
-                href="#gallery"
-                className={ctaPrimary}
-                location={`hero_gallery:${WW_PATH}`}
-              >
-                גלו את אתרי החתונה
-              </TrackedCtaLink>
-              <a href="#examples" className={ctaSecondary}>
-                צפו בדוגמאות
-              </a>
-            </div>
-          </div>
-
-          <div className="relative">
-            {reduce ? (
-              <DevicePreviewPair
-                templateId={heroTemplate.id}
-                name={heroTemplate.name}
-                desktopSrc={WW_MEDIA.heroDesktop}
-                mobileSrc={WW_MEDIA.heroMobile}
-                priority
-              />
-            ) : (
-              <motion.div
-                initial={{ opacity: 1, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-              >
-                <DevicePreviewPair
-                  templateId={heroTemplate.id}
-                  name={heroTemplate.name}
-                  desktopSrc={WW_MEDIA.heroDesktop}
-                  mobileSrc={WW_MEDIA.heroMobile}
-                  priority
-                />
-              </motion.div>
-            )}
-            <p className="mt-5 text-center text-sm font-semibold text-[#7A6042] sm:text-right">
-              תבנית {heroTemplate.name} · אתר לדוגמה
-            </p>
-          </div>
-        </div>
-      </header>
+      <WeddingWebsiteHero
+        templateId={heroTemplate.id}
+        name={heroTemplate.name}
+        desktopPoster={WW_MEDIA.heroDesktop}
+        mobilePoster={WW_MEDIA.heroMobile}
+      />
 
       {/* WHAT IS */}
       <section
@@ -319,8 +225,8 @@ export default function WeddingWebsiteMarketingPage() {
             ))}
           </div>
 
-          <FadeIn className="mt-14 overflow-x-auto">
-            <table className="w-full min-w-[640px] border-collapse text-right text-sm md:text-base">
+          <FadeIn className="mt-14">
+            <table className="w-full table-fixed border-collapse text-right text-xs sm:text-sm md:text-base">
               <caption className="sr-only">
                 השוואה בין אתר חתונה, הזמנה דיגיטלית וקישור אישי לאישור הגעה
               </caption>
@@ -366,75 +272,58 @@ export default function WeddingWebsiteMarketingPage() {
       <section
         id="gallery"
         aria-labelledby="gallery-heading"
-        className="relative bg-[#F7F1E8] px-5 py-16 md:px-8 md:py-24"
+        className="relative bg-[#F5EEE8] px-5 py-16 md:px-8 md:py-24"
       >
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-[#E8D5A8]/25 to-transparent"
-          aria-hidden
-        />
         <div className="relative mx-auto max-w-6xl">
-          <FadeIn className="mx-auto max-w-3xl text-center">
+          <FadeIn className="max-w-3xl">
             <Eyebrow>גלריית עיצובים</Eyebrow>
             <h2
               id="gallery-heading"
-              className="mt-3 font-['Cormorant_Garamond'] text-3xl font-semibold leading-tight text-[#2A2118] md:text-5xl"
+              className="mt-3 font-['Cormorant_Garamond'] text-3xl font-semibold leading-tight text-[#42182F] md:text-5xl"
             >
-              כל סיפור אהבה ראוי לאתר משלו
+              ארבעה אתרים חיים. כל אחד בסגנון אחר.
             </h2>
-            <p className="mt-5 text-lg leading-8 text-[#5C4A3A]">
-              הכירו מבחר עיצובים לאתרי חתונה — מסגנון קלאסי ורומנטי ועד מראה מודרני
-              ומינימליסטי. כל תצוגה היא אתר לדוגמה אמיתי שניתן לפתוח ולגלול.
+            <p className="mt-5 text-lg leading-8 text-[#6B5360]">
+              גללו בתוך כל עיצוב, או פתחו את האתר המלא. אלה אותן דוגמאות פעילות — לא תמונה סטטית.
             </p>
           </FadeIn>
 
-          <div id="examples" className="mt-16 scroll-mt-24">
-            <FeaturedTemplateShowcase styles={featured} />
+          <div id="examples" className="mt-14 scroll-mt-24">
+            <WeddingDesignGallery styles={featured} />
+          </div>
+
+          <div className="mt-14 flex flex-col items-start gap-3 border border-[#C5A582] bg-[#FFF8F0] p-6 sm:flex-row sm:items-center sm:justify-between md:p-8">
+            <p className="max-w-xl font-['Cormorant_Garamond'] text-3xl font-semibold leading-tight text-[#42182F]">
+              רוצים אתר כזה לחתונה שלכם?
+            </p>
+            <TrackedCtaLink href={WW_LINKS.contact} className={wwPrimary} location={`gallery_contact:${WW_PATH}`}>
+              דברו איתנו
+            </TrackedCtaLink>
           </div>
         </div>
       </section>
 
-      {/* SCROLL VIDEO */}
       <section
-        id="scroll-video"
-        aria-labelledby="video-heading"
-        className="bg-[#FFFDF8] px-5 py-16 md:px-8 md:py-24"
+        id="guest"
+        aria-labelledby="guest-heading"
+        className="bg-[#FFF8F0] px-5 py-16 md:px-8 md:py-24"
       >
-        <div className="mx-auto max-w-5xl">
-          <FadeIn className="text-center">
-            <Eyebrow>חוויית גלילה</Eyebrow>
+        <div className="mx-auto max-w-6xl">
+          <FadeIn className="max-w-3xl">
+            <Eyebrow>מסלול האורח</Eyebrow>
             <h2
-              id="video-heading"
-              className="mt-3 font-['Cormorant_Garamond'] text-3xl font-semibold text-[#2A2118] md:text-5xl"
+              id="guest-heading"
+              className="mt-3 font-['Cormorant_Garamond'] text-3xl font-semibold text-[#42182F] md:text-5xl"
             >
-              תראו איך האתר שלכם יכול להרגיש
+              כך האורח עובר מהקישור ועד אישור ההגעה
             </h2>
-            <p className="mx-auto mt-5 max-w-2xl text-base leading-8 text-[#5C4A3A] md:text-lg">
-              צפו בגלילה באתר לדוגמה — משמות ותמונה, דרך הסיפור והגלריה, ועד פרטי האירוע
-              והמיקום.
+            <p className="mt-5 text-base leading-8 text-[#6B5360] md:text-lg">
+              רוב האורחים פותחים את הקישור מהטלפון. כאן אפשר לעבור על הפרטים, התמונות, הניווט ודמו אישור ההגעה — בלי לשלוח הודעה.
             </p>
           </FadeIn>
-
-          <FadeIn className="mt-10 overflow-hidden rounded-[24px] border border-[#D9C7A8]/70 shadow-[0_28px_70px_rgba(42,30,18,0.12)]">
-            <MarketingVideo
-              src={videoExistsHint}
-              poster={WW_MEDIA.video.poster}
-              title={WW_MEDIA.video.title}
-              className="aspect-[16/10] w-full"
-            />
-          </FadeIn>
-          <p className="mt-4 text-center text-sm font-semibold text-[#7A6042]">
-            תבנית {heroTemplate.name} · אתר לדוגמה
-          </p>
-          <p className="mt-3 text-center text-sm">
-            <Link
-              href={`/wedding-website/${heroTemplate.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-bold text-[#7A5530] underline-offset-4 hover:underline"
-            >
-              פתחו את האתר המלא
-            </Link>
-          </p>
+          <div className="mt-10">
+            <GuestJourneyPhone templateId={mobileTemplate.id} name={mobileTemplate.name} />
+          </div>
         </div>
       </section>
 
@@ -538,43 +427,6 @@ export default function WeddingWebsiteMarketingPage() {
               ))}
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* MOBILE */}
-      <section
-        id="mobile"
-        aria-labelledby="mobile-heading"
-        className="bg-[#FFFDF8] px-5 py-16 md:px-8 md:py-24"
-      >
-        <div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-[1fr_0.85fr]">
-          <FadeIn>
-            <Eyebrow>חוויית מובייל</Eyebrow>
-            <h2
-              id="mobile-heading"
-              className="mt-3 font-['Cormorant_Garamond'] text-3xl font-semibold text-[#2A2118] md:text-5xl"
-            >
-              אתר חתונה שנראה נפלא גם בטלפון
-            </h2>
-            <div className="mt-6 space-y-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
-              <p>רוב האורחים צפויים לפתוח את הקישור מהטלפון שלהם.</p>
-              <p>
-                לכן אתר חתונה צריך להיות נוח לקריאה, מהיר לטעינה ופשוט לניווט גם במסך קטן.
-              </p>
-              <p>
-                המידע החשוב צריך להיות זמין בלי מאמץ — מהתאריך והשעה ועד הכתובת והניווט
-                לאולם.
-              </p>
-            </div>
-          </FadeIn>
-
-          <FadeIn>
-            <MobileShowcasePreview
-              templateId={mobileTemplate.id}
-              name={mobileTemplate.name}
-              src={WW_MEDIA.mobileShowcase}
-            />
-          </FadeIn>
         </div>
       </section>
 

@@ -7,7 +7,7 @@ export const WEDDING_DEMO_CONTENT: WeddingDemoContent = {
   weddingTime: "19:30",
   venueName: "אולמי הירקון",
   venueAddress: "רחוב רוקח 12, תל אביב",
-  heroSubtitle: "שמחים ונרגשים להזמינ אתכם לחגוג איתנו את היום הגדול",
+  heroSubtitle: "שמחים ונרגשים להזמין אתכם לחגוג איתנו את היום הגדול",
   invitationText:
     "באהבה רבה, אנחנו מזמינים אתכם לחגוג איתנו את יום נישואינו. נשמח לראות אתכם בין אורחינו היקרים, לחלוק איתנו רגעים של שמחה, ריקודים ואהבה.",
   storyParagraphs: [

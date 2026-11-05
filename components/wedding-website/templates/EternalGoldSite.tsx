@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import type { WeddingTemplate } from "@/types/weddingWebsite";
 import type { TemplateProps } from "../shared/weddingUtils";
 import WeddingMedia from "../editable/WeddingMedia";
-import { DEMO, VIDEOS, formatHebrewDate, getVenueMapEmbedUrl } from "../shared/weddingUtils";
+import { DEMO, formatHebrewDate, getVenueMapEmbedUrl } from "../shared/weddingUtils";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
 import {
@@ -22,7 +22,7 @@ import EventUploadMedia from "../shared/EventUploadMedia";
 import WeddingSiteMenu from "../WeddingSiteMenu";
 
 const fadeUp = {
-  initial: { opacity: 0, y: 36 },
+  initial: { opacity: 1, y: 36 },
   whileInView: { opacity: 1, y: 0 },
   viewport: { once: true, margin: "-80px" },
   transition: { duration: 0.75, ease: "easeOut" as const },
@@ -76,7 +76,7 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
       </motion.div>
       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#2A2118]/85 via-[#2A2118]/35 to-transparent" />
       <motion.div
-        initial={{ opacity: 0, y: 50 }}
+        initial={{ opacity: 1, y: 50 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 1.1, delay: 0.3 }}
         className="relative z-10 px-6 pb-24 text-center text-white"
@@ -89,7 +89,7 @@ function HeroSection({ template }: { template: WeddingTemplate }) {
           {formatHebrewDate(DEMO.weddingDate)} · {DEMO.weddingTime}
         </p>
         <div className="mt-10 flex flex-wrap justify-center gap-4">
-          <a href="#rsvp" className="rounded-sm bg-[#C9A962] px-10 py-4 text-sm font-bold text-white shadow-lg transition hover:bg-[#B8956B]">
+          <a href="#rsvp" className="rounded-sm bg-[#C9A962] px-10 py-4 text-sm font-bold text-[#2A2118] shadow-lg transition hover:bg-[#B8956B]">
             אישור הגעה
           </a>
           <a href="#our-story" className="rounded-sm border border-[#E8D5A8]/60 px-10 py-4 text-sm font-bold text-white transition hover:bg-white/10">
@@ -111,7 +111,7 @@ function CountdownSection() {
           {(u, i) => (
             <motion.div
               key={u.label}
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 1, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
@@ -154,7 +154,7 @@ function OurStorySection() {
           {DEMO.storyParagraphs.map((p, i) => (
             <motion.p
               key={i}
-              initial={{ opacity: 0, x: i % 2 ? 30 : -30 }}
+              initial={{ opacity: 1, x: i % 2 ? 30 : -30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.15 }}
@@ -174,7 +174,7 @@ function HowWeMetSection({ template }: { template: WeddingTemplate }) {
     <Section id="how-we-met" className="bg-[#FAF7F2] py-24">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 md:grid-cols-2">
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 1, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           className="overflow-hidden border-4 border-[#C9A962]/40 p-2"
@@ -198,7 +198,7 @@ function ProposalSection({ template }: { template: WeddingTemplate }) {
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-6 md:grid-cols-2">
         <div className="md:order-2">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 1, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             className="overflow-hidden border-4 border-[#C9A962]/40 p-2"
@@ -227,7 +227,7 @@ function GallerySection({ template }: { template: WeddingTemplate }) {
           {template.galleryImages.map((src, i) => (
             <motion.div
               key={src}
-              initial={{ opacity: 0, y: 24 }}
+              initial={{ opacity: 1, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.08 }}
@@ -249,7 +249,7 @@ function VideoSection({ template }: { template: WeddingTemplate }) {
         <h2 className="text-center font-['Cormorant_Garamond'] text-4xl font-light">סרטון Save the Date</h2>
         <GoldDivider />
         <div className="overflow-hidden border-2 border-[#C9A962]/50 shadow-xl">
-          <WeddingMedia slot={`videos.romantic`} src={VIDEOS.romantic} poster={template.heroImage} controls className="aspect-video w-full object-cover" />
+          <WeddingMedia slot={`videos.romantic`} src="/marketing/videos/home-cinematic-hero-mobile.mp4" poster={template.heroImage} controls className="aspect-video w-full object-cover" />
         </div>
       </div>
     </Section>
@@ -291,7 +291,7 @@ function ScheduleSection() {
           {DEMO.schedule.map((item, i) => (
             <motion.div
               key={item.time}
-              initial={{ opacity: 0, x: 20 }}
+              initial={{ opacity: 1, x: 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
@@ -412,7 +412,7 @@ function FaqSection() {
             >
               <h3 className="font-['Cormorant_Garamond'] text-lg font-semibold">{item.question}</h3>
               {open === i && (
-                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-3 text-sm text-[#8A7560]">
+                <motion.p initial={{ opacity: 1 }} animate={{ opacity: 1 }} className="mt-3 text-sm text-[#8A7560]">
                   {item.answer}
                 </motion.p>
               )}

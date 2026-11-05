@@ -5,26 +5,41 @@ import { DEMO_GUEST_UPLOADS, WEDDING_DEMO_CONTENT } from "@/config/weddingWebsit
 import type { GuestUploadItem } from "@/types/weddingWebsite";
 import { useWeddingSite } from "../editable/WeddingSiteContext";
 
+export type CountdownTime = {
+  days: number;
+  hours: number;
+  minutes: number;
+  seconds: number;
+  past: boolean;
+};
+
+export function countdownFrom(target: string): CountdownTime {
+  const diff = new Date(target).getTime() - Date.now();
+  if (!Number.isFinite(diff) || diff <= 0) {
+    return { days: 0, hours: 0, minutes: 0, seconds: 0, past: true };
+  }
+  return {
+    days: Math.floor(diff / 86400000),
+    hours: Math.floor((diff / 3600000) % 24),
+    minutes: Math.floor((diff / 60000) % 60),
+    seconds: Math.floor((diff / 1000) % 60),
+    past: false,
+  };
+}
+
 export function useCountdownTimer(targetDate: string, targetTime: string) {
   const target = `${targetDate}T${targetTime}:00`;
-  const [time, setTime] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [time, setTime] = useState<CountdownTime>(() => countdownFrom(target));
 
   useEffect(() => {
-    const tick = () => {
-      const diff = new Date(target).getTime() - Date.now();
-      if (diff <= 0) {
-        setTime({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-        return;
-      }
-      setTime({
-        days: Math.floor(diff / 86400000),
-        hours: Math.floor((diff / 3600000) % 24),
-        minutes: Math.floor((diff / 60000) % 60),
-        seconds: Math.floor((diff / 1000) % 60),
-      });
-    };
-    tick();
-    const id = setInterval(tick, 1000);
+    const first = countdownFrom(target);
+    setTime(first);
+    if (first.past) return;
+    const id = setInterval(() => {
+      const next = countdownFrom(target);
+      setTime(next);
+      if (next.past) clearInterval(id);
+    }, 1000);
     return () => clearInterval(id);
   }, [target]);
 

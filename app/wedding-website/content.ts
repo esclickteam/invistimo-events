@@ -15,7 +15,7 @@ export const FEATURED_STYLES = [
     styleName: "Timeless Elegance",
     hebrewLabel: "אלגנטיות נצחית",
     blurb:
-      "מראה קלאסי ונקי — שמנת, זהב מעודן וטיפוגרפיה אלגנטית שמתאימה לחתונה formal.",
+      "מראה קלאסי ונקי — שמנת, זהב מעודן וטיפוגרפיה אלגנטית לחתונה חגיגית.",
   },
   {
     templateId: "garden-bloom",
