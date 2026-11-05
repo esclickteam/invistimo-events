@@ -7,6 +7,14 @@ import {
   isValidContactPhone,
   normalizeContactPhone,
 } from "@/lib/contact/contactPhone";
+import {
+  buildContactSubmissionLog,
+  createContactSubmissionId,
+  readContactAttribution,
+  renderContactTraceHtml,
+  type ContactAttribution,
+  type ContactSubmissionResult,
+} from "@/lib/contact/submissionTrace";
 
 /** Lazy client — module-level `new Resend()` throws during build when the key is unset. */
 function getResend() {
@@ -25,7 +33,23 @@ function escapeHtml(value: string) {
     .replace(/"/g, "&quot;");
 }
 
+function logContactSubmission(input: {
+  submissionId: string;
+  at: string;
+  status: number;
+  result: ContactSubmissionResult;
+  leadSaved: boolean;
+  attribution: ContactAttribution;
+}) {
+  console.info(JSON.stringify(buildContactSubmissionLog(input)));
+}
+
 export async function POST(req: Request) {
+  let submissionId = "";
+  let leadSaved = false;
+  let attribution: ContactAttribution = readContactAttribution({});
+  const at = new Date().toISOString();
+
   try {
     if (!process.env.RESEND_API_KEY) {
       throw new Error("Missing RESEND_API_KEY");
@@ -74,6 +98,13 @@ export async function POST(req: Request) {
       );
     }
 
+    // The browser may send its own id. This server id is the one stored and logged.
+    submissionId = createContactSubmissionId();
+    attribution = readContactAttribution({
+      referer: req.headers.get("referer"),
+      body,
+    });
+
     // A phone number opens a CRM lead only. Nothing is sent to that number.
     if (phone) {
       try {
@@ -83,9 +114,26 @@ export async function POST(req: Request) {
           phone,
           subject,
           message,
+          submissionId,
+          pagePath: attribution.pagePath,
+          referrerHost: attribution.referrerHost,
+          utmSource: attribution.utmSource,
+          utmMedium: attribution.utmMedium,
+          utmCampaign: attribution.utmCampaign,
+          utmContent: attribution.utmContent,
+          utmTerm: attribution.utmTerm,
         });
+        leadSaved = true;
       } catch (leadError) {
         console.error("CONTACT FORM LEAD ERROR:", leadError);
+        logContactSubmission({
+          submissionId,
+          at,
+          status: 500,
+          result: "lead_failed",
+          leadSaved: false,
+          attribution,
+        });
         return NextResponse.json(
           {
             success: false,
@@ -111,9 +159,18 @@ export async function POST(req: Request) {
         console.warn("contact form email blocked by safety gate", {
           reason: gate.reason,
         });
+        logContactSubmission({
+          submissionId,
+          at,
+          status: 200,
+          result: "blocked",
+          leadSaved,
+          attribution,
+        });
         return NextResponse.json({
           success: true,
           blocked: true,
+          submissionId,
           message: "Staging safety: external email not sent",
         });
       }
@@ -154,6 +211,8 @@ export async function POST(req: Request) {
 
           <p>${escapeHtml(message).replace(/\n/g, "<br />")}</p>
 
+          ${renderContactTraceHtml(submissionId, attribution, escapeHtml)}
+
           <hr />
 
           <p style="font-size:12px;color:#666">
@@ -165,14 +224,34 @@ export async function POST(req: Request) {
 
     await recordContactPageLead(req, {
       inquiryClient: body?.inquiryClient,
-      submissionId: body?.submissionId,
+      submissionId,
+    });
+
+    logContactSubmission({
+      submissionId,
+      at,
+      status: 200,
+      result: "sent",
+      leadSaved,
+      attribution,
     });
 
     return NextResponse.json({
       success: true,
+      submissionId,
     });
   } catch (error) {
     console.error("CONTACT FORM ERROR:", error);
+    if (submissionId) {
+      logContactSubmission({
+        submissionId,
+        at,
+        status: 500,
+        result: "error",
+        leadSaved,
+        attribution,
+      });
+    }
 
     return NextResponse.json(
       {

@@ -89,6 +89,14 @@ export async function openContactFormLead(input: ContactLeadInput) {
       notes: nextNotes,
       formName: payload.formName,
       campaignName: payload.campaignName,
+      submissionId: payload.submissionId,
+      inquiryPagePath: payload.inquiryPagePath,
+      referrerHost: payload.referrerHost,
+      utmSource: payload.utmSource,
+      utmMedium: payload.utmMedium,
+      utmCampaign: payload.utmCampaign,
+      utmContent: payload.utmContent,
+      utmTerm: payload.utmTerm,
     });
     await existing.save();
 

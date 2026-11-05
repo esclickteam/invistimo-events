@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { trackPublicEvent } from "@/lib/seo/analytics";
+import { readBrowserInquiryContext } from "@/lib/contact/publicInquiryContext";
 
 const EVENT_TYPES = ["חתונה", "חינה", "בר/בת מצווה", "אירוע משפחתי", "אירוע עסקי", "אחר"];
 const REGIONS = [
@@ -80,6 +81,7 @@ export default function ContactForm({
           email,
           subject: `בדיקת התאמה לניהול אירוע — ${serviceLabel}`,
           message,
+          ...readBrowserInquiryContext(),
         }),
       });
 
@@ -91,6 +93,9 @@ export default function ContactForm({
         trackPublicEvent("generate_lead", {
           method: "event_management_fit",
           page_path: window.location.pathname,
+          ...(data.submissionId
+            ? { submission_id: String(data.submissionId) }
+            : {}),
         });
       }
       setName("");

@@ -127,6 +127,7 @@ const PARAM_KEYS = new Set([
   "metric_name",
   "metric_value",
   "metric_rating",
+  "submission_id",
 ]);
 
 export function safePublicPath(value: string) {

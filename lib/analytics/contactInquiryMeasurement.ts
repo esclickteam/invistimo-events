@@ -54,6 +54,7 @@ export type GenerateLeadPayload = {
         engagement_time_msec: number;
         page_location: string;
         session_id?: string;
+        submission_id?: string;
       };
     },
   ];
@@ -156,6 +157,7 @@ export function createAnonymousClientId(random = Math.random, now = Date.now()) 
 export function buildGenerateLeadPayload(input: {
   clientId: string;
   sessionId?: string;
+  submissionId?: string;
 }): GenerateLeadPayload {
   if (!CLIENT_ID.test(input.clientId)) {
     throw new Error("INVALID_CLIENT_ID");
@@ -167,6 +169,9 @@ export function buildGenerateLeadPayload(input: {
   };
   if (input.sessionId && SESSION_ID.test(input.sessionId)) {
     params.session_id = input.sessionId;
+  }
+  if (input.submissionId && isContactSubmissionId(input.submissionId)) {
+    params.submission_id = input.submissionId;
   }
   return {
     client_id: input.clientId,
@@ -354,6 +359,7 @@ export async function measureContactPageInquiry(input: {
       buildGenerateLeadPayload({
         clientId,
         sessionId: hadSessionId ? sessionId : undefined,
+        submissionId,
       })
     );
     await input.store.update(submissionId, {

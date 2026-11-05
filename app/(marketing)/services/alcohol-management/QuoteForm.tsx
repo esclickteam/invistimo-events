@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { trackPublicEvent } from "@/lib/seo/analytics";
+import { readBrowserInquiryContext } from "@/lib/contact/publicInquiryContext";
 
 const inputClass =
   "min-h-12 w-full rounded-2xl border border-[#E6D2AA] bg-white px-4 text-base font-semibold text-[#2C241C] outline-none transition focus:border-[#C9A45C] focus:ring-2 focus:ring-[#C9A45C]/30";
@@ -60,6 +61,7 @@ export default function QuoteForm() {
             email: email.trim(),
             subject,
             message,
+            ...readBrowserInquiryContext(),
           }),
         });
         const data = await res.json();
@@ -68,6 +70,9 @@ export default function QuoteForm() {
           trackPublicEvent("generate_lead", {
             method: "alcohol_management_quote",
             page_path: window.location.pathname,
+            ...(data.submissionId
+              ? { submission_id: String(data.submissionId) }
+              : {}),
           });
         }
         setSuccess(true);
