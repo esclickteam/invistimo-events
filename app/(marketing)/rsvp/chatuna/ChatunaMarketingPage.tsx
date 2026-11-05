@@ -42,7 +42,7 @@ const display = localFont({
 });
 
 const fade = {
-  hidden: { opacity: 0, y: 22 },
+  hidden: { opacity: 1, y: 22 },
   show: { opacity: 1, y: 0 },
 };
 
@@ -311,7 +311,7 @@ export default function ChatunaMarketingPage() {
           </motion.div>
 
           <motion.div
-            initial={reduce ? false : { opacity: 0, y: 28 }}
+            initial={reduce ? false : { opacity: 1, y: 28 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.65, delay: 0.08 }}
             className="relative"

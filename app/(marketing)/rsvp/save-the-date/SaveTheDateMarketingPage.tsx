@@ -178,7 +178,7 @@ export default function SaveTheDateMarketingPage() {
           <div className="relative">
             {!reduce ? (
               <motion.div
-                initial={{ opacity: 0, y: 18 }}
+                initial={{ opacity: 1, y: 18 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.7 }}
               >
@@ -253,7 +253,7 @@ export default function SaveTheDateMarketingPage() {
                 {!reduce ? (
                   <motion.span
                     className="text-sm font-bold tracking-[0.2em] text-[#C9A45C]"
-                    initial={{ opacity: 0 }}
+                    initial={{ opacity: 1 }}
                     whileInView={{ opacity: 1 }}
                     viewport={{ once: true }}
                   >

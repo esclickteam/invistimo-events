@@ -621,6 +621,7 @@ iframe[src*="userway"] {
 .lux-home .lux-reveal,
 .lux-home .lux-reveal.is-in {
   opacity: 1;
+  visibility: visible;
   transform: none;
 }
 

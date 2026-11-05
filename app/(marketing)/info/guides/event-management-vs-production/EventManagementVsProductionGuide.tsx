@@ -246,7 +246,7 @@ export default function EventManagementVsProductionGuide() {
           <div className="mt-6 grid items-end gap-8 lg:grid-cols-[1.15fr_0.85fr]">
             <div>
               <motion.h1
-                initial={reduce ? false : { opacity: 0, y: 16 }}
+                initial={reduce ? false : { opacity: 1, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.55 }}
                 className="max-w-4xl text-[1.75rem] font-black leading-[1.18] tracking-[-0.03em] text-[#2C241C] md:text-[2.55rem]"
@@ -254,7 +254,7 @@ export default function EventManagementVsProductionGuide() {
                 ניהול אירוע או הפקת אירוע? ההבדלים, המחירים ואיך בוחרים מה באמת צריך
               </motion.h1>
               <motion.div
-                initial={reduce ? false : { opacity: 0, y: 12 }}
+                initial={reduce ? false : { opacity: 1, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.55, delay: 0.08 }}
                 className="mt-5 max-w-3xl space-y-4 text-base leading-8 text-[#5C4A3A] md:text-lg"
@@ -303,7 +303,7 @@ export default function EventManagementVsProductionGuide() {
             </div>
 
             <motion.figure
-              initial={reduce ? false : { opacity: 0, scale: 0.98 }}
+              initial={reduce ? false : { opacity: 1, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6, delay: 0.12 }}
               className="overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#FFFDF8] shadow-[0_24px_60px_rgba(58,39,20,0.12)]"

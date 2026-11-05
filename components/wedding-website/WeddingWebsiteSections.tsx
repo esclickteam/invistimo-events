@@ -55,7 +55,7 @@ export function HeroSection() {
 
       <div className="relative z-10 px-6 text-center text-white">
         <motion.p
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 1, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
           className="mb-4 text-xs font-bold uppercase tracking-[0.45em] text-white/75"
@@ -64,7 +64,7 @@ export function HeroSection() {
         </motion.p>
 
         <motion.h1
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 1, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5, duration: 0.9 }}
           className="ww-display text-5xl font-light leading-none md:text-8xl"
@@ -81,7 +81,7 @@ export function HeroSection() {
         />
 
         <motion.p
-          initial={{ opacity: 0 }}
+          initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.1 }}
           className="mx-auto max-w-xl text-base text-white/85 md:text-xl"
@@ -90,7 +90,7 @@ export function HeroSection() {
         </motion.p>
 
         <motion.p
-          initial={{ opacity: 0 }}
+          initial={{ opacity: 1 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 1.3 }}
           className="mt-6 text-sm font-bold tracking-widest text-white/70"
@@ -99,7 +99,7 @@ export function HeroSection() {
         </motion.p>
 
         <motion.div
-          initial={{ opacity: 0, y: 16 }}
+          initial={{ opacity: 1, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.5 }}
           className="mt-10 flex flex-wrap items-center justify-center gap-4"
@@ -139,7 +139,7 @@ export function CountdownSection() {
           {(u, i) => (
             <motion.div
               key={u.label}
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 1, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.1 }}
               viewport={{ once: true }}
@@ -190,7 +190,7 @@ export function OurStorySection() {
           {content.storyParagraphs.map((p, i) => (
             <motion.p
               key={i}
-              initial={{ opacity: 0, x: i % 2 === 0 ? -20 : 20 }}
+              initial={{ opacity: 1, x: i % 2 === 0 ? -20 : 20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.15 }}
@@ -211,7 +211,7 @@ export function HowWeMetSection() {
     <AnimatedSection id="how-we-met" className="py-20 md:py-28">
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-6 md:grid-cols-2">
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
+          initial={{ opacity: 1, scale: 0.95 }}
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           className="overflow-hidden rounded-[var(--ww-radius)] shadow-[var(--ww-shadow)]"
@@ -238,7 +238,7 @@ export function ProposalSection() {
       <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-10 px-6 md:grid-cols-2">
         <div className="md:order-2">
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 1, scale: 0.95 }}
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             className="overflow-hidden rounded-[var(--ww-radius)] shadow-[var(--ww-shadow)]"
@@ -269,7 +269,7 @@ export function GallerySection() {
           {template.galleryImages.map((src, i) => (
             <motion.div
               key={src}
-              initial={{ opacity: 0, y: 24 }}
+              initial={{ opacity: 1, y: 24 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.08 }}
@@ -347,7 +347,7 @@ export function ScheduleSection() {
           {content.schedule.map((item, i) => (
             <motion.div
               key={item.time}
-              initial={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 1, x: -20 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.1 }}
@@ -512,7 +512,7 @@ export function FaqSection() {
                   <h3 className="font-black">{item.question}</h3>
                   {open === i ? (
                     <motion.p
-                      initial={{ opacity: 0, height: 0 }}
+                      initial={{ opacity: 1, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       className="mt-3 text-sm leading-relaxed text-[var(--ww-text-muted)]"
                     >
@@ -746,7 +746,7 @@ export function GuestUploadSection() {
             <motion.div
               key={item.id}
               layout
-              initial={{ opacity: 0, scale: 0.9 }}
+              initial={{ opacity: 1, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className="group relative overflow-hidden rounded-[var(--ww-radius)]"
             >
@@ -831,7 +831,7 @@ export function FooterSection() {
   return (
     <footer id="footer" className="border-t border-[var(--ww-border)] py-16 text-center">
       <motion.div
-        initial={{ opacity: 0 }}
+        initial={{ opacity: 1 }}
         whileInView={{ opacity: 1 }}
         viewport={{ once: true }}
         className="px-6"

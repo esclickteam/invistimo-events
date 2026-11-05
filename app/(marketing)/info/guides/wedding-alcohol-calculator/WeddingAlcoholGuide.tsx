@@ -148,7 +148,7 @@ export default function WeddingAlcoholGuide() {
             </figure>
             {!reduce ? (
               <motion.p
-                initial={{ opacity: 0, y: 10 }}
+                initial={{ opacity: 1, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25 }}
                 className="mt-4 text-center text-sm font-semibold text-[#8A6B45]"

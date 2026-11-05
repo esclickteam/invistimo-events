@@ -206,7 +206,7 @@ function TeamReceptionPanel() {
 
           {selected ? (
             <motion.div
-              initial={reduce ? false : { opacity: 0, y: 8 }}
+              initial={reduce ? false : { opacity: 1, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               className="rounded-[24px] border border-[#E6D2AA] bg-[#FFF8EA] p-4"
             >
@@ -337,7 +337,7 @@ function QrPersonalPanel() {
               </div>
             ) : (
               <motion.div
-                initial={reduce ? false : { opacity: 0, y: 10 }}
+                initial={reduce ? false : { opacity: 1, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="flex min-h-[480px] flex-col items-center justify-center rounded-[24px] bg-[#241A14] px-4 py-8 text-center text-[#FFFDF8]"
               >

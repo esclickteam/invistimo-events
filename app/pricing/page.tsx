@@ -107,7 +107,7 @@ function FeatureList({ items }: { items: string[] }) {
     <ul className="space-y-2.5">
       {items.map((item) => (
         <li key={item} className="flex gap-3 text-sm leading-6 text-[#5A3E25]">
-          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#FFF4E2] text-[#A86F2B]">
+          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center border border-[#C5A582] bg-[#FFF8F0] text-[#42182F]">
             <Check size={13} aria-hidden="true" />
           </span>
           <span className="min-w-0">{item}</span>
@@ -343,7 +343,7 @@ export default function PricingPage() {
         <RevealOnScroll>
           <section className="rounded-[28px] border border-[#D9C0A0] bg-[#FFFDF9]/92 p-4 shadow-[0_18px_44px_rgba(91,64,35,0.1)] sm:p-5">
             <div className="mb-1 flex flex-wrap items-center gap-2.5">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center border border-[#C5A582] bg-[#FFF8F0] text-sm font-black text-[#42182F]">
                 1
               </span>
               <h2 className={`${display.className} text-lg font-bold leading-snug text-[#3E2D20] sm:text-2xl`}>
@@ -398,7 +398,7 @@ export default function PricingPage() {
         <RevealOnScroll>
           <section className="rounded-[32px] border border-[#D9C0A0] bg-[#FFFDF9]/92 p-5 shadow-[0_22px_55px_rgba(91,64,35,0.1)] sm:p-8">
             <div className="mb-6 flex items-center gap-3">
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#C5A582] bg-[#FFF8F0] text-sm font-black text-[#42182F]">
                 2
               </span>
               <h2 className="text-xl font-black leading-snug text-[#3E2D20] sm:text-2xl">
@@ -414,6 +414,9 @@ export default function PricingPage() {
                 בחרו לפחות רשומה אחת כדי לשלוח בקשה.
               </p>
             ) : null}
+            <p className="mb-4 text-sm font-bold leading-6 text-[#42182F]">
+              ההבדל בין החבילות הוא אופן המענה. אין חבילה מומלצת אחת — הבחירה תלויה אם צריך שיחות, ומי עונה.
+            </p>
             <div className="mb-5 grid gap-3 md:hidden">
               {packages.map((pkg) => (
                 <div key={pkg.id} className="border border-[#C5A582]/60 bg-[#FFF8F0] px-4 py-3">
@@ -428,15 +431,10 @@ export default function PricingPage() {
                   </ul>
                 </div>
               ))}
-              <p className="text-sm font-bold leading-6 text-[#42182F]">
-                ההבדל בין החבילות הוא אופן המענה. אין חבילה מומלצת אחת — הבחירה תלויה אם צריך שיחות, ומי עונה.
-              </p>
             </div>
             <div className="mb-5 hidden overflow-x-auto border border-[#C5A582]/60 bg-[#FFF8F0] md:block">
               <table className="w-full min-w-[640px] border-collapse text-right text-sm">
-                <caption className="px-4 py-3 text-right text-sm font-black text-[#42182F]">
-                  ההבדל בין החבילות הוא אופן המענה. אין כאן חבילה מומלצת אחת — הבחירה תלויה אם צריך שיחות, ומי עונה.
-                </caption>
+                <caption className="sr-only">השוואת אופן המענה בין החבילות</caption>
                 <thead>
                   <tr className="border-y border-[#C5A582]/40 text-[#42182F]">
                     <th className="px-3 py-2 font-black"> </th>
@@ -512,7 +510,7 @@ export default function PricingPage() {
           <section className="rounded-[32px] border border-[#D9C0A0] bg-[#FFFDF9]/92 p-5 shadow-[0_22px_55px_rgba(91,64,35,0.1)] sm:p-8">
             <div className="mb-6 flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C89545] text-sm font-black text-white">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#C5A582] bg-[#FFF8F0] text-sm font-black text-[#42182F]">
                   3
                 </span>
                 <h2 className="text-xl font-black leading-snug text-[#3E2D20] sm:text-2xl">
@@ -620,7 +618,7 @@ export default function PricingPage() {
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#E5D3B8] bg-[#FFFDF9]/95 p-3 backdrop-blur md:hidden">
           <a
             href="#pricing-calculator"
-            className="pricing-gold-cta flex min-h-12 w-full items-center justify-center rounded-[18px] text-sm font-black text-white"
+            className="flex min-h-12 w-full items-center justify-center rounded-none bg-[#42182F] text-sm font-black text-[#FFF8F0] hover:bg-[#842B4C]"
           >
             חזרה למחשבון
           </a>

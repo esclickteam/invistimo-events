@@ -170,7 +170,7 @@ export default function JourneyDemo() {
           <AnimatePresence mode="wait">
             <motion.div
               key={`${stage}-${styleId}`}
-              initial={reduce ? false : { opacity: 0, y: 10 }}
+              initial={reduce ? false : { opacity: 1, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={reduce ? undefined : { opacity: 0, y: -8 }}
               transition={{ duration: 0.28 }}

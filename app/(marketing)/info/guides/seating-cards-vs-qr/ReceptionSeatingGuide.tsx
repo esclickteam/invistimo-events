@@ -185,7 +185,7 @@ export default function ReceptionSeatingGuide() {
           <div>
             <p className="text-sm font-black tracking-[0.18em] text-[#8A642E]">INVISTIMO · מדריך</p>
             <motion.h1
-              initial={reduce ? false : { opacity: 0, y: 16 }}
+              initial={reduce ? false : { opacity: 1, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55 }}
               className="mt-4 max-w-3xl text-[2rem] font-black leading-[1.15] text-[#2C241C] md:text-5xl"
@@ -193,7 +193,7 @@ export default function ReceptionSeatingGuide() {
               {H1}
             </motion.h1>
             <motion.p
-              initial={reduce ? false : { opacity: 0, y: 12 }}
+              initial={reduce ? false : { opacity: 1, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, delay: 0.08 }}
               className="mt-5 max-w-2xl text-base leading-8 text-[#5C4A3A] md:text-lg"
@@ -228,7 +228,7 @@ export default function ReceptionSeatingGuide() {
           </div>
 
           <motion.div
-            initial={reduce ? false : { opacity: 0, scale: 0.98 }}
+            initial={reduce ? false : { opacity: 1, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.1 }}
             className="relative min-h-[280px] overflow-hidden rounded-[32px] border border-[#E6D2AA] shadow-[0_28px_60px_rgba(58,39,20,0.16)] md:min-h-[360px]"

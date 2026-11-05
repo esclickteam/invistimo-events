@@ -57,7 +57,7 @@ function useWideScreen() {
 
 /**
  * Seating demo you can use: pick a guest, then a table.
- * Scroll still moves the editorial title on large screens, briefly.
+ * The story stays in normal flow so the hall never sticks over a blank viewport.
  */
 export default function LuxV2SeatingStory() {
   const { ref, progress, reduceMotion } = useScrollProgress();
@@ -115,9 +115,9 @@ export default function LuxV2SeatingStory() {
       ref={ref as Ref<HTMLElement>}
       dir="rtl"
       aria-labelledby="lux-v2-seating"
-      className="relative bg-[#F5EEE8] lg:pb-[10vh]"
+      className="relative bg-[#F5EEE8]"
     >
-      <div className="flex items-start overflow-x-clip lg:sticky lg:top-0">
+      <div className="flex items-start">
         <div
           className="pointer-events-none absolute inset-0"
           aria-hidden

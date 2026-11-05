@@ -390,7 +390,7 @@ export default function ChooseRsvpCompanyGuide() {
         <div className="relative mt-4 w-full">
           {!reduce ? (
             <motion.div
-              initial={{ opacity: 0, y: 16 }}
+              initial={{ opacity: 1, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55 }}
               className="overflow-hidden border-y border-[#E6D2AA]"
@@ -954,7 +954,7 @@ export default function ChooseRsvpCompanyGuide() {
             <div className="overflow-hidden rounded-[32px] border border-[#E3C990] bg-gradient-to-br from-[#2C211B] via-[#3A2B22] to-[#5A4333] px-6 py-10 text-[#FFF8EA] shadow-[0_28px_80px_rgba(58,39,20,0.28)] md:px-10 md:py-12">
               {!reduce ? (
                 <motion.div
-                  initial={{ opacity: 0, y: 12 }}
+                  initial={{ opacity: 1, y: 12 }}
                   whileInView={{ opacity: 1, y: 0 }}
                   viewport={{ once: true, amount: 0.3 }}
                   transition={{ duration: 0.5 }}

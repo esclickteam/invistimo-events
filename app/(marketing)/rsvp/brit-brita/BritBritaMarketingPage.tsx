@@ -31,7 +31,7 @@ const display = localFont({
 });
 
 const fade = {
-  hidden: { opacity: 0, y: 22 },
+  hidden: { opacity: 1, y: 22 },
   show: { opacity: 1, y: 0 },
 };
 
@@ -229,7 +229,7 @@ export default function BritBritaMarketingPage() {
           </motion.div>
 
           <motion.div
-            initial={reduce ? false : { opacity: 0, scale: 0.96 }}
+            initial={reduce ? false : { opacity: 1, scale: 0.96 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.06 }}
             className="relative"
@@ -314,7 +314,7 @@ export default function BritBritaMarketingPage() {
           {FAST_FLOW.map((s, i) => (
             <motion.li
               key={s.n}
-              initial={reduce ? false : { opacity: 0, y: 14 }}
+              initial={reduce ? false : { opacity: 1, y: 14 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.05, duration: 0.4 }}
@@ -484,7 +484,7 @@ export default function BritBritaMarketingPage() {
       {/* Final CTA */}
       <SectionShell tone="teal" className="!pb-28">
         <motion.div
-          initial={reduce ? false : { opacity: 0, y: 18 }}
+          initial={reduce ? false : { opacity: 1, y: 18 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}

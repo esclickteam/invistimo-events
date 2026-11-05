@@ -289,8 +289,8 @@ function InviteCarousel({ reduceMotion }: { reduceMotion: boolean }) {
 }
 
 /**
- * Scroll-scrubbed invitation gallery, with an envelope that actually opens
- * and draws the card out. Sticky only on large screens, and only briefly.
+ * Invitation gallery with an envelope that opens and draws the card out.
+ * The section stays in normal flow so a fast scroll never pins an empty band.
  */
 export default function LuxV2SaveTheDate() {
   const { ref, progress, reduceMotion } = useScrollProgress();
@@ -318,9 +318,9 @@ export default function LuxV2SaveTheDate() {
       ref={ref as Ref<HTMLElement>}
       dir="rtl"
       aria-labelledby="lux-v2-std"
-      className="relative bg-[#E8D9C8] lg:pb-[10vh]"
+      className="relative bg-[#E8D9C8]"
     >
-      <div className="flex flex-col justify-start overflow-x-clip lg:sticky lg:top-0">
+      <div className="flex flex-col justify-start">
         <div
           className="pointer-events-none absolute inset-0"
           aria-hidden
@@ -396,7 +396,7 @@ export default function LuxV2SaveTheDate() {
 
         <InviteCarousel reduceMotion={reduceMotion} />
 
-        <div className="relative z-10 hidden w-full min-w-0 pb-12 lg:block">
+        <div className="relative z-10 hidden w-full min-w-0 overflow-x-clip pb-12 lg:block">
           <div
             className="lux-invite-row flex w-max gap-7 overflow-visible"
             style={{
