@@ -367,27 +367,6 @@ function WebsiteGalleryMotion() {
 export default function HomeMarketingSections() {
   const motionRef = usePageParallax();
 
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.add("lux-public-home");
-    let timer = 0;
-    const onScroll = () => {
-      if (window.matchMedia("(min-width: 1024px)").matches) {
-        root.classList.remove("lux-scrolling");
-        return;
-      }
-      root.classList.add("lux-scrolling");
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => root.classList.remove("lux-scrolling"), 680);
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.clearTimeout(timer);
-      window.removeEventListener("scroll", onScroll);
-      root.classList.remove("lux-public-home", "lux-scrolling");
-    };
-  }, []);
-
   return (
     <div ref={motionRef}>
       {/* Intro — full-bleed editorial with overlay type */}
