@@ -18,41 +18,8 @@ import { cn } from "@/lib/utils";
 
 function usePageParallax() {
   const ref = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const root = ref.current;
-    if (!root) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-
-    const fine = window.matchMedia("(pointer: fine)").matches;
-    const amp = fine ? 12 : 5;
-    let frame = 0;
-
-    const tick = () => {
-      frame = 0;
-      const vh = window.innerHeight;
-      root.querySelectorAll<HTMLElement>("[data-lux-parallax]").forEach((el) => {
-        const rect = el.getBoundingClientRect();
-        if (rect.bottom < -80 || rect.top > vh + 80) return;
-        const delta = (rect.top + rect.height * 0.5 - vh * 0.5) / vh;
-        el.style.setProperty("--lux-py", `${(-delta * amp).toFixed(2)}px`);
-      });
-    };
-
-    const onScroll = () => {
-      if (!frame) frame = requestAnimationFrame(tick);
-    };
-
-    tick();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll, { passive: true });
-    return () => {
-      if (frame) cancelAnimationFrame(frame);
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-    };
-  }, []);
-
+  /* The old scroll parallax read layout every frame and promoted a full-bleed
+     image. That layer blanked the viewport on a fast fling, so the images stay still. */
   return ref;
 }
 

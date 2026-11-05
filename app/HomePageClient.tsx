@@ -70,16 +70,29 @@ function CinematicHeroVideo({ reduceMotion }: { reduceMotion: boolean }) {
       return;
     }
 
-    // Poster is already in the SSR/DOM paint; mount video on the next frames.
+    // Poster is the first paint. Attach the same video after load/idle so it
+    // does not compete with LCP, and never cover the poster with a black frame.
     let cancelled = false;
-    const raf = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        if (!cancelled) setShouldLoad(true);
-      });
-    });
+    let idleId = 0;
+    let timer = 0;
+    const start = () => {
+      if (!cancelled) setShouldLoad(true);
+    };
+    const schedule = () => {
+      const ric = window.requestIdleCallback;
+      if (typeof ric === "function") {
+        idleId = ric(start, { timeout: 1600 });
+      } else {
+        timer = window.setTimeout(start, 700);
+      }
+    };
+    if (document.readyState === "complete") schedule();
+    else window.addEventListener("load", schedule, { once: true });
     return () => {
       cancelled = true;
-      cancelAnimationFrame(raf);
+      if (idleId) window.cancelIdleCallback?.(idleId);
+      if (timer) window.clearTimeout(timer);
+      window.removeEventListener("load", schedule);
     };
   }, [reduceMotion, mode]);
 
@@ -108,7 +121,11 @@ function CinematicHeroVideo({ reduceMotion }: { reduceMotion: boolean }) {
   };
 
   return (
-    <div className="absolute inset-0 z-0 overflow-hidden bg-[#2A0F1D]" aria-hidden>
+    <div
+      className="absolute inset-0 z-0 overflow-hidden bg-[#2A0F1D] bg-cover bg-center"
+      style={{ backgroundImage: `url(${sources.posterJpg})` }}
+      aria-hidden
+    >
       <picture>
         <source
           media="(max-width: 767px)"
@@ -138,14 +155,14 @@ function CinematicHeroVideo({ reduceMotion }: { reduceMotion: boolean }) {
         <video
           key={sources.mp4}
           ref={videoRef}
-          className={`absolute inset-0 z-[1] h-full w-full object-cover ${
-            isShowingVideo ? "opacity-100" : "opacity-0"
+          className={`home-hero-video absolute inset-0 z-[1] h-full w-full object-cover ${
+            isShowingVideo ? "is-playing" : ""
           }`}
           autoPlay
           muted
           loop
           playsInline
-          preload="auto"
+          preload="metadata"
           poster={sources.posterJpg}
           aria-hidden
           onLoadedData={(e) => revealIfReady(e.currentTarget)}
@@ -171,7 +188,8 @@ function CinematicHomeHero() {
 
   return (
     <section
-      className="relative isolate h-screen w-full overflow-hidden bg-[#1A1216] text-[#F5EEE8] supports-[height:100dvh]:h-[100dvh]"
+      className="home-cinematic-hero relative isolate h-screen w-full overflow-hidden bg-[#1A1216] bg-cover bg-center text-[#F5EEE8] supports-[height:100dvh]:h-[100dvh]"
+      style={{ backgroundImage: `url(${HERO_DESKTOP.posterJpg})` }}
       aria-labelledby="home-hero-heading"
     >
       <div className="absolute inset-0">
