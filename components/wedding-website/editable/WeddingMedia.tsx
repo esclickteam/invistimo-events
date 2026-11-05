@@ -130,7 +130,7 @@ export default function WeddingMedia({
         muted={resolved.autoplay ? true : resolved.muted}
         loop={resolved.loop}
         playsInline={playsInline}
-        preload={easeMobileScroll ? "metadata" : "auto"}
+        preload={resolved.autoplay && !easeMobileScroll ? "auto" : "metadata"}
         controls={controls}
         className={className}
         style={mediaStyle}

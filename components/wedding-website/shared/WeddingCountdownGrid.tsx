@@ -44,6 +44,22 @@ export function WeddingCountdownGrid({
   // The selection hooks belong to the editor only; the published site must not
   // carry any editing attributes.
   const isEditor = site?.mode === "editor";
+  const role = site?.live?.role;
+  const demo = role !== "couple" && role !== "guest";
+
+  if (time.past) {
+    return (
+      <p
+        data-ww-countdown="past"
+        data-ww-edit={isEditor ? "countdown" : undefined}
+        data-ww-path={isEditor ? "countdown" : undefined}
+        data-ww-label={isEditor ? "ספירה לאחור" : undefined}
+        className="text-center text-lg font-semibold leading-8"
+      >
+        {demo ? "האירוע לדוגמה כבר התקיים" : "החתונה התקיימה"}
+      </p>
+    );
+  }
 
   return (
     <div

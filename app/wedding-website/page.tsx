@@ -6,7 +6,6 @@ import {
   graph,
   organizationNode,
   serviceNode,
-  videoNode,
 } from "@/lib/seo/jsonld";
 import { absoluteUrl, pageMetadata, SITE_URL } from "@/lib/seo/site";
 import WeddingWebsiteMarketingPage from "./WeddingWebsiteMarketingPage";
@@ -77,14 +76,6 @@ export default function WeddingWebsitePage() {
             description: WW_META.description,
             path: WW_PATH,
             serviceType: "אתר חתונה",
-          }),
-          videoNode({
-            name: WW_MEDIA.video.title,
-            description: WW_MEDIA.video.description,
-            contentUrl: WW_MEDIA.video.src,
-            posterUrl: WW_MEDIA.video.poster,
-            uploadDate: WW_MEDIA.video.uploadDate,
-            path: WW_PATH,
           }),
           faqNode(WEDDING_WEBSITE_FAQS.map(({ q, a }) => ({ q, a }))),
         ])}

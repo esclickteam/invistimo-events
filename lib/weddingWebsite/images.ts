@@ -1,6 +1,7 @@
 import type { WeddingDemoContent, WeddingTemplate } from "@/types/weddingWebsite";
 
 const ALLOWED_IMAGE_HOST_RE = /^https:\/\//i;
+const LOCAL_DEMO_FILM_RE = /^\/marketing\/videos\/home-cinematic-hero-mobile\.mp4$/;
 const CLOUDINARY_UPLOAD_MARKER = "/upload/";
 
 const BROKEN_UNSPLASH_REPLACEMENTS: Array<[RegExp, string]> = [
@@ -28,6 +29,7 @@ export function repairWeddingImageUrl(value: unknown) {
 export function isAllowedWeddingImageUrl(value: unknown) {
   const url = cleanString(value);
   if (!url) return false;
+  if (LOCAL_DEMO_FILM_RE.test(url)) return true;
   if (!ALLOWED_IMAGE_HOST_RE.test(url)) return false;
   if (url.toLowerCase().startsWith("javascript:")) return false;
   return true;

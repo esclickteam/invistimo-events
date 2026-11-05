@@ -11,7 +11,7 @@ import {
 import WeddingCountdownGrid from "../shared/WeddingCountdownGrid";
 import WeddingTemplateRsvp from "../WeddingTemplateRsvp";
 import { useShowWeddingRsvp } from "../shared/useShowWeddingRsvp";
-import { DEMO, VIDEOS, formatHebrewDate, getVenueMapEmbedUrl, type TemplateProps } from "../shared/weddingUtils";
+import { DEMO, formatHebrewDate, getVenueMapEmbedUrl, type TemplateProps } from "../shared/weddingUtils";
 import WeddingMedia from "../editable/WeddingMedia";
 import LocationDisplay from "@/app/components/LocationDisplay";
 import WeddingVenueNav from "../WeddingVenueNav";
@@ -59,7 +59,7 @@ function CountdownBlock() {
             {(u, i) => (
               <motion.div
                 key={u.label}
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 1, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
@@ -115,7 +115,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
         <div className="relative z-10 flex flex-col justify-center px-6 md:px-12 lg:px-20">
           <NoirLabel>Save the Date · {DEMO.coupleShort}</NoirLabel>
           <motion.h1
-            initial={{ opacity: 0, y: 24 }}
+            initial={{ opacity: 1, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
             className="mt-8 max-w-5xl text-[clamp(2.5rem,10vw,7rem)] font-black leading-[0.9] tracking-[-0.04em]"
@@ -124,7 +124,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
           </motion.h1>
           <NoirRule className="my-8" />
           <motion.p
-            initial={{ opacity: 0 }}
+            initial={{ opacity: 1 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.7 }}
             className="max-w-lg font-mono text-sm leading-relaxed text-neutral-600"
@@ -132,7 +132,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
             {DEMO.heroSubtitle}
           </motion.p>
           <motion.p
-            initial={{ opacity: 0 }}
+            initial={{ opacity: 1 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.9 }}
             className="mt-6 font-mono text-xs uppercase tracking-[0.3em]"
@@ -169,7 +169,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
             <h2 className="mt-2 text-4xl font-black">הזמנה</h2>
           </div>
           <motion.div
-            initial={{ opacity: 0 }}
+            initial={{ opacity: 1 }}
             whileInView={{ opacity: 1 }}
             viewport={{ once: true }}
             className="p-8 md:col-span-8 md:border-l md:border-black"
@@ -190,7 +190,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
             {DEMO.storyParagraphs.map((p, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 24 }}
+                initial={{ opacity: 1, y: 24 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.15 }}
@@ -233,7 +233,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
           <div className="flex flex-col justify-center p-8 md:p-16">
             <NoirLabel>Proposal</NoirLabel>
             <motion.blockquote
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 1, scale: 0.95 }}
               whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
               className="mt-6 text-2xl font-light leading-relaxed md:text-4xl"
@@ -262,7 +262,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
           {template.galleryImages.map((src, i) => (
             <motion.div
               key={src}
-              initial={{ opacity: 0 }}
+              initial={{ opacity: 1 }}
               whileInView={{ opacity: 1 }}
               viewport={{ once: true }}
               transition={{ delay: i * 0.08 }}
@@ -292,7 +292,8 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
           </div>
           <div className="md:col-span-2">
             <WeddingMedia
-              slot={`videos.rings`} src={VIDEOS.rings}
+              slot={`videos.rings`} src="/marketing/videos/home-cinematic-hero-mobile.mp4"
+              poster={template.heroImage}
               autoPlay
               muted
               loop
@@ -332,7 +333,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
             {DEMO.schedule.map((item, i) => (
               <motion.div
                 key={item.time}
-                initial={{ opacity: 0, x: -20 }}
+                initial={{ opacity: 1, x: -20 }}
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
@@ -441,7 +442,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
               </button>
               {faq.open === i && (
                 <motion.p
-                  initial={{ opacity: 0, height: 0 }}
+                  initial={{ opacity: 1, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   className="pb-5 text-sm leading-relaxed text-neutral-600"
                 >
