@@ -29,8 +29,8 @@ export default function AnimatedSection({
     <motion.section
       ref={ref}
       id={id}
-      initial={ease ? false : { opacity: 0, y: 48 }}
-      animate={ease || inView ? { opacity: 1, y: 0 } : { opacity: 0, y: 48 }}
+      initial={ease ? false : { opacity: 1, y: 16 }}
+      animate={{ opacity: 1, y: ease || inView ? 0 : 16 }}
       transition={{ duration: ease ? 0 : 0.85, ease: [0.22, 1, 0.36, 1] }}
       className={`ww-section ${fullHeight ? "min-h-screen" : ""} ${className}`}
     >

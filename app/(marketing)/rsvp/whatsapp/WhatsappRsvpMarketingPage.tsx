@@ -14,7 +14,7 @@ const ctaPrimary =
 const ctaSecondary =
   "inline-flex min-h-12 items-center justify-center rounded-full border border-[#DCC7A6] bg-[#FBF6EE] px-8 py-3.5 text-base font-black !text-[#2C241C] shadow-[0_12px_30px_rgba(91,63,32,0.08)] transition hover:bg-white";
 const ctaGold =
-  "inline-flex min-h-12 items-center justify-center rounded-full bg-gradient-to-l from-[#B8862D] via-[#C9A45C] to-[#8B6220] px-8 py-3.5 text-base font-black !text-white shadow-[0_18px_38px_rgba(184,134,45,0.26)] transition hover:-translate-y-0.5";
+  "inline-flex min-h-12 items-center justify-center rounded-none bg-[#C9A45C] px-8 py-3.5 text-base font-black text-[#1C1612] shadow-[0_18px_38px_rgba(184,134,45,0.26)] transition hover:-translate-y-0.5 hover:bg-[#D4B06A]";
 
 /** Product dashboard preview text for rsvp_invitation_media (button opens personal link). */
 const RSVP_WA_BODY =

@@ -188,22 +188,24 @@ function PackageCard({
             className="font-black text-[#42182F]"
           />
         </p>
-        <div className="mx-auto my-3 h-px w-16 bg-[#C5A582]/50" />
-        <p className="text-xs font-bold text-[#6B5360]">מחיר החבילה לפני תוספות</p>
-        <AnimatedPrice
-          data-testid={`package-service-${pkg.id}`}
-          value={formatIls(quote.servicePrice)}
-          className="mt-1 text-lg font-black leading-none text-[#42182F]"
-        />
-        {selectedAddons.length > 0 ? (
-          <ul className="mt-3 space-y-1 text-xs font-bold leading-5 text-[#6B5360]">
-            {selectedAddons.map((addon) => (
-              <li key={addon.key} className="flex items-start justify-between gap-3">
-                <span className="min-w-0 text-right">{addon.label}</span>
-                <span className="shrink-0 tabular-nums">{formatIls(addon.price)}</span>
-              </li>
-            ))}
-          </ul>
+        {quote.addonTotal > 0 ? (
+          <>
+            <div className="mx-auto my-3 h-px w-16 bg-[#C5A582]/50" />
+            <p className="text-xs font-bold text-[#6B5360]">מחיר החבילה לפני תוספות</p>
+            <AnimatedPrice
+              data-testid={`package-service-${pkg.id}`}
+              value={formatIls(quote.servicePrice)}
+              className="mt-1 text-lg font-black leading-none text-[#42182F]"
+            />
+            <ul className="mt-3 space-y-1 text-xs font-bold leading-5 text-[#6B5360]">
+              {selectedAddons.map((addon) => (
+                <li key={addon.key} className="flex items-start justify-between gap-3">
+                  <span className="min-w-0 text-right">{addon.label}</span>
+                  <span className="shrink-0 tabular-nums">{formatIls(addon.price)}</span>
+                </li>
+              ))}
+            </ul>
+          </>
         ) : null}
       </div>
 
@@ -557,7 +559,7 @@ export default function PricingPage() {
                       <span
                         className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${
                           selected
-                            ? "border-[#C89545] bg-[#C89545] text-white"
+                            ? "border-[#C89545] bg-[#C89545] text-[#1C1612]"
                             : "border-[#E5D1B7] bg-[#FFFDF9] text-[#A86F2B]"
                         }`}
                       >
@@ -582,7 +584,7 @@ export default function PricingPage() {
                     </span>
                     <span
                       className={`shrink-0 rounded-full px-3 py-1 text-xs font-black ${
-                        selected ? "bg-[#C89545] text-white" : "bg-[#F7E9D3] text-[#8A5A25]"
+                        selected ? "bg-[#C89545] text-[#1C1612]" : "bg-[#F7E9D3] text-[#8A5A25]"
                       }`}
                     >
                       {selected ? "נוסף" : "להוסיף"}

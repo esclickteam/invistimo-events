@@ -260,6 +260,50 @@
    על רקע כהה (כהה־על־כהה). צבע ברירת מחדל מגיע מ־body / מההורה.
 ----------------------------------------------------------- */
 
+/* Button labels in lib/ui use Tailwind's `!text-*` prefix. Those utilities
+   were missing whenever the class lived only in lib, so a dark page color
+   was inherited onto a dark button. Lock the intended label color. */
+a[class*="!text-[#F7F1E8]"],
+button[class*="!text-[#F7F1E8]"] {
+  color: #f7f1e8 !important;
+}
+a[class*="!text-[#FFF8F0]"],
+button[class*="!text-[#FFF8F0]"] {
+  color: #fff8f0 !important;
+}
+a[class*="!text-[#F7EDDF]"],
+button[class*="!text-[#F7EDDF]"] {
+  color: #f7eddf !important;
+}
+a[class*="!text-[#FBF5EB]"],
+button[class*="!text-[#FBF5EB]"] {
+  color: #fbf5eb !important;
+}
+a[class*="!text-[#1C1612]"],
+button[class*="!text-[#1C1612]"] {
+  color: #1c1612 !important;
+}
+a[class*="!text-[#2C241C]"],
+button[class*="!text-[#2C241C]"] {
+  color: #2c241c !important;
+}
+a[class*="!text-[#2A211A]"],
+button[class*="!text-[#2A211A]"] {
+  color: #2a211a !important;
+}
+a[class*="!text-[#42182F]"],
+button[class*="!text-[#42182F]"] {
+  color: #42182f !important;
+}
+a[class*="!text-[#8B1E1E]"],
+button[class*="!text-[#8B1E1E]"] {
+  color: #8b1e1e !important;
+}
+a[class*="!text-white"],
+button[class*="!text-white"] {
+  color: #fff !important;
+}
+
 /* -----------------------------------------------------------
    מצבי נגישות (לתוסף פנימי / כללי)
 ----------------------------------------------------------- */
@@ -559,14 +603,9 @@ iframe[src*="userway"] {
   background: var(--lux-cream-deep);
 }
 
-.lux-home .lux-reveal {
-  opacity: 0;
-  transform: translateY(12px);
-  transition:
-    opacity 0.42s cubic-bezier(0.22, 1, 0.36, 1),
-    transform 0.42s cubic-bezier(0.22, 1, 0.36, 1);
-}
-
+/* Content stays readable during a fast scroll, a jump, or a late
+   hydration. The .is-in hook remains for callers; it no longer hides copy. */
+.lux-home .lux-reveal,
 .lux-home .lux-reveal.is-in {
   opacity: 1;
   transform: none;

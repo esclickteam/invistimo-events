@@ -35,7 +35,7 @@ const designMessages = addonPrice("messages", "design");
 const designCalls = addonPrice("voice", "design");
 
 const fadeUp = {
-  hidden: { opacity: 0, y: 28 },
+  hidden: { opacity: 1, y: 12 },
   visible: { opacity: 1, y: 0 },
 };
 
@@ -413,7 +413,7 @@ export default function ChatunaInvitationsPage() {
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
+            initial={{ opacity: 1, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.15 }}
           >

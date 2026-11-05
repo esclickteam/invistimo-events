@@ -120,8 +120,8 @@
 }
 
 .pricing-reveal[data-ready="true"]:not([data-visible="true"]) {
-  opacity: 0;
-  transform: translateY(12px);
+  opacity: 1;
+  transform: none;
 }
 
 .pricing-reveal[data-ready="true"][data-visible="true"] {

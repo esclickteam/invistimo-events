@@ -62,7 +62,7 @@ function FadeIn({
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, y: 22 }}
+      initial={{ opacity: 1, y: 12 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "0px 0px 18% 0px" }}
       transition={{ duration: 0.42, delay, ease: [0.22, 1, 0.36, 1] }}
@@ -159,7 +159,7 @@ export default function WeddingWebsiteMarketingPage() {
               />
             ) : (
               <motion.div
-                initial={{ opacity: 0, y: 24 }}
+                initial={{ opacity: 1, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
               >
