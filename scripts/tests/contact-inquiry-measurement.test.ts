@@ -84,7 +84,8 @@ test("the contact route records a lead only after a successful send and without 
   const recorder = readFileSync("lib/analytics/recordContactPageLead.ts", "utf8");
   assert.match(route, /await recordContactPageLead\(req, \{/);
   assert.match(route, /inquiryClient: body\?\.inquiryClient/);
-  assert.match(route, /submissionId: body\?\.submissionId/);
+  assert.match(route, /submissionId,/);
+  assert.doesNotMatch(route, /submissionId: body\?\.submissionId/);
   assert.doesNotMatch(recorder, /body\.(name|email|phone|message|subject)/);
   assert.match(recorder, /inquiryClient/);
   assert.match(recorder, /submissionId/);
@@ -114,6 +115,8 @@ test("opt-out signals deny measurement and a missing banner does not", () => {
 });
 
 test("a successful contact inquiry sends one generate_lead without personal data", async () => {
+  const previous = process.env.APP_ENV;
+  process.env.APP_ENV = "production";
   const store = memoryStore();
   const sent: GenerateLeadPayload[] = [];
   const result = await measureContactPageInquiry(
@@ -131,6 +134,7 @@ test("a successful contact inquiry sends one generate_lead without personal data
   assert.equal(sent[0].events[0].params.method, "contact");
   assert.equal(sent[0].events[0].params.session_id, "1690001111");
   assert.equal(sent[0].events[0].params.page_location, "https://www.invistimo.com/contact");
+  assert.equal(sent[0].events[0].params.submission_id, SUBMISSION);
   const body = JSON.stringify(sent[0]);
   for (const secret of [...PII, SECRET]) {
     assert.equal(body.includes(secret), false);
@@ -144,6 +148,8 @@ test("a successful contact inquiry sends one generate_lead without personal data
     failedUnconfirmed: 0,
     timedOut: 0,
   });
+  if (previous === undefined) delete process.env.APP_ENV;
+  else process.env.APP_ENV = previous;
 });
 
 test("a repeated submission id does not send a second event", async () => {

@@ -7,6 +7,14 @@ export type ContactLeadInput = {
   phone: string;
   subject: string;
   message: string;
+  submissionId?: string;
+  pagePath?: string;
+  referrerHost?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmContent?: string;
+  utmTerm?: string;
 };
 
 export function normalizeContactPhone(value: unknown) {
@@ -35,6 +43,14 @@ export function buildContactLeadNotes(input: ContactLeadInput) {
   return [
     "פנייה מטופס יצירת הקשר באתר.",
     "לא נשלחה הודעה אוטומטית לפונה.",
+    input.submissionId ? `מזהה פנייה: ${input.submissionId}` : "",
+    input.pagePath ? `עמוד: ${input.pagePath}` : "",
+    input.referrerHost ? `מקור: ${input.referrerHost}` : "",
+    input.utmSource ? `utm_source: ${input.utmSource}` : "",
+    input.utmMedium ? `utm_medium: ${input.utmMedium}` : "",
+    input.utmCampaign ? `utm_campaign: ${input.utmCampaign}` : "",
+    input.utmContent ? `utm_content: ${input.utmContent}` : "",
+    input.utmTerm ? `utm_term: ${input.utmTerm}` : "",
     `שם: ${input.name}`,
     input.email ? `אימייל: ${input.email}` : "אימייל: לא הושאר",
     `טלפון: ${input.phone}`,
@@ -62,6 +78,14 @@ export function buildContactLeadPayload(input: ContactLeadInput) {
     formName: "טופס יצירת קשר",
     adName: "",
     facebookLeadId: "",
+    submissionId: input.submissionId || "",
+    inquiryPagePath: input.pagePath || "",
+    referrerHost: input.referrerHost || "",
+    utmSource: input.utmSource || "",
+    utmMedium: input.utmMedium || "",
+    utmCampaign: input.utmCampaign || "",
+    utmContent: input.utmContent || "",
+    utmTerm: input.utmTerm || "",
     totalPrice: 0,
     paidAmount: 0,
     balance: 0,

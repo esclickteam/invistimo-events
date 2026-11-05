@@ -2,11 +2,21 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { assertExternalSendAllowed } from "@/lib/env/externalSends";
 import { openContactFormLead } from "@/lib/contact/openContactLead";
+import { buildContactPageMeasurement } from "@/lib/analytics/contactInquiryMeasurement";
 import { recordContactPageLead } from "@/lib/analytics/recordContactPageLead";
 import {
   isValidContactPhone,
   normalizeContactPhone,
 } from "@/lib/contact/contactPhone";
+import {
+  buildContactSubmissionLog,
+  createContactSubmissionId,
+  deliverStagingTraceSink,
+  readContactAttribution,
+  renderContactTraceHtml,
+  type ContactAttribution,
+  type ContactSubmissionResult,
+} from "@/lib/contact/submissionTrace";
 
 /** Lazy client — module-level `new Resend()` throws during build when the key is unset. */
 function getResend() {
@@ -25,7 +35,23 @@ function escapeHtml(value: string) {
     .replace(/"/g, "&quot;");
 }
 
+function logContactSubmission(input: {
+  submissionId: string;
+  at: string;
+  status: number;
+  result: ContactSubmissionResult;
+  leadSaved: boolean;
+  attribution: ContactAttribution;
+}) {
+  console.info(JSON.stringify(buildContactSubmissionLog(input)));
+}
+
 export async function POST(req: Request) {
+  let submissionId = "";
+  let leadSaved = false;
+  let attribution: ContactAttribution = readContactAttribution({});
+  const at = new Date().toISOString();
+
   try {
     if (!process.env.RESEND_API_KEY) {
       throw new Error("Missing RESEND_API_KEY");
@@ -74,6 +100,13 @@ export async function POST(req: Request) {
       );
     }
 
+    // The browser may send its own id. This server id is the one stored and logged.
+    submissionId = createContactSubmissionId();
+    attribution = readContactAttribution({
+      referer: req.headers.get("referer"),
+      body,
+    });
+
     // A phone number opens a CRM lead only. Nothing is sent to that number.
     if (phone) {
       try {
@@ -83,9 +116,26 @@ export async function POST(req: Request) {
           phone,
           subject,
           message,
+          submissionId,
+          pagePath: attribution.pagePath,
+          referrerHost: attribution.referrerHost,
+          utmSource: attribution.utmSource,
+          utmMedium: attribution.utmMedium,
+          utmCampaign: attribution.utmCampaign,
+          utmContent: attribution.utmContent,
+          utmTerm: attribution.utmTerm,
         });
+        leadSaved = true;
       } catch (leadError) {
         console.error("CONTACT FORM LEAD ERROR:", leadError);
+        logContactSubmission({
+          submissionId,
+          at,
+          status: 500,
+          result: "lead_failed",
+          leadSaved: false,
+          attribution,
+        });
         return NextResponse.json(
           {
             success: false,
@@ -102,36 +152,15 @@ export async function POST(req: Request) {
       .map((addr) => addr.trim())
       .filter(Boolean);
 
-    for (const recipient of recipients) {
-      const gate = assertExternalSendAllowed({
-        channel: "email",
-        to: recipient,
-      });
-      if (!gate.allowed) {
-        console.warn("contact form email blocked by safety gate", {
-          reason: gate.reason,
-        });
-        return NextResponse.json({
-          success: true,
-          blocked: true,
-          message: "Staging safety: external email not sent",
-        });
-      }
-    }
-
-    const resend = getResend();
-
-    await resend.emails.send({
+    const notification = {
       // נשלח רק לצוות. הפונה לא מקבל עותק.
       from: "Invistimo <support@invistimo.com>",
       to: recipients,
       bcc: ["invistimo9@gmail.com"],
       ...(email ? { replyTo: email } : {}),
-
       subject: subject
         ? `פנייה חדשה: ${subject}`
         : "פנייה חדשה מטופס יצירת קשר – Invistimo",
-
       html: `
         <div style="font-family: Arial, sans-serif; direction: rtl; line-height:1.6">
           <h2>פנייה חדשה מהאתר</h2>
@@ -154,6 +183,8 @@ export async function POST(req: Request) {
 
           <p>${escapeHtml(message).replace(/\n/g, "<br />")}</p>
 
+          ${renderContactTraceHtml(submissionId, attribution, escapeHtml)}
+
           <hr />
 
           <p style="font-size:12px;color:#666">
@@ -161,18 +192,83 @@ export async function POST(req: Request) {
           </p>
         </div>
       `,
+    };
+    const measurement = buildContactPageMeasurement({
+      contactPage: body?.inquiryClient === "contact_page",
+      submissionId,
+      pagePath: attribution.pagePath,
     });
+
+    for (const recipient of recipients) {
+      const gate = assertExternalSendAllowed({
+        channel: "email",
+        to: recipient,
+      });
+      if (!gate.allowed) {
+        console.warn("contact form email blocked by safety gate", {
+          reason: gate.reason,
+        });
+        logContactSubmission({
+          submissionId,
+          at,
+          status: 200,
+          result: "blocked",
+          leadSaved,
+          attribution,
+        });
+        try {
+          await deliverStagingTraceSink({
+            submissionId,
+            email: notification,
+            measurement,
+          });
+        } catch {
+          console.error("CONTACT TRACE SINK ERROR");
+        }
+        return NextResponse.json({
+          success: true,
+          blocked: true,
+          submissionId,
+          message: "Staging safety: external email not sent",
+        });
+      }
+    }
+
+    const resend = getResend();
+
+    await resend.emails.send(notification);
 
     await recordContactPageLead(req, {
       inquiryClient: body?.inquiryClient,
-      submissionId: body?.submissionId,
+      submissionId,
+      pagePath: attribution.pagePath,
+    });
+
+    logContactSubmission({
+      submissionId,
+      at,
+      status: 200,
+      result: "sent",
+      leadSaved,
+      attribution,
     });
 
     return NextResponse.json({
       success: true,
+      submissionId,
     });
   } catch (error) {
     console.error("CONTACT FORM ERROR:", error);
+    if (submissionId) {
+      logContactSubmission({
+        submissionId,
+        at,
+        status: 500,
+        result: "error",
+        leadSaved,
+        attribution,
+      });
+    }
 
     return NextResponse.json(
       {

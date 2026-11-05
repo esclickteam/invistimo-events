@@ -153,6 +153,55 @@ const CustomerFileSchema = new Schema(
       index: true,
     },
 
+    submissionId: {
+      type: String,
+      default: "",
+      trim: true,
+      index: true,
+    },
+
+    inquiryPagePath: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    referrerHost: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    utmSource: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    utmMedium: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    utmCampaign: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    utmContent: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    utmTerm: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
     campaignName: {
       type: String,
       default: "",

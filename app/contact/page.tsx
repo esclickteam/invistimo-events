@@ -6,6 +6,7 @@ import Link from "next/link";
 import localFont from "next/font/local";
 import { motion, useReducedMotion } from "framer-motion";
 import { isValidContactPhone } from "@/lib/contact/contactPhone";
+import { readBrowserInquiryContext } from "@/lib/contact/publicInquiryContext";
 import {
   BUSINESS_HOURS,
   CONTACT_DIRECT_ANSWER,
@@ -161,6 +162,7 @@ export default function ContactPage() {
           message: message.trim(),
           submissionId: submissionIdRef.current,
           inquiryClient: "contact_page",
+          ...readBrowserInquiryContext(),
         }),
       });
       const data = await res.json();

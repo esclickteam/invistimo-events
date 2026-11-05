@@ -99,7 +99,11 @@ export const contactInquiryStore: InquiryMeasurementStore = {
 export async function recordContactPageLead(req: Request, body: unknown) {
   const source =
     body && typeof body === "object"
-      ? (body as { inquiryClient?: unknown; submissionId?: unknown })
+      ? (body as {
+          inquiryClient?: unknown;
+          submissionId?: unknown;
+          pagePath?: unknown;
+        })
       : {};
 
   try {
@@ -116,6 +120,7 @@ export async function recordContactPageLead(req: Request, body: unknown) {
       sessionCookie: readCookie(cookie, gaSessionCookieName(measurementId)),
       measurementId,
       apiSecret: process.env.GA4_MEASUREMENT_PROTOCOL_API_SECRET?.trim() || "",
+      pagePath: typeof source.pagePath === "string" ? source.pagePath : "",
       store: contactInquiryStore,
       send: (payload) =>
         sendGa4GenerateLead({
