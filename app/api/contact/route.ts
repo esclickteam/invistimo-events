@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Resend } from "resend";
 import { assertExternalSendAllowed } from "@/lib/env/externalSends";
 import { openContactFormLead } from "@/lib/contact/openContactLead";
+import { buildContactPageMeasurement } from "@/lib/analytics/contactInquiryMeasurement";
 import { recordContactPageLead } from "@/lib/analytics/recordContactPageLead";
 import {
   isValidContactPhone,
@@ -10,6 +11,7 @@ import {
 import {
   buildContactSubmissionLog,
   createContactSubmissionId,
+  deliverStagingTraceSink,
   readContactAttribution,
   renderContactTraceHtml,
   type ContactAttribution,
@@ -150,45 +152,15 @@ export async function POST(req: Request) {
       .map((addr) => addr.trim())
       .filter(Boolean);
 
-    for (const recipient of recipients) {
-      const gate = assertExternalSendAllowed({
-        channel: "email",
-        to: recipient,
-      });
-      if (!gate.allowed) {
-        console.warn("contact form email blocked by safety gate", {
-          reason: gate.reason,
-        });
-        logContactSubmission({
-          submissionId,
-          at,
-          status: 200,
-          result: "blocked",
-          leadSaved,
-          attribution,
-        });
-        return NextResponse.json({
-          success: true,
-          blocked: true,
-          submissionId,
-          message: "Staging safety: external email not sent",
-        });
-      }
-    }
-
-    const resend = getResend();
-
-    await resend.emails.send({
+    const notification = {
       // נשלח רק לצוות. הפונה לא מקבל עותק.
       from: "Invistimo <support@invistimo.com>",
       to: recipients,
       bcc: ["invistimo9@gmail.com"],
       ...(email ? { replyTo: email } : {}),
-
       subject: subject
         ? `פנייה חדשה: ${subject}`
         : "פנייה חדשה מטופס יצירת קשר – Invistimo",
-
       html: `
         <div style="font-family: Arial, sans-serif; direction: rtl; line-height:1.6">
           <h2>פנייה חדשה מהאתר</h2>
@@ -220,11 +192,56 @@ export async function POST(req: Request) {
           </p>
         </div>
       `,
+    };
+    const measurement = buildContactPageMeasurement({
+      contactPage: body?.inquiryClient === "contact_page",
+      submissionId,
+      pagePath: attribution.pagePath,
     });
+
+    for (const recipient of recipients) {
+      const gate = assertExternalSendAllowed({
+        channel: "email",
+        to: recipient,
+      });
+      if (!gate.allowed) {
+        console.warn("contact form email blocked by safety gate", {
+          reason: gate.reason,
+        });
+        logContactSubmission({
+          submissionId,
+          at,
+          status: 200,
+          result: "blocked",
+          leadSaved,
+          attribution,
+        });
+        try {
+          await deliverStagingTraceSink({
+            submissionId,
+            email: notification,
+            measurement,
+          });
+        } catch {
+          console.error("CONTACT TRACE SINK ERROR");
+        }
+        return NextResponse.json({
+          success: true,
+          blocked: true,
+          submissionId,
+          message: "Staging safety: external email not sent",
+        });
+      }
+    }
+
+    const resend = getResend();
+
+    await resend.emails.send(notification);
 
     await recordContactPageLead(req, {
       inquiryClient: body?.inquiryClient,
       submissionId,
+      pagePath: attribution.pagePath,
     });
 
     logContactSubmission({

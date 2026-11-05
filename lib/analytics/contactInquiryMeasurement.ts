@@ -1,3 +1,4 @@
+import { resolveAppEnv } from "@/lib/env/appEnv";
 import { isGaMeasurementId } from "@/lib/seo/analytics";
 
 /** A contact-page success is counted once. GA4 is a separate, optional send. */
@@ -8,6 +9,36 @@ export const GA4_MP_TIMEOUT_MS = 2_000;
 export const CONTACT_PAGE_CLIENT = "contact_page";
 export const ANALYTICS_CONSENT_COOKIE = "invistimo_analytics";
 export const CONTACT_PAGE_LOCATION = "https://www.invistimo.com/contact";
+
+/** Production measurements stay on the public site. Other environments never use that host. */
+export function contactMeasurementOrigin() {
+  const env = resolveAppEnv();
+  if (env === "production") return "https://www.invistimo.com";
+  if (env === "staging") return "https://staging.invistimo.com";
+  if (env === "preview") {
+    const host = String(process.env.VERCEL_URL || "")
+      .trim()
+      .replace(/^https?:\/\//, "")
+      .split("/")[0];
+    if (host && !/(^|\.)invistimo\.com$/i.test(host)) return `https://${host}`;
+    return "https://preview.local";
+  }
+  return "http://localhost:3000";
+}
+
+export function contactMeasurementPageLocation(pagePath?: string) {
+  const raw = String(pagePath || "").trim();
+  const path =
+    raw.startsWith("/") &&
+    !raw.startsWith("//") &&
+    !raw.includes("?") &&
+    !raw.includes("#") &&
+    !raw.includes("@") &&
+    raw.length <= 160
+      ? raw
+      : "/contact";
+  return `${contactMeasurementOrigin()}${path}`;
+}
 
 const SUBMISSION_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -158,6 +189,7 @@ export function buildGenerateLeadPayload(input: {
   clientId: string;
   sessionId?: string;
   submissionId?: string;
+  pagePath?: string;
 }): GenerateLeadPayload {
   if (!CLIENT_ID.test(input.clientId)) {
     throw new Error("INVALID_CLIENT_ID");
@@ -165,7 +197,7 @@ export function buildGenerateLeadPayload(input: {
   const params: GenerateLeadPayload["events"][0]["params"] = {
     method: "contact",
     engagement_time_msec: 1,
-    page_location: CONTACT_PAGE_LOCATION,
+    page_location: contactMeasurementPageLocation(input.pagePath),
   };
   if (input.sessionId && SESSION_ID.test(input.sessionId)) {
     params.session_id = input.sessionId;
@@ -177,6 +209,24 @@ export function buildGenerateLeadPayload(input: {
     client_id: input.clientId,
     events: [{ name: "generate_lead", params }],
   };
+}
+
+/** Payload only. Does not call Google. */
+export function buildContactPageMeasurement(input: {
+  contactPage: boolean;
+  submissionId: string;
+  pagePath?: string;
+  gaCookie?: string | null;
+  sessionCookie?: string | null;
+}): GenerateLeadPayload | null {
+  if (!input.contactPage || !isContactSubmissionId(input.submissionId)) return null;
+  const sessionId = parseGaSessionId(input.sessionCookie || "");
+  return buildGenerateLeadPayload({
+    clientId: parseGaClientId(input.gaCookie || "") || createAnonymousClientId(),
+    sessionId: sessionId || undefined,
+    submissionId: input.submissionId,
+    pagePath: input.pagePath,
+  });
 }
 
 export function decideClaim(
@@ -269,6 +319,7 @@ export async function measureContactPageInquiry(input: {
   store: InquiryMeasurementStore;
   send: (payload: GenerateLeadPayload) => Promise<void>;
   createClientId?: () => string;
+  pagePath?: string;
 }) {
   if (!input.contactPage || !isContactSubmissionId(input.submissionId)) {
     return { outcome: "ignored" as const };
@@ -360,6 +411,7 @@ export async function measureContactPageInquiry(input: {
         clientId,
         sessionId: hadSessionId ? sessionId : undefined,
         submissionId,
+        pagePath: input.pagePath,
       })
     );
     await input.store.update(submissionId, {

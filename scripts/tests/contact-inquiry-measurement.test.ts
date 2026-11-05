@@ -115,6 +115,8 @@ test("opt-out signals deny measurement and a missing banner does not", () => {
 });
 
 test("a successful contact inquiry sends one generate_lead without personal data", async () => {
+  const previous = process.env.APP_ENV;
+  process.env.APP_ENV = "production";
   const store = memoryStore();
   const sent: GenerateLeadPayload[] = [];
   const result = await measureContactPageInquiry(
@@ -146,6 +148,8 @@ test("a successful contact inquiry sends one generate_lead without personal data
     failedUnconfirmed: 0,
     timedOut: 0,
   });
+  if (previous === undefined) delete process.env.APP_ENV;
+  else process.env.APP_ENV = previous;
 });
 
 test("a repeated submission id does not send a second event", async () => {

@@ -31,3 +31,6 @@ jobs:
 
       - name: Contact submission tests
         run: npm run test:contact-inquiry-measurement
+
+      - name: One isolated staging lead
+        run: npx tsx scripts/staging/run-contact-trace-http.ts

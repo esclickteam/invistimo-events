@@ -76,6 +76,8 @@ test("one server submission id matches the lead, the log, GA4, and the email", (
 });
 
 test("the structured log and GA event carry the id without personal details", () => {
+  const previousEnv = process.env.APP_ENV;
+  process.env.APP_ENV = "development";
   const attribution = readContactAttribution({
     body: {
       pagePath: "/contact?email=dana@example.com",
@@ -102,7 +104,10 @@ test("the structured log and GA event carry the id without personal details", ()
   assert.equal(log.utmCampaign, "");
   assert.equal(log.utmMedium, "cpc");
   assert.equal(log.referrerHost, "evil.example");
-  assert.equal(encoded.includes("https://"), false);
+  assert.equal(encoded.includes("https://evil.example"), false);
+  assert.equal(log.pageLocation.includes("www.invistimo.com"), false);
+  if (previousEnv === undefined) delete process.env.APP_ENV;
+  else process.env.APP_ENV = previousEnv;
 
   const ga = JSON.stringify(
     buildGenerateLeadPayload({

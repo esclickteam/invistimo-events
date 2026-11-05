@@ -1,3 +1,7 @@
+import { contactMeasurementPageLocation } from "@/lib/analytics/contactInquiryMeasurement";
+import type { GenerateLeadPayload } from "@/lib/analytics/contactInquiryMeasurement";
+import { resolveAppEnv } from "@/lib/env/appEnv";
+
 const SUBMISSION_ID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -38,6 +42,7 @@ export type ContactSubmissionLog = {
   utmCampaign: string;
   utmContent: string;
   utmTerm: string;
+  pageLocation: string;
 };
 
 export function createContactSubmissionId(
@@ -166,7 +171,32 @@ export function buildContactSubmissionLog(input: {
     utmCampaign: input.attribution.utmCampaign,
     utmContent: input.attribution.utmContent,
     utmTerm: input.attribution.utmTerm,
+    pageLocation: contactMeasurementPageLocation(input.attribution.pagePath),
   };
+}
+
+const LOCAL_SINK = /^https?:\/\/(127\.0\.0\.1|localhost)(:\d+)?(\/|$)/;
+
+/** Staging and preview can keep the email and measurement on this machine. Production never uses the sink. */
+export async function deliverStagingTraceSink(input: {
+  submissionId: string;
+  email: {
+    from: string;
+    to: string[];
+    bcc: string[];
+    subject: string;
+    html: string;
+  };
+  measurement: GenerateLeadPayload | null;
+}) {
+  if (resolveAppEnv() === "production") return;
+  const sink = String(process.env.CONTACT_TRACE_SINK || "").trim();
+  if (!LOCAL_SINK.test(sink)) return;
+  await fetch(sink, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
 }
 
 export function renderContactTraceHtml(
