@@ -728,37 +728,111 @@ iframe[src*="userway"] {
   }
 }
 
-/* Homepage mobile: stack the chat and accessibility buttons in one corner,
-   and let them step aside while the page is moving. */
+/* Mobile: WhatsApp sits above the accessibility button, both fixed
+   to the bottom-left corner. They stay visible while the page scrolls. */
 @media (max-width: 1023px) {
-  html.lux-public-home {
-    scroll-padding-bottom: 7.5rem;
-  }
-
-  html.lux-public-home .lux-home-wa {
+  .lux-home-wa {
+    position: fixed !important;
+    top: auto !important;
     right: auto !important;
     left: max(16px, calc(env(safe-area-inset-left, 0px) + 16px)) !important;
-    bottom: max(86px, calc(env(safe-area-inset-bottom, 0px) + 86px)) !important;
+    bottom: calc(max(16px, env(safe-area-inset-bottom, 0px) + 16px) + 54px + 12px) !important;
+    z-index: 40 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: none !important;
   }
 
-  html.lux-public-home .lux-home-wa,
-  html.lux-public-home #userwayAccessibilityIcon,
-  html.lux-public-home #userwayAccessibilityIconRoot,
-  html.lux-public-home .uwy .uai,
-  html.lux-public-home .uai,
-  html.lux-public-home button[aria-label*="נגישות"],
-  html.lux-public-home button[aria-label*="Accessibility"] {
-    transition: opacity 0.4s ease !important;
+  #userwayAccessibilityIcon,
+  #userwayAccessibilityIconRoot,
+  .uwy .uai,
+  .uai,
+  .uwaw-widget-launcher,
+  button[aria-label*="Accessibility"],
+  button[aria-label*="נגישות"] {
+    position: fixed !important;
+    z-index: 40 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
   }
 
-  html.lux-public-home.lux-scrolling .lux-home-wa,
-  html.lux-public-home.lux-scrolling #userwayAccessibilityIcon,
-  html.lux-public-home.lux-scrolling #userwayAccessibilityIconRoot,
-  html.lux-public-home.lux-scrolling .uwy .uai,
-  html.lux-public-home.lux-scrolling .uai,
-  html.lux-public-home.lux-scrolling button[aria-label*="נגישות"],
-  html.lux-public-home.lux-scrolling button[aria-label*="Accessibility"] {
-    opacity: 0 !important;
-    pointer-events: none !important;
+  .uwy .uai,
+  .uai,
+  .uwaw-widget-launcher,
+  button[aria-label*="Accessibility"],
+  button[aria-label*="נגישות"] {
+    width: 54px !important;
+    height: 54px !important;
+  }
+}
+
+@media (max-width: 360px) {
+  .lux-home-wa {
+    bottom: calc(max(16px, env(safe-area-inset-bottom, 0px) + 16px) + 50px + 12px) !important;
+  }
+
+  .uwy .uai,
+  .uai,
+  .uwaw-widget-launcher,
+  button[aria-label*="Accessibility"],
+  button[aria-label*="נגישות"] {
+    width: 50px !important;
+    height: 50px !important;
+  }
+}
+
+/* Homepage invitation row: a snap carousel below the desktop breakpoint. */
+.lux-home .lux-invite-row {
+  touch-action: pan-x pan-y;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.lux-home .lux-invite-row::-webkit-scrollbar {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .lux-home .lux-invite-viewport {
+    container-type: inline-size;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .lux-home .lux-invite-row {
+    width: 100%;
+    max-width: 100%;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: auto;
+  }
+
+  .lux-home .lux-invite-card {
+    width: calc(100cqi - 5.5rem);
+    max-width: none;
+    scroll-snap-align: center;
+  }
+}
+
+@media (min-width: 1024px) {
+  .lux-home .lux-invite-row {
+    width: max-content;
+    max-width: none;
+    overflow: visible;
+    scroll-snap-type: none;
+  }
+
+  .lux-home .lux-invite-card {
+    width: 300px;
+    max-width: 340px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lux-home .lux-invite-row {
+    scroll-behavior: auto;
   }
 }

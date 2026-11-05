@@ -190,10 +190,11 @@ export default function Header() {
           className="relative z-50 mx-auto max-w-[1500px] overflow-visible"
           dir="rtl"
         >
-          {/* Mobile and narrow tablet: logo on the right, actions on the left */}
+          {/* Mobile: logo on the left, hamburger on the right.
+              Desktop order below is unchanged. Dashboard keeps its own direction. */}
           <div
             className="flex h-[72px] items-center justify-between gap-3 px-4 lg:hidden"
-            dir="rtl"
+            dir={isDashboard ? "rtl" : "ltr"}
           >
             <Link
               href={logoHref}
@@ -208,15 +209,15 @@ export default function Header() {
                 <button
                   type="button"
                   onClick={openDemoChoice}
-                  className="inline-flex items-center gap-1.5 rounded-none bg-[#42182F] px-3.5 py-2 text-[13px] font-extrabold text-[#FFF8F0] [&_svg]:text-current"
+                  className="hidden items-center gap-1.5 whitespace-nowrap rounded-none bg-[#42182F] px-3.5 py-2 text-[13px] font-extrabold text-[#FFF8F0] min-[360px]:inline-flex [&_svg]:text-current"
                   title="דמו – צפייה בלבד"
                 >
                   <Sparkles size={14} />
-                  דמו
+                  נסו דמו
                 </button>
                 <button
                   onClick={() => setMobileOpen(true)}
-                  className="site-header-ghost flex h-11 w-11 items-center justify-center"
+                  className="site-header-ghost flex h-11 w-11 shrink-0 items-center justify-center"
                   aria-label="פתח תפריט"
                   aria-expanded={mobileOpen}
                   aria-controls="mobile-main-nav"

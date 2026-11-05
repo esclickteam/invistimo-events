@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type Ref } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type Ref } from "react";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import { luxBtnPlum } from "@/lib/ui/luxuryButtonClasses";
 import { segment, useScrollProgress } from "./useScrollProgress";
@@ -70,6 +70,217 @@ function PaperEnvelope({
         <span className="lux-env-pocket" aria-hidden />
         <span className="lux-env-flap" aria-hidden />
       </button>
+    </div>
+  );
+}
+
+function InviteCard({
+  item,
+  trackIndex,
+  hidden = false,
+  onActivate,
+}: {
+  item: (typeof INVITES)[number];
+  trackIndex: number;
+  hidden?: boolean;
+  onActivate?: (index: number) => void;
+}) {
+  return (
+    <figure
+      data-invite-slide
+      aria-hidden={hidden || undefined}
+      className={`lux-invite-card relative shrink-0 overflow-hidden border border-[#C5A582]/35 bg-[#F5EEE8] shadow-[0_30px_80px_rgba(66,24,47,0.12)] ${
+        onActivate ? "cursor-pointer" : ""
+      }`}
+      onClick={onActivate ? () => onActivate(trackIndex) : undefined}
+    >
+      <div className="aspect-[3/4] overflow-hidden">
+        <img
+          src={item.src}
+          alt={`${item.label} — ${item.couple}`}
+          className="h-full w-full object-cover object-top"
+          loading="lazy"
+          decoding="async"
+          draggable={false}
+        />
+      </div>
+      <figcaption className="border-t border-[#C5A582]/35 px-5 py-4">
+        <p className="text-[11px] font-bold tracking-[0.18em] text-[#842B4C]">{item.label}</p>
+        <p className="mt-1 text-lg font-extrabold text-[#42182F]">{item.couple}</p>
+      </figcaption>
+    </figure>
+  );
+}
+
+/**
+ * Mobile invitation carousel. Clones of the first and last cards let the
+ * strip wrap without a visible jump. Dots match the wedding-site gallery.
+ */
+function InviteCarousel({ reduceMotion }: { reduceMotion: boolean }) {
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const trackRef = useRef(INVITES.length);
+  const [active, setActive] = useState(0);
+  const count = INVITES.length;
+  const slides = [0, 1, 2].flatMap((copy) =>
+    INVITES.map((item, index) => ({
+      item,
+      key: `${copy}-${index}`,
+      hidden: copy !== 1,
+      trackIndex: copy * count + index,
+    })),
+  );
+
+  const realFromTrack = (trackIndex: number) => ((trackIndex % count) + count) % count;
+
+  useLayoutEffect(() => {
+    const root = scrollerRef.current;
+    if (!root) return;
+    const desktop = window.matchMedia("(min-width: 1024px)");
+    if (desktop.matches) return;
+
+    let timer = 0;
+    let suppress = false;
+
+    const slideNodes = () => [...root.querySelectorAll<HTMLElement>("[data-invite-slide]")];
+
+    const nearest = () => {
+      const mid = root.getBoundingClientRect().left + root.clientWidth / 2;
+      let best = 0;
+      let bestDist = Number.POSITIVE_INFINITY;
+      slideNodes().forEach((node, index) => {
+        const rect = node.getBoundingClientRect();
+        const dist = Math.abs(rect.left + rect.width / 2 - mid);
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = index;
+        }
+      });
+      return best;
+    };
+
+    const center = (index: number, behavior: ScrollBehavior) => {
+      const card = slideNodes()[index];
+      if (!card || root.clientWidth === 0) return;
+      const delta =
+        card.getBoundingClientRect().left +
+        card.clientWidth / 2 -
+        (root.getBoundingClientRect().left + root.clientWidth / 2);
+      if (Math.abs(delta) < 1.5) return;
+      if (behavior === "auto") root.scrollLeft += delta;
+      else root.scrollBy({ left: delta, behavior });
+    };
+
+    const publish = (trackIndex: number) => {
+      trackRef.current = trackIndex;
+      const real = realFromTrack(trackIndex);
+      setActive((prev) => (prev === real ? prev : real));
+    };
+
+    const jumpFromClone = (trackIndex: number) => {
+      if (trackIndex >= count && trackIndex < count * 2) return false;
+      const realTrack = trackIndex < count ? trackIndex + count : trackIndex - count;
+      suppress = true;
+      center(realTrack, "auto");
+      publish(realTrack);
+      window.setTimeout(() => {
+        suppress = false;
+      }, 60);
+      return true;
+    };
+
+    const settle = () => {
+      if (suppress) return;
+      const trackIndex = nearest();
+      if (!jumpFromClone(trackIndex)) publish(trackIndex);
+    };
+
+    suppress = true;
+    center(count, "auto");
+    publish(count);
+    window.setTimeout(() => {
+      suppress = false;
+    }, 60);
+
+    const onScroll = () => {
+      if (suppress) return;
+      publish(nearest());
+      window.clearTimeout(timer);
+      timer = window.setTimeout(settle, 140);
+    };
+
+    root.addEventListener("scroll", onScroll, { passive: true });
+    root.addEventListener("scrollend", settle);
+    const onResize = () => {
+      if (root.clientWidth === 0 || suppress) return;
+      center(trackRef.current, "auto");
+    };
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.clearTimeout(timer);
+      root.removeEventListener("scroll", onScroll);
+      root.removeEventListener("scrollend", settle);
+      window.removeEventListener("resize", onResize);
+    };
+  }, [count, reduceMotion]);
+
+  function centerTrack(index: number) {
+    const root = scrollerRef.current;
+    const card = root?.querySelectorAll<HTMLElement>("[data-invite-slide]")[index];
+    if (!root || !card) return;
+    const delta =
+      card.getBoundingClientRect().left +
+      card.clientWidth / 2 -
+      (root.getBoundingClientRect().left + root.clientWidth / 2);
+    if (Math.abs(delta) < 1.5) return;
+    if (reduceMotion) root.scrollLeft += delta;
+    else root.scrollBy({ left: delta, behavior: "smooth" });
+  }
+
+  function goToReal(target: number) {
+    const current = trackRef.current;
+    const currentReal = realFromTrack(current);
+    const forward = (target - currentReal + count) % count;
+    const backward = (currentReal - target + count) % count;
+    centerTrack(forward <= backward ? current + forward : current - backward);
+  }
+
+  return (
+    <div className="relative z-10 w-full min-w-0 pb-12 lg:hidden">
+      <div className="lux-invite-viewport">
+        <div
+          ref={scrollerRef}
+          className="lux-invite-row flex gap-4 overflow-x-auto"
+          aria-label="הזמנות וכרטיסי שמירת תאריך"
+        >
+          {slides.map((slide) => (
+            <InviteCard
+              key={slide.key}
+              item={slide.item}
+              trackIndex={slide.trackIndex}
+              hidden={slide.hidden}
+              onActivate={centerTrack}
+            />
+          ))}
+        </div>
+      </div>
+      <div className="mt-4 flex justify-center gap-1">
+        {INVITES.map((item, index) => (
+          <button
+            key={item.src + item.label}
+            type="button"
+            aria-label={item.label}
+            aria-current={index === active ? "true" : undefined}
+            onClick={() => goToReal(index)}
+            className="flex h-10 w-10 items-center justify-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C5A582]"
+          >
+            <span
+              className={`h-1 w-8 motion-safe:transition-colors motion-safe:duration-500 ${
+                index === active ? "bg-[#842B4C]" : "bg-[#C5A582]/40"
+              }`}
+            />
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -180,19 +391,21 @@ export default function LuxV2SaveTheDate() {
           </div>
         </div>
 
-        <div className="relative z-10 w-full pb-12">
+        <InviteCarousel reduceMotion={reduceMotion} />
+
+        <div className="relative z-10 hidden w-full min-w-0 pb-12 lg:block">
           <div
-            className="flex w-max gap-5 overflow-x-auto px-4 sm:gap-7 sm:px-6 md:px-10 lg:overflow-visible"
+            className="lux-invite-row flex w-max gap-7 overflow-visible"
             style={{
               transform: shift ? `translate3d(${shift}%, 0, 0)` : undefined,
             }}
           >
             {INVITES.map((item, i) => {
-              const depth = reduceMotion || !wide ? 0 : Math.sin((scrub + i * 0.18) * Math.PI) * 10;
+              const depth = reduceMotion ? 0 : Math.sin((scrub + i * 0.18) * Math.PI) * 10;
               return (
                 <figure
                   key={item.src + item.label}
-                  className="relative w-[72vw] max-w-[340px] shrink-0 overflow-hidden border border-[#C5A582]/35 bg-[#F5EEE8] shadow-[0_30px_80px_rgba(66,24,47,0.12)] sm:w-[300px]"
+                  className="lux-invite-card relative shrink-0 overflow-hidden border border-[#C5A582]/35 bg-[#F5EEE8] shadow-[0_30px_80px_rgba(66,24,47,0.12)]"
                   style={{ transform: depth ? `translate3d(0, ${depth}px, 0)` : undefined }}
                 >
                   <div className="aspect-[3/4] overflow-hidden">
