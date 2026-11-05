@@ -76,9 +76,32 @@ export default function ClientShell({ children }: { children: ReactNode }) {
   /* =====================================================
      🟢 אתר רגיל
   ===================================================== */
+  const brandSurface = isMarketingSurface(pathname);
+
   return (
     <LayoutShell header={<Header />} footer={<Footer />}>
-      {children}
+      {brandSurface ? <div className="public-brand">{children}</div> : children}
     </LayoutShell>
   );
+}
+
+/** Inner public pages only. Homepage, dashboard, and guest wedding sites stay untouched. */
+function isMarketingSurface(pathname: string) {
+  const roots = [
+    "/rsvp",
+    "/invitations",
+    "/info",
+    "/pricing",
+    "/faq",
+    "/contact",
+    "/seating-explained",
+    "/event-management",
+    "/credit-gifts",
+    "/services",
+    "/wedding-website",
+    "/terms",
+    "/privacy",
+    "/accessibility",
+  ];
+  return roots.some((root) => pathname === root || pathname.startsWith(`${root}/`));
 }
