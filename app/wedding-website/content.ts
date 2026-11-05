@@ -54,8 +54,8 @@ export const WW_MEDIA = {
     uploadDate: "2026-10-26",
   },
   /** Distinct real captures — never reuse the same stock poster across sections. */
-  heroDesktop: "/marketing/wedding-website/previews/hero-desktop.jpg",
-  heroMobile: "/marketing/wedding-website/previews/hero-mobile.jpg",
+  heroDesktop: "/marketing/wedding-website/previews/hero-desktop-frame.webp",
+  heroMobile: "/marketing/wedding-website/previews/hero-mobile-frame.webp",
   anatomyPrimary: "/marketing/wedding-website/previews/anatomy-desktop.jpg",
   anatomyStory: "/marketing/wedding-website/previews/section-story.jpg",
   anatomyGallery: "/marketing/wedding-website/previews/section-gallery.jpg",

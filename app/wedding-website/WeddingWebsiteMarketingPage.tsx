@@ -1,13 +1,12 @@
-"use client";
-
-import { motion, useReducedMotion } from "framer-motion";
-import Image from "next/image";
+import type { ReactNode } from "react";
+import DeferredShot from "./components/DeferredShot";
 import Link from "next/link";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import GuestJourneyPhone from "./components/GuestJourneyPhone";
 import SiteAnatomyPreview from "./components/SiteAnatomyPreview";
 import WeddingDesignGallery from "./components/WeddingDesignGallery";
-import WeddingWebsiteHero, { wwPrimary } from "./components/WeddingWebsiteHero";
+import WeddingWebsiteHero from "./components/WeddingWebsiteHero";
+import { wwPrimary } from "./components/wwButtons";
 import { WEDDING_WEBSITE_FAQS } from "./weddingFaqs";
 import {
   COMPARE_ROWS,
@@ -15,7 +14,6 @@ import {
   SITE_ANATOMY,
   STEPS,
   VERIFIED_CAPABILITIES,
-  WHY_ITEMS,
   WW_LINKS,
   WW_MEDIA,
   WW_PATH,
@@ -31,7 +29,7 @@ import {
 const ctaOnDark = btnPrimary;
 const ctaOnDarkSecondary = btnSecondaryOnDark;
 
-function Eyebrow({ children, onDark }: { children: React.ReactNode; onDark?: boolean }) {
+function Eyebrow({ children, onDark }: { children: ReactNode; onDark?: boolean }) {
   return (
     <p
       className={`text-sm font-black tracking-[0.16em] ${
@@ -46,25 +44,12 @@ function Eyebrow({ children, onDark }: { children: React.ReactNode; onDark?: boo
 function FadeIn({
   children,
   className = "",
-  delay = 0,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
   delay?: number;
 }) {
-  const reduce = useReducedMotion();
-  if (reduce) return <div className={className}>{children}</div>;
-  return (
-    <motion.div
-      className={className}
-      initial={{ opacity: 1, y: 12 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true, margin: "0px 0px 18% 0px" }}
-      transition={{ duration: 0.42, delay, ease: [0.22, 1, 0.36, 1] }}
-    >
-      {children}
-    </motion.div>
-  );
+  return <div className={className}>{children}</div>;
 }
 
 export default function WeddingWebsiteMarketingPage() {
@@ -102,34 +87,19 @@ export default function WeddingWebsiteMarketingPage() {
             </h2>
             <div className="mt-6 space-y-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
               <p>
-                הזמנה דיגיטלית מספרת לאורחים מתי ואיפה החתונה מתקיימת.
+                אתר חתונה אישי מרכז סיפור, תמונות, לוח זמנים, כתובת וניווט בקישור אחד
+                שהאורחים פותחים מהטלפון — במקום לענות שוב ושוב על אותן שאלות.
               </p>
               <p>
-                אתר חתונה אישי יכול להציע חוויה רחבה יותר: מקום אחד שבו אפשר להציג את
-                הסיפור שלכם, לשתף תמונות, להציג את פרטי האירוע, להוסיף מידע שימושי ולעזור
-                לאורחים להתכונן ליום הגדול.
-              </p>
-              <p>
-                במקום לשלוח שוב ושוב את אותן תשובות לגבי כתובת, שעות או ניווט, אפשר להפנות
-                את האורחים לעמוד אחד מסודר.
-              </p>
-              <p>
-                אתר החתונה הוא קישור משותף. את{" "}
-                <Link href={WW_LINKS.invitations} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                זה קישור משותף. את{" "}
+                <Link href={WW_LINKS.invitations} className="font-bold text-[#842B4C] underline-offset-4 hover:underline">
                   ההזמנה הדיגיטלית
                 </Link>{" "}
-                שולחים בנפרד, ואת התשובות אוספים בעמוד{" "}
-                <Link href={WW_LINKS.rsvpWedding} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                שולחים בנפרד, ואת התשובות אוספים ב{" "}
+                <Link href={WW_LINKS.rsvpWedding} className="font-bold text-[#842B4C] underline-offset-4 hover:underline">
                   אישורי הגעה לחתונה
                 </Link>{" "}
-                עם קישור אישי לרשומה. להכנת ההזמנה עצמה יש{" "}
-                <Link
-                  href="/info/guides/send-digital-invitation"
-                  className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
-                >
-                  מדריך שליחה
-                </Link>
-                .
+                עם קישור אישי לרשומה.
               </p>
             </div>
             <ul className="mt-8 columns-1 gap-x-8 sm:columns-2">
@@ -185,47 +155,13 @@ export default function WeddingWebsiteMarketingPage() {
             >
               אתר חתונה, הזמנה דיגיטלית ואישור הגעה — מה ההבדל?
             </h2>
+            <p className="mt-5 max-w-3xl text-base leading-8 text-[#D8CBB8] md:text-lg">
+              שלושה דברים נפרדים: אתר משותף לחוויה ולפרטים, הזמנה שמתמקדת באירוע עצמו,
+              וקישור אישי שאוסף תשובה מאורח מסוים.
+            </p>
           </FadeIn>
 
-          <div className="mt-12 grid gap-8 md:grid-cols-3">
-            {[
-              {
-                title: "אתר חתונה אישי",
-                text: "עמוד חווייתי שניתן לשתף עם האורחים, ובו מרוכזים פרטי החתונה ותוכן אישי של בני הזוג. מתאים להצגת הסיפור, תמונות, מידע שימושי ופרטי האירוע.",
-              },
-              {
-                title: "הזמנה דיגיטלית",
-                text: "מתמקדת בהזמנה עצמה — שמות בני הזוג, תאריך, מקום ושעת האירוע — בעיצוב שמתאים לסגנון החתונה.",
-                href: WW_LINKS.invitations,
-                linkLabel: "להזמנות דיגיטליות",
-              },
-              {
-                title: "קישור אישי לאישור הגעה",
-                text: "מיועד לאורח או לרשומת מוזמנים מסוימת ומאפשר למסור תשובה להזמנה בהתאם לאפשרויות המערכת. זה אינו אותו דבר כמו אתר חתונה ציבורי או משותף.",
-                href: WW_LINKS.rsvpWedding,
-                linkLabel: "לאישורי הגעה לחתונה",
-              },
-            ].map((col, i) => (
-              <FadeIn key={col.title} delay={i * 0.06}>
-                <div className="h-full border-t border-[#C9A962]/35 pt-6">
-                  <h3 className="font-['Cormorant_Garamond'] text-2xl font-semibold text-[#E8D5A8]">
-                    {col.title}
-                  </h3>
-                  <p className="mt-4 text-[15px] leading-7 text-[#D8CBB8]">{col.text}</p>
-                  {"href" in col && col.href ? (
-                    <Link
-                      href={col.href}
-                      className="mt-5 inline-block text-sm font-bold text-[#E8D5A8] underline-offset-4 hover:underline"
-                    >
-                      {col.linkLabel}
-                    </Link>
-                  ) : null}
-                </div>
-              </FadeIn>
-            ))}
-          </div>
-
-          <FadeIn className="mt-14">
+          <FadeIn className="mt-10">
             <table className="w-full table-fixed border-collapse text-right text-xs sm:text-sm md:text-base">
               <caption className="sr-only">
                 השוואה בין אתר חתונה, הזמנה דיגיטלית וקישור אישי לאישור הגעה
@@ -262,9 +198,17 @@ export default function WeddingWebsiteMarketingPage() {
           </FadeIn>
 
           <p className="mt-8 max-w-3xl text-sm leading-7 text-[#B9A992]">
-            חשוב: קישור RSVP אישי אינו אתר חתונה. באתר ציבורי משותף לא מוצגים שמות אורחים,
+            קישור RSVP אישי אינו אתר חתונה. באתר ציבורי משותף לא מוצגים שמות אורחים,
             מספרי טלפון או נתוני RSVP.
           </p>
+          <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-sm font-bold">
+            <Link href={WW_LINKS.invitations} className="text-[#E8D5A8] underline-offset-4 hover:underline">
+              להזמנות דיגיטליות
+            </Link>
+            <Link href={WW_LINKS.rsvpWedding} className="text-[#E8D5A8] underline-offset-4 hover:underline">
+              לאישורי הגעה לחתונה
+            </Link>
+          </div>
         </div>
       </section>
 
@@ -294,7 +238,7 @@ export default function WeddingWebsiteMarketingPage() {
 
           <div className="mt-14 flex flex-col items-start gap-3 border border-[#C5A582] bg-[#FFF8F0] p-6 sm:flex-row sm:items-center sm:justify-between md:p-8">
             <p className="max-w-xl font-['Cormorant_Garamond'] text-3xl font-semibold leading-tight text-[#42182F]">
-              רוצים אתר כזה לחתונה שלכם?
+              רוצים אתר חתונה כזה משלכם?
             </p>
             <TrackedCtaLink href={WW_LINKS.contact} className={wwPrimary} location={`gallery_contact:${WW_PATH}`}>
               דברו איתנו
@@ -404,14 +348,12 @@ export default function WeddingWebsiteMarketingPage() {
 
           <div className="mt-12 grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-start">
             <FadeIn className="overflow-hidden rounded-[24px] border border-[#D9C7A8]/60 bg-[#FFFDF8] shadow-[0_20px_50px_rgba(42,30,18,0.10)]">
-              <Image
+              <DeferredShot
                 src={WW_MEDIA.anatomyGallery}
                 alt="גלריה באתר חתונה לדוגמה"
                 width={1280}
                 height={900}
-                unoptimized
                 className="block h-auto w-full"
-                sizes="(max-width: 1024px) 100vw, 40vw"
               />
             </FadeIn>
             <div className="space-y-8">
@@ -445,6 +387,9 @@ export default function WeddingWebsiteMarketingPage() {
             >
               מהרעיון שלכם לאתר חתונה אישי
             </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-8 text-[#5C4A3A]">
+              מומלץ להתחיל אחרי שנקבעו התאריך ומקום האירוע, כדי לבחור עיצוב ולנסח את התוכן בנחת.
+            </p>
           </FadeIn>
           <ol className="mt-12 grid gap-8 md:grid-cols-2">
             {STEPS.map((step, i) => (
@@ -459,63 +404,6 @@ export default function WeddingWebsiteMarketingPage() {
               </FadeIn>
             ))}
           </ol>
-        </div>
-      </section>
-
-      {/* WHEN */}
-      <section
-        id="when"
-        aria-labelledby="when-heading"
-        className="bg-[#FFFDF8] px-5 py-16 md:px-8 md:py-20"
-      >
-        <FadeIn className="mx-auto max-w-3xl">
-          <Eyebrow>תזמון</Eyebrow>
-          <h2
-            id="when-heading"
-            className="mt-3 font-['Cormorant_Garamond'] text-3xl font-semibold text-[#2A2118] md:text-4xl"
-          >
-            מתי הזמן המתאים ליצור אתר חתונה?
-          </h2>
-          <div className="mt-6 space-y-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
-            <p>מומלץ להתחיל לאחר שנקבעו התאריך ומקום האירוע.</p>
-            <p>
-              כך אפשר להכין את האתר בנחת, לבחור תמונות, לנסח תוכן אישי ולבדוק את הפרטים
-              לפני השיתוף.
-            </p>
-            <p>אין צורך להמתין לשבועות האחרונים כדי לבחור עיצוב ולהכין את התוכן.</p>
-            <p>
-              אם פרטים מסוימים עדיין לא סופיים, כדאי לוודא מה ניתן לעדכן בהמשך בהתאם
-              לשירות.
-            </p>
-          </div>
-        </FadeIn>
-      </section>
-
-      {/* WHY */}
-      <section
-        id="why"
-        aria-labelledby="why-heading"
-        className="bg-[#2A2118] px-5 py-16 text-[#F7F1E8] md:px-8 md:py-24"
-      >
-        <div className="mx-auto max-w-5xl">
-          <FadeIn>
-            <Eyebrow onDark>למה אתר חתונה</Eyebrow>
-            <h2
-              id="why-heading"
-              className="mt-3 max-w-3xl font-['Cormorant_Garamond'] text-3xl font-semibold text-[#FFF8EF] md:text-5xl"
-            >
-              חוויה אישית שמתחילה הרבה לפני החופה
-            </h2>
-          </FadeIn>
-          <ul className="mt-12 grid gap-5 sm:grid-cols-2">
-            {WHY_ITEMS.map((item, i) => (
-              <FadeIn key={item} delay={i * 0.03}>
-                <li className="border-t border-[#C9A962]/30 pt-4 text-base font-semibold leading-7 text-[#E8DCCE]">
-                  {item}
-                </li>
-              </FadeIn>
-            ))}
-          </ul>
         </div>
       </section>
 

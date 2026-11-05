@@ -71,6 +71,10 @@ const RenderedSite = memo(function RenderedSite({
       />
     ) : null);
 
+  if (embed && typeof document !== "undefined") {
+    document.documentElement.setAttribute("data-ww-embed", "1");
+  }
+
   if (!Site) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-black text-white">

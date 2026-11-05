@@ -49,7 +49,7 @@ function CountdownBlock() {
   return (
       <section id="countdown" className="border-t border-black">
         <div className="grid md:grid-cols-5">
-          <div className="flex items-end border-b border-black p-8 md:col-span-1 md:border-b-0 md:border-l">
+          <div className="flex items-end border-b border-black p-5 md:col-span-1 md:border-b-0 md:border-l md:p-8">
             <div>
               <NoirLabel>Countdown</NoirLabel>
               <h2 className="mt-2 text-3xl font-black">הספירה</h2>
@@ -63,7 +63,7 @@ function CountdownBlock() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="border-l border-black p-8 text-center"
+                className="border-l border-black p-5 text-center md:p-8"
               >
                 <div className="font-mono text-[clamp(2.5rem,8vw,5rem)] font-black tabular-nums leading-none">
                   {String(u.value).padStart(2, "0")}
@@ -99,35 +99,37 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
       {/* HERO — typography, optional photo or video background */}
       <section
         id="hero"
-        className="relative grid min-h-screen grid-rows-[1fr_auto]"
+        className="relative grid min-h-[100svh] grid-rows-[minmax(0,1fr)_auto] md:min-h-screen"
       >
         <div className="absolute inset-0">
           <WeddingMedia
             slot="hero"
+            src={template.galleryImages[2] || template.heroImage}
             placeholder={false}
             autoPlay
             muted
             loop
             playsInline
-            className="h-full w-full object-cover opacity-25"
+            className="h-full w-full object-cover object-[center_30%] md:opacity-0"
           />
         </div>
-        <div className="relative z-10 flex flex-col justify-center px-6 md:px-12 lg:px-20">
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] h-[62%] bg-gradient-to-t from-white via-white/80 to-transparent md:hidden" />
+        <div className="relative z-10 flex flex-col justify-end px-5 pb-8 pt-24 md:justify-center md:px-12 md:pb-0 md:pt-0 lg:px-20">
           <NoirLabel>Save the Date · {DEMO.coupleShort}</NoirLabel>
           <motion.h1
             initial={{ opacity: 1, y: 24 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="mt-8 max-w-5xl text-[clamp(2.5rem,10vw,7rem)] font-black leading-[0.9] tracking-[-0.04em]"
+            className="mt-4 max-w-5xl text-[clamp(2.7rem,12vw,7rem)] font-black leading-[0.9] tracking-[-0.04em] md:mt-8"
           >
             {DEMO.coupleNames}
           </motion.h1>
-          <NoirRule className="my-8" />
+          <NoirRule className="my-5 md:my-8" />
           <motion.p
             initial={{ opacity: 1 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.7 }}
-            className="max-w-lg font-mono text-sm leading-relaxed text-neutral-600"
+            className="max-w-lg font-mono text-sm leading-relaxed text-neutral-700 md:text-neutral-600"
           >
             {DEMO.heroSubtitle}
           </motion.p>
@@ -135,7 +137,7 @@ export default function MinimalNoirSite({ template, embed, live, rsvpController,
             initial={{ opacity: 1 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.9 }}
-            className="mt-6 font-mono text-xs uppercase tracking-[0.3em]"
+            className="mt-4 font-mono text-xs uppercase tracking-[0.22em] md:mt-6 md:tracking-[0.3em]"
           >
             {formatHebrewDate(DEMO.weddingDate)} — {DEMO.weddingTime}
           </motion.p>
