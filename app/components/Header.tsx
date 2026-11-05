@@ -38,14 +38,9 @@ function HeaderMark({ className }: { className: string }) {
 }
 
 function isCinematicOverlayPath(pathname: string) {
-  if (pathname === "/") return true;
-  if (pathname === "/wedding-website") return true;
-  if (pathname === "/seating-explained") return true;
-  if (pathname === "/event-management") return true;
-  if (pathname === "/credit-gifts") return true;
-  if (pathname === "/invitations/chatuna") return true;
-  if (pathname === "/rsvp" || pathname.startsWith("/rsvp/")) return true;
-  return false;
+  // Only the approved homepage hero is a full-bleed dark video.
+  // Every other public page uses the cream header with plum text.
+  return pathname === "/";
 }
 
 export default function Header() {

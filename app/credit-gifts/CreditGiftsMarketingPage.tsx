@@ -160,10 +160,10 @@ export default function CreditGiftsMarketingPage() {
   return (
     <div
       dir="rtl"
-      className={`${display.variable} -mt-[64px] min-h-screen overflow-x-hidden bg-[#FBF6EE] text-[#3A2A1F]`}
+      className={`${display.variable} min-h-screen overflow-x-hidden bg-[#FBF6EE] text-[#3A2A1F]`}
     >
       {/* 1. Hero */}
-      <section className="relative isolate overflow-hidden px-5 pb-12 pt-[96px] md:px-8 md:pb-16 md:pt-[110px]">
+      <section className="relative isolate overflow-hidden px-5 pb-12 pt-12 md:px-8 md:pb-16 md:pt-16">
         <div className="absolute inset-0 -z-10">
           <Image
             src={MEDIA.hero}

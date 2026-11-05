@@ -79,10 +79,10 @@ export default function RSVPPage() {
   return (
     <div
       dir="rtl"
-      className={`${display.variable} -mt-[64px] min-h-screen overflow-x-hidden bg-[#FBF6EE] text-[#3F3025]`}
+      className={`${display.variable} min-h-screen overflow-x-hidden bg-[#FBF6EE] text-[#3F3025]`}
     >
       {/* ================= HERO ================= */}
-      <section className="relative isolate px-5 pb-16 pt-[105px] md:px-8 md:pb-24">
+      <section className="relative isolate px-5 pb-16 pt-12 md:px-8 md:pb-24 md:pt-16">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_left,#E9D4AF_0%,transparent_36%),radial-gradient(circle_at_top_right,#F5E8D3_0%,transparent_34%),linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_55%,#F3E8D7_100%)]" />
         <div className="absolute right-8 top-20 -z-10 h-52 w-52 rounded-full bg-[#D8B77C]/25 blur-3xl" />
         <div className="absolute bottom-10 left-6 -z-10 h-64 w-64 rounded-full bg-[#B59668]/18 blur-3xl" />
