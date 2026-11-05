@@ -118,7 +118,7 @@ function InviteCard({
  */
 function InviteCarousel({ reduceMotion }: { reduceMotion: boolean }) {
   const scrollerRef = useRef<HTMLDivElement | null>(null);
-  const trackRef = useRef(INVITES.length);
+  const trackRef = useRef<number>(INVITES.length);
   const [active, setActive] = useState(0);
   const count = INVITES.length;
   const slides = [0, 1, 2].flatMap((copy) =>
