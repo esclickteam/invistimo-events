@@ -102,12 +102,7 @@ function FooterColumns() {
               <button
                 id={buttonId}
                 type="button"
-                className="
-                  flex min-h-[54px] w-full items-center justify-between
-                  px-4 py-3.5 text-right
-                  text-[15px] font-extrabold text-[#2F261E]
-                  transition hover:bg-[#FAF3E7]
-                "
+                className="flex min-h-[54px] w-full items-center justify-between px-4 py-3.5 text-right text-[15px] font-extrabold text-[#2F261E] transition hover:bg-[#FAF3E7]"
                 aria-expanded={isOpen}
                 aria-controls={panelId}
                 onClick={() => toggle(column)}
@@ -133,23 +128,14 @@ function FooterColumns() {
               id={panelId}
               role="region"
               aria-labelledby={buttonId}
-              className={`
-                border-t border-[#EFE3CF] bg-[#FBF6EE]/70
-                md:block md:border-0 md:bg-transparent
-                ${isOpen ? "block" : "hidden"}
-              `}
+              className={`border-t border-[#EFE3CF] bg-[#FBF6EE]/70 md:block md:border-0 md:bg-transparent ${isOpen ? "block" : "hidden"}`}
             >
               <ul className="space-y-1 px-4 py-3 md:mt-0 md:space-y-2.5 md:px-0 md:py-0">
                 {column.links.map((link) => (
                   <li key={`${column.id}-${link.href}`}>
                     <FooterAnchor
                       link={link}
-                      className="
-                        block rounded-xl px-2 py-2.5
-                        text-[14px] font-bold text-[#4A3A2A]
-                        transition hover:bg-white hover:text-[#B8862D]
-                        md:rounded-none md:px-0 md:py-0 md:hover:bg-transparent
-                      "
+                      className="block rounded-xl px-2 py-2.5 text-[14px] font-bold text-[#4A3A2A] transition hover:bg-white hover:text-[#B8862D] md:rounded-none md:px-0 md:py-0 md:hover:bg-transparent"
                     />
                   </li>
                 ))}
@@ -193,20 +179,11 @@ export default function Footer() {
   return (
     <footer
       dir="rtl"
-      className="
-        relative
-        border-t border-[#E4D2AF]
-        bg-[#F7F1E8]
-        text-[#4A3A2A]
-        print:hidden
-      "
+      className="relative border-t border-[#C5A582]/40 bg-[#F5EEE8] text-[#42182F] print:hidden"
     >
       <div
         aria-hidden
-        className="
-          pointer-events-none absolute inset-0
-          bg-[radial-gradient(circle_at_12%_0%,rgba(201,164,92,0.12),transparent_32%)]
-        "
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_0%,rgba(181,117,145,0.14),transparent_34%),radial-gradient(circle_at_88%_100%,rgba(197,165,130,0.18),transparent_40%)]"
       />
 
       <div className="relative z-10 mx-auto max-w-7xl px-5 pb-28 pt-10 md:px-8 md:pb-14 md:pt-16">
@@ -227,10 +204,10 @@ export default function Footer() {
               draggable={false}
             />
           </Link>
-          <p className="mt-5 text-[28px] font-black leading-snug tracking-[-0.02em] text-[#2F261E]">
+          <p className="mt-5 text-[28px] font-black leading-snug tracking-[-0.02em] text-[#42182F]">
             ניהול אירוע חכם, מסודר ואלגנטי.
           </p>
-          <p className="mt-3 max-w-xl text-[15px] font-semibold leading-7 text-[#6B5A49]">
+          <p className="mt-3 max-w-xl text-[15px] font-semibold leading-7 text-[#6B5360]">
             הזמנות דיגיטליות, אישורי הגעה, סידורי הושבה וניהול אירוע — במקום אחד,
             בעיצוב שמרגיש פרימיום.
           </p>
@@ -238,7 +215,7 @@ export default function Footer() {
 
         <FooterColumns />
 
-        <div className="mt-8 border-t border-[#E4D2AF] pt-7 md:mt-12 md:pt-8">
+        <div className="mt-8 border-t border-[#C5A582]/35 pt-7 md:mt-12 md:pt-8">
           <div className="flex flex-col items-start gap-5 md:flex-row md:items-center md:justify-between">
             <div className="flex flex-col gap-3">
               <Link
@@ -257,20 +234,20 @@ export default function Footer() {
                   draggable={false}
                 />
               </Link>
-              <p className="text-[13px] font-semibold text-[#7A6A58]">
+              <p className="text-[13px] font-semibold text-[#6B5360]">
                 © {year} Invistimo · כל הזכויות שמורות
               </p>
             </div>
 
             <nav
               aria-label="קישורים משפטיים"
-              className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] font-bold text-[#6B5A49]"
+              className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[13px] font-bold text-[#6B5360]"
             >
               {FOOTER_LEGAL_LINKS.map((link) => (
                 <FooterAnchor
                   key={link.href}
                   link={link}
-                  className="transition hover:text-[#B8862D]"
+                  className="transition hover:text-[#842B4C]"
                 />
               ))}
             </nav>

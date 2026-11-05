@@ -25,13 +25,11 @@ type MarketingHeaderNavProps = {
 
 function linkClass(active: boolean, compact?: boolean) {
   return [
-    "relative block transition",
+    "relative block text-current transition-opacity duration-150 hover:opacity-80",
     compact
-      ? "rounded-xl px-3 py-2.5 text-[14px] font-bold"
-      : "px-1 py-2 text-[15px] font-semibold",
-    active
-      ? "text-[#2F261E]"
-      : "text-[#5A4A3C] hover:text-[#B88A2D]",
+      ? "rounded-none px-3 py-2.5 text-[14px] font-semibold"
+      : "px-1 py-2 text-[13px] font-semibold xl:text-[15px]",
+    active ? "" : "",
   ].join(" ");
 }
 
@@ -40,7 +38,7 @@ function ActiveUnderline({ show }: { show: boolean }) {
   return (
     <span
       aria-hidden
-      className="absolute -bottom-1 right-1/2 h-[2px] w-8 translate-x-1/2 rounded-full bg-[#C9A45C]"
+      className="site-header-underline absolute -bottom-1 right-1/2 h-[2px] w-8 translate-x-1/2"
     />
   );
 }
@@ -64,24 +62,14 @@ function MegaPanel({
       id={id}
       role="region"
       aria-label={item.label}
-      className={`
-        overflow-hidden
-        rounded-[22px]
-        border border-[#D9BE80]/70
-        bg-[#FFFDF8]
-        shadow-[0_24px_60px_rgba(91,65,26,0.14)]
-        ${
+      className={`overflow-hidden rounded-[22px] border border-[#D9BE80]/70 bg-[#FFFDF8] shadow-[0_24px_60px_rgba(91,65,26,0.14)] ${
           isDropdown
             ? "w-[min(320px,calc(100vw-2rem))]"
             : "w-[min(980px,calc(100vw-2rem))]"
-        }
-      `}
+        }`}
     >
       <div
-        className={`
-          max-h-[min(70vh,640px)] overflow-y-auto
-          ${isDropdown ? "p-4" : "p-5 md:p-6"}
-        `}
+        className={`max-h-[min(70vh,640px)] overflow-y-auto ${isDropdown ? "p-4" : "p-5 md:p-6"}`}
       >
         <div
           className={
@@ -111,11 +99,7 @@ function MegaPanel({
           <Link
             href={item.footerLink.href}
             onClick={onNavigate}
-            className="
-              inline-flex items-center gap-2
-              text-[15px] font-extrabold text-[#8A642E]
-              transition hover:text-[#6E4E22]
-            "
+            className="inline-flex items-center gap-2 text-[15px] font-extrabold text-[#8A642E] transition hover:text-[#6E4E22]"
           >
             {item.footerLink.label}
             <span aria-hidden className="text-lg leading-none">
@@ -177,15 +161,11 @@ function ColumnLink({
     <Link
       href={link.href}
       onClick={onNavigate}
-      className={`
-        block rounded-xl transition
-        ${
+      className={`block rounded-xl transition ${
           active
             ? "bg-[#F7EBD4] text-[#2F261E]"
             : "text-[#4A3A2A] hover:bg-[#FAF3E7] hover:text-[#8A642E]"
-        }
-        ${compact ? "px-3.5 py-2.5 text-[15px] font-bold" : "px-3 py-2.5"}
-      `}
+        } ${compact ? "px-3.5 py-2.5 text-[15px] font-bold" : "px-3 py-2.5"}`}
     >
       <span className={`block ${compact ? "" : "text-[14px] font-bold leading-5"}`}>
         {link.label}
@@ -283,12 +263,12 @@ export function DesktopMarketingNav({
   return (
     <div
       ref={rootRef}
-      className="relative hidden xl:block"
+      className="relative hidden lg:block"
       onMouseLeave={scheduleClose}
     >
       <nav
         aria-label="ניווט ראשי"
-        className="flex items-center justify-center gap-5 whitespace-nowrap 2xl:gap-6"
+        className="flex items-center justify-center gap-3 whitespace-nowrap xl:gap-5 2xl:gap-6"
       >
         {HEADER_PRIMARY.map((item) => {
           if (item.kind === "link") {
@@ -334,7 +314,7 @@ export function DesktopMarketingNav({
               {item.label}
               <ChevronDown
                 size={15}
-                className={`transition ${isOpen ? "rotate-180 text-[#B88A2D]" : ""}`}
+                className={`text-current transition ${isOpen ? "rotate-180" : ""}`}
                 aria-hidden
               />
               <ActiveUnderline show={sectionActive && !isOpen} />
@@ -396,14 +376,11 @@ export function MobileMarketingNav({
               href={item.href}
               onClick={onNavigate}
               aria-current={active ? "page" : undefined}
-              className={`
-                border-b border-[#E7D8BD] px-5 py-4 text-[16px] font-bold transition last:border-b-0
-                ${
+              className={`border-b border-[#E7D8BD] px-5 py-4 text-[16px] font-bold transition last:border-b-0 ${
                   active
                     ? "bg-[#F7EBD4] text-[#9A6E24]"
                     : "text-[#4A3A2A] hover:bg-[#FAF3E7]"
-                }
-              `}
+                }`}
             >
               {item.label}
             </Link>
@@ -417,11 +394,7 @@ export function MobileMarketingNav({
           <div key={item.id} className="border-b border-[#E7D8BD] last:border-b-0">
             <button
               type="button"
-              className="
-                flex w-full items-center justify-between
-                px-5 py-4 text-[16px] font-bold text-[#4A3A2A]
-                transition hover:bg-[#FAF3E7]
-              "
+              className="flex w-full items-center justify-between px-5 py-4 text-[16px] font-bold text-[#4A3A2A] transition hover:bg-[#FAF3E7]"
               aria-expanded={isOpen}
               aria-controls={panelId}
               onClick={() => setExpandedId(isOpen ? null : item.id)}
@@ -455,14 +428,11 @@ export function MobileMarketingNav({
                             href={link.href}
                             onClick={onNavigate}
                             aria-current={active ? "page" : undefined}
-                            className={`
-                              block rounded-xl px-3 py-2.5 text-[15px] font-bold
-                              ${
+                            className={`block rounded-xl px-3 py-2.5 text-[15px] font-bold ${
                                 active
                                   ? "bg-[#F7EBD4] text-[#9A6E24]"
                                   : "text-[#4A3A2A] hover:bg-[#FAF3E7]"
-                              }
-                            `}
+                              }`}
                           >
                             {link.label}
                           </Link>
@@ -477,11 +447,7 @@ export function MobileMarketingNav({
                 <Link
                   href={item.footerLink.href}
                   onClick={onNavigate}
-                  className="
-                    mt-1 block rounded-xl border border-[#E7D8BD]
-                    bg-[#FBF6EE] px-3 py-3 text-center
-                    text-[15px] font-extrabold text-[#8A642E]
-                  "
+                  className="mt-1 block rounded-xl border border-[#E7D8BD] bg-[#FBF6EE] px-3 py-3 text-center text-[15px] font-extrabold text-[#8A642E]"
                 >
                   {item.footerLink.label}
                 </Link>

@@ -151,20 +151,10 @@ export default function SupportBot({ onClose }) {
   return (
     <div
       dir="rtl"
-      className="
-        fixed bottom-24 right-6 z-[9999]
-        w-[calc(100vw-32px)] max-w-[390px]
-      "
+      className="fixed bottom-24 right-6 z-[9999] w-[calc(100vw-32px)] max-w-[390px]"
     >
       <div
-        className="
-          relative overflow-hidden
-          rounded-[30px]
-          border border-[#E4D0B6]
-          bg-[#FFFDF9]/95
-          shadow-[0_26px_80px_rgba(78,52,29,0.22)]
-          backdrop-blur-xl
-        "
+        className="relative overflow-hidden rounded-[30px] border border-[#E4D0B6] bg-[#FFFDF9]/95 shadow-[0_26px_80px_rgba(78,52,29,0.22)] backdrop-blur-xl"
       >
         <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,#FFF4E2_0%,transparent_44%)]" />
         <div className="pointer-events-none absolute -top-20 -left-16 h-44 w-44 rounded-full bg-[#D8B16A]/20 blur-3xl" />
@@ -174,12 +164,7 @@ export default function SupportBot({ onClose }) {
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
               <div
-                className="
-                  mb-3 flex h-12 w-12 items-center justify-center
-                  rounded-full border border-[#D8B16A]/50
-                  bg-[#FFF8EE]
-                  text-xl shadow-sm
-                "
+                className="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-[#D8B16A]/50 bg-[#FFF8EE] text-xl shadow-sm"
               >
                 💬
               </div>
@@ -198,28 +183,14 @@ export default function SupportBot({ onClose }) {
               type="button"
               onClick={onClose}
               aria-label="סגירת חלון תמיכה"
-              className="
-                flex h-9 w-9 shrink-0 items-center justify-center
-                rounded-full
-                border border-[#E6D6C4]
-                bg-white/80
-                text-lg text-[#8B6A45]
-                transition hover:bg-[#FFF3E3]
-              "
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#E6D6C4] bg-white/80 text-lg text-[#8B6A45] transition hover:bg-[#FFF3E3]"
             >
               ×
             </button>
           </div>
 
           <div
-            className="
-              mb-5 rounded-[22px]
-              border border-[#E7D7C3]
-              bg-white/70
-              px-4 py-3
-              text-center
-              shadow-[0_10px_26px_rgba(91,64,35,0.06)]
-            "
+            className="mb-5 rounded-[22px] border border-[#E7D7C3] bg-white/70 px-4 py-3 text-center shadow-[0_10px_26px_rgba(91,64,35,0.06)]"
           >
             <p className="text-sm font-black text-[#5A3E25]">
               שעות פעילות נציגים
@@ -242,30 +213,14 @@ export default function SupportBot({ onClose }) {
                   setShowLeadForm(true);
                   setFormError("");
                 }}
-                className="
-                  flex w-full items-center justify-center gap-2
-                  rounded-[18px]
-                  bg-gradient-to-l from-[#A86F2B] via-[#C68F46] to-[#D8A85F]
-                  px-5 py-3.5
-                  text-sm font-black text-white
-                  shadow-[0_16px_32px_rgba(168,111,43,0.24)]
-                  transition
-                  hover:-translate-y-0.5
-                  hover:shadow-[0_20px_38px_rgba(168,111,43,0.3)]
-                "
+                className="flex w-full items-center justify-center gap-2 rounded-[18px] bg-gradient-to-l from-[#A86F2B] via-[#C68F46] to-[#D8A85F] px-5 py-3.5 text-sm font-black text-white shadow-[0_16px_32px_rgba(168,111,43,0.24)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_38px_rgba(168,111,43,0.3)]"
               >
                 <span>💬</span>
                 מעבר לוואטסאפ עם נציג
               </button>
             ) : (
               <div
-                className="
-                  rounded-[22px]
-                  border border-[#E7D7C3]
-                  bg-white/80
-                  p-3
-                  shadow-[0_10px_24px_rgba(91,64,35,0.06)]
-                "
+                className="rounded-[22px] border border-[#E7D7C3] bg-white/80 p-3 shadow-[0_10px_24px_rgba(91,64,35,0.06)]"
               >
                 <p className="mb-3 text-sm font-black text-[#5A3E25]">
                   השאירו פרטים ונעביר אתכם לנציג
@@ -280,18 +235,7 @@ export default function SupportBot({ onClose }) {
                       setFormError("");
                     }}
                     placeholder="שם מלא"
-                    className="
-                      h-11 w-full rounded-[16px]
-                      border border-[#E7D7C3]
-                      bg-[#FFFDF9]
-                      px-4
-                      text-sm font-bold text-[#3E2D20]
-                      outline-none
-                      transition
-                      placeholder:text-[#B79A7A]
-                      focus:border-[#C68F46]
-                      focus:bg-white
-                    "
+                    className="h-11 w-full rounded-[16px] border border-[#E7D7C3] bg-[#FFFDF9] px-4 text-sm font-bold text-[#3E2D20] outline-none transition placeholder:text-[#B79A7A] focus:border-[#C68F46] focus:bg-white"
                   />
 
                   <input
@@ -303,18 +247,7 @@ export default function SupportBot({ onClose }) {
                     }}
                     placeholder="טלפון"
                     inputMode="tel"
-                    className="
-                      h-11 w-full rounded-[16px]
-                      border border-[#E7D7C3]
-                      bg-[#FFFDF9]
-                      px-4
-                      text-sm font-bold text-[#3E2D20]
-                      outline-none
-                      transition
-                      placeholder:text-[#B79A7A]
-                      focus:border-[#C68F46]
-                      focus:bg-white
-                    "
+                    className="h-11 w-full rounded-[16px] border border-[#E7D7C3] bg-[#FFFDF9] px-4 text-sm font-bold text-[#3E2D20] outline-none transition placeholder:text-[#B79A7A] focus:border-[#C68F46] focus:bg-white"
                   />
 
                   {formError ? (
@@ -328,17 +261,7 @@ export default function SupportBot({ onClose }) {
                       type="button"
                       onClick={handleContinueToWhatsapp}
                       disabled={openingWhatsapp}
-                      className="
-                        flex h-11 items-center justify-center gap-2
-                        rounded-[16px]
-                        bg-gradient-to-l from-[#A86F2B] via-[#C68F46] to-[#D8A85F]
-                        px-4
-                        text-sm font-black text-white
-                        transition
-                        hover:-translate-y-0.5
-                        disabled:cursor-not-allowed
-                        disabled:opacity-70
-                      "
+                      className="flex h-11 items-center justify-center gap-2 rounded-[16px] bg-gradient-to-l from-[#A86F2B] via-[#C68F46] to-[#D8A85F] px-4 text-sm font-black text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70"
                     >
                       <span>💬</span>
                       {openingWhatsapp ? "פותח..." : "המשך לוואטסאפ"}
@@ -350,15 +273,7 @@ export default function SupportBot({ onClose }) {
                         setShowLeadForm(false);
                         setFormError("");
                       }}
-                      className="
-                        h-11 rounded-[16px]
-                        border border-[#E7D7C3]
-                        bg-white
-                        px-4
-                        text-xs font-black text-[#7A5630]
-                        transition
-                        hover:bg-[#FFF3E3]
-                      "
+                      className="h-11 rounded-[16px] border border-[#E7D7C3] bg-white px-4 text-xs font-black text-[#7A5630] transition hover:bg-[#FFF3E3]"
                     >
                       ביטול
                     </button>
@@ -370,16 +285,7 @@ export default function SupportBot({ onClose }) {
             <Link
               href="/pricing"
               onClick={onClose}
-              className="
-                flex w-full items-center justify-center gap-2
-                rounded-[18px]
-                border border-[#D8B98D]
-                bg-white/80
-                px-5 py-3.5
-                text-sm font-black text-[#6B4A2D]
-                transition
-                hover:bg-[#FFF6EA]
-              "
+              className="flex w-full items-center justify-center gap-2 rounded-[18px] border border-[#D8B98D] bg-white/80 px-5 py-3.5 text-sm font-black text-[#6B4A2D] transition hover:bg-[#FFF6EA]"
             >
               <span>💎</span>
               צפייה בחבילות
@@ -388,16 +294,7 @@ export default function SupportBot({ onClose }) {
             <Link
               href="/login"
               onClick={onClose}
-              className="
-                flex w-full items-center justify-center gap-2
-                rounded-[18px]
-                border border-[#E7D7C3]
-                bg-[#FFF8EE]/80
-                px-5 py-3.5
-                text-sm font-black text-[#7A5630]
-                transition
-                hover:bg-[#FFF1DC]
-              "
+              className="flex w-full items-center justify-center gap-2 rounded-[18px] border border-[#E7D7C3] bg-[#FFF8EE]/80 px-5 py-3.5 text-sm font-black text-[#7A5630] transition hover:bg-[#FFF1DC]"
             >
               <span>🔐</span>
               התחברות למערכת

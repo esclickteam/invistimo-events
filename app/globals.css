@@ -67,6 +67,57 @@
   border-bottom: 1px solid rgba(209, 187, 163, 0.25);
 }
 
+/* Homepage overlay header: --header-p 0 = clear over video, 1 = cream + plum.
+   Colors only. Height, padding, and border width stay constant. */
+.site-header {
+  --header-p: 1;
+  background-color: transparent;
+  background-color: rgb(245 238 232 / var(--header-p));
+  color: #fff8f0;
+  color: color-mix(
+    in srgb,
+    #fff8f0 calc((1 - var(--header-p)) * 100%),
+    #42182f calc(var(--header-p) * 100%)
+  );
+  border-bottom: 1px solid transparent;
+  border-bottom-color: rgb(66 24 47 / calc(var(--header-p) * 0.12));
+  box-shadow: 0 10px 30px rgb(66 24 47 / calc(var(--header-p) * 0.07));
+}
+
+.site-header-logo-ink {
+  opacity: var(--header-p, 1);
+}
+
+.site-header-logo-light {
+  opacity: calc(1 - var(--header-p, 1));
+}
+
+.site-header-ghost {
+  border: 1px solid transparent;
+  border-color: color-mix(
+    in srgb,
+    rgb(255 248 240 / 0.72) calc((1 - var(--header-p, 1)) * 100%),
+    rgb(66 24 47 / 0.28) calc(var(--header-p, 1) * 100%)
+  );
+  background: transparent;
+  color: inherit;
+  border-radius: 0;
+}
+
+.site-header-underline {
+  background: #fff8f0;
+  background: color-mix(
+    in srgb,
+    #fff8f0 calc((1 - var(--header-p, 1)) * 100%),
+    #842b4c calc(var(--header-p, 1) * 100%)
+  );
+}
+
+.site-header nav a,
+.site-header nav button {
+  text-shadow: 0 1px 2px rgb(0 0 0 / calc((1 - var(--header-p, 1)) * 0.45));
+}
+
 /* -----------------------------------------------------------
    כרטיסים יוקרתיים
 ----------------------------------------------------------- */
@@ -428,4 +479,284 @@ button[aria-label*="נגישות"] {
 .uwaw-widget-container,
 iframe[src*="userway"] {
   max-width: min(100vw - 24px, 420px) !important;
+}
+
+/* -----------------------------------------------------------
+   Invistimo Modern Romantic Luxury — homepage Stage A
+   Scoped under .lux-home so dashboard / product chrome stay untouched.
+----------------------------------------------------------- */
+:root {
+  --lux-champagne: #c5a582;
+  --lux-champagne-soft: #d4b899;
+  --lux-champagne-deep: #a88862;
+  --lux-cream: #f5eee8;
+  --lux-cream-deep: #ebe1d7;
+  --lux-blush: #b57591;
+  --lux-burgundy: #842b4c;
+  --lux-plum: #42182f;
+  --lux-plum-deep: #2a0f1d;
+  --lux-ink: #2a1a22;
+  --lux-muted: #6b5360;
+  --lux-white: #fffbfa;
+}
+
+.lux-home {
+  --btn-gold: var(--lux-champagne);
+  --btn-gold-hover: var(--lux-champagne-soft);
+  --btn-gold-active: var(--lux-champagne-deep);
+  --btn-ink: var(--lux-plum-deep);
+  --btn-dark: var(--lux-plum);
+  --btn-cream: var(--lux-cream);
+  background: var(--lux-cream);
+  color: var(--lux-ink);
+}
+
+.lux-home .lux-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--lux-burgundy);
+}
+
+.lux-home .lux-eyebrow-light {
+  color: var(--lux-champagne-soft);
+}
+
+.lux-home .lux-display {
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+  color: var(--lux-ink);
+}
+
+.lux-home .lux-display-light {
+  color: var(--lux-cream);
+}
+
+.lux-home .lux-lede {
+  font-size: 1.125rem;
+  line-height: 1.75;
+  color: var(--lux-muted);
+}
+
+.lux-home .lux-lede-light {
+  color: rgba(245, 238, 232, 0.82);
+}
+
+.lux-home .lux-hairline {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--lux-champagne),
+    transparent
+  );
+}
+
+.lux-home .lux-frame {
+  overflow: hidden;
+  background: var(--lux-cream-deep);
+}
+
+.lux-home .lux-reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition:
+    opacity 0.95s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.95s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lux-home .lux-reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+.lux-home .lux-parallax-img {
+  will-change: transform;
+  transform: translate3d(0, var(--lux-py, 0px), 0) scale(1.08);
+}
+
+.lux-home .lux-row-link span:first-child {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-repeat: no-repeat;
+  background-position: 100% 100%;
+  background-size: 0 1px;
+  transition:
+    background-size 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.35s ease;
+}
+
+.lux-home .lux-row-link:hover span:first-child,
+.lux-home .lux-row-link:focus-visible span:first-child {
+  background-size: 100% 1px;
+}
+
+.lux-home .lux-seat-flash {
+  animation: lux-seat-flash 0.7s ease-out;
+}
+
+@keyframes lux-seat-flash {
+  from {
+    box-shadow: 0 0 0 0 rgba(197, 165, 130, 0.65);
+  }
+  to {
+    box-shadow: 0 0 0 14px rgba(197, 165, 130, 0);
+  }
+}
+
+/* Save the Date — layered paper envelope. Sharp planes, no rounded card. */
+.lux-home .lux-env-scene {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 450px;
+  perspective: 1200px;
+  transform-style: preserve-3d;
+  background: transparent;
+}
+
+.lux-home .lux-env-shadow {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: 8px;
+  height: 24px;
+  background: radial-gradient(ellipse at center, rgba(66, 24, 47, 0.26), transparent 72%);
+}
+
+.lux-home .lux-env-back,
+.lux-home .lux-env-pocket,
+.lux-home .lux-env-card {
+  position: absolute;
+  left: 0;
+  right: 0;
+}
+
+.lux-home .lux-env-back {
+  top: 188px;
+  height: 236px;
+  z-index: 1;
+  border: 1px solid rgba(168, 136, 98, 0.85);
+  background: linear-gradient(180deg, #dcc7b0 0%, #c5a582 100%);
+  box-shadow: 0 22px 40px rgba(66, 24, 47, 0.16);
+}
+
+.lux-home .lux-env-card {
+  top: 36px;
+  right: 8%;
+  left: 8%;
+  z-index: 2;
+  height: 250px;
+  overflow: hidden;
+  border: 1px solid rgba(197, 165, 130, 0.75);
+  background: #f5eee8;
+  box-shadow: 0 18px 36px rgba(66, 24, 47, 0.16);
+  transform: translate3d(0, 132px, 0);
+  transition: transform 0.85s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.lux-home .lux-env.is-open .lux-env-card {
+  transform: translate3d(0, 0, 0);
+  transition-delay: 0.16s;
+}
+
+.lux-home .lux-env-pocket {
+  top: 246px;
+  z-index: 3;
+  height: 178px;
+  border: 1px solid rgba(168, 136, 98, 0.9);
+  background:
+    linear-gradient(90deg, rgba(66, 24, 47, 0.08), transparent 18%, transparent 82%, rgba(66, 24, 47, 0.08)),
+    linear-gradient(180deg, rgba(66, 24, 47, 0.07), transparent 26%),
+    linear-gradient(180deg, #f3e7da 0%, #e8d9c8 46%, #dcc7b0 100%);
+  box-shadow:
+    inset 0 16px 22px rgba(66, 24, 47, 0.06),
+    0 16px 28px rgba(66, 24, 47, 0.1);
+}
+
+.lux-home .lux-env-pocket::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 16%;
+  left: 16%;
+  height: 16px;
+  background: linear-gradient(180deg, rgba(66, 24, 47, 0.14), transparent);
+}
+
+.lux-home .lux-env-flap {
+  position: absolute;
+  top: 188px;
+  right: 0;
+  left: 0;
+  z-index: 4;
+  height: 118px;
+  transform-origin: top center;
+  transform: rotateX(0deg);
+  transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1) 0.12s;
+  background:
+    linear-gradient(#c5a582, #c5a582) center 42% / 46% 1px no-repeat,
+    linear-gradient(180deg, #f5eee8 0%, #e8d9c8 48%, #c5a582 100%);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.lux-home .lux-env.is-open .lux-env-flap {
+  z-index: 0;
+  transform: rotateX(188deg);
+  transition-delay: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lux-home .lux-reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .lux-home .lux-parallax-img {
+    transform: none;
+    will-change: auto;
+  }
+  .lux-home .lux-row-link span:first-child,
+  .lux-home .lux-seat-flash,
+  .lux-home .lux-env-card,
+  .lux-home .lux-env-flap {
+    transition: none;
+    animation: none;
+  }
+}
+
+/* Homepage mobile: stack the chat and accessibility buttons in one corner,
+   and let them step aside while the page is moving. */
+@media (max-width: 1023px) {
+  html.lux-public-home {
+    scroll-padding-bottom: 7.5rem;
+  }
+
+  html.lux-public-home .lux-home-wa {
+    right: auto !important;
+    left: max(16px, calc(env(safe-area-inset-left, 0px) + 16px)) !important;
+    bottom: max(86px, calc(env(safe-area-inset-bottom, 0px) + 86px)) !important;
+  }
+
+  html.lux-public-home .lux-home-wa,
+  html.lux-public-home #userwayAccessibilityIcon,
+  html.lux-public-home #userwayAccessibilityIconRoot,
+  html.lux-public-home .uwy .uai,
+  html.lux-public-home .uai,
+  html.lux-public-home button[aria-label*="נגישות"],
+  html.lux-public-home button[aria-label*="Accessibility"] {
+    transition: opacity 0.4s ease !important;
+  }
+
+  html.lux-public-home.lux-scrolling .lux-home-wa,
+  html.lux-public-home.lux-scrolling #userwayAccessibilityIcon,
+  html.lux-public-home.lux-scrolling #userwayAccessibilityIconRoot,
+  html.lux-public-home.lux-scrolling .uwy .uai,
+  html.lux-public-home.lux-scrolling .uai,
+  html.lux-public-home.lux-scrolling button[aria-label*="נגישות"],
+  html.lux-public-home.lux-scrolling button[aria-label*="Accessibility"] {
+    opacity: 0 !important;
+    pointer-events: none !important;
+  }
 }

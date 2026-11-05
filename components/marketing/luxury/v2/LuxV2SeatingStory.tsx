@@ -1,0 +1,276 @@
+"use client";
+
+import { useEffect, useState, type Ref } from "react";
+import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
+import {
+  luxBtnGhostLight,
+  luxBtnPlum,
+  luxBtnPrimaryOnDark,
+} from "@/lib/ui/luxuryButtonClasses";
+import { segment, useScrollProgress } from "./useScrollProgress";
+
+const GUESTS = [
+  { id: "g1", name: "נועה כהן", party: 2, status: "מגיעה" },
+  { id: "g2", name: "יוסי לוי", party: 1, status: "מגיע" },
+  { id: "g3", name: "מיכל אברהם", party: 2, status: "ממתינה" },
+  { id: "g4", name: "דניאל שמש", party: 3, status: "מגיע" },
+  { id: "g5", name: "שירה גולן", party: 2, status: "מגיעה" },
+] as const;
+
+const TABLES = [
+  { id: "t1", label: "1", x: 27, y: 12, seats: 10, filled: 4 },
+  { id: "t2", label: "2", x: 73, y: 12, seats: 10, filled: 2 },
+  { id: "t3", label: "3", x: 50, y: 48, seats: 8, filled: 0 },
+] as const;
+
+const STORY = [
+  {
+    title: "רשימת מוזמנים מסודרת",
+    body: "כל התשובות במקום אחד — מי מגיע, כמה מקומות, ומי עוד מחכים לתשובה.",
+  },
+  {
+    title: "מפת השולחנות נפתחת",
+    body: "רואים את האולם מלמעלה ומתחילים לשבץ לפי קבוצות ומשפחות.",
+  },
+  {
+    title: "אורח עובר לשולחן",
+    body: "גוררים או משבצים — והאורח מקבל מקום ברור על המפה.",
+  },
+  {
+    title: "התפוסה מתעדכנת בזמן אמת",
+    body: "מוני המושבים מתעדכנים כדי שלא ייווצרו שולחנות מלאים מדי או ריקים מדי.",
+  },
+] as const;
+
+function useWideScreen() {
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setWide(mq.matches);
+    sync();
+    mq.addEventListener?.("change", sync);
+    return () => mq.removeEventListener?.("change", sync);
+  }, []);
+  return wide;
+}
+
+/**
+ * Seating demo you can use: pick a guest, then a table.
+ * Scroll still moves the editorial title on large screens, briefly.
+ */
+export default function LuxV2SeatingStory() {
+  const { ref, progress, reduceMotion } = useScrollProgress();
+  const wide = useWideScreen();
+  const p = reduceMotion || !wide ? 0 : progress;
+  const stage = p < 0.22 ? 0 : p < 0.48 ? 1 : p < 0.74 ? 2 : 3;
+  const story = STORY[stage];
+  const onDark = p > 0.4;
+
+  const [selected, setSelected] = useState<string | null>(null);
+  const [assignments, setAssignments] = useState<Record<string, string>>({});
+  const [hint, setHint] = useState("בחרו אורח, ואז שולחן.");
+  const [flash, setFlash] = useState<string | null>(null);
+
+  const seatedExtra = Object.entries(assignments).reduce((sum, [guestId]) => {
+    const guest = GUESTS.find((item) => item.id === guestId);
+    return sum + (guest?.party ?? 0);
+  }, 0);
+
+  const assign = (tableId: string) => {
+    if (!selected) {
+      setHint("בחרו קודם אורח מהרשימה.");
+      return;
+    }
+    const guest = GUESTS.find((item) => item.id === selected);
+    const table = TABLES.find((item) => item.id === tableId);
+    if (!guest || !table) return;
+    const used = Object.entries(assignments).reduce((sum, [guestId, assigned]) => {
+      if (assigned !== tableId || guestId === guest.id) return sum;
+      return sum + (GUESTS.find((item) => item.id === guestId)?.party ?? 0);
+    }, 0);
+    if (table.filled + used + guest.party > table.seats) {
+      setHint(`שולחן ${table.label} מלא מדי לקבוצה הזו.`);
+      return;
+    }
+    setAssignments((prev) => ({ ...prev, [guest.id]: tableId }));
+    setHint(`${guest.name} בשולחן ${table.label}.`);
+    setFlash(tableId);
+    window.setTimeout(() => setFlash((current) => (current === tableId ? null : current)), 700);
+  };
+
+  return (
+    <section
+      ref={ref as Ref<HTMLElement>}
+      dir="rtl"
+      aria-labelledby="lux-v2-seating"
+      className="relative bg-[#F5EEE8] lg:h-[150vh]"
+    >
+      <div className="flex items-center overflow-x-clip lg:sticky lg:top-0 lg:min-h-[100svh]">
+        <div
+          className="pointer-events-none absolute inset-0"
+          aria-hidden
+          style={{
+            opacity: segment(p, 0.35, 0.7),
+            background:
+              "radial-gradient(ellipse at 70% 40%, rgba(66,24,47,0.55), transparent 55%), linear-gradient(180deg, #F5EEE8 0%, #42182F 100%)",
+          }}
+        />
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 z-[5] h-16 bg-gradient-to-b from-[#842B4C] to-transparent"
+          aria-hidden
+        />
+
+        <div className="relative z-10 mx-auto grid w-full max-w-[1280px] items-center gap-8 px-4 py-16 sm:px-6 lg:grid-cols-[0.82fr_1.18fr] lg:px-10">
+          <div>
+            <p className={`text-xs font-bold tracking-[0.28em] ${onDark ? "text-[#C5A582]" : "text-[#842B4C]"}`}>
+              סידורי הושבה · הדגמת זרימה
+            </p>
+            <h2
+              id="lux-v2-seating"
+              className={`mt-4 text-[34px] font-black leading-[1.08] tracking-[-0.035em] sm:text-[48px] ${
+                onDark ? "text-[#F5EEE8]" : "text-[#42182F]"
+              }`}
+            >
+              {story.title}
+            </h2>
+            <p className={`mt-4 max-w-md text-lg leading-8 ${onDark ? "text-[#F5EEE8]/85" : "text-[#6B5360]"}`}>
+              {story.body}
+            </p>
+
+            <div
+              className={`mt-8 inline-flex items-baseline gap-3 border px-4 py-3 ${
+                onDark
+                  ? "border-[#C5A582]/50 bg-[#42182F]/40 text-[#F5EEE8]"
+                  : "border-[#C5A582]/50 bg-white/70 text-[#42182F]"
+              }`}
+              aria-live="polite"
+            >
+              <span className="text-3xl font-black tabular-nums">{6 + seatedExtra}</span>
+              <span className="text-sm font-bold">אורחים משובצים על המפה</span>
+            </div>
+
+            <p className={`mt-4 text-sm font-bold ${onDark ? "text-[#F5EEE8]" : "text-[#42182F]"}`} role="status">
+              {hint}
+            </p>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <TrackedCtaLink
+                href="/seating-explained"
+                location="lux_v2_seating"
+                className={onDark ? luxBtnPrimaryOnDark : luxBtnPlum}
+              >
+                סידורי הושבה לחתונה
+              </TrackedCtaLink>
+              <TrackedCtaLink
+                href="/try/dashboard/seating"
+                location="lux_v2_seating_demo"
+                className={luxBtnGhostLight}
+              >
+                לפתוח דמו הושבה
+              </TrackedCtaLink>
+            </div>
+            <p className={`mt-4 text-[11px] font-medium ${onDark ? "text-[#F5EEE8]/65" : "text-[#6B5360]"}`}>
+              אנימציית הדגמה של הזרימה במערכת · לא ממשק חי
+            </p>
+          </div>
+
+          <div className="grid items-stretch gap-3 md:grid-cols-[0.9fr_1.1fr]">
+            <div className="overflow-hidden border border-[#C5A582]/40 bg-[#FFFBFA]/95">
+              <div className="border-b border-[#C5A582]/30 px-4 py-3">
+                <p className="text-xs font-bold tracking-[0.16em] text-[#842B4C]">מוזמנים</p>
+                <p className="text-sm font-extrabold text-[#42182F]">החתונה של מאיה ואיתי</p>
+              </div>
+              <ul>
+                {GUESTS.map((guest) => {
+                  const table = TABLES.find((item) => item.id === assignments[guest.id]);
+                  const on = selected === guest.id;
+                  return (
+                    <li key={guest.id} className="border-b border-[#C5A582]/20">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelected(guest.id);
+                          setHint(
+                            table
+                              ? `${guest.name} בשולחן ${table.label}. אפשר להעביר.`
+                              : `${guest.name} סומן. בחרו שולחן.`
+                          );
+                        }}
+                        aria-pressed={on}
+                        className={`flex w-full items-center justify-between px-4 py-2.5 text-right text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#C5A582] ${
+                          on ? "bg-[#E8CFD8]" : "hover:bg-[#F5EEE8]"
+                        }`}
+                      >
+                        <span className="font-bold text-[#42182F]">{guest.name}</span>
+                        <span className="text-xs text-[#6B5360]">
+                          {guest.party} · {table ? `שולחן ${table.label}` : guest.status}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+
+            <div className="relative h-full min-h-[440px] overflow-hidden border border-[#C5A582]/35 bg-[#2A0F1D] sm:min-h-[460px]">
+              <div
+                className="pointer-events-none absolute inset-0"
+                aria-hidden
+                style={{
+                  background:
+                    "radial-gradient(ellipse at 50% 42%, rgba(197,165,130,0.28), transparent 46%), radial-gradient(ellipse at 50% 100%, rgba(66,24,47,0.55), transparent 42%), linear-gradient(180deg, #42182F 0%, #2A0F1D 100%)",
+                }}
+              />
+              <div
+                className="pointer-events-none absolute left-1/2 top-[46%] h-[58%] w-[76%] -translate-x-1/2 -translate-y-1/2 border border-[#C5A582]/30"
+                style={{ borderRadius: "50%" }}
+                aria-hidden
+              />
+              {TABLES.map((table) => {
+                const extra = Object.entries(assignments).reduce((sum, [guestId, assigned]) => {
+                  if (assigned !== table.id) return sum;
+                  return sum + (GUESTS.find((item) => item.id === guestId)?.party ?? 0);
+                }, 0);
+                const filled = Math.min(table.seats, table.filled + extra);
+                const names = GUESTS.filter((guest) => assignments[guest.id] === table.id).map(
+                  (guest) => guest.name
+                );
+                return (
+                  <div
+                    key={table.id}
+                    className="absolute flex w-[9.5rem] -translate-x-1/2 flex-col items-center"
+                    style={{ left: `${table.x}%`, top: `${table.y}%` }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => assign(table.id)}
+                      aria-label={`שולחן ${table.label}, ${filled} מתוך ${table.seats}`}
+                      className={`flex h-[72px] w-[72px] flex-col items-center justify-center rounded-full border-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#F5EEE8] md:h-[84px] md:w-[84px] ${
+                        flash === table.id ? "lux-seat-flash" : ""
+                      }`}
+                      style={{
+                        borderColor: names.length ? "#C5A582" : "rgba(197,165,130,0.45)",
+                        background: names.length ? "rgba(132,43,76,0.92)" : "rgba(66,24,47,0.82)",
+                        boxShadow: "0 10px 24px rgba(20,8,14,0.35)",
+                      }}
+                    >
+                      <span className="text-lg font-black text-[#F5EEE8]">{table.label}</span>
+                      <span className="text-[10px] font-bold text-[#C5A582]">
+                        {filled}/{table.seats}
+                      </span>
+                    </button>
+                    {names.length > 0 ? (
+                      <p className="mt-2 w-full border border-[#C5A582] bg-[#F5EEE8] px-2 py-1 text-center text-[10px] font-black leading-4 text-[#42182F]">
+                        {names.join(" · ")}
+                      </p>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
