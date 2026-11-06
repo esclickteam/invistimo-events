@@ -39,7 +39,7 @@ export default function WeddingWebsiteHero({
       <style>{`
         ${weddingLiveFrameCss}
         @media (prefers-reduced-motion: no-preference) {
-          .ww-hero-phone { animation: ww-hero-float 7s ease-in-out infinite alternate; }
+          .ww-hero-float { animation: ww-hero-float 7s ease-in-out infinite alternate; }
         }
         @keyframes ww-hero-float {
           from { transform: translateY(0); }

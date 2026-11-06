@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import WeddingLiveFrame from "./WeddingLiveFrame";
 
 type Props = {
@@ -10,6 +11,19 @@ type Props = {
 };
 
 export default function HeroDevices({ templateId, name, desktopPoster, mobilePoster }: Props) {
+  const [float, setFloat] = useState(false);
+
+  useEffect(() => {
+    let second = 0;
+    const first = window.requestAnimationFrame(() => {
+      second = window.requestAnimationFrame(() => setFloat(true));
+    });
+    return () => {
+      window.cancelAnimationFrame(first);
+      window.cancelAnimationFrame(second);
+    };
+  }, []);
+
   return (
     <div className="min-w-0">
       <div className="grid grid-cols-[minmax(0,1fr)_88px] items-end gap-3 sm:grid-cols-[minmax(0,1fr)_128px] sm:gap-4 md:grid-cols-[minmax(0,1fr)_150px]">
@@ -28,7 +42,7 @@ export default function HeroDevices({ templateId, name, desktopPoster, mobilePos
             eager
           />
         </div>
-        <div className="ww-hero-phone min-w-0">
+        <div className={float ? "ww-hero-phone ww-hero-float min-w-0" : "ww-hero-phone min-w-0"}>
           <div className="overflow-hidden rounded-[36px] border-[6px] border-[#F5EEE8] bg-[#1C1210] shadow-[0_18px_40px_rgba(0,0,0,0.4)]">
             <WeddingLiveFrame
               templateId={templateId}
