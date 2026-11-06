@@ -49,8 +49,8 @@ export const GETTING_STARTED_ITEMS: FaqItem[] = [
     q: "האם אפשר להשתמש בה לחתונה?",
     a: "כן. חתונה היא השימוש הנפוץ ביותר: הזמנה, אישורי הגעה, מעקב תשובות, הושבה ויום האירוע. את האישורים מנהלים במערכת, ופירוט על האולם והמנות נמצא בעמוד החתונה.",
     links: [
-      { href: "/rsvp", label: "אישורי הגעה לחתונה" },
-      { href: "/rsvp/chatuna", label: "אולם ומנות לחתונה" },
+      { href: "/rsvp", label: "מערכת אישורי הגעה" },
+      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { href: "/info/guides/wedding-planning", label: "מדריך תכנון חתונה" },
     ],
     keywords: ["חתונה", "זוגות"],

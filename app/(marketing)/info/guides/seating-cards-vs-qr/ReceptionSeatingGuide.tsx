@@ -107,7 +107,7 @@ const RELATED = [
   { href: "/seating-explained#staff", label: "צוות הושבה באולם" },
   { href: "/seating-explained#live", label: "הושבה LIVE" },
   { href: "/rsvp", label: "אישורי הגעה" },
-  { href: "/rsvp", label: "אישורי הגעה לחתונה" },
+  { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
   { href: "/info/guides/seating-plan", label: "איך מכינים סידורי הושבה" },
   { href: "/info/guides/wedding-seating-arrangements", label: "מדריך סידורי הושבה" },
   { href: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },

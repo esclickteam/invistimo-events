@@ -105,7 +105,7 @@ export const KEYWORD_MAP: KeywordRow[] = [
     volume: null,
     competition: null,
     observation:
-      "Search Console, 8.8.2026 עד 5.11.2026: 81 חשיפות, 5 קליקים, 6.2%, מיקום 35.8. /rsvp קיבל 4 מתוך 5 הקליקים. /rsvp/chatuna נשאר עמוד פירוט.",
+      "Search Console, 8.8.2026 עד 5.11.2026: 81 חשיפות, 5 קליקים, 6.2%, מיקום 35.8. /rsvp קיבל 4 מתוך 5 הקליקים ונשאר עמוד המערכת. הביטוי המדויק בקישורים הפנימיים מוביל רק ל־/rsvp/chatuna.",
   },
   {
     query: "אישורי הגעה לאירועים",

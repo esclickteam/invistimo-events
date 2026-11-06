@@ -610,7 +610,7 @@ export default function BarBatMitzvahMarketingPage() {
           <Link href={LINKS.pricing} className="font-bold text-[#9A7B2F] underline-offset-4 hover:underline">
             מחירים
           </Link>
-          <Link href={LINKS.rsvp} className="font-bold text-[#9A7B2F] underline-offset-4 hover:underline">
+          <Link href={LINKS.chatuna} className="font-bold text-[#9A7B2F] underline-offset-4 hover:underline">
             אישורי הגעה לחתונה
           </Link>
         </div>

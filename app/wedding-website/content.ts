@@ -68,7 +68,7 @@ export const WW_LINKS = {
   pricing: "/pricing",
   invitations: "/invitations/chatuna",
   rsvp: "/rsvp",
-  rsvpWedding: "/rsvp",
+  rsvpWedding: "/rsvp/chatuna",
   saveTheDate: "/rsvp/save-the-date",
   seating: "/seating-explained",
   guestList: "/info/guides/guest-list",

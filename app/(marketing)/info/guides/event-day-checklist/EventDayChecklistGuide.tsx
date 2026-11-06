@@ -830,8 +830,7 @@ export default function EventDayChecklistGuide() {
             </ScrollTable>
             <Prose>
               <p>
-                להרחבה על ניהול מול הפקה ראו את פרק ניהול יום האירוע ב־
-                <Link href="/info/guides/wedding-planning#event-day-mgmt" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                להרחבה על ניהול מול הפקה ראו את פרק ניהול יום האירוע ב־<Link href="/info/guides/wedding-planning#event-day-mgmt" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
                   מדריך תכנון החתונה
                 </Link>
                 , ואת{" "}

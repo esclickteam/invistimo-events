@@ -841,7 +841,7 @@ export default function HinaMarketingPage() {
         </div>
         <p className="mx-auto mt-8 max-w-2xl text-center text-sm leading-7 text-[#8A7358]">
           הושבה דיגיטלית היא תוספת נפרדת. LIVE וצוות הושבה — רק אם נבחרו וסוכמו. להשוואה לחתונה:{" "}
-          <Link href={LINKS.rsvp} className="font-bold text-[#6B1F2A] underline-offset-2 hover:underline">
+          <Link href={LINKS.chatuna} className="font-bold text-[#6B1F2A] underline-offset-2 hover:underline">
             אישורי הגעה לחתונה
           </Link>
           .
@@ -907,7 +907,7 @@ export default function HinaMarketingPage() {
           <ul className="mt-12 flex flex-wrap items-center justify-center gap-3 text-sm">
             {[
               { href: LINKS.rsvp, label: "אישורי הגעה" },
-              { href: "/rsvp", label: "אישורי הגעה לחתונה" },
+              { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
               { href: LINKS.guestList, label: "רשימת מוזמנים" },
               { href: LINKS.whenToSend, label: "מתי שולחים" },
               { href: LINKS.chooseCompany, label: "איך בוחרים חברה" },

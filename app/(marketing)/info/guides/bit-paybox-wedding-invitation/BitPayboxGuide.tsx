@@ -161,7 +161,7 @@ const RELATED = [
   { href: "/invitations/chatuna", label: "הזמנות דיגיטליות" },
   { href: "/info/guides/send-digital-invitation", label: "איך שולחים הזמנה" },
   { href: "/rsvp/save-the-date", label: "Save the Date" },
-  { href: "/rsvp", label: "אישורי הגעה לחתונה" },
+  { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
   { href: "/info/guides", label: "מרכז המדריכים" },
   { href: "/pricing", label: "חבילות ומחירים" },
   { href: "/try", label: "דמו" },

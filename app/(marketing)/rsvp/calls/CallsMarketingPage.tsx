@@ -1050,7 +1050,7 @@ export default function CallsMarketingPage() {
           </div>
           <nav aria-label="קישורים קשורים" className="mt-14 flex flex-wrap justify-center gap-3">
             {[
-              { href: "/rsvp", label: "אישורי הגעה לחתונה" },
+              { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
               { href: LINKS.whatsapp, label: "WhatsApp" },
               { href: LINKS.chooseCompany, label: "איך בוחרים חברה" },
               { href: LINKS.whatsappVsSms, label: "WhatsApp מול SMS" },

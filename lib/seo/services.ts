@@ -82,10 +82,10 @@ export const SERVICE_PAGES: ServicePage[] = [
     ],
     sections: [
       {
-        heading: "למה לחתונה צריך עמוד נפרד מאישורי הגעה כלליים",
+        heading: "מה מיוחד בעמוד החתונה",
         paragraphs: [
-          "עמוד אישורי ההגעה הכללי (`/rsvp`) מדבר על כל סוגי האירועים. עמוד החתונה הזה מתמקד בכאב של זוגות: רשימה גדולה, שני צדדים, דד־ליין מול האולם, והושבה לקראת היום.",
-          "אם אתם מחפשים אישורי הגעה לבר מצווה, ברית או אירוע חברה — התחילו מעמוד אישורי ההגעה לאירועים. אם אתם מתחתנים — כאן המקום.",
+          "מערכת אישורי ההגעה מרכזת את הרשימה ואת התשובות לכל אירוע. העמוד הזה מוסיף את מה שזוגות שואלים על החתונה: רשימה גדולה, שני צדדים, מועד מול האולם, והושבה לקראת היום.",
+          "אישורי הגעה לבר מצווה, ברית או אירוע חברה מתחילים במערכת. לחתונה, הפירוט על האולם והמנות נמצא כאן.",
         ],
       },
       {
@@ -232,7 +232,7 @@ export const SERVICE_PAGES: ServicePage[] = [
     ],
     related: [
       { href: "/rsvp", label: "אישורי הגעה לאירועים" },
-      { href: "/rsvp", label: "אישורי הגעה לחתונה" },
+      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { href: "/pricing", label: "חבילות ושיחות" },
       { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
       { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "מה קורה כששליחת WhatsApp נכשלת?" },
@@ -320,7 +320,7 @@ export const SERVICE_PAGES: ServicePage[] = [
       },
     ],
     related: [
-      { href: "/rsvp", label: "אישורי הגעה לחתונה" },
+      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { href: "/rsvp/save-the-date", label: "Save the Date" },
       { href: "/wedding-website", label: "תבניות אתר חתונה" },
       { href: "/info/guides/send-digital-invitation", label: "איך שולחים הזמנה דיגיטלית" },
@@ -424,7 +424,7 @@ export const SERVICE_PAGES: ServicePage[] = [
     ],
     related: [
       { href: "/invitations/chatuna", label: "הזמנה דיגיטלית" },
-      { href: "/rsvp", label: "אישורי הגעה לחתונה" },
+      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { href: "/rsvp", label: "אישורי הגעה לאירועים" },
       { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },

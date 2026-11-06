@@ -124,8 +124,8 @@ export default function RSVPPage() {
           עם Invistimo שולחים לאורחים הודעות בוואטסאפ עם קישור אישי לאישור הגעה, עוקבים אחרי
           התשובות בזמן אמת ומרכזים את כל המידע במקום אחד. זו גם מערכת לניהול מוזמנים: רשימה אחת,
           סטטוס לכל רשומה, ומעקב אחרי מי עדיין לא השיב. אפשר לשלב סבבי הודעות, שיחות טלפוניות
-          ותזכורות, ואחר כך להמשיך ל<Link href="/seating-explained" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">סידורי הושבה</Link>. לחתונה יש{" "}
-          <Link href="/rsvp/chatuna" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">עמוד נפרד</Link>
+          ותזכורות, ואחר כך להמשיך ל<Link href="/seating-explained" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">סידורי הושבה</Link>. לפירוט על האולם והמנות יש{" "}
+          <Link href="/rsvp/chatuna" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">עמוד חתונה</Link>
           , לערוץ עצמו יש{" "}
           <Link href="/rsvp/whatsapp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">עמוד וואטסאפ</Link>
           , ולרשימה יש{" "}
@@ -529,7 +529,7 @@ export default function RSVPPage() {
           </div>
           <nav aria-label="מדריכים קשורים" className="mt-10 flex flex-wrap justify-center gap-3">
             {[
-              { href: "/rsvp/chatuna", label: "אולם ומנות לחתונה" },
+              { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
               { href: "/rsvp/whatsapp", label: "אישורי הגעה בוואטסאפ" },
               { href: "/seating-explained", label: "סידורי הושבה" },
               { href: "/info/guides/wedding-seating-arrangements", label: "מדריך סידורי הושבה" },

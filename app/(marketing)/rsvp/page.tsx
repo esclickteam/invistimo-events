@@ -16,7 +16,7 @@ import Link from "next/link";
 
 const TITLE = "מערכת אישורי הגעה לאירועים | Invistimo";
 const DESCRIPTION =
-  "מערכת אישורי הגעה לאירועים וניהול מוזמנים: קישור אישי, מעקב תשובות ושיחות לפי החבילה. לחתונה יש עמוד נפרד, ומשם ממשיכים להושבה.";
+  "מערכת אישורי הגעה לאירועים ולחתונה, וגם ניהול מוזמנים: קישור אישי, מעקב תשובות ושיחות לפי החבילה. פירוט על האולם והמנות נמצא בעמוד החתונה.";
 
 export const metadata = pageMetadata({
   title: TITLE,
@@ -62,24 +62,21 @@ export default function RsvpPage() {
         <div className="mx-auto max-w-3xl space-y-4 leading-8">
           <h2 className="text-2xl font-black text-[#35281F]">עמודים קשורים לפי סוג האירוע והערוץ</h2>
           <p>
-            העמוד הזה הוא המערכת לאישורי הגעה, גם לחתונה וגם לאירוע. לפירוט על האולם והמנות עברו ל
-            <Link href="/rsvp/chatuna" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">
-              עמוד החתונה
-            </Link>
-            ; לחינה ולמשפחה קרובה —
-            <Link href="/rsvp/hina" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">
+            העמוד הזה הוא מערכת אישורי ההגעה, גם לחתונה וגם לאירוע. לפירוט על האולם והמנות עברו ל־<Link href="/rsvp/chatuna" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">אישורי הגעה לחתונה</Link>
+            . לחינה ולמשפחה קרובה יש{" "}
+            <Link href="/rsvp/hina" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
               אישורי הגעה לחינה
             </Link>
-            ; לבר או בת מצווה עם אישור דרך ההורים —
+            , לבר או בת מצווה עם אישור דרך ההורים יש{" "}
             <Link
               href="/rsvp/bar-bat-mitzvah"
-              className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline"
+              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
             >
-              בר ובת מצווה
+              אישורי הגעה לבר ובת מצווה
             </Link>
-            ; לברית או בריתה בזמן קצר —
-            <Link href="/rsvp/brit-brita" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">
-              ברית ובריתה
+            , ולברית או בריתה בזמן קצר יש{" "}
+            <Link href="/rsvp/brit-brita" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              אישורי הגעה לברית ובריתה
             </Link>
             . לערוץ הוואטסאפ —{" "}
             <Link href="/rsvp/whatsapp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">

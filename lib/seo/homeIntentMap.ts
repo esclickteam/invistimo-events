@@ -31,7 +31,7 @@ export const HOME_INTENT_MAP: IntentBucket[] = [
     theme: "אישורי הגעה לחתונה",
     exampleQueries: ["אישורי הגעה לחתונה"],
     primaryPath: "/rsvp",
-    homepageRole: "הבית מקשר למערכת ב־/rsvp. עמוד החתונה מפרט אולם ומנות, והוא לא היעד הראשי.",
+    homepageRole: "הבית מקשר למערכת ב־/rsvp. הביטוי «אישורי הגעה לחתונה» מוביל לעמוד החתונה, בלי יעד שני לאותו ניסוח.",
   },
   {
     theme: "אישורי הגעה וסידורי הושבה יחד",

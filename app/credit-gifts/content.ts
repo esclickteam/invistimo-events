@@ -300,7 +300,7 @@ export const INTEGRATION_POINTS = [
 export const RELATED_INTERNAL = [
   { href: LINKS.invitations, label: "הזמנות דיגיטליות" },
   { href: LINKS.rsvp, label: "אישורי הגעה" },
-  { href: LINKS.rsvp, label: "אישורי הגעה לחתונה" },
+  { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
   { href: LINKS.pricing, label: "חבילות ומחירים" },
   { href: LINKS.seating, label: "סידורי הושבה" },
   { href: LINKS.eventManagement, label: "ניהול אירוע" },

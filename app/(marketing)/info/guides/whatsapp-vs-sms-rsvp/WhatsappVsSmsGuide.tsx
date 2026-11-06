@@ -679,7 +679,7 @@ export default function WhatsappVsSmsGuide() {
           <nav aria-label="קישורים קשורים" className="mt-12 flex flex-wrap justify-center gap-3 text-sm">
             {[
               { href: "/rsvp", label: "אישורי הגעה" },
-              { href: "/rsvp", label: "אישורי הגעה לחתונה" },
+              { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
               { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
               { href: "/rsvp/calls", label: "שיחות טלפון" },
               { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },

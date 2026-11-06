@@ -293,14 +293,14 @@ export default function ChatunaMarketingPage() {
               מסודר שמלווה אתכם עד האירוע.
             </p>
             <p className="mt-4 max-w-xl text-[15px] leading-7 text-[#5C4A3A]">
-              זה פירוט לחתונה. המערכת עצמה נמצאת ב<Link href={LINKS.rsvp} className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">אישורי הגעה</Link>
-              , והשילוב עם ההושבה מתחיל ב<Link href="/" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">אישורי הגעה וסידורי הושבה במקום אחד</Link>
+              זה העמוד לחתונה: אולם, מנות ותזמון. את הרשימה והתשובות מנהלים ב־<Link href={LINKS.rsvp} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">מערכת אישורי הגעה</Link>
+              , והשילוב עם ההושבה מתחיל ב־<Link href="/" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">אישורי הגעה וסידורי הושבה במקום אחד</Link>
               .
             </p>
             <h2 className="mt-8 text-2xl font-black text-[#2A211A]">ממשיכים לסידורי הושבה</h2>
             <p className="mt-3 max-w-xl text-[15px] leading-7 text-[#5C4A3A]">
-              אחרי שיש תשובות עוברים ל<Link href={LINKS.seatingDecisions} className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">מדריך סידורי הושבה לחתונה</Link>
-              ול<Link href={LINKS.seating} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">סידורי הושבה</Link>
+              אחרי שיש תשובות עוברים ל־<Link href={LINKS.seatingDecisions} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">מדריך סידורי הושבה לחתונה</Link>
+              {" "}ול־<Link href={LINKS.seating} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">סידורי הושבה</Link>
               . את ההודעות עצמן שולחים דרך{" "}
               <Link href={LINKS.whatsapp} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
                 אישורי הגעה בוואטסאפ

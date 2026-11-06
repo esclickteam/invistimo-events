@@ -76,9 +76,9 @@ export default function CostRsvpGuide() {
             <div className="mt-5 max-w-xl space-y-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
               <p>
                 כשמתכננים חתונה, לא תמיד ברור איך מחשבים את המחיר של שירות אישורי הגעה. הסכום נקבע
-                לפי מספר הרשומות והחבילה במחשבון, לא לפי מחיר אחד לכל חתונה. את המערכת עצמה רואים
-                ב<Link href="/rsvp" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">אישורי הגעה לחתונה</Link>
-                ; כאן נשאר החישוב.
+                לפי מספר הרשומות והחבילה במחשבון, לא לפי מחיר אחד לכל חתונה. את הרשימה והתשובות מנהלים
+                ב־<Link href="/rsvp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">מערכת אישורי הגעה</Link>
+                . כאן נשאר החישוב.
               </p>
               <p>
                 האם משלמים על כל אורח? על כל מספר טלפון? האם זוג נחשב לשתי רשומות? ומה קורה כשמוסיפים
@@ -87,15 +87,13 @@ export default function CostRsvpGuide() {
               <p>
                 ב־Invistimo התמחור מבוסס על רשומות בהתאם לחבילה שנבחרה. במדריך הזה נסביר מהי רשומה,
                 אילו אורחים נכללים במכסת החבילה, איך מחושבות הודעות נוספות ומה חשוב לבדוק לפני
-                הרכישה — אחרי ש{" "}
-                <Link
+                הרכישה — אחרי ש<Link
                   href="/info/guides/guest-list"
                   className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
                 >
                   רשימת המוזמנים
                 </Link>{" "}
-                מסודרת ו{" "}
-                <Link
+                מסודרת ו<Link
                   href="/info/guides/how-to-choose-rsvp-company"
                   className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
                 >
@@ -363,8 +361,7 @@ export default function CostRsvpGuide() {
             </p>
             <p>
               חשוב לבחור חבילה שמתאימה למספר הרשומות המחויבות בפועל ולשירותים הנדרשים. הסכום העדכני
-              מופיע רק ב{" "}
-              <Link href="/pricing" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              מופיע רק ב<Link href="/pricing" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
                 מחשבון החבילות
               </Link>{" "}
               — לא בעמוד זה. לחתונה ספציפית ראו גם{" "}

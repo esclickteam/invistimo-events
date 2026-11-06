@@ -708,12 +708,10 @@ export default function SaveTheDateVsInvitationGuide() {
             </figure>
             <div className="flex flex-col justify-center gap-4 rounded-[24px] border border-[#E6D2AA] bg-[#FFFDF8] p-6">
               <p className="text-base leading-8 text-[#5C4A3A]">
-                רוצים לראות את הזרימה במערכת? אפשר להתחיל ב־
-                <Link href="/try" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                רוצים לראות את הזרימה במערכת? אפשר להתחיל ב־<Link href="/try" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
                   דמו Invistimo
                 </Link>
-                , או לעבור ל־
-                <Link
+                , או לעבור ל־<Link
                   href="/rsvp/save-the-date"
                   className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
                 >

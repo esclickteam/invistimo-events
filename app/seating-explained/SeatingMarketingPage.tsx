@@ -237,7 +237,7 @@ export default function SeatingMarketingPage() {
               במערכת אישורי ההגעה
             </Link>
             . לחתונה מתחילים{" "}
-            <Link href={LINKS.rsvp} className="font-black text-[#842B4C] underline-offset-4 hover:underline">
+            <Link href={LINKS.chatuna} className="font-black text-[#842B4C] underline-offset-4 hover:underline">
               באישורי הגעה לחתונה
             </Link>
             , ואת חלוקת השולחנות והרזרבות מסביר{" "}
@@ -425,7 +425,7 @@ export default function SeatingMarketingPage() {
         </div>
         <p className="mt-6 text-sm font-semibold text-[#8A6B45]">
           לקריאה נוספת:{" "}
-          <Link href={LINKS.rsvp} className="text-[#842B4C] underline-offset-4 hover:underline">
+          <Link href={LINKS.chatuna} className="text-[#842B4C] underline-offset-4 hover:underline">
             אישורי הגעה לחתונה
           </Link>
           {" · "}
@@ -768,7 +768,7 @@ export default function SeatingMarketingPage() {
             <Link href={LINKS.rsvp} className="hover:underline">
               אישורי הגעה
             </Link>
-            <Link href={LINKS.rsvp} className="hover:underline">
+            <Link href={LINKS.chatuna} className="hover:underline">
               אישורי הגעה לחתונה
             </Link>
             <Link href={LINKS.barBatMitzvah} className="hover:underline">
