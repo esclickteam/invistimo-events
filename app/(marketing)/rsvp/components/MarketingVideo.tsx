@@ -16,6 +16,34 @@ type Props = {
   onSeeked?: (currentTime: number) => void;
 };
 
+function imageUrlMatches(entryName: string, img: HTMLImageElement) {
+  const src = img.currentSrc || img.src;
+  if (!src) return false;
+  if (entryName === src) return true;
+  try {
+    return entryName.endsWith(new URL(src, window.location.href).pathname);
+  } catch {
+    return false;
+  }
+}
+
+/** True only after a presented frame, not after load or a scheduled animation frame. */
+function posterFrameWasPresented(img: HTMLImageElement) {
+  const paintedThisImage = (
+    performance.getEntriesByType("largest-contentful-paint") as Array<
+      PerformanceEntry & { element?: Element | null }
+    >
+  ).some((entry) => entry.element === img);
+  if (paintedThisImage) return true;
+
+  const fcp = performance.getEntriesByType("paint").find((entry) => entry.name === "first-contentful-paint");
+  if (!fcp) return false;
+  const resource = performance
+    .getEntriesByType("resource")
+    .find((entry) => imageUrlMatches(entry.name, img)) as PerformanceResourceTiming | undefined;
+  return Boolean(resource && resource.responseEnd > 0 && fcp.startTime >= resource.responseEnd);
+}
+
 function usePrefersReducedMotion() {
   const [reduced, setReduced] = useState(false);
   useEffect(() => {
@@ -40,12 +68,12 @@ export default function MarketingVideo({
   onSeeked,
 }: Props) {
   const frameRef = useRef<HTMLDivElement | null>(null);
+  const posterRef = useRef<HTMLImageElement | null>(null);
   const localRef = useRef<HTMLVideoElement | null>(null);
   const pausingRef = useRef(false);
   const reducedMotion = usePrefersReducedMotion();
   const [pausedByUser, setPausedByUser] = useState(false);
   const [inView, setInView] = useState(eager);
-  const [pageReady, setPageReady] = useState(false);
   const [armed, setArmed] = useState(false);
   const [showControls, setShowControls] = useState(false);
 
@@ -62,21 +90,79 @@ export default function MarketingVideo({
   }, []);
 
   useEffect(() => {
+    if (!eager) return;
+    const img = posterRef.current;
+    if (!img) return;
+
     let alive = true;
-    const enable = () => {
-      if (alive) setPageReady(true);
+    let observer: PerformanceObserver | null = null;
+    let timeout = 0;
+
+    const arm = () => {
+      if (!alive) return;
+      observer?.disconnect();
+      window.clearTimeout(timeout);
+      setArmed(true);
     };
-    if (document.readyState === "complete") enable();
-    else window.addEventListener("load", enable, { once: true });
+
+    const watchPresentation = () => {
+      if (!alive) return;
+      if (posterFrameWasPresented(img)) {
+        arm();
+        return;
+      }
+      try {
+        observer = new PerformanceObserver(() => {
+          if (posterFrameWasPresented(img)) arm();
+        });
+        observer.observe({ type: "paint", buffered: true });
+        try {
+          observer.observe({ type: "largest-contentful-paint", buffered: true });
+        } catch {
+          /* LCP entries are optional; FCP after the poster response still counts. */
+        }
+      } catch {
+        arm();
+        return;
+      }
+      timeout = window.setTimeout(arm, 2500);
+    };
+
+    if (img.complete && img.naturalWidth > 0) watchPresentation();
+    else if (typeof img.decode === "function") {
+      img.decode().then(watchPresentation).catch(watchPresentation);
+    } else {
+      img.addEventListener("load", watchPresentation, { once: true });
+      img.addEventListener("error", watchPresentation, { once: true });
+    }
+
     return () => {
       alive = false;
-      window.removeEventListener("load", enable);
+      observer?.disconnect();
+      window.clearTimeout(timeout);
     };
-  }, []);
+  }, [eager, poster]);
 
   useEffect(() => {
-    if (pageReady && inView) setArmed(true);
-  }, [pageReady, inView]);
+    if (eager || !inView || armed) return;
+    if (performance.getEntriesByType("paint").some((entry) => entry.name === "first-contentful-paint")) {
+      setArmed(true);
+      return;
+    }
+    let observer: PerformanceObserver | null = null;
+    try {
+      observer = new PerformanceObserver((list) => {
+        if (list.getEntries().some((entry) => entry.name === "first-contentful-paint")) {
+          observer?.disconnect();
+          setArmed(true);
+        }
+      });
+      observer.observe({ type: "paint", buffered: true });
+    } catch {
+      setArmed(true);
+    }
+    return () => observer?.disconnect();
+  }, [eager, inView, armed]);
 
   useEffect(() => {
     const el = (videoRef?.current ?? localRef.current) as HTMLVideoElement | null;
@@ -108,6 +194,7 @@ export default function MarketingVideo({
     <div ref={frameRef} className={`relative overflow-hidden bg-[#2A0F1D] ${className}`}>
       {poster ? (
         <img
+          ref={posterRef}
           src={poster}
           alt=""
           fetchPriority={eager ? "high" : "auto"}
