@@ -688,8 +688,7 @@ export default function ChooseRsvpCompanyGuide() {
               </p>
             </SoftNote>
             <p className="mt-5 text-base leading-8 text-[#5C4A3A]">
-              הרחבה מעשית ב־
-              <Link
+              הרחבה מעשית ב־<Link
                 href="/info/guides/guests-who-dont-reply"
                 className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
               >
@@ -752,12 +751,10 @@ export default function ChooseRsvpCompanyGuide() {
             </SoftNote>
             <p className="mt-5 text-base leading-8 text-[#5C4A3A]">
               ב־Invistimo בוחרים שירותים וחבילות לפי צורכי האירוע, כולל שירותים משלימים כמו הזמנות
-              דיגיטליות וסידורי הושבה. המחירים האמיתיים מופיעים ב־
-              <Link href="/pricing" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              דיגיטליות וסידורי הושבה. המחירים האמיתיים מופיעים ב־<Link href="/pricing" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
                 מחשבון החבילות
               </Link>{" "}
-              וב־
-              <Link
+              וב־<Link
                 href="/info/guides/cost-rsvp-wedding"
                 className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
               >
@@ -803,15 +800,13 @@ export default function ChooseRsvpCompanyGuide() {
               </p>
             </SoftNote>
             <p className="mt-5 text-base leading-8 text-[#5C4A3A]">
-              פירוט ב־
-              <Link
+              פירוט ב־<Link
                 href="/seating-explained"
                 className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
               >
                 עמוד סידורי ההושבה
               </Link>{" "}
-              וב־
-              <Link
+              וב־<Link
                 href="/info/guides/seating-plan"
                 className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
               >
@@ -848,8 +843,7 @@ export default function ChooseRsvpCompanyGuide() {
             />
             <p className="mt-4 text-base leading-8 text-[#5C4A3A]">
               ב־Invistimo קיים דשבורד לניהול האירוע ורשימת המוזמנים, לצד שירותי אישורי הגעה וסידורי
-              הושבה. אפשר להתרשם גם ב־
-              <Link href="/try" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              הושבה. אפשר להתרשם גם ב־<Link href="/try" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
                 הדמו הפעיל
               </Link>
               .

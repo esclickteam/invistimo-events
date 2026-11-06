@@ -415,7 +415,7 @@ test("geo tasks name one primary page for the rsvp and seating queries", () => {
   ]);
   const primaries = new Map<string, string>([
     ["אישורי הגעה וסידורי הושבה", "/"],
-    ["אישורי הגעה לחתונה", "/rsvp/chatuna"],
+    ["אישורי הגעה לחתונה", "/rsvp"],
     ["סידורי הושבה לחתונה", "/seating-explained"],
     ["מערכת אישורי הגעה", "/rsvp"],
     ["אישורי הגעה בוואטסאפ", "/rsvp/whatsapp"],

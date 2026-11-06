@@ -907,7 +907,7 @@ export default function HinaMarketingPage() {
           <ul className="mt-12 flex flex-wrap items-center justify-center gap-3 text-sm">
             {[
               { href: LINKS.rsvp, label: "אישורי הגעה" },
-              { href: LINKS.chatuna, label: "אישורי הגעה לחתונה" },
+              { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
               { href: LINKS.guestList, label: "רשימת מוזמנים" },
               { href: LINKS.whenToSend, label: "מתי שולחים" },
               { href: LINKS.chooseCompany, label: "איך בוחרים חברה" },

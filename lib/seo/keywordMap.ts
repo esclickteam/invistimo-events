@@ -100,12 +100,12 @@ export const KEYWORD_MAP: KeywordRow[] = [
   {
     query: "אישורי הגעה לחתונה",
     intent: "commercial",
-    primaryPath: "/rsvp/chatuna",
-    supportingPaths: ["/rsvp", "/rsvp/whatsapp", "/seating-explained", "/pricing"],
+    primaryPath: "/rsvp",
+    supportingPaths: ["/rsvp/chatuna", "/rsvp/whatsapp", "/seating-explained", "/pricing"],
     volume: null,
     competition: null,
     observation:
-      "Search Console, 3 חודשים עד 2.11.2026: 4 קליקים, 33 חשיפות, CTR 12.12%, מיקום ממוצע 38.27. הנתון הוא ברמת השאילתה, בלי שיוך לעמוד. צילום רשת מ־23.10.2026 הציג בין היתר Wedly, Guini ו־Diginet.",
+      "Search Console, 8.8.2026 עד 5.11.2026: 81 חשיפות, 5 קליקים, 6.2%, מיקום 35.8. /rsvp קיבל 4 מתוך 5 הקליקים ונשאר עמוד המערכת. הביטוי המדויק בקישורים הפנימיים מוביל רק ל־/rsvp/chatuna.",
   },
   {
     query: "אישורי הגעה לאירועים",
@@ -334,8 +334,8 @@ export const KEYWORD_MAP: KeywordRow[] = [
   {
     query: "שירות אישורי הגעה לחתונה",
     intent: "commercial",
-    primaryPath: "/rsvp/chatuna",
-    supportingPaths: ["/info/guides/how-to-choose-rsvp-company", "/rsvp", "/pricing"],
+    primaryPath: "/rsvp",
+    supportingPaths: ["/rsvp/chatuna", "/info/guides/how-to-choose-rsvp-company", "/pricing"],
     volume: null,
     competition: null,
     observation: "עמוד שירות חתונה ראשי; המדריך תומך בהחלטת בחירה.",

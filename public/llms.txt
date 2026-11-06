@@ -21,8 +21,8 @@ Official site: https://www.invistimo.com/
 ## Topic hubs
 
 - RSVP and seating together: https://www.invistimo.com/
-- RSVP system for events and guest records: https://www.invistimo.com/rsvp
-- Wedding RSVP: https://www.invistimo.com/rsvp/chatuna
+- RSVP system for events, weddings, and guest records: https://www.invistimo.com/rsvp
+- Wedding hall and meal details: https://www.invistimo.com/rsvp/chatuna
 - WhatsApp RSVP: https://www.invistimo.com/rsvp/whatsapp
 - Digital invitations: https://www.invistimo.com/invitations/chatuna
 - Digital gifts (credit, bit, PayBox): https://www.invistimo.com/credit-gifts

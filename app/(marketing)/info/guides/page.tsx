@@ -53,41 +53,41 @@ export default function GuidesPage() {
           </span>
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-[#5C4A3A]">
-            מרכז הידע של Invistimo: מדריכים לפי כוונת חיפוש — בחירת חברה, רשימת מוזמנים, מחיר לפי רשומות,
-            תזמון, אורחים שלא עונים, הושבה LIVE, אתר חתונה וניהול מוזמנים. כל מדריך מסביר נושא אחד; עמוד
-            השירות והמחשבון הם המקום להתקדם לחבילה.
+            מרכז הידע של Invistimo: בחירת חברה, רשימת מוזמנים, מחיר לפי רשומות, תזמון, אורחים שלא
+            עונים, הושבה, אתר חתונה וניהול האירוע. כל מדריך מסביר עניין אחד, ואפשר להמשיך ממנו אל
+            השירות או אל המחשבון.
           </p>
           <p className="mt-4 max-w-2xl text-base leading-7 text-[#5C4A3A]">
-            התחילו מ
-            <Link
+            מי שמחפש את השירות עצמו מתחיל ב־<Link href="/rsvp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">מערכת אישורי הגעה</Link>
+            {" "}או ב־<Link href="/" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">אישורי הגעה וסידורי הושבה במקום אחד</Link>
+            . שאלות של מחיר נשארות במדריך «כמה עולים אישורי הגעה».
+          </p>
+          <p className="mt-4 max-w-2xl text-base leading-7 text-[#5C4A3A]">
+            אפשר להתחיל ב־<Link
               href="/info/guides/how-to-choose-rsvp-company"
-              className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline"
+              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
             >
               איך בוחרים חברת אישורי הגעה
             </Link>
-            ,
-            <Link
+            , ב־<Link
               href="/info/guides/guest-list"
-              className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline"
+              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
             >
               רשימת מוזמנים
             </Link>
-            ,
-            <Link
+            , ב־<Link
               href="/info/guides/cost-rsvp-wedding"
-              className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline"
+              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
             >
               כמה עולים אישורי הגעה
             </Link>
-            או מ
-            <Link
+            , ב־<Link
               href="/info/guides/wedding-seating-arrangements"
-              className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline"
+              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
             >
               החלטות הושבה
             </Link>
-            ו
-            <Link
+            {" "}וב־<Link
               href="/info/guides/seating-plan"
               className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
             >
@@ -100,7 +100,7 @@ export default function GuidesPage() {
               לצפייה בחבילות
             </TrackedCtaLink>
             <TrackedCtaLink href="/rsvp" className={secondaryClass} location="hero_cta:/info/guides">
-              לעמוד אישורי הגעה
+              למערכת אישורי הגעה
             </TrackedCtaLink>
           </div>
         </div>

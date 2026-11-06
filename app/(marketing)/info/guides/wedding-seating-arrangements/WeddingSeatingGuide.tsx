@@ -164,7 +164,10 @@ export default function WeddingSeatingGuide() {
           </h1>
           <p className="mt-5 max-w-3xl text-lg leading-8 text-[#5C4A3A] md:text-xl md:leading-9">
             לפני שפותחים מפת שולחנות במערכת, כדאי לסגור החלטות תכנון: האם למלא כל שולחן, כמה רזרבה
-            מול האולם, האם לשבץ את כל מאשרי ההגעה, ומה לא לעשות עם אומדן אי־הגעה.
+            מול האולם, האם לשבץ את כל מאשרי ההגעה, ומה לא לעשות עם אומדן אי־הגעה. את מפת השולחנות
+            עצמה פותחים ב־<Link href="/seating-explained" className="font-black text-[#8A642E] underline-offset-4 hover:underline">סידורי הושבה</Link>
+            , ואת החיבור לאישורי ההגעה רואים ב־<Link href="/" className="font-black text-[#8A642E] underline-offset-4 hover:underline">אישורי הגעה וסידורי הושבה במקום אחד</Link>
+            .
           </p>
           <div className="mt-5 max-w-3xl space-y-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
             <p>
@@ -174,8 +177,7 @@ export default function WeddingSeatingGuide() {
             <p>
               במדריך הזה נסביר כיצד מתכננים הושבה חכמה, נעימה ומסודרת, מה ההבדל בין מספר מאשרים לבין
               מספר מגיעים בפועל, ואיך מתמודדים עם חוסר הוודאות בלי לסכן את חוויית האורחים. כשההחלטות
-              ברורות — עוברים ל{" "}
-              <Link
+              ברורות — עוברים ל<Link
                 href="/info/guides/seating-plan"
                 className="font-black text-[#8A642E] underline-offset-4 hover:underline"
               >
@@ -939,7 +941,7 @@ export default function WeddingSeatingGuide() {
                 { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות למנות ורזרבות" },
                 { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
                 { href: "/info/guides/wedding-planning", label: "תכנון חתונה" },
-                { href: "/rsvp/chatuna", label: "אישורי הגעה" },
+                { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
                 { href: "/rsvp/calls", label: "שיחות אישורי הגעה" },
                 { href: "/info/guides", label: "כל המדריכים" },
               ].map((l) => (

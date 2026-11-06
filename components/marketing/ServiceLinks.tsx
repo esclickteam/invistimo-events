@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 const LINKS = [
+  { href: "/rsvp", label: "מערכת אישורי הגעה" },
   { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
   { href: "/rsvp/bar-bat-mitzvah", label: "אישורי הגעה לבר ובת מצווה" },
   { href: "/rsvp/hina", label: "אישורי הגעה לחינה" },

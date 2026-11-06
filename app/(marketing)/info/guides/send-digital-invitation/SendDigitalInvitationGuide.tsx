@@ -899,8 +899,7 @@ export default function SendDigitalInvitationGuide() {
                   <Link href="/rsvp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
                     אישורי הגעה
                   </Link>{" "}
-                  ו־
-                  <Link href="/rsvp/whatsapp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                  ו־<Link href="/rsvp/whatsapp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
                     אישורי הגעה ב־WhatsApp
                   </Link>
                   .

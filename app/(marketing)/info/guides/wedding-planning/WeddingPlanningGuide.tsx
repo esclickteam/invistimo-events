@@ -583,8 +583,7 @@ export default function WeddingPlanningGuide() {
               </p>
               <p>
                 אם יש בר עצמאי או אלכוהול מחוץ לחבילת האולם, תכננו כמויות לפי מספר המאשרים וסגנון
-                הקהל. אפשר להיעזר ב־
-                <Link
+                הקהל. אפשר להיעזר ב־<Link
                   href="/info/guides/wedding-alcohol-calculator"
                   className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
                 >

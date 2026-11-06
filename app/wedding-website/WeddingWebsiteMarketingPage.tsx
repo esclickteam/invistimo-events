@@ -95,10 +95,7 @@ export default function WeddingWebsiteMarketingPage() {
                 <Link href={WW_LINKS.invitations} className="font-bold text-[#842B4C] underline-offset-4 hover:underline">
                   ההזמנה הדיגיטלית
                 </Link>{" "}
-                שולחים בנפרד, ואת התשובות אוספים ב{" "}
-                <Link href={WW_LINKS.rsvpWedding} className="font-bold text-[#842B4C] underline-offset-4 hover:underline">
-                  אישורי הגעה לחתונה
-                </Link>{" "}
+                שולחים בנפרד, ואת התשובות אוספים ב־<Link href={WW_LINKS.rsvpWedding} className="font-bold text-[#842B4C] underline-offset-4 hover:underline">אישורי הגעה לחתונה</Link>{" "}
                 עם קישור אישי לרשומה.
               </p>
             </div>
@@ -489,7 +486,7 @@ export default function WeddingWebsiteMarketingPage() {
               { href: "/info/guides/send-digital-invitation", label: "איך שולחים הזמנה" },
               { href: "/info/guides/save-the-date-vs-invitation", label: "Save the Date מול הזמנה" },
               { href: WW_LINKS.saveTheDate, label: "Save the Date" },
-              { href: WW_LINKS.rsvpWedding, label: "אישורי הגעה" },
+              { href: WW_LINKS.rsvp, label: "אישורי הגעה" },
               { href: WW_LINKS.seating, label: "סידורי הושבה" },
               { href: WW_LINKS.weddingPlanning, label: "מדריך תכנון חתונה" },
               { href: WW_LINKS.guestList, label: "מדריך רשימת מוזמנים" },
