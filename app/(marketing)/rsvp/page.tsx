@@ -62,9 +62,9 @@ export default function RsvpPage() {
         <div className="mx-auto max-w-3xl space-y-4 leading-8">
           <h2 className="text-2xl font-black text-[#35281F]">עמודים קשורים לפי סוג האירוע והערוץ</h2>
           <p>
-            העמוד הזה מסביר את מודל אישורי ההגעה הכללי. להתמקדות בחתונה (אולם, מנות ותזמון) עברו ל
+            העמוד הזה הוא המערכת לאישורי הגעה, גם לחתונה וגם לאירוע. לפירוט על האולם והמנות עברו ל
             <Link href="/rsvp/chatuna" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">
-              אישורי הגעה לחתונה
+              עמוד החתונה
             </Link>
             ; לחינה ולמשפחה קרובה —
             <Link href="/rsvp/hina" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">

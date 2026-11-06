@@ -130,7 +130,52 @@ export default function RSVPPage() {
           <Link href="/rsvp/whatsapp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">עמוד וואטסאפ</Link>
           , ולרשימה יש{" "}
           <Link href="/info/guides/guest-list" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">מדריך מוזמנים</Link>.
+          מי שמחפש את שני השירותים יחד ממשיך אל{" "}
+          <Link href="/" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+            אישורי הגעה וסידורי הושבה במקום אחד
+          </Link>
+          .
         </p>
+      </section>
+
+      <section className="px-5 pb-4 md:px-8" aria-labelledby="guest-management-heading">
+        <div className="mx-auto max-w-3xl rounded-[28px] border border-[#E6D2AA] bg-white/80 p-6 md:p-8">
+          <h2
+            id="guest-management-heading"
+            className="font-[family-name:var(--font-rsvp-display)] text-3xl font-bold text-[#35281F]"
+          >
+            ניהול מוזמנים
+          </h2>
+          <p className="mt-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
+            רשימה אחת לכל האירוע: מי הוזמן, מי אישר, מי סירב ומי עדיין לא ענה. אפשר לעדכן מספר
+            מגיעים והערה, ולראות את אותו סטטוס גם כששולחים תזכורת. זה ניהול המוזמנים של האירוע,
+            בלי רשימה נפרדת בוואטסאפ ובלי גיליון שמתפצל.
+          </p>
+        </div>
+      </section>
+
+      <section className="px-5 py-8 md:px-8" aria-labelledby="wedding-rsvp-heading">
+        <div className="mx-auto max-w-3xl rounded-[28px] border border-[#E6D2AA] bg-white/80 p-6 md:p-8">
+          <h2
+            id="wedding-rsvp-heading"
+            className="font-[family-name:var(--font-rsvp-display)] text-3xl font-bold text-[#35281F]"
+          >
+            אישורי הגעה לחתונה
+          </h2>
+          <p className="mt-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
+            לחתונה סופרים מגיעים מול האולם והמנות, ושולחים לכל אורח קישור אישי. התשובות נשארות
+            כאן, באותה מערכת.{" "}
+            <Link href="/rsvp/chatuna" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              פירוט על האולם והמנות
+            </Link>
+            ,{" "}
+            <Link href="/rsvp/whatsapp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              אישורי הגעה בוואטסאפ
+            </Link>
+            {" "}ו<Link href="/info/guides/cost-rsvp-wedding" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">חישוב המחיר לפי רשומות</Link>
+            {" "}נמצאים בעמודים שלהם. את ההושבה ממשיכים אחרי שיש תשובות.
+          </p>
+        </div>
       </section>
 
       <JourneyDemo />
@@ -484,7 +529,7 @@ export default function RSVPPage() {
           </div>
           <nav aria-label="מדריכים קשורים" className="mt-10 flex flex-wrap justify-center gap-3">
             {[
-              { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+              { href: "/rsvp/chatuna", label: "אולם ומנות לחתונה" },
               { href: "/rsvp/whatsapp", label: "אישורי הגעה בוואטסאפ" },
               { href: "/seating-explained", label: "סידורי הושבה" },
               { href: "/info/guides/wedding-seating-arrangements", label: "מדריך סידורי הושבה" },

@@ -164,7 +164,10 @@ export default function WeddingSeatingGuide() {
           </h1>
           <p className="mt-5 max-w-3xl text-lg leading-8 text-[#5C4A3A] md:text-xl md:leading-9">
             לפני שפותחים מפת שולחנות במערכת, כדאי לסגור החלטות תכנון: האם למלא כל שולחן, כמה רזרבה
-            מול האולם, האם לשבץ את כל מאשרי ההגעה, ומה לא לעשות עם אומדן אי־הגעה.
+            מול האולם, האם לשבץ את כל מאשרי ההגעה, ומה לא לעשות עם אומדן אי־הגעה. את מפת השולחנות
+            עצמה פותחים ב<Link href="/seating-explained" className="mx-1 font-black text-[#8A642E] underline-offset-4 hover:underline">סידורי הושבה</Link>
+            , ואת החיבור לאישורי ההגעה רואים ב<Link href="/" className="mx-1 font-black text-[#8A642E] underline-offset-4 hover:underline">אישורי הגעה וסידורי הושבה במקום אחד</Link>
+            .
           </p>
           <div className="mt-5 max-w-3xl space-y-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
             <p>

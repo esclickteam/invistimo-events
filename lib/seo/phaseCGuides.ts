@@ -294,7 +294,7 @@ export const PHASE_C_GUIDES: Guide[] = [
     related: [
       { href: "/wedding-website", label: "אתר חתונה" },
       { href: "/invitations/chatuna", label: "הזמנות דיגיטליות לחתונה" },
-      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/rsvp", label: "אישורי הגעה לחתונה" },
       { href: "/info/guides/wedding-website-vs-digital-invitation", label: "אתר חתונה מול הזמנה דיגיטלית" },
       { href: "/info/guides/send-digital-invitation", label: "איך שולחים הזמנה דיגיטלית" },
       { href: "/info/guides/personal-rsvp-link", label: "מהו קישור אישי" },
@@ -1100,7 +1100,7 @@ export const PHASE_C_GUIDES: Guide[] = [
     ],
     related: [
       { href: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים להתחייב לאולם" },
-      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/rsvp", label: "אישורי הגעה לחתונה" },
       { href: "/info/guides/tracking-rsvp-responses", label: "מעקב תשובות" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורים" },
       { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },

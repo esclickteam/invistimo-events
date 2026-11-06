@@ -33,7 +33,7 @@ const home = { name: "ראשי", path: "/" };
 export const SERVICE_PAGES: ServicePage[] = [
   {
     path: "/rsvp/chatuna",
-    title: "אישורי הגעה לחתונה בוואטסאפ | Invistimo",
+    title: "אישורי הגעה לחתונה | Invistimo",
     description:
       "אישורי הגעה לחתונה עם הודעות WhatsApp, קישור אישי לכל אורח, מעקב תשובות ואפשרות לשלב שיחות וסידורי הושבה. גלו איך Invistimo עובדת.",
     eyebrow: "אישורי הגעה לחתונה",
@@ -232,7 +232,7 @@ export const SERVICE_PAGES: ServicePage[] = [
     ],
     related: [
       { href: "/rsvp", label: "אישורי הגעה לאירועים" },
-      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/rsvp", label: "אישורי הגעה לחתונה" },
       { href: "/pricing", label: "חבילות ושיחות" },
       { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
       { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "מה קורה כששליחת WhatsApp נכשלת?" },
@@ -320,7 +320,7 @@ export const SERVICE_PAGES: ServicePage[] = [
       },
     ],
     related: [
-      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/rsvp", label: "אישורי הגעה לחתונה" },
       { href: "/rsvp/save-the-date", label: "Save the Date" },
       { href: "/wedding-website", label: "תבניות אתר חתונה" },
       { href: "/info/guides/send-digital-invitation", label: "איך שולחים הזמנה דיגיטלית" },
@@ -424,7 +424,7 @@ export const SERVICE_PAGES: ServicePage[] = [
     ],
     related: [
       { href: "/invitations/chatuna", label: "הזמנה דיגיטלית" },
-      { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+      { href: "/rsvp", label: "אישורי הגעה לחתונה" },
       { href: "/rsvp", label: "אישורי הגעה לאירועים" },
       { href: "/rsvp/whatsapp", label: "אישורי הגעה ב־WhatsApp" },
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },

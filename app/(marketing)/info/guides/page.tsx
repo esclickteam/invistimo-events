@@ -53,9 +53,14 @@ export default function GuidesPage() {
           </span>
           </h1>
           <p className="mt-6 max-w-2xl text-lg leading-8 text-[#5C4A3A]">
-            מרכז הידע של Invistimo: מדריכים לפי כוונת חיפוש — בחירת חברה, רשימת מוזמנים, מחיר לפי רשומות,
+            מרכז הידע של Invistimo: מדריכים לפי נושא — בחירת חברה, רשימת מוזמנים, מחיר לפי רשומות,
             תזמון, אורחים שלא עונים, הושבה LIVE, אתר חתונה וניהול מוזמנים. כל מדריך מסביר נושא אחד; עמוד
             השירות והמחשבון הם המקום להתקדם לחבילה.
+          </p>
+          <p className="mt-4 max-w-2xl text-base leading-7 text-[#5C4A3A]">
+            מי שמחפש את השירות עצמו, ולא מדריך, מתחיל ב<Link href="/rsvp" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">מערכת אישורי הגעה</Link>
+            או ב<Link href="/" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">אישורי הגעה וסידורי הושבה במקום אחד</Link>
+            . שאלות של מחיר נשארות במדריך «כמה עולים אישורי הגעה».
           </p>
           <p className="mt-4 max-w-2xl text-base leading-7 text-[#5C4A3A]">
             התחילו מ
@@ -100,7 +105,7 @@ export default function GuidesPage() {
               לצפייה בחבילות
             </TrackedCtaLink>
             <TrackedCtaLink href="/rsvp" className={secondaryClass} location="hero_cta:/info/guides">
-              לעמוד אישורי הגעה
+              למערכת אישורי הגעה
             </TrackedCtaLink>
           </div>
         </div>

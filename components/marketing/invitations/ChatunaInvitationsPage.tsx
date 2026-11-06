@@ -1004,7 +1004,7 @@ export default function ChatunaInvitationsPage() {
             {[
               ["/invitations/chatuna", "הזמנות דיגיטליות"],
               ["/rsvp/save-the-date", "Save the Date"],
-              ["/rsvp/chatuna", "אישורי הגעה לחתונה"],
+              ["/rsvp", "אישורי הגעה לחתונה"],
               ["/rsvp/whatsapp", "אישורי הגעה ב־WhatsApp"],
               ["/seating-explained", "סידורי הושבה"],
               ["/rsvp/bar-bat-mitzvah", "בר ובת מצווה"],

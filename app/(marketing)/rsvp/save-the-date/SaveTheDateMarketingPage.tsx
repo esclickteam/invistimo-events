@@ -684,7 +684,7 @@ export default function SaveTheDateMarketingPage() {
           <nav aria-label="קישורים קשורים" className="mt-12 flex flex-wrap justify-center gap-3 text-sm">
             {[
               { href: "/rsvp", label: "אישורי הגעה" },
-              { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+              { href: "/rsvp", label: "אישורי הגעה לחתונה" },
               { href: "/invitations/chatuna", label: "הזמנות דיגיטליות" },
               { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },
               { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },

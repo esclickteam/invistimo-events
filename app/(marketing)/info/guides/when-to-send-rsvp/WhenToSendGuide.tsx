@@ -553,7 +553,7 @@ export default function WhenToSendGuide() {
           </div>
           <nav aria-label="קישורים נוספים" className="mt-12 flex flex-wrap justify-center gap-3">
             {[
-              { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+              { href: "/rsvp", label: "אישורי הגעה לחתונה" },
               { href: "/rsvp/hina", label: "אישורי הגעה לחינה" },
               { href: "/rsvp/calls", label: "שיחות אישורי הגעה" },
               { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },

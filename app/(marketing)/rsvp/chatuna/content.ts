@@ -11,7 +11,7 @@ export const EXAMPLE_RECORDS = 250;
 export const CHATUNA_PATH = "/rsvp/chatuna";
 
 export const CHATUNA_META = {
-  title: "אישורי הגעה לחתונה בוואטסאפ | Invistimo",
+  title: "אישורי הגעה לחתונה | Invistimo",
   description:
     "אישורי הגעה לחתונה מול האולם והמנות: WhatsApp עם קישור אישי, סבבי תזכורת ושיחות לפי החבילה, מעקב מגיעים וחיבור להושבה. מדריך ממוקד לחתונה — לא העתק של עמוד אישורי ההגעה הכללי.",
 } as const;

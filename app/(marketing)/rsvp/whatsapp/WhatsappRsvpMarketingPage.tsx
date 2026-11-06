@@ -691,7 +691,7 @@ export default function WhatsappRsvpMarketingPage() {
           <nav aria-label="קישורים קשורים" className="mt-14 flex flex-wrap justify-center gap-3">
             {[
               { href: "/rsvp", label: "אישורי הגעה" },
-              { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
+              { href: "/rsvp", label: "אישורי הגעה לחתונה" },
               { href: "/rsvp/calls", label: "שיחות טלפון" },
               { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "מה קורה כששליחת WhatsApp נכשלת?" },
               { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },

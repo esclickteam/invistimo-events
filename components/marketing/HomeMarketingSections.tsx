@@ -359,6 +359,38 @@ export default function HomeMarketingSections() {
 
   return (
     <div ref={motionRef}>
+      <section
+        dir="rtl"
+        aria-labelledby="home-rsvp-seating"
+        className="bg-[#F5EEE8] px-4 py-14 text-[#42182F] sm:px-6 md:px-10 md:py-20"
+      >
+        <div className="mx-auto max-w-3xl">
+          <h2
+            id="home-rsvp-seating"
+            className="lux-display text-[32px] leading-tight md:text-[48px]"
+          >
+            אישורי הגעה וסידורי הושבה במקום אחד
+          </h2>
+          <p className="lux-lede mt-5">
+            שולחים הזמנה, כל אורח מקבל קישור אישי לאישור, ורואים מי מגיע ברשימת המוזמנים. כשיש
+            תשובות, ממשיכים לאותה רשימה ובונים את מפת השולחנות.
+          </p>
+          <p className="mt-4 text-base leading-8 text-[#6B5360]">
+            <Link href="/rsvp" className="font-bold text-[#842B4C] underline-offset-4 hover:underline">
+              מערכת אישורי ההגעה
+            </Link>
+            {" "}מרכזת את הרשימה ואת התשובות.{" "}
+            <Link href="/rsvp/whatsapp" className="font-bold text-[#842B4C] underline-offset-4 hover:underline">
+              אישורי הגעה בוואטסאפ
+            </Link>
+            {" "}הם הדרך שבה ההודעה מגיעה לאורח.{" "}
+            <Link href="/seating-explained" className="font-bold text-[#842B4C] underline-offset-4 hover:underline">
+              סידורי ההושבה
+            </Link>
+            {" "}הם השלב שאחרי שברור מי מגיע.
+          </p>
+        </div>
+      </section>
       {/* Intro — full-bleed editorial with overlay type */}
       <section
         dir="rtl"

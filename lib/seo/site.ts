@@ -109,7 +109,7 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
   },
   {
     path: "/rsvp/chatuna",
-    title: "אישורי הגעה לחתונה בוואטסאפ | Invistimo",
+    title: "אישורי הגעה לחתונה | Invistimo",
     description:
       "אישורי הגעה לחתונה מול האולם והמנות: WhatsApp עם קישור אישי, סבבי תזכורת ושיחות לפי החבילה, מעקב מגיעים וחיבור להושבה.",
     changeFrequency: "monthly",
