@@ -89,16 +89,15 @@ export default function RsvpPage() {
             <Link href="/seating-explained" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
               לסידורי הושבה
             </Link>{" "}
-            ו
             <Link
               href="/info/guides/wedding-seating-arrangements"
               className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
             >
-              למדריך סידורי ההושבה
+              ולמדריך סידורי ההושבה
             </Link>
-            . המחירים ב
+            . המחירים{" "}
             <Link href="/pricing" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
-              מחשבון החבילות
+              במחשבון החבילות
             </Link>
             , ואפשר קודם{" "}
             <Link href="/try" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">

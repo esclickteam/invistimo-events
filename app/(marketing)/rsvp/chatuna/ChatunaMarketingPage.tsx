@@ -301,9 +301,9 @@ export default function ChatunaMarketingPage() {
               <Link href={LINKS.whatsapp} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
                 עמוד אישורי ההגעה בוואטסאפ
               </Link>{" "}
-              מסביר את הערוץ, ו
+              מסביר את הערוץ,{" "}
               <Link href={LINKS.seating} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
-                סידורי הושבה
+                וסידורי הושבה
               </Link>{" "}
               ממשיכים אחרי שיש תשובות. לחלוקת שולחנות ורזרבות יש{" "}
               <Link href={LINKS.seatingDecisions} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
