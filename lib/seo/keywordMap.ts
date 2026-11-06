@@ -898,7 +898,7 @@ export const KEYWORD_MAP: KeywordRow[] = [
     supportingPaths: ["/info/guides/bit-paybox-wedding-invitation"],
     volume: null,
     competition: null,
-    observation: "H2/מדריך מעשי; לא עמוד שירות נפרד כדי למנוע קניבליזציה.",
+    observation: "המדריך מסביר את המתנה בביט. השירות עצמו נשאר בעמוד המתנות.",
   },
   {
     query: "מתנות לחתונה בפייבוקס",
