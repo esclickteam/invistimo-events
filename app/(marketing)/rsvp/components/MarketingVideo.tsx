@@ -47,6 +47,7 @@ export default function MarketingVideo({
   const [inView, setInView] = useState(eager);
   const [pageReady, setPageReady] = useState(false);
   const [armed, setArmed] = useState(false);
+  const [showControls, setShowControls] = useState(false);
 
   useEffect(() => {
     const el = frameRef.current;
@@ -131,8 +132,9 @@ export default function MarketingVideo({
           loop
           playsInline
           autoPlay={!reducedMotion}
-          controls
+          controls={reducedMotion || showControls}
           preload={eager ? "metadata" : "none"}
+          onPlaying={() => setShowControls(true)}
           className={`absolute inset-0 ${fitClass}`}
           onTimeUpdate={(e) => onTimeUpdate?.(e.currentTarget.currentTime)}
           onSeeked={(e) => onSeeked?.(e.currentTarget.currentTime)}
