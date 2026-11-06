@@ -270,6 +270,55 @@ export function trackPublicEvent(name: string, params?: Record<string, string>) 
   window.gtag("event", name, sanitizeEventParams(params));
 }
 
+const WEB_VITAL_NAMES = new Set(["LCP", "INP", "CLS"]);
+const WEB_VITAL_RATINGS = new Set(["good", "needs-improvement", "poor"]);
+
+/**
+ * One final Core Web Vitals sample. LCP and INP stay in milliseconds.
+ * CLS stays the unitless score (three decimal places), which GA4 can store.
+ */
+export function buildWebVitalEvent(input: {
+  name: string;
+  value: number;
+  rating: string;
+  pagePath: string;
+}) {
+  if (!WEB_VITAL_NAMES.has(input.name) || !WEB_VITAL_RATINGS.has(input.rating)) return null;
+  if (!Number.isFinite(input.value) || input.value < 0) return null;
+  const metric_value =
+    input.name === "CLS" ? Math.round(input.value * 1000) / 1000 : Math.round(input.value);
+  if (input.name === "CLS" ? metric_value > 10 : metric_value > 600_000) return null;
+  const page_path = safePublicPath(input.pagePath);
+  if (!page_path || !analyticsAllowed(page_path)) return null;
+  return {
+    metric_name: input.name,
+    metric_rating: input.rating,
+    page_path,
+    metric_value,
+  };
+}
+
+/** True only the first time this metric instance is reported. */
+export function claimWebVitalReport(reported: Set<string>, id: string) {
+  if (!id || reported.has(id)) return false;
+  reported.add(id);
+  return true;
+}
+
+/** Sends the final metric. metric_value is a number so GA4 can aggregate it. */
+export function trackWebVital(input: {
+  name: string;
+  value: number;
+  rating: string;
+  pagePath: string;
+}) {
+  if (typeof window === "undefined" || typeof window.gtag !== "function") return;
+  if (!isGaMeasurementId(GA_MEASUREMENT_ID)) return;
+  const hit = buildWebVitalEvent(input);
+  if (!hit) return;
+  window.gtag("event", "web_vital", hit);
+}
+
 /**
  * Sends a funnel click from routes that do not load MarketingAnalytics (e.g. /try).
  * No page_view, no query string, no personal fields — and never purchase/sign_up.
