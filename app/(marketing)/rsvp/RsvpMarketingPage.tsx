@@ -34,11 +34,6 @@ const display = localFont({
   variable: "--font-rsvp-display",
 });
 
-const fadeUp = {
-  hidden: { opacity: 1, y: 12 },
-  visible: { opacity: 1, y: 0 },
-};
-
 function SectionEyebrow({ children, light = false }: { children: React.ReactNode; light?: boolean }) {
   return (
     <p
@@ -88,13 +83,7 @@ export default function RSVPPage() {
         <div className="absolute bottom-10 left-6 -z-10 h-64 w-64 rounded-full bg-[#B59668]/18 blur-3xl" />
 
         <div className="mx-auto grid max-w-7xl items-start gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16">
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={fadeUp}
-            transition={{ duration: 0.7 }}
-            className="text-center lg:text-right"
-          >
+          <div className="text-center lg:text-right">
             <p className="font-[family-name:var(--font-rsvp-display)] text-5xl font-bold tracking-tight text-[#A77A38] md:text-6xl">
               Invistimo
             </p>
@@ -114,14 +103,9 @@ export default function RSVPPage() {
               הודעות {formatIls(exampleTotal("messages"))}. בוחרים חבילה, פונים לצוות ומשלימים מול
               נציג.
             </p>
-          </motion.div>
+          </div>
 
-          <motion.div
-            initial={{ opacity: 1, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15, duration: 0.75 }}
-            className="relative mx-auto w-full max-w-[280px] sm:max-w-[300px] lg:max-w-[320px]"
-          >
+          <div className="relative mx-auto w-full max-w-[280px] sm:max-w-[300px] lg:max-w-[320px]">
             <div className="relative border border-[#C5A582] bg-[#F5EEE8] p-2 shadow-[0_28px_70px_rgba(66,24,47,0.16)]">
               <div className="overflow-hidden border border-[#42182F]/15 bg-[#2A0F1D]">
                 <MarketingVideo
@@ -133,7 +117,7 @@ export default function RSVPPage() {
                 />
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
 
         <p className="mx-auto mt-12 max-w-3xl text-center text-base leading-8 text-[#6D5B4A] md:mt-16 md:text-lg md:leading-9">
