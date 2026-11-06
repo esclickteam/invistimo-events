@@ -111,6 +111,53 @@ export const DISTANCE_LABEL: Record<Distance, string> = {
 };
 
 export type Band = { low: number; mid: number; high: number };
+export type GuestEntryMode = "total" | "groups";
+
+/**
+ * A general headcount and a group breakdown are alternate ways to enter
+ * the same invited list. Only one of them is passed into the forecast.
+ */
+export function groupsForCalculation(
+  mode: GuestEntryMode,
+  totalGuests: number,
+  groups: GroupInput[],
+  overallBand: Band = CUSTOM_DEFAULT_BAND
+): GroupInput[] {
+  if (mode !== "total") return groups;
+  return [
+    {
+      id: "overall",
+      label: "כלל המוזמנים",
+      count: clampCount(totalGuests),
+      lowPct: clampPct(overallBand.low),
+      midPct: clampPct(overallBand.mid),
+      highPct: clampPct(overallBand.high),
+    },
+  ];
+}
+
+/** Split a headcount by the built-in sample mix. The parts sum to the total. */
+export function distributeByDefaultMix(total: number): Record<BuiltinGroupId, number> {
+  const people = clampCount(total);
+  const weights = BUILTIN_GROUPS.map((group) => DEFAULT_COUNTS[group.id]);
+  const weightSum = weights.reduce((sum, weight) => sum + weight, 0);
+  const exact = weights.map((weight) => (people * weight) / weightSum);
+  const counts = exact.map((value) => Math.floor(value));
+  let remaining = people - counts.reduce((sum, count) => sum + count, 0);
+  const order = exact
+    .map((value, index) => ({ index, fraction: value - counts[index] }))
+    .sort((a, b) => b.fraction - a.fraction || a.index - b.index);
+  for (const item of order) {
+    if (remaining <= 0) break;
+    counts[item.index] += 1;
+    remaining -= 1;
+  }
+  const distributed = {} as Record<BuiltinGroupId, number>;
+  BUILTIN_GROUPS.forEach((group, index) => {
+    distributed[group.id] = counts[index];
+  });
+  return distributed;
+}
 
 export type GroupInput = {
   id: string;
@@ -458,7 +505,12 @@ export function illustrateChairs(counts: ChairCounts, seatsPerTable: number, cap
   };
 }
 
-export type SharePayload = ArrivalInputs & { seatsPerTable: number };
+export type SharePayload = ArrivalInputs & {
+  seatsPerTable: number;
+  guestMode?: GuestEntryMode;
+  totalGuests?: number;
+  overallBand?: Band;
+};
 
 function isWeekday(value: string): value is Weekday {
   return WEEKDAYS.has(value);
@@ -530,6 +582,12 @@ export function encodeArrivalQuery(payload: SharePayload) {
   params.set("price", payload.mealPrice == null ? "" : String(Math.max(0, Math.round(payload.mealPrice))));
   params.set("extra", payload.extraMealPrice == null ? "" : String(Math.max(0, Math.round(payload.extraMealPrice))));
   params.set("seats", String(Math.min(16, Math.max(4, clampCount(payload.seatsPerTable) || 10))));
+  if (payload.guestMode === "total") {
+    const band = payload.overallBand || CUSTOM_DEFAULT_BAND;
+    params.set("gmode", "total");
+    params.set("gtot", String(clampCount(payload.totalGuests || 0)));
+    params.set("ob", [band.low, band.mid, band.high].map((value) => clampPct(value)).join(","));
+  }
   return params.toString();
 }
 
@@ -600,5 +658,13 @@ export function decodeArrivalQuery(search: string): SharePayload | null {
     mealPrice: optionalCount(params.get("price")),
     extraMealPrice: optionalCount(params.get("extra")),
     seatsPerTable: Math.min(16, Math.max(4, clampCount(Number(params.get("seats") || 10)))),
+    guestMode: params.get("gmode") === "total" ? "total" : "groups",
+    totalGuests: clampCount(Number(params.get("gtot") || 0)),
+    overallBand: (() => {
+      const band = readBandList(params.get("ob"), 3);
+      return band
+        ? { low: band[0], mid: band[1], high: band[2] }
+        : { low: CUSTOM_DEFAULT_BAND.low, mid: CUSTOM_DEFAULT_BAND.mid, high: CUSTOM_DEFAULT_BAND.high };
+    })(),
   };
 }

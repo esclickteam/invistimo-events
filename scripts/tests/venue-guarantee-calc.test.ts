@@ -3,9 +3,12 @@ import { test } from "node:test";
 import {
   BUILTIN_GROUPS,
   DEFAULT_COUNTS,
+  CUSTOM_DEFAULT_BAND,
   computeArrival,
   decodeArrivalQuery,
+  distributeByDefaultMix,
   encodeArrivalQuery,
+  groupsForCalculation,
   illustrateChairs,
   mapKnownGroupName,
   type ArrivalInputs,
@@ -352,6 +355,63 @@ test("known group names map, and private names stay unassigned", () => {
   assert.equal(summary.groups.closeFriends, 4);
   assert.equal(summary.unassigned, 8);
   assert.equal(JSON.stringify(summary).includes("כהן"), false);
+});
+
+test("a general total replaces the groups instead of adding to them", () => {
+  const groups = BUILTIN_GROUPS.map((item) =>
+    group({
+      id: item.id,
+      label: item.label,
+      count: DEFAULT_COUNTS[item.id],
+      lowPct: item.low,
+      midPct: item.mid,
+      highPct: item.high,
+    })
+  );
+  const grouped = groupsForCalculation("groups", 500, groups);
+  assert.equal(grouped.reduce((sum, item) => sum + item.count, 0), 200);
+  const totalOnly = groupsForCalculation("total", 500, groups, CUSTOM_DEFAULT_BAND);
+  assert.equal(totalOnly.length, 1);
+  assert.equal(totalOnly[0].count, 500);
+  const result = computeArrival(input({ groups: totalOnly }));
+  assert.equal(result.totalInvited, 500);
+  assert.equal(result.rangeMid, 300);
+  assert.equal(result.confirmedReceived, 0);
+  assert.equal(result.contractMissing, true);
+});
+
+test("share link restores total mode without counting saved groups again", () => {
+  const groups = BUILTIN_GROUPS.map((item) =>
+    group({
+      id: item.id,
+      label: item.label,
+      count: DEFAULT_COUNTS[item.id],
+      lowPct: item.low,
+      midPct: item.mid,
+      highPct: item.high,
+    })
+  );
+  const payload = {
+    ...input({ groups }),
+    seatsPerTable: 10,
+    guestMode: "total" as const,
+    totalGuests: 80,
+    overallBand: CUSTOM_DEFAULT_BAND,
+  };
+  const restored = decodeArrivalQuery(encodeArrivalQuery(payload));
+  assert.equal(restored?.guestMode, "total");
+  assert.equal(restored?.totalGuests, 80);
+  assert.equal(restored?.groups.reduce((sum, item) => sum + item.count, 0), 200);
+  const active = groupsForCalculation(
+    restored!.guestMode || "groups",
+    restored!.totalGuests || 0,
+    restored!.groups,
+    restored!.overallBand
+  );
+  assert.equal(computeArrival({ ...restored!, groups: active }).totalInvited, 80);
+  const mix = distributeByDefaultMix(200);
+  assert.equal(Object.values(mix).reduce((sum, count) => sum + count, 0), 200);
+  assert.equal(mix.closeFamily, DEFAULT_COUNTS.closeFamily);
 });
 
 test("event date becomes a season without leaving the calendar", () => {
