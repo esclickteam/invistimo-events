@@ -1,4 +1,9 @@
 import type { KeywordRow } from "@/lib/seo/keywordMap";
+import { servicePrice } from "@/lib/pricing/packageQuote";
+
+function shekel(amount: number): string {
+  return `${amount.toLocaleString("he-IL")} ₪`;
+}
 
 export type FactTable = {
   caption: string;
@@ -49,7 +54,7 @@ export const PAGE_ANSWERS: Record<string, string> = {
   "/info/about":
     "Invistimo היא מערכת ישראלית לאישורי הגעה, הזמנות דיגיטליות, הושבה וניהול אירוע. המפעיל לפי התקנון הוא עוסק 316576578. לתמיכה: support@invistimo.com או 055-503-9072.",
   "/info/guides/cost-rsvp-wedding":
-    "מחיר אישורי הגעה לחתונה נקבע לפי הרשומות המחויבות בחבילה — בעיקר רשומות עם מספר טלפון — ולא בהכרח לפי מספר האנשים. רשומה יכולה לייצג יחיד, זוג או משפחה. רשומות ללא טלפון נשארות ברשימה ואינן נגרעות מהמכסה. Save the Date והזמנה מוקדמת מחושבים בנפרד מסבבי האישור. הסכום העדכני מופיע רק במחשבון החבילות.",
+    `מחיר אישורי הגעה לחתונה נקבע לפי הרשומות המחויבות בחבילה — בעיקר רשומות עם מספר טלפון — ולא בהכרח לפי מספר האנשים. רשומה יכולה לייצג יחיד, זוג או משפחה. רשומות ללא טלפון נשארות ברשימה ואינן נגרעות מהמכסה. Save the Date והזמנה מוקדמת מחושבים בנפרד מסבבי האישור. חבילת ההודעות, בלי תוספות, היא ${shekel(servicePrice("messages", 200))} ל־200 רשומות, ${shekel(servicePrice("messages", 350))} ל־350, ו־${shekel(servicePrice("messages", 500))} ל־500. המחשבון לא מציין אם הסכום כולל מע״מ.`,
   "/info/guides/when-to-send-rsvp":
     "לחתונות רבות אפשר לשקול אישורי הגעה כשבועיים עד שבועיים וחצי לפני, אחרי Save the Date והזמנה במועדים מוקדמים יותר — ובתנאי שנשאר זמן לסבב נוסף לפני סגירת המנות מול האולם. אין יום קסם קבוע במערכת.",
   "/info/guides/send-digital-invitation":

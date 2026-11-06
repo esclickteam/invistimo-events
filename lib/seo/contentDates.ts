@@ -32,7 +32,7 @@ export const ROUTE_CONTENT_DATES: Record<string, RouteContentDate> = {
   "/terms": { published: "2025-12-15", modified: "2026-10-22" },
   "/privacy": { published: "2025-12-15", modified: "2025-12-15" },
   "/accessibility": { published: "2025-12-15", modified: "2026-10-22" },
-  "/info/guides/cost-rsvp-wedding": { published: "2026-10-25", modified: "2026-11-02" },
+  "/info/guides/cost-rsvp-wedding": { published: "2026-10-25", modified: "2026-11-06" },
   "/info/guides/when-to-send-rsvp": { published: "2026-10-25", modified: "2026-11-02" },
   "/info/guides/send-digital-invitation": { published: "2026-10-26", modified: "2026-11-02" },
   "/info/guides/bit-paybox-wedding-invitation": { published: "2026-10-26", modified: "2026-11-02" },

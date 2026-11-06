@@ -8,6 +8,7 @@ import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
 import { PACKAGE_COMPARISON } from "@/lib/seo/answers";
 import RecordsCalculator from "./RecordsCalculator";
 import { COST_RSVP_FAQS } from "./guideFaqs";
+import { ADDON_PRICE_EXAMPLES, PACKAGE_PRICE_EXAMPLES } from "./priceExamples";
 
 const PATH = "/info/guides/cost-rsvp-wedding";
 
@@ -68,7 +69,7 @@ export default function CostRsvpGuide() {
           <div>
             <p className="text-sm font-black tracking-[0.12em] text-[#7A5530]">מדריך · Invistimo</p>
             <h1 className="mt-3 max-w-2xl text-[1.85rem] font-black leading-[1.18] tracking-[-0.03em] text-[#2C241C] md:text-[2.55rem]">
-              כמה עולים אישורי הגעה לחתונה ואיך מחשבים את המחיר?
+              כמה עולה אישורי הגעה לחתונה, ואיך מחשבים את המחיר?
             </h1>
             <p className="mt-5 max-w-xl text-xl font-bold leading-9 text-[#5E4735]">
               מבינים בדיוק על מה משלמים — מרשימת המוזמנים ועד סבבי אישורי ההגעה.
@@ -137,6 +138,39 @@ export default function CostRsvpGuide() {
           </div>
         </div>
       </header>
+
+      <section id="package-prices" aria-labelledby="package-prices-heading" className="scroll-mt-24 bg-[#FFFDF8] px-5 py-16 md:px-8 md:py-20">
+        <div className="mx-auto max-w-6xl">
+          <div className="max-w-3xl">
+            <Eyebrow>מחיר לפי רשומות</Eyebrow>
+            <h2 id="package-prices-heading" className="mt-3 text-3xl font-black leading-tight text-[#2C241C] md:text-4xl">
+              אישורי הגעה לחתונה — מחיר לפי מספר הרשומות
+            </h2>
+            <div className="mt-5 space-y-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
+              <p>
+                מחיר אישורי הגעה אינו סכום אחד לכל חתונה. הטבלה מציגה את חבילת הבסיס, בלי תוספות,
+                ל־200, ל־350 ול־500 רשומות. רשומה היא מספר טלפון אחד, גם כשמאחוריו זוג או משפחה.
+              </p>
+              <p>
+                בחבילת ההודעות כלולים הזמנה דיגיטלית, שני סבבי WhatsApp, תזכורת SMS עם מספר שולחן
+                והודעת תודה ב־SMS. בחבילות השיחה נוספים שלושה סבבים מוקלטים, שלושה סבבים במוקד אנושי,
+                או שני סבבים מוקלטים וסבב אנושי אחד.
+              </p>
+            </div>
+          </div>
+          <FactTableView table={PACKAGE_PRICE_EXAMPLES} />
+          <FactTableView table={ADDON_PRICE_EXAMPLES} />
+          <p className="mt-6 max-w-3xl text-sm leading-7 text-[#7A6042]">
+            אלה דוגמאות מהמחשבון הציבורי, לא מחיר פתיחה. מספר רשומות אחר מחושב ב־<Link href="/pricing" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">מחשבון החבילות</Link>.
+            בעמוד המחיר לא כתוב אם הסכום כולל מע״מ. Save the Date והזמנה מוקדמת מחושבים בנפרד מסבבי האישור.
+          </p>
+          <div className="mt-8">
+            <TrackedCtaLink href="/pricing" className={ctaPrimary} location={`price_table:${PATH}`}>
+              לחשב את המחיר לפי הרשומות שלכם
+            </TrackedCtaLink>
+          </div>
+        </div>
+      </section>
 
       {/* Core principles */}
       <section aria-labelledby="principles" className="bg-[#FFFDF8] px-5 py-12 md:px-8">
