@@ -144,26 +144,56 @@ test("pending guests use the pending band, not the group band", () => {
   assert.notEqual(result.rangeMid, 96);
 });
 
-test("overlapping RSVP counts are partitioned once", () => {
+test("statuses above the invited total withhold the forecast", () => {
+  const confirmedOnly = computeArrival(input({ groups: [group({ count: 200 })], confirmed: 280 }));
+  assert.equal(confirmedOnly.forecastReady, false);
+  assert.equal(confirmedOnly.rangeMid, 0);
+  assert.equal(confirmedOnly.unusedCost, null);
+  assert.ok(confirmedOnly.warnings[0].includes("מאשרים"));
+
   const result = computeArrival(
     input({
-      groups: [group({ count: 100 })],
-      confirmed: 80,
-      declined: 50,
-      undecided: 30,
-      pending: 40,
+      groups: [group({ count: 200 })],
+      confirmed: 280,
+      declined: 30,
+      pending: 10,
+      undecided: 15,
+      venueMin: 220,
+      mealPrice: 300,
     })
   );
-  assert.equal(result.confirmedReceived, 80);
-  assert.equal(result.declinedReceived, 20);
-  assert.equal(result.undecidedReceived, 0);
-  assert.equal(result.pendingReceived, 0);
-  assert.equal(result.confirmedReceived + result.declinedReceived + result.undecidedReceived + result.pendingReceived, 100);
-  assert.equal(result.rangeMid, 77);
-  assert.ok(result.warnings.some((warning) => warning.includes("פעם אחת")));
+  assert.equal(result.forecastReady, false);
+  assert.equal(result.totalInvited, 200);
+  assert.equal(result.statusSum, 335);
+  assert.equal(result.rangeMid, 0);
+  assert.equal(result.rangeLow, 0);
+  assert.equal(result.rangeHigh, 0);
+  assert.equal(result.remainder, 0);
+  assert.equal(result.unusedCost, null);
+  assert.equal(result.extraCost, null);
+  assert.equal(result.chairs.confirmed, 0);
+  assert.ok(result.warnings[0].includes("אין תחזית"));
 });
 
-test("rsvp counts without groups do not invent extra guests", () => {
+test("unclassified guests are the remainder and are not counted twice", () => {
+  const result = computeArrival(
+    input({
+      groups: [group({ count: 100, lowPct: 40, midPct: 58, highPct: 74 })],
+      confirmed: 20,
+      declined: 10,
+      pending: 0,
+      undecided: 0,
+    })
+  );
+  assert.equal(result.forecastReady, true);
+  assert.equal(result.statusSum, 30);
+  assert.equal(result.remainder, 70);
+  assert.equal(result.confirmedReceived, 20);
+  assert.equal(result.declinedReceived, 10);
+  assert.equal(result.rangeMid, Math.round(20 * 0.96) + Math.round(70 * 0.58));
+});
+
+test("rsvp counts without an invited total do not invent a forecast", () => {
   const result = computeArrival(
     input({
       groups: [group({ count: 0 })],
@@ -172,9 +202,9 @@ test("rsvp counts without groups do not invent extra guests", () => {
       pending: 20,
     })
   );
-  assert.equal(result.totalInvited, 60);
-  assert.equal(result.remainder, 0);
-  assert.equal(result.rangeMid, Math.round(30 * 0.96) + Math.round(20 * 0.45));
+  assert.equal(result.forecastReady, false);
+  assert.equal(result.totalInvited, 0);
+  assert.equal(result.rangeMid, 0);
 });
 
 test("missing contract stays missing and reserves are meals, not guests", () => {

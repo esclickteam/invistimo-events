@@ -121,9 +121,20 @@ function defaultForm(): FormState {
   };
 }
 
+function digitsOnly(raw: string) {
+  return raw.replace(/\D/g, "");
+}
+
+function decimalOnly(raw: string) {
+  const cleaned = raw.replace(/[^\d.]/g, "");
+  const dot = cleaned.indexOf(".");
+  if (dot === -1) return cleaned;
+  return `${cleaned.slice(0, dot + 1)}${cleaned.slice(dot + 1).replace(/\./g, "")}`;
+}
+
 function countFrom(raw: string) {
-  if (!raw.trim()) return 0;
-  const parsed = Number(String(raw).replace(/[^\d.]/g, ""));
+  if (!digitsOnly(raw)) return 0;
+  const parsed = Number(digitsOnly(raw));
   if (!Number.isFinite(parsed) || parsed < 0) return 0;
   return Math.floor(parsed);
 }
@@ -279,7 +290,7 @@ function Stepper({
         aria-label={label}
         className="w-16 border-x border-[#E4D3B8] bg-white text-center text-base font-semibold text-[#2C241C] outline-none"
         value={value}
-        onChange={(event) => onChange(event.target.value)}
+        onChange={(event) => onChange(digitsOnly(event.target.value))}
       />
       <button
         type="button"
@@ -480,17 +491,15 @@ export default function VenueGuaranteeCalculator() {
   }
 
   const headcountValue = form.guestMode === "total" ? form.totalGuests : String(groupSum);
-  const unusedText = (() => {
-    if (result.contractMissing || result.unusedMeals == null) return "";
-    if (result.unusedCost == null) return `${formatPeople(result.unusedMeals)} מנות. חסר מחיר מנה כדי לחשב עלות.`;
-    return `${formatPeople(result.unusedMeals)} מנות · ${formatIls(result.unusedCost)}`;
-  })();
-  const extraText =
-    result.extraMeals != null && result.extraMeals > 0
-      ? result.extraCost != null
-        ? `${formatPeople(result.extraMeals)} מנות מעל ההתחייבות · ${formatIls(result.extraCost)}`
-        : `${formatPeople(result.extraMeals)} מנות מעל ההתחייבות. חסר מחיר מנה נוספת.`
+  const unusedText =
+    result.forecastReady && result.unusedCost != null
+      ? `${formatPeople(result.unusedMeals || 0)} מנות · ${formatIls(result.unusedCost)}`
       : "";
+  const extraText =
+    result.forecastReady && result.extraCost != null
+      ? `${formatPeople(result.extraMeals || 0)} מנות מעל ההתחייבות · ${formatIls(result.extraCost)}`
+      : "";
+  const confirmedShowUp = Math.round((result.confirmedReceived * payload.showUpPct) / 100);
 
   return (
     <div
@@ -536,11 +545,17 @@ export default function VenueGuaranteeCalculator() {
       </nav>
 
       <p className="mt-4 text-sm text-[#5E4735]">
-        הערכה מרכזית כרגע{" "}
-        <button type="button" className="font-black text-[#42182F] underline-offset-4 hover:underline" onClick={() => setStep(2)}>
-          {formatPeople(result.rangeMid)}
-        </button>
-        . זו תחזית, לא הבטחה.
+        {result.forecastReady ? (
+          <>
+            הערכה מרכזית כרגע{" "}
+            <button type="button" className="font-black text-[#42182F] underline-offset-4 hover:underline" onClick={() => setStep(2)}>
+              {formatPeople(result.rangeMid)}
+            </button>
+            . זו תחזית, לא הבטחה.
+          </>
+        ) : (
+          <span role="alert">אי אפשר לחשב תחזית עד שסכום הסטטוסים לא יעבור את מספר המוזמנים.</span>
+        )}
       </p>
 
       {step === 0 ? (
@@ -569,7 +584,7 @@ export default function VenueGuaranteeCalculator() {
               inputMode="numeric"
               className="mt-2 h-20 w-full border border-[#E4D3B8] bg-white px-4 text-5xl font-black tabular-nums text-[#42182F] outline-none focus:border-[#A68448]"
               value={headcountValue}
-              onChange={(event) => setTotal(event.target.value)}
+              onChange={(event) => setTotal(digitsOnly(event.target.value))}
             />
           </label>
           <p className="mt-2 text-sm leading-6 text-[#5E4735]">
@@ -596,7 +611,7 @@ export default function VenueGuaranteeCalculator() {
                       inputMode="decimal"
                       className={inputClass}
                       value={form.overall[key]}
-                      onChange={(event) => patch({ overall: { ...form.overall, [key]: event.target.value } })}
+                      onChange={(event) => patch({ overall: { ...form.overall, [key]: decimalOnly(event.target.value) } })}
                     />
                   </label>
                 ))}
@@ -604,11 +619,11 @@ export default function VenueGuaranteeCalculator() {
             </details>
           ) : (
             <div className="mt-8">
-              <ul className="divide-y divide-[#F0E4D0] border-y border-[#F0E4D0]">
+              <ul className="max-w-xl divide-y divide-[#F0E4D0] border-y border-[#F0E4D0]">
                 {BUILTIN_GROUPS.map((group) => (
-                  <li key={group.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
-                    <span className="min-w-40 text-base font-bold text-[#2C241C]">{group.label}</span>
-                    <div className="flex flex-wrap items-center gap-3">
+                  <li key={group.id} className="flex flex-wrap items-center gap-3 py-2">
+                    <span className="w-36 text-sm font-bold text-[#2C241C]">{group.label}</span>
+                    <div className="flex items-center gap-3">
                       <Stepper
                         label={`כמות ב${group.label}`}
                         value={form.counts[group.id]}
@@ -623,7 +638,7 @@ export default function VenueGuaranteeCalculator() {
                           value={form.rates[group.id].mid}
                           onChange={(event) =>
                             patch({
-                              rates: { ...form.rates, [group.id]: { ...form.rates[group.id], mid: event.target.value } },
+                              rates: { ...form.rates, [group.id]: { ...form.rates[group.id], mid: decimalOnly(event.target.value) } },
                             })
                           }
                         />
@@ -705,7 +720,7 @@ export default function VenueGuaranteeCalculator() {
                           value={form.rates[group.id].low}
                           onChange={(event) =>
                             patch({
-                              rates: { ...form.rates, [group.id]: { ...form.rates[group.id], low: event.target.value } },
+                              rates: { ...form.rates, [group.id]: { ...form.rates[group.id], low: decimalOnly(event.target.value) } },
                             })
                           }
                         />
@@ -718,7 +733,7 @@ export default function VenueGuaranteeCalculator() {
                           value={form.rates[group.id].high}
                           onChange={(event) =>
                             patch({
-                              rates: { ...form.rates, [group.id]: { ...form.rates[group.id], high: event.target.value } },
+                              rates: { ...form.rates, [group.id]: { ...form.rates[group.id], high: decimalOnly(event.target.value) } },
                             })
                           }
                         />
@@ -744,7 +759,7 @@ export default function VenueGuaranteeCalculator() {
                             onChange={(event) =>
                               patch({
                                 custom: form.custom.map((item) =>
-                                  item.id === group.id ? { ...item, [key]: event.target.value } : item
+                                  item.id === group.id ? { ...item, [key]: decimalOnly(event.target.value) } : item
                                 ),
                               })
                             }
@@ -801,35 +816,53 @@ export default function VenueGuaranteeCalculator() {
             />
           </div>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <ul className="mt-5 max-w-xl divide-y divide-[#F0E4D0] border-y border-[#F0E4D0]">
             {(
               [
                 ["confirmed", "כמה כבר אישרו?", "נתון שהתקבל, לא תחזית"],
                 ["declined", "כמה כבר סירבו?", "לא נספרים כמגיעים"],
-                ["pending", "כמה עוד לא ענו?", "ממתינים. לא נספרים כסירוב"],
-                ["undecided", "כמה מתלבטים?", "ענו שהם עדיין לא סגורים"],
+                ["pending", "כמה עוד לא ענו?", "לא נספרים כסירוב"],
+                ["undecided", "כמה מתלבטים?", "עדיין לא סגורים"],
               ] as const
             ).map(([key, label, hint]) => (
-              <div key={key}>
-                <p className="text-sm font-bold text-[#3A2433]">{label}</p>
-                <p className="mt-1 text-sm leading-6 text-[#5E4735]">{hint}</p>
-                <div className="mt-2">
-                  <Stepper label={label} value={form[key]} onChange={(value) => patch({ [key]: value })} />
+              <li key={key} className="flex items-center gap-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-[#3A2433]">{label}</p>
+                  <p className="text-xs leading-5 text-[#5E4735]">{hint}</p>
                 </div>
-              </div>
+                <Stepper label={label} value={form[key]} onChange={(value) => patch({ [key]: value })} />
+              </li>
             ))}
+          </ul>
+
+          <div
+            className={`mt-4 max-w-xl px-1 py-3 text-sm leading-6 ${
+              result.forecastReady ? "text-[#5E4735]" : "border-r-2 border-[#8E3A4B] pr-3 text-[#6E3038]"
+            }`}
+            role={result.forecastReady ? "status" : "alert"}
+          >
+            <p>סך המוזמנים: {formatPeople(result.totalInvited)}</p>
+            <p>עם סטטוס: {formatPeople(result.statusSum)}</p>
+            {result.forecastReady ? (
+              result.remainder > 0 ? (
+                <p>טרם סווגו: {formatPeople(result.remainder)}. הם נכנסים לתחזית לפי הקבוצות, פעם אחת בלבד.</p>
+              ) : (
+                <p>טרם סווגו: 0. כל המוזמנים כבר משויכים לסטטוס.</p>
+              )
+            ) : (
+              <p>{result.warnings[0]}</p>
+            )}
           </div>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          <div className="mt-5 grid max-w-xl gap-4">
             <label className="grid gap-1 text-sm font-bold text-[#3A2433]">
               כמה אורחים התחייבתם לאולם?
-              <input className={inputClass} inputMode="numeric" placeholder="אין עדיין מספר בחוזה" value={form.venueMin} onChange={(event) => patch({ venueMin: event.target.value })} />
-              <span className="text-sm font-semibold leading-6 text-[#5E4735]">השאירו ריק אם אין מספר. לא נמציא התחייבות.</span>
+              <input className={`${inputClass} max-w-36`} inputMode="numeric" placeholder="אין חוזה" value={form.venueMin} onChange={(event) => patch({ venueMin: digitsOnly(event.target.value) })} />
+              <span className="text-xs font-semibold leading-5 text-[#5E4735]">השאירו ריק אם אין מספר. לא נמציא התחייבות.</span>
             </label>
             <label className="grid gap-1 text-sm font-bold text-[#3A2433]">
               כמה אורחים האולם יכול להכיל?
-              <input className={inputClass} inputMode="numeric" placeholder="לא ידוע" value={form.capacity} onChange={(event) => patch({ capacity: event.target.value })} />
-              <span className="text-sm font-semibold leading-6 text-[#5E4735]">רק כדי להזהיר אם התכנון עובר את הקיבולת.</span>
+              <input className={`${inputClass} max-w-36`} inputMode="numeric" placeholder="לא ידוע" value={form.capacity} onChange={(event) => patch({ capacity: digitsOnly(event.target.value) })} />
             </label>
           </div>
 
@@ -838,7 +871,7 @@ export default function VenueGuaranteeCalculator() {
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="grid gap-1 text-sm font-bold text-[#3A2433]">
                 איזה חלק מהמאשרים צפוי להגיע? %
-                <input className={inputClass} inputMode="decimal" value={form.showUp} onChange={(event) => patch({ showUp: event.target.value })} />
+                <input className={`${inputClass} max-w-36`} inputMode="decimal" value={form.showUp} onChange={(event) => patch({ showUp: decimalOnly(event.target.value) })} />
                 <span className="font-semibold text-[#5E4735]">ברירת מחדל 96%, עם ארבע נקודות מכל צד. לא הבטחה.</span>
               </label>
               <label className="grid gap-1 text-sm font-bold text-[#3A2433]">
@@ -848,11 +881,11 @@ export default function VenueGuaranteeCalculator() {
               </label>
               <label className="grid gap-1 text-sm font-bold text-[#3A2433]">
                 מחיר מנה (₪)
-                <input className={inputClass} inputMode="decimal" placeholder="לא הוזן" value={form.mealPrice} onChange={(event) => patch({ mealPrice: event.target.value })} />
+                <input className={`${inputClass} max-w-36`} inputMode="decimal" placeholder="לא הוזן" value={form.mealPrice} onChange={(event) => patch({ mealPrice: decimalOnly(event.target.value) })} />
               </label>
               <label className="grid gap-1 text-sm font-bold text-[#3A2433]">
                 מחיר מנה נוספת (₪)
-                <input className={inputClass} inputMode="decimal" placeholder="לא הוזן" value={form.extraMealPrice} onChange={(event) => patch({ extraMealPrice: event.target.value })} />
+                <input className={`${inputClass} max-w-36`} inputMode="decimal" placeholder="לא הוזן" value={form.extraMealPrice} onChange={(event) => patch({ extraMealPrice: decimalOnly(event.target.value) })} />
               </label>
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -862,7 +895,7 @@ export default function VenueGuaranteeCalculator() {
                   {(["low", "mid", "high"] as const).map((key) => (
                     <label key={key} className="grid gap-1 text-xs font-bold text-[#5E4735]">
                       {key === "low" ? "נמוך" : key === "mid" ? "אמצע" : "גבוה"}
-                      <input className={inputClass} inputMode="decimal" value={form.pendingBand[key]} onChange={(event) => patch({ pendingBand: { ...form.pendingBand, [key]: event.target.value } })} />
+                      <input className={`${inputClass} max-w-24`} inputMode="decimal" value={form.pendingBand[key]} onChange={(event) => patch({ pendingBand: { ...form.pendingBand, [key]: decimalOnly(event.target.value) } })} />
                     </label>
                   ))}
                 </div>
@@ -873,7 +906,7 @@ export default function VenueGuaranteeCalculator() {
                   {(["low", "mid", "high"] as const).map((key) => (
                     <label key={key} className="grid gap-1 text-xs font-bold text-[#5E4735]">
                       {key === "low" ? "נמוך" : key === "mid" ? "אמצע" : "גבוה"}
-                      <input className={inputClass} inputMode="decimal" value={form.undecidedBand[key]} onChange={(event) => patch({ undecidedBand: { ...form.undecidedBand, [key]: event.target.value } })} />
+                      <input className={`${inputClass} max-w-24`} inputMode="decimal" value={form.undecidedBand[key]} onChange={(event) => patch({ undecidedBand: { ...form.undecidedBand, [key]: decimalOnly(event.target.value) } })} />
                     </label>
                   ))}
                 </div>
@@ -883,7 +916,22 @@ export default function VenueGuaranteeCalculator() {
         </section>
       ) : null}
 
-      {step === 2 ? (
+      {step === 2 && !result.forecastReady ? (
+        <section className="mx-auto mt-8 max-w-xl" aria-labelledby="forecast-step">
+          <h3 id="forecast-step" className="text-3xl font-black text-[#2C241C]">אי אפשר להציג תחזית</h3>
+          <p className="mt-4 border-r-2 border-[#8E3A4B] pr-4 text-base leading-7 text-[#6E3038]" role="alert">
+            {result.warnings[0]}
+          </p>
+          <p className="mt-3 text-sm leading-6 text-[#5E4735]">
+            סך המוזמנים הוא {formatPeople(result.totalInvited)}. הסטטוסים שהוזנו מסתכמים ב־{formatPeople(result.statusSum)}.
+          </p>
+          <button type="button" className={`${primaryBtn} mt-6`} onClick={() => setStep(1)}>
+            תיקון נתוני האירוע
+          </button>
+        </section>
+      ) : null}
+
+      {step === 2 && result.forecastReady ? (
         <section className="mt-8" aria-labelledby="forecast-step">
           <div className="grid items-start gap-10 lg:grid-cols-2">
             <div>
@@ -900,10 +948,22 @@ export default function VenueGuaranteeCalculator() {
                   : "קצות הטווח נפגשים במספר הזה."}
               </p>
               <p className="mt-2 text-base leading-7 text-[#5E4735]">זו הערכה לפי הנחות גלויות, לא מספר לחתימה ולא הבטחה.</p>
-              <p className="mt-4 text-base font-bold text-[#8E3A4B]">
-                אישרו בפועל: {formatPeople(result.confirmedReceived)}
-              </p>
-              <p className="text-sm leading-6 text-[#5E4735]">זה נתון שהוזן, בנפרד מהתחזית.</p>
+              {result.confirmedReceived > 0 ? (
+                <div className="mt-5 border-r-2 border-[#C6A15A] pr-4">
+                  <p className="text-base font-bold text-[#8E3A4B]">אישרו בפועל: {formatPeople(result.confirmedReceived)}</p>
+                  <p className="mt-1 text-sm leading-6 text-[#3A2433]">
+                    זה אינו מספר התחזית. ההערכה מניחה שכ־{Math.round(payload.showUpPct)}% מהמאשרים יגיעו, ולכן נספרים{" "}
+                    {formatPeople(confirmedShowUp)} מתוכם. ההפרש של {formatPeople(Math.max(0, result.confirmedReceived - confirmedShowUp))} אינו סירוב ואינו ביטול.
+                  </p>
+                </div>
+              ) : (
+                <p className="mt-4 text-sm leading-6 text-[#5E4735]">עדיין לא הוזנו אישורי הגעה. המספר למעלה הוא תחזית בלבד.</p>
+              )}
+              {result.remainder > 0 ? (
+                <p className="mt-3 text-sm leading-6 text-[#5E4735]">
+                  {formatPeople(result.remainder)} מוזמנים עדיין בלי סטטוס. הם נכללים בתחזית לפי הקבוצות, ולא נספרים פעם נוספת.
+                </p>
+              ) : null}
 
               <dl className="mt-8">
                 <Stat label="מוזמנים בסך הכול" value={formatPeople(result.totalInvited)} />

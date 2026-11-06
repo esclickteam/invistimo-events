@@ -80,6 +80,7 @@ export default function ArrivalMap({
   onSeatsChange: (value: string) => void;
 }) {
   const [open, setOpen] = useState(true);
+  const [showAll, setShowAll] = useState(false);
   const picture = useMemo(() => {
     const parsed = Number(String(seatsValue).replace(/[^\d.]/g, ""));
     return illustrateChairs(result.chairs, Number.isFinite(parsed) ? parsed : 10);
@@ -155,10 +156,20 @@ export default function ArrivalMap({
             className="grid justify-center gap-x-3 gap-y-4"
             style={{ gridTemplateColumns: "repeat(auto-fill, minmax(4.75rem, 4.75rem))" }}
           >
-            {picture.tables.map((seatsOnTable, index) => (
+            {(showAll ? picture.tables : picture.tables.slice(0, 8)).map((seatsOnTable, index) => (
               <TableFigure key={index} number={index + 1} seats={seatsOnTable} />
             ))}
           </div>
+          {picture.tables.length > 8 ? (
+            <button
+              type="button"
+              className="mt-4 inline-flex min-h-11 items-center border border-[#D9C4A4] bg-white px-4 text-sm font-bold text-[#5E4735]"
+              aria-expanded={showAll}
+              onClick={() => setShowAll((current) => !current)}
+            >
+              {showAll ? "הצגת פחות שולחנות" : `הצגת כל ${picture.tables.length} השולחנות`}
+            </button>
+          ) : null}
           {picture.truncated > 0 ? (
             <p className="mt-3 text-sm leading-6 text-[#5E4735]">
               הציור מציג את {(picture.drawnPeople + picture.drawnCommitment).toLocaleString("he-IL")} המושבים הראשונים.

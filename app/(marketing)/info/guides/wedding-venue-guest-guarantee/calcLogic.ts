@@ -7,11 +7,10 @@
  *
  * Counting
  * 1. Invited guests are the sum of the groups.
- * 2. If every group is 0 but RSVP counts were typed, those counts are the
- *    invited total and nothing is forecast from a group.
- * 3. RSVP statuses are a partition of the invited guests, never a second list.
- *    When the typed statuses exceed the total, people are kept in this order:
- *    confirmed, declined, undecided, pending. What remains is unclassified.
+ * 2. Status counts are not a second guest list. If their sum is larger than
+ *    the invited total, the forecast is withheld until the numbers fit.
+ * 3. When the sum is smaller, the difference is unclassified. Only that
+ *    remainder is forecast from group bands, and it is not counted again.
  * 4. Declined guests contribute 0 arrivals and are not forecast again.
  * 5. A confirmed count is data the user entered. A visible show-up rate
  *    (default 96%, with a band of 4 points on each side) turns it into a
@@ -216,6 +215,8 @@ export type ArrivalResult = {
   chairs: ChairCounts;
   warnings: string[];
   assumptions: string[];
+  forecastReady: boolean;
+  statusSum: number;
 };
 
 const WEEKDAYS = new Set<string>(Object.keys(DAY_SHIFT));
@@ -315,15 +316,48 @@ export function computeArrival(raw: ArrivalInputs): ArrivalResult {
   };
   const requestedSum = requested.confirmed + requested.declined + requested.undecided + requested.pending;
 
-  let totalInvited = groupTotal;
+  const totalInvited = groupTotal;
   const warnings: string[] = [];
-  if (groupTotal === 0 && requestedSum > 0) {
-    totalInvited = requestedSum;
-    warnings.push("לא הוזנו קבוצות. החישוב נשען רק על נתוני האישורים שהוזנו, בלי תחזית נוספת לפי קרבה.");
-  } else if (groupTotal > 0 && requestedSum > groupTotal) {
-    warnings.push(
-      "סכום האישורים גדול ממספר המוזמנים. כל אדם נספר פעם אחת, לפי הסדר: אישרו, סירבו, מתלבטים, ממתינים."
-    );
+  if (requestedSum > totalInvited) {
+    const overflow = requestedSum - totalInvited;
+    const lead =
+      requested.confirmed > totalInvited
+        ? `מספר המאשרים (${requested.confirmed.toLocaleString("he-IL")}) גדול ממספר המוזמנים (${totalInvited.toLocaleString("he-IL")}).`
+        : `סכום הסטטוסים (${requestedSum.toLocaleString("he-IL")}) גדול ממספר המוזמנים (${totalInvited.toLocaleString("he-IL")}).`;
+    const venueMin = raw.venueMin == null ? null : clampCount(raw.venueMin);
+    const capacity = raw.capacity == null ? null : clampCount(raw.capacity);
+    return {
+      totalInvited,
+      confirmedReceived: requested.confirmed,
+      declinedReceived: requested.declined,
+      undecidedReceived: requested.undecided,
+      pendingReceived: requested.pending,
+      remainder: 0,
+      rangeLow: 0,
+      rangeMid: 0,
+      rangeHigh: 0,
+      isRange: false,
+      recommendedPortions: 0,
+      reserveMeals: clampCount(raw.reserveMeals),
+      venueMin,
+      contractMissing: venueMin == null,
+      capacity,
+      unusedMeals: null,
+      unusedCost: null,
+      extraMeals: null,
+      extraCost: null,
+      overCapacity: false,
+      contextShift: 0,
+      chairs: emptyChairs(),
+      warnings: [
+        `${lead} חורגים ב־${overflow.toLocaleString("he-IL")} אנשים, ולכן אין תחזית. כל אדם יכול להופיע רק בסטטוס אחד.`,
+      ],
+      assumptions: [
+        "התחזית מושהית עד שסכום האישורים, הסירובים, הממתינים והמתלבטים אינו עובר את מספר המוזמנים.",
+      ],
+      forecastReady: false,
+      statusSum: requestedSum,
+    };
   }
 
   let room = totalInvited;
@@ -473,6 +507,8 @@ export function computeArrival(raw: ArrivalInputs): ArrivalResult {
     chairs,
     warnings,
     assumptions,
+    forecastReady: true,
+    statusSum: requestedSum,
   };
 }
 
