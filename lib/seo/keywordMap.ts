@@ -105,7 +105,7 @@ export const KEYWORD_MAP: KeywordRow[] = [
     volume: null,
     competition: null,
     observation:
-      "Search Console, 8.8.2026 עד 5.11.2026: 81 חשיפות, 5 קליקים, 6.2%, מיקום 35.8. /rsvp קיבל 4 מתוך 5 הקליקים ונשאר עמוד המערכת. הביטוי המדויק בקישורים הפנימיים מוביל רק ל־/rsvp/chatuna.",
+      "Search Console, 8.8.2026 עד 5.11.2026: 81 חשיפות, 5 קליקים, 6.2%, מיקום 35.8. /rsvp קיבל 4 מתוך 5 הקליקים ונשאר עמוד המערכת. /rsvp הוא עמוד השירות לביטוי, ו־/rsvp/chatuna הוא עמוד משלים לחתונה, לאולם ולמנות.",
   },
   {
     query: "אישורי הגעה לאירועים",
@@ -114,7 +114,7 @@ export const KEYWORD_MAP: KeywordRow[] = [
     supportingPaths: ["/rsvp/chatuna", "/faq"],
     volume: null,
     competition: null,
-    observation: "העמוד המרכזי לכל סוגי האירוע. עמוד החתונה נשאר לביטוי החתונה.",
+    observation: "העמוד המרכזי לכל סוגי האירוע. ביטוי «אישורי הגעה לחתונה» שייך ל־/rsvp, ו־/rsvp/chatuna משלים על האולם והמנות.",
   },
   {
     query: "אישורי הגעה לבר מצווה",
@@ -898,7 +898,7 @@ export const KEYWORD_MAP: KeywordRow[] = [
     supportingPaths: ["/info/guides/bit-paybox-wedding-invitation"],
     volume: null,
     competition: null,
-    observation: "H2/מדריך מעשי; לא עמוד שירות נפרד כדי למנוע קניבליזציה.",
+    observation: "המדריך מסביר את המתנה בביט. השירות עצמו נשאר בעמוד המתנות.",
   },
   {
     query: "מתנות לחתונה בפייבוקס",
