@@ -2,6 +2,8 @@
 
 Use only after property access is granted. Do not open paid tools without approval.
 
+Focused tasks for אישורי הגעה וסידורי הושבה live in `lib/seo/geoTasks.ts` (`GEO_TASKS`: query, primary page, priority, evidence, recommendation). They are not rendered on the public site. The latest evidence is the manual Search Console export through 2026-11-02; this repo still has no Search Console API client.
+
 ## Properties to connect
 
 | System | Env / action | Status |

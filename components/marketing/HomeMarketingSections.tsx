@@ -158,6 +158,13 @@ const SERVICE_LINKS = [
   { href: "/info/guides/guest-list", title: "ניהול מוזמנים", body: "רשימה אחת עם סטטוסים ועדכונים." },
   { href: "/rsvp/whatsapp", title: "תזכורות והודעות", body: "שומרים על קשר גם אחרי השליחה." },
   { href: "/event-management", title: "ניהול האירוע", body: "משימות, ספקים ותקציב במקום אחד." },
+  { href: "/pricing", title: "חבילות ומחירים", body: "בוחרים רשומות ורואים מה כלול באישורים ובהושבה." },
+  {
+    href: "/info/guides/wedding-seating-arrangements",
+    title: "מדריך סידורי הושבה",
+    body: "איך מחלקים שולחנות, מאשרים ורזרבות לפני שבונים את המפה.",
+  },
+  { href: "/try", title: "הדגמה", body: "אפשר לעבור על הזרימה לפני שפונים לצוות." },
 ] as const;
 
 const EVENTS = [
@@ -425,11 +432,25 @@ export default function HomeMarketingSections() {
               id="home-services"
               className="lux-display mt-4 max-w-3xl text-[32px] text-[#42182F] md:text-[48px]"
             >
-              כל הפרטים מתחברים לאירוע אחד מושלם
+              אישורי הגעה וסידורי הושבה, כל אחד בעמוד שלו
             </h2>
             <p className="lux-lede mt-5 max-w-3xl">
-              כל שירות עומד בפני עצמו. מתחילים מהזמנה, ומוסיפים אישורים או הושבה רק כשהאירוע
-              דורש את זה. למטה אפשר לנסות את הזרימה.
+              כאן רואים איך השירותים יושבים יחד. לפירוט עוברים{" "}
+              <Link href="/rsvp" className="font-bold underline-offset-4 hover:underline">
+                למערכת אישורי ההגעה
+              </Link>
+              ,{" "}
+              <Link href="/seating-explained" className="font-bold underline-offset-4 hover:underline">
+                לסידורי הושבה לחתונה
+              </Link>{" "}
+              ו
+              <Link
+                href="/info/guides/wedding-seating-arrangements"
+                className="font-bold underline-offset-4 hover:underline"
+              >
+                למדריך חלוקת השולחנות
+              </Link>
+              .
             </p>
           </Reveal>
 

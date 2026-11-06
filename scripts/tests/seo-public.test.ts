@@ -13,6 +13,7 @@ import {
 import { PAGE_ANSWERS, tableFor } from "../../lib/seo/answers";
 import { PILLARS } from "../../lib/seo/clusters";
 import { GUIDES, guidePath } from "../../lib/seo/guides";
+import { GEO_TASKS } from "../../lib/seo/geoTasks";
 import { AI_MONITOR_QUESTIONS, KEYWORD_MAP } from "../../lib/seo/keywordMap";
 import {
   articleNode,
@@ -397,6 +398,43 @@ test("each search query has one primary page and no invented volume", () => {
     for (const support of row.supportingPaths) assert.ok(known.has(support), support);
   }
   assert.ok(AI_MONITOR_QUESTIONS.length >= 6);
+});
+
+test("geo tasks name one primary page for the rsvp and seating queries", () => {
+  const queries = [
+    "אישורי הגעה וסידורי הושבה",
+    "אישורי הגעה לחתונה",
+    "סידורי הושבה לחתונה",
+    "מערכת אישורי הגעה",
+    "אישורי הגעה בוואטסאפ",
+    "מערכת לניהול מוזמנים",
+  ];
+  const known = new Set([
+    ...CORE_PUBLIC_ROUTES.map((route) => route.path),
+    ...GUIDES.map((guide) => guidePath(guide.slug)),
+  ]);
+  const primaries = new Map<string, string>([
+    ["אישורי הגעה וסידורי הושבה", "/"],
+    ["אישורי הגעה לחתונה", "/rsvp/chatuna"],
+    ["סידורי הושבה לחתונה", "/seating-explained"],
+    ["מערכת אישורי הגעה", "/rsvp"],
+    ["אישורי הגעה בוואטסאפ", "/rsvp/whatsapp"],
+    ["מערכת לניהול מוזמנים", "/rsvp"],
+  ]);
+  for (const query of queries) {
+    const task = GEO_TASKS.find((item) => item.query === query);
+    const row = KEYWORD_MAP.find((item) => item.query === query);
+    assert.ok(task, query);
+    assert.ok(row, query);
+    assert.equal(task?.primaryPath, primaries.get(query));
+    assert.equal(row?.primaryPath, task?.primaryPath);
+    assert.ok(known.has(task!.primaryPath));
+    assert.ok(task!.evidence.length > 40);
+    assert.ok(task!.recommendation.length > 40);
+    assert.match(task!.priority, /^(high|medium)$/);
+  }
+  assert.equal(new Set(GEO_TASKS.map((task) => task.id)).size, GEO_TASKS.length);
+  assert.doesNotMatch(JSON.stringify(GEO_TASKS), /AggregateRating|Review/);
 });
 
 test("pillar clusters do not assign one URL to two topics and answer-first covers hubs", () => {

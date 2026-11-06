@@ -292,6 +292,25 @@ export default function ChatunaMarketingPage() {
               המוזמנים במקום אחד. במקום עשרות הודעות, טלפונים ורשימות שמתעדכנות בלי סוף — יש לכם תהליך
               מסודר שמלווה אתכם עד האירוע.
             </p>
+            <p className="mt-4 max-w-xl text-[15px] leading-7 text-[#5C4A3A]">
+              זה העמוד לחתונה.{" "}
+              <Link href={LINKS.rsvp} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                מערכת אישורי ההגעה
+              </Link>{" "}
+              מכסה גם אירועים אחרים,{" "}
+              <Link href={LINKS.whatsapp} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                עמוד אישורי ההגעה בוואטסאפ
+              </Link>{" "}
+              מסביר את הערוץ, ו
+              <Link href={LINKS.seating} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                סידורי הושבה
+              </Link>{" "}
+              ממשיכים אחרי שיש תשובות. לחלוקת שולחנות ורזרבות יש{" "}
+              <Link href={LINKS.seatingDecisions} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                מדריך נפרד
+              </Link>
+              .
+            </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <CtaLink href={LINKS.pricing} variant="primary" location="chatuna_hero_pricing">
                 לצפייה בחבילות אישורי הגעה
