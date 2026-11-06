@@ -4,6 +4,7 @@
  * Rule for future pages: build content → desktop/mobile QA → SEO check →
  * owner approval → publish → then add the link here. Never add Preview/WIP URLs.
  */
+import { GUIDE_CATEGORIES, type GuideCategory } from "@/lib/marketing/guideCatalog";
 
 export type HeaderNavLink = {
   href: string;
@@ -25,6 +26,13 @@ export type HeaderNavItem =
       kind: "mega" | "dropdown";
       columns: HeaderNavColumn[];
       footerLink?: HeaderNavLink;
+    }
+  | {
+      id: string;
+      label: string;
+      kind: "guides";
+      categories: GuideCategory[];
+      footerLink: HeaderNavLink;
     };
 
 /** Service pages that exist with real content today. */
@@ -107,200 +115,6 @@ export const EVENT_LINKS: HeaderNavLink[] = [
   { href: "/rsvp/brit-brita", label: "ברית ובריתה" },
 ];
 
-/**
- * All published guides, each listed once under a single topic.
- * Hub `/info/guides` remains the full index.
- */
-export const GUIDE_COLUMNS: HeaderNavColumn[] = [
-  {
-    id: "planning",
-    title: "תכנון חתונה",
-    links: [
-      {
-        href: "/info/guides/wedding-planning",
-        label: "המדריך המלא לתכנון חתונה",
-      },
-      {
-        href: "/info/guides/event-management-vs-production",
-        label: "ניהול אירוע או הפקת אירוע",
-      },
-      {
-        href: "/info/guides/event-day-checklist",
-        label: "בדיקה לפני יום האירוע",
-      },
-      {
-        href: "/info/guides/send-digital-invitation",
-        label: "איך שולחים הזמנה דיגיטלית לחתונה",
-      },
-      {
-        href: "/info/guides/bit-paybox-wedding-invitation",
-        label: "bit ו־PayBox בהזמנה",
-      },
-      {
-        href: "/info/guides/save-the-date-vs-invitation",
-        label: "Save the Date מול הזמנה",
-      },
-    ],
-  },
-  {
-    id: "vendors-budget",
-    title: "ספקים, חוזים ותקציב",
-    links: [
-      {
-        href: "/info/guides/wedding-vendors-contracts",
-        label: "בחירת ספקים וחוזים",
-      },
-      {
-        href: "/info/guides/cost-rsvp-wedding",
-        label: "כמה עולים אישורי הגעה",
-      },
-    ],
-  },
-  {
-    id: "guests-rsvp",
-    title: "רשימות מוזמנים ואישורי הגעה",
-    links: [
-      { href: "/info/guides/guest-list", label: "ניהול רשימת מוזמנים" },
-      {
-        href: "/info/guides/how-to-choose-rsvp-company",
-        label: "איך בוחרים חברת אישורי הגעה",
-      },
-      {
-        href: "/info/guides/when-to-send-rsvp",
-        label: "מתי שולחים אישורי הגעה",
-      },
-      {
-        href: "/info/guides/guests-who-dont-reply",
-        label: "אורחים שלא עונים",
-      },
-      {
-        href: "/info/guides/whatsapp-vs-sms-rsvp",
-        label: "WhatsApp או SMS",
-      },
-    ],
-  },
-  {
-    id: "venues-seating",
-    title: "אולמות וסידורי הושבה",
-    links: [
-      {
-        href: "/info/guides/wedding-seating-arrangements",
-        label: "סידורי הושבה לחתונה — המדריך המלא",
-      },
-      {
-        href: "/info/guides/seating-plan",
-        label: "איך מכינים סידורי הושבה — צעד אחר צעד",
-      },
-      {
-        href: "/info/guides/seating-cards-vs-qr",
-        label: "פתקיות הושבה או QR דיגיטלי?",
-      },
-      {
-        href: "/info/guides/table-number-message",
-        label: "הודעת מספר שולחן לאורחים",
-      },
-      {
-        href: "/info/guides/wedding-venue-guest-guarantee",
-        label: "כמה אורחים להתחייב לאולם",
-      },
-    ],
-  },
-  {
-    id: "tools",
-    title: "כלים ומחשבונים",
-    links: [
-      {
-        href: "/info/guides/wedding-alcohol-calculator",
-        label: "מחשבון אלכוהול לחתונה",
-      },
-    ],
-  },
-  {
-    id: "rsvp-followup",
-    title: "מעקב אחרי התשובות",
-    links: [
-      {
-        href: "/info/guides/tracking-rsvp-responses",
-        label: "מעקב אחרי תשובות אישורי הגעה",
-      },
-      {
-        href: "/info/guides/how-phone-rsvp-works",
-        label: "איך עובדות שיחות אישור ההגעה",
-      },
-      {
-        href: "/info/guides/rsvp-reminder-rounds",
-        label: "סבבי תזכורת למי שלא ענה",
-      },
-      {
-        href: "/info/guides/personal-rsvp-link",
-        label: "קישור אישי לאישור הגעה",
-      },
-      {
-        href: "/info/guides/manage-guests-after-rsvp",
-        label: "ניהול אורחים אחרי האישור",
-      },
-      {
-        href: "/info/guides/import-guest-list",
-        label: "בניית וייבוא רשימת מוזמנים",
-      },
-      {
-        href: "/info/guides/plus-ones-and-kids-rsvp",
-        label: "מלווים וילדים באישור ההגעה",
-      },
-      {
-        href: "/info/guides/overseas-guests-rsvp",
-        label: "אורחים מחו״ל",
-      },
-      {
-        href: "/info/guides/last-minute-guest-changes",
-        label: "שינויי הגעה ברגע האחרון",
-      },
-      {
-        href: "/info/guides/whatsapp-invitation-wording",
-        label: "ניסוח הודעת הזמנה ב־WhatsApp",
-      },
-      {
-        href: "/info/guides/rsvp-corporate-events",
-        label: "אישורי הגעה לאירוע חברה",
-      },
-    ],
-  },
-  {
-    id: "day-of",
-    title: "אתר החתונה ויום האירוע",
-    links: [
-      {
-        href: "/info/guides/wedding-website-guide",
-        label: "מדריך אתר חתונה",
-      },
-      {
-        href: "/info/guides/wedding-website-vs-digital-invitation",
-        label: "אתר חתונה מול הזמנה דיגיטלית",
-      },
-      {
-        href: "/info/guides/when-to-send-save-the-date",
-        label: "מתי שולחים Save the Date",
-      },
-      {
-        href: "/info/guides/seating-live-day-of",
-        label: "הושבה ביום האירוע",
-      },
-      {
-        href: "/info/guides/seating-families-groups",
-        label: "הושבת משפחות וקבוצות",
-      },
-      {
-        href: "/info/guides/venue-guest-check-in",
-        label: "קבלת אורחים באולם",
-      },
-      {
-        href: "/info/guides/reduce-meal-waste",
-        label: "צמצום בזבוז מנות",
-      },
-    ],
-  },
-];
-
 export const HEADER_PRIMARY: HeaderNavItem[] = [
   { id: "home", label: "ראשי", href: "/", kind: "link" },
   {
@@ -324,11 +138,11 @@ export const HEADER_PRIMARY: HeaderNavItem[] = [
   {
     id: "guides",
     label: "מדריכים",
-    kind: "mega",
-    columns: GUIDE_COLUMNS,
+    kind: "guides",
+    categories: GUIDE_CATEGORIES,
     footerLink: {
       href: "/info/guides",
-      label: "כל המדריכים",
+      label: "לכל המדריכים",
     },
   },
   { id: "pricing", label: "חבילות ומחירים", href: "/pricing", kind: "link" },
@@ -342,6 +156,13 @@ export function collectHeaderHrefs(): string[] {
   for (const item of HEADER_PRIMARY) {
     if (item.kind === "link") {
       hrefs.add(item.href);
+      continue;
+    }
+    if (item.kind === "guides") {
+      hrefs.add(item.footerLink.href);
+      for (const category of item.categories) {
+        for (const link of category.featured) hrefs.add(link.href);
+      }
       continue;
     }
     for (const column of item.columns) {
