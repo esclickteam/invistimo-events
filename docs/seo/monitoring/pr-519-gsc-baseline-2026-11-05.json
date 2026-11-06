@@ -1,0 +1,97 @@
+{
+  "property": "sc-domain:invistimo.com",
+  "source": "https://github.com/esclickteam/invistimo-events/pull/519",
+  "sourceCommit": "db9f51c29e5a9c6f442e9a2c7a33c0b556e8a473",
+  "window": {
+    "label": "90 days",
+    "start": "2026-08-08",
+    "end": "2026-11-05",
+    "timezone": "Asia/Jerusalem"
+  },
+  "frozenBefore": {
+    "event": "PR #519 merged to main",
+    "at": "2026-11-06T22:54:24+02:00"
+  },
+  "after": {
+    "status": "awaiting_remeasurement",
+    "note": "No Search Console export was taken after the merge. Do not fill clicks, impressions, or position with zeros. The next manual export is the after column. Do not run a paid AI answer check."
+  },
+  "queries": [
+    {
+      "query": "אישורי הגעה",
+      "owner": "/rsvp",
+      "impressions": 177,
+      "clicks": 3,
+      "ctr": 0.0169,
+      "ctrNote": "3/177, calculated from the PR #519 counts",
+      "position": 29.3,
+      "pages": [
+        {
+          "url": "split across the cost guide, /rsvp, the guides, and WhatsApp",
+          "note": "PR #519 did not publish a per-URL count for this query."
+        }
+      ]
+    },
+    {
+      "query": "אישורי הגעה לחתונה",
+      "owner": "/rsvp",
+      "impressions": 81,
+      "clicks": 5,
+      "ctr": 0.062,
+      "position": 35.8,
+      "pages": [
+        { "url": "/rsvp", "impressions": 42, "clicks": 4, "position": 26.3 },
+        { "url": "/info/guides/cost-rsvp-wedding", "impressions": 29, "clicks": 1 },
+        { "url": "/rsvp/chatuna", "impressions": 9, "clicks": 0, "position": 45.8 }
+      ]
+    },
+    {
+      "query": "אישורי הגעה לאירוע",
+      "owner": "/rsvp",
+      "pairedWith": "אישורי הגעה לאירועים",
+      "pages": [
+        { "url": "/rsvp", "impressions": 28, "position": 17.6 },
+        { "url": "/rsvp", "impressions": 12, "position": 16.4, "note": "PR #519 listed both /rsvp rows together and did not say which row belongs to the singular query and which belongs to the plural." }
+      ],
+      "note": "Clicks were not published for either row. They are omitted rather than recorded as zero."
+    },
+    {
+      "query": "אישורי הגעה בוואטסאפ",
+      "owner": "/rsvp/whatsapp",
+      "impressions": 35,
+      "clicks": 0,
+      "ctr": 0,
+      "position": 35.8,
+      "pages": [
+        { "url": "/rsvp/whatsapp", "impressions": 12, "clicks": 0, "position": 39.3 },
+        { "url": "/rsvp", "impressions": 6, "clicks": 0, "position": 19.3 }
+      ],
+      "unassignedImpressions": 17
+    },
+    {
+      "query": "סידורי הושבה לחתונה",
+      "owner": "/seating-explained",
+      "informationPage": "/info/guides/wedding-seating-arrangements",
+      "impressions": 27,
+      "clicks": 0,
+      "ctr": 0,
+      "position": 29.6,
+      "pages": [
+        { "url": "/info/guides/wedding-seating-arrangements", "impressions": 25, "clicks": 0, "position": 25.1 },
+        { "url": "/seating-explained", "impressions": 0, "note": "PR #519 recorded the service page as absent." }
+      ],
+      "unassignedImpressions": 2
+    },
+    {
+      "query": "אישורי הגעה וסידורי הושבה",
+      "owner": "/",
+      "impressions": 1,
+      "clicks": 0,
+      "ctr": 0,
+      "position": 35,
+      "pages": [
+        { "url": "/info/guides/wedding-seating-arrangements", "impressions": 1, "clicks": 0, "position": 35 }
+      ]
+    }
+  ]
+}
