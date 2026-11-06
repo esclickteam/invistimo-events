@@ -229,8 +229,8 @@ function CinematicHomeHero() {
         </h1>
 
         <p className="mx-auto mt-6 max-w-[36rem] text-[15px] font-medium leading-7 text-[#F5EEE8] [text-shadow:0_2px_18px_rgba(42,15,29,0.5)] sm:mt-7 sm:text-[17px] sm:leading-8 md:text-[18px]">
-          הזמנות דיגיטליות, אישורי הגעה והושבה חכמה — כל מה שצריך לאירוע מושלם, במקום
-          אחד.
+          אישורי הגעה וסידורי הושבה במקום אחד: הזמנה דיגיטלית, מעקב אחרי מי מגיע,
+          והמשך למפת השולחנות. האורחים עונים בקישור, בלי אפליקציה.
         </p>
 
         <div className="mt-9 flex w-full max-w-lg flex-col items-stretch justify-center gap-3 sm:mt-10 sm:max-w-none sm:flex-row sm:items-center sm:gap-4">

@@ -353,7 +353,7 @@ export default function WhatsappRsvpMarketingPage() {
               id="wa-h1"
               className="max-w-2xl text-[2rem] font-black leading-[1.12] tracking-[-0.03em] text-[#2C241C] md:text-5xl"
             >
-              אישורי הגעה ב־WhatsApp,{" "}
+              אישורי הגעה בוואטסאפ,{" "}
               <span className="bg-gradient-to-l from-[#B48A4A] via-[#D3B47C] to-[#84613A] bg-clip-text text-transparent">
                 בלי לרדוף אחרי כל תשובה
               </span>
@@ -697,6 +697,8 @@ export default function WhatsappRsvpMarketingPage() {
               { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים" },
               { href: "/info/guides/wedding-venue-guest-guarantee", label: "התחייבות לאולם" },
               { href: "/seating-explained", label: "סידורי הושבה" },
+              { href: "/info/guides/wedding-seating-arrangements", label: "מדריך סידורי הושבה" },
+              { href: "/info/guides/guest-list", label: "ניהול רשימת מוזמנים" },
               { href: "/pricing", label: "מחירים" },
             ].map((l) => (
               <Link

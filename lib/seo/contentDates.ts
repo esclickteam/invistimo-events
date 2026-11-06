@@ -9,17 +9,17 @@ export type RouteContentDate = {
 };
 
 export const ROUTE_CONTENT_DATES: Record<string, RouteContentDate> = {
-  "/": { published: "2025-12-04", modified: "2026-10-26" },
-  "/rsvp": { published: "2025-12-15", modified: "2026-11-02" },
-  "/rsvp/chatuna": { published: "2026-10-22", modified: "2026-11-02" },
+  "/": { published: "2025-12-04", modified: "2026-11-06" },
+  "/rsvp": { published: "2025-12-15", modified: "2026-11-06" },
+  "/rsvp/chatuna": { published: "2026-10-22", modified: "2026-11-06" },
   "/rsvp/hina": { published: "2026-10-25", modified: "2026-11-02" },
   "/rsvp/bar-bat-mitzvah": { published: "2026-10-25", modified: "2026-11-02" },
   "/rsvp/brit-brita": { published: "2026-10-25", modified: "2026-11-02" },
-  "/rsvp/whatsapp": { published: "2026-10-22", modified: "2026-11-02" },
+  "/rsvp/whatsapp": { published: "2026-10-22", modified: "2026-11-06" },
   "/rsvp/calls": { published: "2026-10-25", modified: "2026-11-02" },
   "/rsvp/save-the-date": { published: "2026-10-22", modified: "2026-11-02" },
   "/invitations/chatuna": { published: "2026-10-22", modified: "2026-11-02" },
-  "/seating-explained": { published: "2025-12-17", modified: "2026-11-02" },
+  "/seating-explained": { published: "2025-12-17", modified: "2026-11-06" },
   "/event-management": { published: "2026-01-20", modified: "2026-11-02" },
   "/pricing": { published: "2025-12-16", modified: "2026-10-26" },
   "/faq": { published: "2025-12-15", modified: "2026-10-27" },

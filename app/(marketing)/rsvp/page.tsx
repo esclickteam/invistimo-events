@@ -14,9 +14,9 @@ import {
 import { pageMetadata } from "@/lib/seo/site";
 import Link from "next/link";
 
-const TITLE = "אישורי הגעה לחתונה ולאירועים ב־WhatsApp | Invistimo";
+const TITLE = "מערכת אישורי הגעה לאירועים | Invistimo";
 const DESCRIPTION =
-  "אישורי הגעה לחתונה ולאירועים עם הודעות WhatsApp, קישור אישי לכל אורח, מעקב תשובות בזמן אמת ואפשרות לשיחות ותזכורות. הכירו את Invistimo.";
+  "מערכת אישורי הגעה לאירועים וניהול מוזמנים: קישור אישי, מעקב תשובות ושיחות לפי החבילה. לחתונה יש עמוד נפרד, ומשם ממשיכים להושבה.";
 
 export const metadata = pageMetadata({
   title: TITLE,
@@ -41,7 +41,7 @@ export default function RsvpPage() {
           organizationNode(),
           breadcrumbNode(breadcrumbs),
           serviceNode({
-            name: "אישורי הגעה לחתונה ולאירועים",
+            name: "מערכת אישורי הגעה לאירועים",
             description: DESCRIPTION,
             path: "/rsvp",
             serviceType: "אישורי הגעה",
@@ -81,9 +81,27 @@ export default function RsvpPage() {
             <Link href="/rsvp/brit-brita" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">
               ברית ובריתה
             </Link>
-            . לערוץ הוואטסאפ —
-            <Link href="/rsvp/whatsapp" className="mx-1 font-bold text-[#8A642E] underline-offset-4 hover:underline">
-              אישורי הגעה ב־WhatsApp
+            . לערוץ הוואטסאפ —{" "}
+            <Link href="/rsvp/whatsapp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              אישורי הגעה בוואטסאפ
+            </Link>
+            . אחרי שיש תשובות ממשיכים{" "}
+            <Link href="/seating-explained" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              לסידורי הושבה
+            </Link>{" "}
+            <Link
+              href="/info/guides/wedding-seating-arrangements"
+              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+            >
+              ולמדריך סידורי ההושבה
+            </Link>
+            . המחירים{" "}
+            <Link href="/pricing" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              במחשבון החבילות
+            </Link>
+            , ואפשר קודם{" "}
+            <Link href="/try" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              לראות הדגמה
             </Link>
             . לבחירת חברה והשוואת שירותים —
             <Link

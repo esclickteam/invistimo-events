@@ -231,6 +231,21 @@ export default function SeatingMarketingPage() {
             וכאשר בוחרים בשירות LIVE המתאים, אפשר להמשיך לנהל הגעה ומקומות פנויים גם במהלך
             האירוע.
           </p>
+          <p className="mt-4 text-base leading-8 text-[#6B5360] md:text-lg">
+            המפה נשענת על מי שאישר הגעה{" "}
+            <Link href={LINKS.rsvp} className="font-black text-[#842B4C] underline-offset-4 hover:underline">
+              במערכת אישורי ההגעה
+            </Link>
+            . לחתונה מתחילים{" "}
+            <Link href={LINKS.chatuna} className="font-black text-[#842B4C] underline-offset-4 hover:underline">
+              באישורי הגעה לחתונה
+            </Link>
+            , ואת חלוקת השולחנות והרזרבות מסביר{" "}
+            <Link href={LINKS.weddingSeatingGuide} className="font-black text-[#842B4C] underline-offset-4 hover:underline">
+              מדריך סידורי ההושבה
+            </Link>
+            .
+          </p>
         </motion.div>
 
         <div className="mt-10 flex flex-wrap justify-center gap-2">

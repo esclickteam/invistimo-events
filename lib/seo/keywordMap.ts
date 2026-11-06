@@ -22,6 +22,36 @@ export type KeywordRow = {
 
 export const KEYWORD_MAP: KeywordRow[] = [
   {
+    query: "אישורי הגעה וסידורי הושבה",
+    intent: "commercial",
+    primaryPath: "/",
+    supportingPaths: ["/rsvp", "/seating-explained", "/rsvp/chatuna", "/info/guides/wedding-seating-arrangements", "/pricing"],
+    volume: null,
+    competition: null,
+    observation:
+      "ייצוא Search Console ידני ל־3 חודשים עד 2.11.2026 לא כלל את הביטוי המדויק. וריאציה קרובה, «אישורי הגעה וסידור שולחנות», הופיעה 2 פעמים במיקום ממוצע 27 בלי קליקים. אין חיבור API בקוד.",
+  },
+  {
+    query: "מערכת אישורי הגעה",
+    intent: "commercial",
+    primaryPath: "/rsvp",
+    supportingPaths: ["/", "/rsvp/whatsapp", "/pricing", "/info/guides/guest-list"],
+    volume: null,
+    competition: null,
+    observation:
+      "הביטוי לא הופיע בייצוא Search Console עד 2.11.2026. עמוד היעד הוא מערכת האישורים הכללית, לא עמוד החתונה.",
+  },
+  {
+    query: "מערכת לניהול מוזמנים",
+    intent: "commercial",
+    primaryPath: "/rsvp",
+    supportingPaths: ["/info/guides/guest-list", "/", "/pricing"],
+    volume: null,
+    competition: null,
+    observation:
+      "הביטוי המדויק לא הופיע בייצוא עד 2.11.2026. «ניהול מוזמנים לאירועים עסקיים» הופיע פעם אחת במיקום 37. המדריך נשאר הסברי; המערכת המסחרית היא /rsvp.",
+  },
+  {
     query: "אישורי הגעה",
     intent: "commercial",
     primaryPath: "/rsvp",
@@ -71,11 +101,11 @@ export const KEYWORD_MAP: KeywordRow[] = [
     query: "אישורי הגעה לחתונה",
     intent: "commercial",
     primaryPath: "/rsvp/chatuna",
-    supportingPaths: ["/rsvp", "/pricing"],
+    supportingPaths: ["/rsvp", "/rsvp/whatsapp", "/seating-explained", "/pricing"],
     volume: null,
     competition: null,
     observation:
-      "ב־23 באוקטובר 2026 חיפוש ברשת החזיר עמודים של Wedly, Guini, Diginet ואחרים. זהו צילום של כלי החיפוש, לא מיקום בגוגל.",
+      "Search Console, 3 חודשים עד 2.11.2026: 4 קליקים, 33 חשיפות, CTR 12.12%, מיקום ממוצע 38.27. הנתון הוא ברמת השאילתה, בלי שיוך לעמוד. צילום רשת מ־23.10.2026 הציג בין היתר Wedly, Guini ו־Diginet.",
   },
   {
     query: "אישורי הגעה לאירועים",
@@ -245,15 +275,16 @@ export const KEYWORD_MAP: KeywordRow[] = [
     intent: "commercial",
     primaryPath: "/rsvp/whatsapp",
     supportingPaths: [
+      "/rsvp",
       "/rsvp/chatuna",
-      "/info/guides/guests-who-dont-reply",
+      "/seating-explained",
       "/info/guides/whatsapp-vs-sms-rsvp",
-      "/info/guides/whatsapp-invitation-wording",
-      "/info/guides/rsvp-reminder-rounds",
+      "/pricing",
     ],
     volume: null,
     competition: null,
-    observation: "גוויני ו־Wedly מציגים בעמודיהם אישור בוואטסאפ. לא נמדד נפח לביטוי.",
+    observation:
+      "Search Console, 3 חודשים עד 2.11.2026: 0 קליקים, 8 חשיפות, מיקום ממוצע 24.25. אין שיוך לעמוד בייצוא.",
   },
   {
     query: "WhatsApp או SMS לאישורי הגעה",
@@ -375,13 +406,14 @@ export const KEYWORD_MAP: KeywordRow[] = [
     primaryPath: "/seating-explained",
     supportingPaths: [
       "/info/guides/wedding-seating-arrangements",
+      "/rsvp/chatuna",
+      "/pricing",
       "/info/guides/seating-plan",
-      "/info/guides/seating-cards-vs-qr",
-      "/info/guides/table-number-message",
     ],
     volume: null,
     competition: null,
-    observation: "מתחרים מציגים הושבה בעמודי החתונה שלהם. אין כאן נתון על מיקום Invistimo.",
+    observation:
+      "Search Console, 3 חודשים עד 2.11.2026: 0 קליקים, 5 חשיפות, מיקום ממוצע 29.8. המדריך נשאר הסברי ולא מתחרה בעמוד השירות.",
   },
   {
     query: "פתקיות הושבה לחתונה",
@@ -1462,4 +1494,5 @@ export const AI_MONITOR_QUESTIONS = [
   "איך מפחיתים מנות מיותרות לפי אישורי הגעה?",
   "איך מושיבים משפחות וחברים בחתונה במערכת?",
   "איך עובד קישור RSVP אישי לכל אורח?",
+  "האם אישורי הגעה וסידורי הושבה ב־Invistimo נמצאים באותה מערכת?",
 ];
