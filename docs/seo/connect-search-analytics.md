@@ -12,7 +12,7 @@ No paid tools. No deploy from this doc. Values go into the hosting environment (
 6. Recommended custom dimensions / explorations:
    - Event `ai_referral` → param `ai_source`
    - Event `select_cta` → params `location`, `href`
-   - Event `web_vital` → dimensions `metric_name`, `page_path`, `metric_rating`; numeric metric `metric_value` (LCP/INP in ms, CLS as the 0–1 score). Mobile and desktop use the built-in `deviceCategory`, not a custom field. Creating them needs the Editor role on the existing property for `G-FFTCP1VN4Y`: Admin → Custom definitions. Reading them needs Viewer on that property plus the Google Analytics Data API.
+   - Event `web_vital` → dimensions `metric_name`, `page_path`, `metric_rating`; numeric metric `metric_value` (LCP/INP in ms, CLS as the 0–1 score). Mobile and desktop use the built-in `deviceCategory`. The existing property is `properties/561016940` (measurement id `G-FFTCP1VN4Y`, stream `https://www.invistimo.com`). Admin → Data display → Custom definitions. Scope is Event. The list was empty, so create each name once. Reading the report is `node scripts/report-web-vitals.mjs` with Viewer on that property and the Google Analytics Data API enabled. The script prints counts, averages, and rating shares. It does not enable BigQuery.
    - User/page dimension from config param `content_group` (already sent)
 
 Code already skips GA on guest/account paths (`lib/seo/analytics.ts`).
