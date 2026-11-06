@@ -1,9 +1,9 @@
-import Stripe from "stripe";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
+import { lazyStripe } from "@/lib/lazyStripe";
 import User from "@/models/User";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripe = lazyStripe();
 
 /* =======================
    Constants
