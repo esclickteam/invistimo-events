@@ -12,7 +12,7 @@ No paid tools. No deploy from this doc. Values go into the hosting environment (
 6. Recommended custom dimensions / explorations:
    - Event `ai_referral` → param `ai_source`
    - Event `select_cta` → params `location`, `href`
-   - Event `web_vital` → params `metric_name`, `metric_rating`
+   - Event `web_vital` → dimensions `metric_name`, `page_path`, `metric_rating`; numeric metric `metric_value` (LCP/INP in ms, CLS as the 0–1 score). Mobile and desktop use the built-in `deviceCategory`, not a custom field. Creating them needs the Editor role on the existing property for `G-FFTCP1VN4Y`: Admin → Custom definitions. Reading them needs Viewer on that property plus the Google Analytics Data API.
    - User/page dimension from config param `content_group` (already sent)
 
 Code already skips GA on guest/account paths (`lib/seo/analytics.ts`).
