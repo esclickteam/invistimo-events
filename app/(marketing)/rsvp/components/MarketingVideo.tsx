@@ -39,14 +39,17 @@ export default function MarketingVideo({
   onTimeUpdate,
   onSeeked,
 }: Props) {
+  const frameRef = useRef<HTMLDivElement | null>(null);
   const localRef = useRef<HTMLVideoElement | null>(null);
+  const pausingRef = useRef(false);
   const reducedMotion = usePrefersReducedMotion();
   const [pausedByUser, setPausedByUser] = useState(false);
-
-  const [inView, setInView] = useState(true);
+  const [inView, setInView] = useState(eager);
+  const [pageReady, setPageReady] = useState(false);
+  const [armed, setArmed] = useState(false);
 
   useEffect(() => {
-    const el = (videoRef?.current ?? localRef.current) as HTMLVideoElement | null;
+    const el = frameRef.current;
     if (!el || typeof IntersectionObserver === "undefined") return;
 
     const observer = new IntersectionObserver(
@@ -55,19 +58,38 @@ export default function MarketingVideo({
     );
     observer.observe(el);
     return () => observer.disconnect();
-  }, [videoRef, src]);
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const enable = () => {
+      if (alive) setPageReady(true);
+    };
+    if (document.readyState === "complete") enable();
+    else window.addEventListener("load", enable, { once: true });
+    return () => {
+      alive = false;
+      window.removeEventListener("load", enable);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (pageReady && inView) setArmed(true);
+  }, [pageReady, inView]);
 
   useEffect(() => {
     const el = (videoRef?.current ?? localRef.current) as HTMLVideoElement | null;
     if (!el) return;
 
     if (reducedMotion) {
+      pausingRef.current = true;
       el.pause();
       el.removeAttribute("autoplay");
       return;
     }
 
     if (!inView) {
+      pausingRef.current = true;
       el.pause();
       return;
     }
@@ -76,47 +98,55 @@ export default function MarketingVideo({
       const play = el.play();
       if (play && typeof play.catch === "function") play.catch(() => undefined);
     }
-  }, [reducedMotion, pausedByUser, videoRef, src, inView]);
+  }, [reducedMotion, pausedByUser, videoRef, src, inView, armed]);
+
+  const fitClass =
+    objectFit === "contain" ? "h-full w-full object-contain" : "h-full w-full object-cover object-top";
 
   return (
-    <div
-      className={`relative overflow-hidden bg-[#2A0F1D] ${className}`}
-      style={
-        poster
-          ? { backgroundImage: `url(${poster})`, backgroundSize: "cover", backgroundPosition: "center top" }
-          : undefined
-      }
-    >
-      <video
-        ref={(node) => {
-          localRef.current = node;
-          if (videoRef) {
-            (videoRef as React.MutableRefObject<HTMLVideoElement | null>).current = node;
-          }
-        }}
-        src={src}
-        poster={poster}
-        title={title}
-        aria-label={title}
-        muted
-        loop
-        playsInline
-        autoPlay={!reducedMotion}
-        controls
-        preload={eager ? "metadata" : "none"}
-        className={
-          objectFit === "contain"
-            ? "h-full w-full object-contain"
-            : "h-full w-full object-cover object-top"
-        }
-        onTimeUpdate={(e) => onTimeUpdate?.(e.currentTarget.currentTime)}
-        onSeeked={(e) => onSeeked?.(e.currentTarget.currentTime)}
-        onPlay={() => setPausedByUser(false)}
-        onPause={() => {
-          const el = localRef.current;
-          if (el && !el.ended) setPausedByUser(true);
-        }}
-      />
+    <div ref={frameRef} className={`relative overflow-hidden bg-[#2A0F1D] ${className}`}>
+      {poster ? (
+        <img
+          src={poster}
+          alt=""
+          fetchPriority={eager ? "high" : "auto"}
+          loading={eager ? "eager" : "lazy"}
+          decoding="async"
+          className={`absolute inset-0 ${fitClass}`}
+        />
+      ) : null}
+      {armed ? (
+        <video
+          ref={(node) => {
+            localRef.current = node;
+            if (videoRef) {
+              (videoRef as React.MutableRefObject<HTMLVideoElement | null>).current = node;
+            }
+          }}
+          src={src}
+          poster={poster}
+          title={title}
+          aria-label={title}
+          muted
+          loop
+          playsInline
+          autoPlay={!reducedMotion}
+          controls
+          preload={eager ? "metadata" : "none"}
+          className={`absolute inset-0 ${fitClass}`}
+          onTimeUpdate={(e) => onTimeUpdate?.(e.currentTarget.currentTime)}
+          onSeeked={(e) => onSeeked?.(e.currentTarget.currentTime)}
+          onPlay={() => setPausedByUser(false)}
+          onPause={() => {
+            if (pausingRef.current) {
+              pausingRef.current = false;
+              return;
+            }
+            const el = localRef.current;
+            if (el && !el.ended) setPausedByUser(true);
+          }}
+        />
+      ) : null}
       {reducedMotion ? (
         <p className="sr-only">
           הווידאו מושהה כי הופעלה העדפת הפחתת תנועה. אפשר להפעיל ידנית באמצעות פקדי הניגון.

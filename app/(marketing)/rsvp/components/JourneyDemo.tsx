@@ -154,7 +154,6 @@ export default function JourneyDemo() {
                     src={JOURNEY_VIDEO.src}
                     poster={JOURNEY_VIDEO.poster}
                     title={JOURNEY_VIDEO.title}
-                    eager
                     videoRef={videoRef}
                     onTimeUpdate={sync}
                     onSeeked={sync}
