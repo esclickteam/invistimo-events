@@ -1,6 +1,8 @@
 import Link from "next/link";
+import GuidesLibrary from "@/components/marketing/GuidesLibrary";
 import JsonLd from "@/components/seo/JsonLd";
 import TrackedCtaLink from "@/components/seo/TrackedCtaLink";
+import { GUIDE_CATEGORIES, categoryForSlug } from "@/lib/marketing/guideCatalog";
 import { PILLARS } from "@/lib/seo/clusters";
 import { guidePath, GUIDES } from "@/lib/seo/guides";
 import { breadcrumbNode, graph, organizationNode } from "@/lib/seo/jsonld";
@@ -13,6 +15,23 @@ export const metadata = pageMetadata({
   description: route.description,
   path: route.path,
 });
+
+function readLabel(slug: string) {
+  if (slug === "wedding-alcohol-calculator") return "למחשבון האלכוהול ←";
+  if (slug === "wedding-seating-arrangements") return "למדריך ולמחשבון ההושבה ←";
+  if (slug === "seating-plan") return "למדריך המעשי צעד אחר צעד ←";
+  if (slug === "seating-cards-vs-qr") return "למדריך פתקיות הושבה או QR ←";
+  return "לקריאת המדריך ←";
+}
+
+const libraryGuides = GUIDES.map((guide) => ({
+  slug: guide.slug,
+  href: guidePath(guide.slug),
+  title: guide.h1,
+  description: guide.description,
+  categoryId: categoryForSlug(guide.slug)?.id ?? "planning",
+  readLabel: readLabel(guide.slug),
+}));
 
 const ctaClass =
   "inline-flex min-h-12 items-center justify-center rounded-none bg-[#42182F] px-8 py-3 text-base font-black !text-[#FFF8F0] hover:bg-[#842B4C]";
@@ -107,56 +126,14 @@ export default function GuidesPage() {
       </section>
 
       <div className="mx-auto max-w-4xl space-y-12 px-5 pb-20 md:px-8">
-        {PILLARS.map((pillar) => {
-          const guides = GUIDES.filter((guide) =>
-            pillar.clusters.some((item) => item.path === guidePath(guide.slug))
-          );
-          return (
-            <section key={pillar.id} className="rounded-[32px] border border-[#E6D2AA] bg-white/85 p-6 md:p-8">
-              <h2 className="text-2xl font-black text-[#35281F] md:text-3xl">
-                <Link href={pillar.path} className="hover:text-[#8A642E]">
-                  {pillar.name}
-                </Link>
-              </h2>
-              <p className="mt-3 leading-8 text-[#5C4A3A]">{pillar.summary}</p>
-              {guides.length ? (
-                <ul className="mt-6 grid gap-4">
-                  {guides.map((guide) => (
-                    <li
-                      key={guide.slug}
-                      className="rounded-[24px] border border-[#E6D2AA] bg-gradient-to-l from-[#FFF8EA] via-[#FFFDF7] to-[#F7E8CA] p-5"
-                    >
-                      <h3 className="text-xl font-black text-[#35281F]">
-                        <Link href={guidePath(guide.slug)} className="hover:text-[#8A642E]">
-                          {guide.h1}
-                        </Link>
-                      </h3>
-                      <p className="mt-2 leading-7 text-[#5C4A3A]">{guide.description}</p>
-                      <Link
-                        href={guidePath(guide.slug)}
-                        className="mt-4 inline-flex text-sm font-black text-[#8A642E] underline-offset-4 hover:underline"
-                      >
-                        {guide.slug === "wedding-alcohol-calculator"
-                          ? "למחשבון האלכוהול ←"
-                          : guide.slug === "wedding-seating-arrangements"
-                            ? "למדריך ולמחשבון ההושבה ←"
-                            : guide.slug === "seating-plan"
-                              ? "למדריך המעשי צעד אחר צעד ←"
-                              : guide.slug === "seating-cards-vs-qr"
-                                ? "למדריך פתקיות הושבה או QR ←"
-                                : "לקריאת המדריך ←"}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="mt-4 leading-7 text-[#5C4A3A]">
-                  הפירוט נמצא בעמוד {pillar.name}, בלי מדריך נפרד שמחזור אותו.
-                </p>
-              )}
-            </section>
-          );
-        })}
+        <GuidesLibrary
+          guides={libraryGuides}
+          categories={GUIDE_CATEGORIES}
+          serviceLinks={PILLARS.map((pillar) => ({
+            name: pillar.name,
+            path: pillar.path,
+          }))}
+        />
 
         <section className="border border-[#C5A582] bg-[#42182F] p-7 md:p-10">
           <h2 className="text-3xl font-black text-[#FFF8F0]">מוכנים להתקדם מהמדריך לשירות?</h2>

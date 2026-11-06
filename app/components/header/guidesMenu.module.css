@@ -1,0 +1,54 @@
+.motion[data-motion="pre"] {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .motion[data-motion="open"] {
+    animation: guidesMenuIn 180ms ease;
+  }
+
+  .motion[data-motion="closing"] {
+    animation: guidesMenuOut 160ms ease forwards;
+  }
+
+  .fold {
+    transition: grid-template-rows 180ms ease;
+  }
+}
+
+.fold {
+  display: grid;
+  grid-template-rows: 0fr;
+}
+
+.fold[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+
+.foldInner {
+  overflow: hidden;
+}
+
+@keyframes guidesMenuIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes guidesMenuOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}

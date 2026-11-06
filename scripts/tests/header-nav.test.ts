@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { GUIDE_CATEGORIES } from "../../lib/marketing/guideCatalog";
 import {
   collectHeaderHrefs,
-  GUIDE_COLUMNS,
+  HEADER_PRIMARY,
   SERVICE_COLUMNS,
   EVENT_LINKS,
 } from "../../lib/marketing/headerNav";
@@ -51,24 +52,57 @@ test("header nav only links to existing ready pages", () => {
   }
 });
 
-test("header guide columns cover every published guide once", () => {
-  const listed = GUIDE_COLUMNS.flatMap((column) =>
-    column.links.map((link) => link.href)
-  );
-  const unique = new Set(listed);
+test("guides menu is four compact categories", () => {
+  const guides = HEADER_PRIMARY.find((item) => item.id === "guides");
+  assert.ok(guides && guides.kind === "guides");
+  if (!guides || guides.kind !== "guides") return;
 
-  assert.equal(
-    listed.length,
-    unique.size,
-    "guide mega menu must not duplicate hrefs"
+  assert.deepEqual(
+    guides.categories.map((category) => category.title),
+    ["תכנון חתונה", "מוזמנים ואישורי הגעה", "סידורי הושבה", "כלים ומחשבונים"]
   );
+  assert.equal(guides.footerLink.href, "/info/guides");
+  assert.equal(guides.footerLink.label, "לכל המדריכים");
+
+  for (const category of guides.categories) {
+    assert.ok(category.description.length > 0);
+    assert.ok(category.featured.length > 0 && category.featured.length <= 4);
+    assert.equal(category.href, `/info/guides#cat-${category.id}`);
+    for (const link of category.featured) {
+      assert.ok(
+        category.slugs.includes(link.slug),
+        `${link.slug} is featured outside its category`
+      );
+      assert.equal(link.href, guidePath(link.slug));
+    }
+  }
+});
+
+test("every published guide belongs to one knowledge-center category", () => {
+  const listed = GUIDE_CATEGORIES.flatMap((category) => category.slugs);
+  assert.equal(new Set(listed).size, listed.length, "a guide is listed twice");
+  assert.equal(listed.length, GUIDES.length);
 
   for (const guide of GUIDES) {
-    assert.ok(
-      unique.has(guidePath(guide.slug)),
-      `published guide missing from header: ${guide.slug}`
-    );
+    assert.ok(listed.includes(guide.slug), `published guide missing from hub categories: ${guide.slug}`);
   }
+});
+
+test("guides hub keeps its H1 and can reach every article", () => {
+  const page = readFileSync(
+    path.join(ROOT, "app/(marketing)/info/guides/page.tsx"),
+    "utf8"
+  );
+  const library = readFileSync(
+    path.join(ROOT, "components/marketing/GuidesLibrary.tsx"),
+    "utf8"
+  );
+  assert.match(page, /מדריכים לאישורי הגעה/);
+  assert.match(page, /להזמנות, הושבה וניהול אירוע/);
+  assert.match(page, /pageMetadata/);
+  assert.match(page, /GUIDES\.map/);
+  assert.match(library, /חיפוש במדריכים/);
+  assert.match(library, /כל המדריכים/);
 });
 
 test("header service mega menu includes core ready services", () => {
