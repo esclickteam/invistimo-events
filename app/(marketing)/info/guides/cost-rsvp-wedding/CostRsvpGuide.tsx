@@ -160,9 +160,10 @@ export default function CostRsvpGuide() {
           </div>
           <FactTableView table={PACKAGE_PRICE_EXAMPLES} />
           <FactTableView table={ADDON_PRICE_EXAMPLES} />
-          <p className="mt-6 max-w-3xl text-sm leading-7 text-[#7A6042]">
+          <p className="mt-6 text-base font-black text-[#2C241C]">כל המחירים כוללים מע״מ.</p>
+          <p className="mt-3 max-w-3xl text-sm leading-7 text-[#7A6042]">
             אלה דוגמאות מהמחשבון הציבורי, לא מחיר פתיחה. מספר רשומות אחר מחושב ב־<Link href="/pricing" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">מחשבון החבילות</Link>.
-            בעמוד המחיר לא כתוב אם הסכום כולל מע״מ. Save the Date והזמנה מוקדמת מחושבים בנפרד מסבבי האישור.
+            Save the Date והזמנה מוקדמת מחושבים בנפרד מסבבי האישור.
           </p>
           <div className="mt-8">
             <TrackedCtaLink href="/pricing" className={ctaPrimary} location={`price_table:${PATH}`}>

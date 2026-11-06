@@ -180,6 +180,7 @@ function PackageCard({
         <p className="mt-2 text-sm font-bold text-[#6B5360]">
           ל־{quote.records.toLocaleString("he-IL")} רשומות
         </p>
+        <p className="mt-2 text-xs font-black text-[#42182F]">כל המחירים כוללים מע״מ</p>
         <p className="mt-3 text-sm text-[#6B5360]">
           מחיר לרשומה{" "}
           <AnimatedPrice
@@ -330,7 +331,7 @@ export default function PricingPage() {
             בחרו את כמות הרשומות וגלו את החבילה המתאימה לאירוע שלכם.
           </p>
           <p className="mx-auto mt-2 max-w-2xl text-sm leading-7 text-[#7B6754] sm:text-base sm:leading-8">
-            המחיר משתנה לפי מספר הרשומות, סוג החבילה והתוספות, ומוצג כאן לפני הפנייה. בוחרים
+            המחיר משתנה לפי מספר הרשומות, סוג החבילה והתוספות, ומוצג כאן לפני הפנייה. כל המחירים כוללים מע״מ. בוחרים
             חבילה, פונים לצוות ב־WhatsApp או ביצירת קשר, ומשלימים את ההזמנה מול נציג.
           </p>
         </div>
@@ -482,7 +483,7 @@ export default function PricingPage() {
                 <p className="mt-2 text-base leading-7 text-[#5A3E25]">
                   {selectedQuote.packageName} · {selectedQuote.records.toLocaleString("he-IL")}{" "}
                   רשומות · סה״כ{" "}
-                  <span className="font-black tabular-nums">{formatIls(selectedQuote.total)}</span>
+                  <span className="font-black tabular-nums">{formatIls(selectedQuote.total)}</span>. כל המחירים כוללים מע״מ.
                 </p>
                 {selectedQuote.canOrder ? (
                   <a

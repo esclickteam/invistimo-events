@@ -21,7 +21,7 @@ export const ROUTE_CONTENT_DATES: Record<string, RouteContentDate> = {
   "/invitations/chatuna": { published: "2026-10-22", modified: "2026-11-02" },
   "/seating-explained": { published: "2025-12-17", modified: "2026-11-06" },
   "/event-management": { published: "2026-01-20", modified: "2026-11-02" },
-  "/pricing": { published: "2025-12-16", modified: "2026-10-26" },
+  "/pricing": { published: "2025-12-16", modified: "2026-11-06" },
   "/faq": { published: "2025-12-15", modified: "2026-10-27" },
   "/info/about": { published: "2026-10-22", modified: "2026-10-22" },
   "/info/guides": { published: "2026-10-22", modified: "2026-11-02" },
