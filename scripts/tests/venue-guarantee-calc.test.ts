@@ -10,6 +10,9 @@ import {
   encodeArrivalQuery,
   groupsForCalculation,
   illustrateChairs,
+  illustrateSequence,
+  forecastSequence,
+  statusSequence,
   mapKnownGroupName,
   type ArrivalInputs,
   type GroupInput,
@@ -451,6 +454,64 @@ test("share link restores total mode without counting saved groups again", () =>
   const mix = distributeByDefaultMix(200);
   assert.equal(Object.values(mix).reduce((sum, count) => sum + count, 0), 200);
   assert.equal(mix.closeFamily, DEFAULT_COUNTS.closeFamily);
+});
+
+test("status chairs match typed counts and forecast chairs match the selected total", () => {
+  const tenUndecided = computeArrival(input({ groups: [group({ count: 200 })], undecided: 10 }));
+  const status = statusSequence(tenUndecided);
+  assert.equal(status.filter((seat) => seat === "status-undecided").length, 10);
+  assert.equal(status.length, 200);
+  const drawn = illustrateSequence(status, 10).tables.flat().filter((seat) => seat !== "pad");
+  assert.equal(drawn.filter((seat) => seat === "status-undecided").length, 10);
+  assert.equal(drawn.length, 200);
+  assert.equal(tenUndecided.forecastViews.mid.undecided, 5);
+  const forecast = forecastSequence(tenUndecided, "mid");
+  assert.equal(forecast.filter((seat) => seat === "forecast-undecided").length, 5);
+  assert.equal(forecast.filter((seat) => seat !== "forecast-outside").length, tenUndecided.rangeMid);
+  assert.equal(forecast.length, 200);
+
+  const twenty = computeArrival(input({ groups: [group({ count: 200 })], undecided: 20 }));
+  assert.equal(statusSequence(twenty).filter((seat) => seat === "status-undecided").length, 20);
+
+  for (const count of [0, 10, 200, 1000]) {
+    const result = computeArrival(input({ groups: [group({ count })] }));
+    const roster = result.statusRoster;
+    assert.equal(roster.confirmed + roster.declined + roster.undecided + roster.pending + roster.unclassified, count);
+    assert.equal(statusSequence(result).length, count);
+    for (const level of ["low", "mid", "high"] as const) {
+      const view = result.forecastViews[level];
+      assert.equal(view.show + view.undecided + view.pending + view.high + view.low, view.total);
+      assert.equal(view.total, level === "low" ? result.rangeLow : level === "mid" ? result.rangeMid : result.rangeHigh);
+      assert.equal(view.total + view.outside, count);
+    }
+  }
+
+  const allYes = computeArrival(input({ groups: [group({ count: 40 })], confirmed: 40 }));
+  assert.equal(statusSequence(allYes).filter((seat) => seat === "status-confirmed").length, 40);
+  assert.equal(forecastSequence(allYes, "mid").filter((seat) => seat === "forecast-show").length, allYes.rangeMid);
+
+  const allNo = computeArrival(input({ groups: [group({ count: 40 })], declined: 40 }));
+  assert.equal(allNo.rangeMid, 0);
+  assert.equal(statusSequence(allNo).filter((seat) => seat === "status-declined").length, 40);
+  assert.equal(forecastSequence(allNo, "mid").filter((seat) => seat === "forecast-outside").length, 40);
+
+  const partial = computeArrival(input({ groups: [group({ count: 100 })], confirmed: 20, declined: 10 }));
+  assert.equal(partial.statusRoster.unclassified, 70);
+  assert.equal(statusSequence(partial).filter((seat) => seat === "status-unclassified").length, 70);
+
+  const overflow = computeArrival(input({ groups: [group({ count: 10 })], undecided: 12 }));
+  assert.equal(overflow.forecastReady, false);
+  assert.equal(overflow.statusRoster.balanced, false);
+  assert.equal(statusSequence(overflow).length, 0);
+
+  const wider = computeArrival(
+    input({
+      groups: [group({ count: 100, lowPct: 20, midPct: 40, highPct: 60 })],
+    })
+  );
+  assert.equal(wider.rangeLow, 20);
+  assert.equal(wider.rangeMid, 40);
+  assert.equal(wider.rangeHigh, 60);
 });
 
 test("event date becomes a season without leaving the calendar", () => {

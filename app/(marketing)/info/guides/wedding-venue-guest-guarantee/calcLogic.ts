@@ -24,8 +24,9 @@
  *    not an invented contractual commitment.
  * 10. Reserve meals are added to the central estimate for portion planning.
  *     They are not extra guests and are not drawn as chairs.
- * 11. Chairs illustrate the central guest forecast only. A typed contract
- *     minimum stays a comparison figure and is not drawn as a guest chair.
+ * 11. The status map draws every invited guest once, by the status that was
+ *     typed. The forecast map draws the selected forecast only, with everyone
+ *     else as an outline. A contract minimum is a comparison figure, not a chair.
  */
 
 export const BUILTIN_GROUPS = [
@@ -190,6 +191,42 @@ export type ChairKind = "confirmed" | "high" | "undecided" | "low" | "commitment
 
 export type ChairCounts = Record<Exclude<ChairKind, "empty">, number>;
 
+export type StatusRoster = {
+  confirmed: number;
+  declined: number;
+  undecided: number;
+  pending: number;
+  unclassified: number;
+  balanced: boolean;
+};
+
+/** Parts of one forecast edge. Their sum is `total`, and `outside` fills the invited list. */
+export type ForecastView = {
+  show: number;
+  undecided: number;
+  pending: number;
+  high: number;
+  low: number;
+  total: number;
+  outside: number;
+};
+
+export type ForecastLevel = "low" | "mid" | "high";
+
+export type SeatMark =
+  | "status-confirmed"
+  | "status-declined"
+  | "status-undecided"
+  | "status-pending"
+  | "status-unclassified"
+  | "forecast-show"
+  | "forecast-high"
+  | "forecast-undecided"
+  | "forecast-pending"
+  | "forecast-low"
+  | "forecast-outside"
+  | "pad";
+
 export type ArrivalResult = {
   totalInvited: number;
   confirmedReceived: number;
@@ -217,6 +254,8 @@ export type ArrivalResult = {
   assumptions: string[];
   forecastReady: boolean;
   statusSum: number;
+  statusRoster: StatusRoster;
+  forecastViews: Record<ForecastLevel, ForecastView>;
 };
 
 const WEEKDAYS = new Set<string>(Object.keys(DAY_SHIFT));
@@ -283,6 +322,45 @@ function remainderForecast(remainder: number, groups: EffectiveGroup[], total: n
 
 function emptyChairs(): ChairCounts {
   return { confirmed: 0, high: 0, undecided: 0, low: 0, commitment: 0 };
+}
+
+function emptyForecastView(): ForecastView {
+  return { show: 0, undecided: 0, pending: 0, high: 0, low: 0, total: 0, outside: 0 };
+}
+
+function viewFromEdge(
+  edge: {
+    total: number;
+    confirmedPart: number;
+    undecidedPart: number;
+    pendingPart: number;
+    highPart: number;
+    lowPart: number;
+  },
+  target: number,
+  invited: number
+): ForecastView {
+  const parts = {
+    show: edge.confirmedPart,
+    undecided: edge.undecidedPart,
+    pending: edge.pendingPart,
+    high: edge.highPart,
+    low: Math.max(0, edge.lowPart - edge.pendingPart),
+  };
+  let sum = parts.show + parts.undecided + parts.pending + parts.high + parts.low;
+  const trimOrder = ["low", "high", "undecided", "pending", "show"] as const;
+  if (sum > target) {
+    let extra = sum - target;
+    for (const key of trimOrder) {
+      const cut = Math.min(parts[key], extra);
+      parts[key] -= cut;
+      extra -= cut;
+    }
+  } else if (sum < target) {
+    parts.low += target - sum;
+  }
+  sum = parts.show + parts.undecided + parts.pending + parts.high + parts.low;
+  return { ...parts, total: sum, outside: Math.max(0, invited - sum) };
 }
 
 export function mapKnownGroupName(name: string): BuiltinGroupId | null {
@@ -357,6 +435,15 @@ export function computeArrival(raw: ArrivalInputs): ArrivalResult {
       ],
       forecastReady: false,
       statusSum: requestedSum,
+      statusRoster: {
+        confirmed: requested.confirmed,
+        declined: requested.declined,
+        undecided: requested.undecided,
+        pending: requested.pending,
+        unclassified: 0,
+        balanced: false,
+      },
+      forecastViews: { low: emptyForecastView(), mid: emptyForecastView(), high: emptyForecastView() },
     };
   }
 
@@ -509,7 +596,73 @@ export function computeArrival(raw: ArrivalInputs): ArrivalResult {
     assumptions,
     forecastReady: true,
     statusSum: requestedSum,
+    statusRoster: {
+      confirmed: confirmedReceived,
+      declined: declinedReceived,
+      undecided: undecidedReceived,
+      pending: pendingReceived,
+      unclassified: remainder,
+      balanced: true,
+    },
+    forecastViews: {
+      low: viewFromEdge(lowEdge, rangeLow, totalInvited),
+      mid: viewFromEdge(midEdge, rangeMid, totalInvited),
+      high: viewFromEdge(highEdge, rangeHigh, totalInvited),
+    },
   };
+}
+
+function interleave(entries: Array<[SeatMark, number]>): SeatMark[] {
+  const buckets = entries
+    .filter((entry) => entry[1] > 0)
+    .map(([kind, count]) => Array.from({ length: count }, () => kind));
+  const sequence: SeatMark[] = [];
+  const cursor = buckets.map(() => 0);
+  const total = buckets.reduce((sum, bucket) => sum + bucket.length, 0);
+  while (sequence.length < total) {
+    buckets.forEach((bucket, index) => {
+      if (cursor[index] < bucket.length) sequence.push(bucket[cursor[index]++]);
+    });
+  }
+  return sequence;
+}
+
+export function statusSequence(result: ArrivalResult): SeatMark[] {
+  if (!result.statusRoster.balanced) return [];
+  const roster = result.statusRoster;
+  return interleave([
+    ["status-confirmed", roster.confirmed],
+    ["status-declined", roster.declined],
+    ["status-undecided", roster.undecided],
+    ["status-pending", roster.pending],
+    ["status-unclassified", roster.unclassified],
+  ]);
+}
+
+export function forecastSequence(result: ArrivalResult, level: ForecastLevel): SeatMark[] {
+  if (!result.forecastReady) return [];
+  const view = result.forecastViews[level];
+  return interleave([
+    ["forecast-show", view.show],
+    ["forecast-high", view.high],
+    ["forecast-undecided", view.undecided],
+    ["forecast-pending", view.pending],
+    ["forecast-low", view.low],
+    ["forecast-outside", view.outside],
+  ]);
+}
+
+export function illustrateSequence(sequence: SeatMark[], seatsPerTable: number, cap = ILLUSTRATION_CAP) {
+  const seats = Math.min(16, Math.max(4, clampCount(seatsPerTable) || 10));
+  const drawn = sequence.slice(0, cap);
+  const truncated = sequence.length - drawn.length;
+  const tables: SeatMark[][] = [];
+  for (let index = 0; index < drawn.length; index += seats) {
+    const table = drawn.slice(index, index + seats);
+    while (table.length < seats) table.push("pad");
+    tables.push(table);
+  }
+  return { seats, tables, truncated, drawn: drawn.length };
 }
 
 export function illustrateChairs(counts: ChairCounts, seatsPerTable: number, cap = ILLUSTRATION_CAP) {

@@ -16,7 +16,8 @@ import {
   UNDECIDED_DEFAULT_BAND,
   computeArrival,
   decodeArrivalQuery,
-  illustrateChairs,
+  forecastSequence,
+  illustrateSequence,
   distributeByDefaultMix,
   encodeArrivalQuery,
   groupsForCalculation,
@@ -402,12 +403,11 @@ export default function VenueGuaranteeCalculator() {
 
   const payload = useMemo(() => formToPayload(form), [form]);
   const result = useMemo(() => computeArrival(payload), [payload]);
-  const illustrated = useMemo(
-    () => illustrateChairs(result.chairs, payload.seatsPerTable),
-    [result.chairs, payload.seatsPerTable]
+  const forecastPicture = useMemo(
+    () => illustrateSequence(forecastSequence(result, "mid"), payload.seatsPerTable),
+    [result, payload.seatsPerTable]
   );
-  const guestChairs = result.chairs.confirmed + result.chairs.high + result.chairs.undecided + result.chairs.low;
-  const illustratedTables = guestChairs === 0 ? 0 : illustrated.tables.length;
+  const illustratedTables = result.forecastReady && result.totalInvited > 0 ? forecastPicture.tables.length : 0;
   const groupSum = useMemo(
     () => storedGroups(form).reduce((sum, group) => sum + group.count, 0),
     [form]
@@ -499,12 +499,16 @@ export default function VenueGuaranteeCalculator() {
 
   const headcountValue = form.guestMode === "total" ? form.totalGuests : String(groupSum);
   const unusedText =
-    result.forecastReady && result.unusedCost != null
-      ? `${formatPeople(result.unusedMeals || 0)} מנות · ${formatIls(result.unusedCost)}`
+    result.forecastReady && result.unusedMeals != null && result.unusedMeals > 0
+      ? result.unusedCost != null
+        ? `${formatPeople(result.unusedMeals)} מנות פער · אומדן ${formatIls(result.unusedCost)} לפי המחיר שהוזן, לא חיוב ודאי`
+        : `${formatPeople(result.unusedMeals)} מנות פער. חסר מחיר מנה כדי לחשב אומדן עלות.`
       : "";
   const extraText =
-    result.forecastReady && result.extraCost != null
-      ? `${formatPeople(result.extraMeals || 0)} מנות מעל ההתחייבות · ${formatIls(result.extraCost)}`
+    result.forecastReady && result.extraMeals != null && result.extraMeals > 0
+      ? result.extraCost != null
+        ? `${formatPeople(result.extraMeals)} מנות מעל ההתחייבות · אומדן ${formatIls(result.extraCost)} לפי המחיר שהוזן, לא חיוב ודאי`
+        : `${formatPeople(result.extraMeals)} מנות מעל ההתחייבות. חסר מחיר מנה נוספת כדי לחשב אומדן עלות.`
       : "";
   const confirmedShowUp = Math.round((result.confirmedReceived * payload.showUpPct) / 100);
 
@@ -637,7 +641,7 @@ export default function VenueGuaranteeCalculator() {
                   אחוז ההגעה המשוער של אורחים מקבוצה זו. לדוגמה, אם הזמנתם 50 חברים והצפי הוא 80%, המחשבון מעריך שכ־40 מהם יגיעו. זו הערכה בלבד ולא אישור הגעה שהתקבל.
                 </p>
                 <p className="mt-2 text-sm leading-6 text-[#5E4735]">
-                  אחוזי ברירת המחדל הם הנחות תכנון לפי סוג הקשר עם האורחים. אפשר לערוך אותם. הם אינם נתונים סטטיסטיים ארציים מאומתים. השורה מתחת לכל קבוצה מחשבת רק את אחוז הקבוצה, לפני אישורי הגעה ולפני יום, עונה ומרחק.
+                  אחוזי ההגעה הם הנחות תכנון שניתן לשנות בהתאם להיכרות שלכם עם האורחים. הם אינם אישורי הגעה בפועל או ממוצע ארצי מאומת. השורה מתחת לכל קבוצה מחשבת רק את אחוז הקבוצה, לפני אישורי הגעה ולפני יום, עונה ומרחק.
                 </p>
               </div>
               <details className="mt-4 max-w-2xl" onToggle={(event) => setShowGroupRanges(event.currentTarget.open)}>
@@ -650,6 +654,8 @@ export default function VenueGuaranteeCalculator() {
                 {BUILTIN_GROUPS.map((group) => {
                   const count = countFrom(form.counts[group.id]);
                   const mid = percentFrom(form.rates[group.id].mid, group.mid);
+                  const low = percentFrom(form.rates[group.id].low, group.low);
+                  const high = percentFrom(form.rates[group.id].high, group.high);
                   return (
                     <li key={group.id} className="py-2">
                       <div className="flex flex-wrap items-center gap-3">
@@ -677,7 +683,9 @@ export default function VenueGuaranteeCalculator() {
                           </label>
                         </div>
                       </div>
-                      <p className="mt-1 text-sm leading-6 text-[#5E4735]">{groupExpectation(count, mid)}</p>
+                      <p className="mt-1 text-sm leading-6 text-[#5E4735]">
+                        {groupExpectation(count, mid)} · טווח {Math.round(low)}%–{Math.round(high)}%
+                      </p>
                       {showGroupRanges ? (
                         <div className="mt-2 grid max-w-sm grid-cols-2 gap-2">
                           <label className="grid gap-1 text-xs font-bold text-[#5E4735]">
@@ -749,7 +757,7 @@ export default function VenueGuaranteeCalculator() {
                     הסרה
                   </button>
                   <p className="text-sm leading-6 text-[#5E4735] sm:col-span-3">
-                    {groupExpectation(countFrom(group.count), percentFrom(group.mid, CUSTOM_DEFAULT_BAND.mid))}
+                    {groupExpectation(countFrom(group.count), percentFrom(group.mid, CUSTOM_DEFAULT_BAND.mid))} · טווח {Math.round(percentFrom(group.low, CUSTOM_DEFAULT_BAND.low))}%–{Math.round(percentFrom(group.high, CUSTOM_DEFAULT_BAND.high))}%
                   </p>
                   <label className="grid gap-1 text-xs font-bold text-[#5E4735]">
                     צפי %
@@ -1022,6 +1030,34 @@ export default function VenueGuaranteeCalculator() {
                 ))}
               </dl>
               <p className="mt-3 text-base leading-7 text-[#5E4735]">זו הערכה לפי הנחות גלויות, לא מספר לחתימה ולא הבטחה.</p>
+              <details className="mt-4">
+                <summary className="cursor-pointer text-sm font-bold text-[#5E4735]">איך חושבה התחזית?</summary>
+                <ol className="mt-3 space-y-2 text-sm leading-6 text-[#3A2433]">
+                  <li>1. אורחים שאישרו בפועל: {formatPeople(result.confirmedReceived)}.</li>
+                  <li>
+                    2. הנחת אי־הופעה מתוך המאשרים: {formatPeople(Math.max(0, result.confirmedReceived - result.forecastViews.mid.show))}. נספרים{" "}
+                    {formatPeople(result.forecastViews.mid.show)}. הפער הוא הנחת אי־הופעה, לא סירוב ולא ביטול.
+                  </li>
+                  <li>
+                    3. צפי מתוך המתלבטים: {formatPeople(result.forecastViews.mid.undecided)} מתוך {formatPeople(result.undecidedReceived)} בפועל.
+                  </li>
+                  <li>
+                    4. צפי מתוך הממתינים: {formatPeople(result.forecastViews.mid.pending)} מתוך {formatPeople(result.pendingReceived)} בפועל.
+                  </li>
+                  <li>
+                    5. צפי מתוך מי שטרם סווגו: {formatPeople(result.forecastViews.mid.high + result.forecastViews.mid.low)} מתוך {formatPeople(result.remainder)}.
+                  </li>
+                  <li>
+                    6. השפעת נתוני האירוע: {result.contextShift > 0 ? "+" : ""}{result.contextShift} נקודות אחוז. הן כבר כלולות בשיעורים שלמעלה, ולא מתווספות שוב.
+                  </li>
+                  <li>
+                    7. רזרבות: {formatPeople(result.reserveMeals)} מנות. הן מתווספות לתכנון המנות ({formatPeople(result.recommendedPortions)}) ואינן כיסאות בתחזית ההגעה.
+                  </li>
+                </ol>
+                <p className="mt-3 text-sm font-bold leading-6 text-[#42182F]">
+                  סכום הגעה: {formatPeople(result.forecastViews.mid.show + result.forecastViews.mid.undecided + result.forecastViews.mid.pending + result.forecastViews.mid.high + result.forecastViews.mid.low)} · התחזית המרכזית: {formatPeople(result.rangeMid)}
+                </p>
+              </details>
               {result.confirmedReceived > 0 ? (
                 <div className="mt-5 border-r-2 border-[#C6A15A] pr-4">
                   <p className="text-base font-bold text-[#8E3A4B]">אישרו בפועל: {formatPeople(result.confirmedReceived)}</p>
@@ -1055,7 +1091,7 @@ export default function VenueGuaranteeCalculator() {
                 <Stat
                   label="שולחנות בהמחשה"
                   value={formatPeople(illustratedTables)}
-                  note="השולחנות מציגים את התחזית בלבד. שינוי המושבים משנה רק את הציור."
+                  note="מספר השולחנות בתצוגת התחזית המרכזית, כולל מקומות שמחוץ לתחזית. שינוי המושבים משנה רק את הציור."
                 />
                 {!result.contractMissing ? (
                   <Stat
@@ -1071,8 +1107,8 @@ export default function VenueGuaranteeCalculator() {
                     note={`${formatPeople(result.reserveMeals)} מנות רזרבה נוספו על ההערכה.`}
                   />
                 ) : null}
-                {unusedText ? <Stat label="מנות שעלולות להישאר" value={unusedText} /> : null}
-                {extraText ? <Stat label="מנות מעל ההתחייבות" value={extraText} /> : null}
+                {unusedText ? <Stat label="פער מול ההתחייבות" value={unusedText} note="אומדן להשוואה. הוא אינו סכום חיוב ודאי." /> : null}
+                {extraText ? <Stat label="מנות מעל ההתחייבות" value={extraText} note="אומדן להשוואה. הוא אינו סכום חיוב ודאי." /> : null}
                 {result.capacity != null ? <Stat label="קיבולת האולם" value={formatPeople(result.capacity)} /> : null}
               </dl>
 
