@@ -9,6 +9,8 @@ export type FactTable = {
   caption: string;
   headers: string[];
   rows: string[][];
+  /** Wrap to the viewport. Other tables keep a minimum width and scroll sideways. */
+  fitWidth?: boolean;
 };
 
 /** Direct answer shown before the long explanation. Visible text, not hidden. */
@@ -148,6 +150,7 @@ export function answerFor(path: string) {
 
 const CORPORATE_COMPARISON: FactTable = {
   caption: "אותה מערכת. ההבדל הוא מקור הרשימה וההקשר, לא מנגנון האישור.",
+  fitWidth: true,
   headers: ["", "חתונה", "אירוע חברה"],
   rows: [
     ["רשימה", "שני צדדים, משפחה וחברים", "עובדים, אורחים או קובץ מהארגון"],

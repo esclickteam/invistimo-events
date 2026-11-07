@@ -161,32 +161,32 @@ export default function GuestsNoReplyGuide() {
               אחר מי שעדיין לא השיב.
             </p>
             <div className="overflow-x-auto rounded-[22px] border border-[#E7D3B0] bg-white">
-              <table className="w-full min-w-[520px] border-collapse text-right text-sm">
+              <table className="w-full border-collapse text-right text-sm">
                 <caption className="px-4 py-3 text-right text-base font-black text-[#2C241C]">
                   שלושה מצבים לפני שסוגרים מספר לאולם
                 </caption>
                 <thead>
                   <tr className="border-y border-[#E7D3B0] text-[#2C241C]">
-                    <th className="px-4 py-2 font-black">מה קרה</th>
-                    <th className="px-4 py-2 font-black">מה זה אומר</th>
-                    <th className="px-4 py-2 font-black">מה עושים ב־Invistimo</th>
+                    <th className="px-3 py-2 align-top font-black">מה קרה</th>
+                    <th className="px-3 py-2 align-top font-black">מה זה אומר</th>
+                    <th className="px-3 py-2 align-top font-black">מה עושים ב־Invistimo</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="border-b border-[#E7D3B0]/70">
-                    <th className="px-4 py-3 font-bold text-[#2C241C]">WhatsApp לא נמסר</th>
-                    <td className="px-4 py-3 leading-6 text-[#5C4A3A]">כשל שליחה, לא שתיקה של האורח</td>
-                    <td className="px-4 py-3 leading-6 text-[#5C4A3A]">יכול לצאת SMS עם אותו קישור אישי</td>
+                    <th className="px-3 py-3 align-top font-bold text-[#2C241C]">WhatsApp לא נמסר</th>
+                    <td className="px-3 py-3 align-top leading-6 text-[#5C4A3A]">כשל שליחה, לא שתיקה של האורח</td>
+                    <td className="px-3 py-3 align-top leading-6 text-[#5C4A3A]">יכול לצאת SMS עם אותו קישור אישי</td>
                   </tr>
                   <tr className="border-b border-[#E7D3B0]/70">
-                    <th className="px-4 py-3 font-bold text-[#2C241C]">ההודעה הגיעה ואין תשובה</th>
-                    <td className="px-4 py-3 leading-6 text-[#5C4A3A]">האורח עדיין במעקב. זה לא סירוב</td>
-                    <td className="px-4 py-3 leading-6 text-[#5C4A3A]">סבב ההודעות הבא, בלי SMS חלופי</td>
+                    <th className="px-3 py-3 align-top font-bold text-[#2C241C]">ההודעה הגיעה ואין תשובה</th>
+                    <td className="px-3 py-3 align-top leading-6 text-[#5C4A3A]">האורח עדיין במעקב. זה לא סירוב</td>
+                    <td className="px-3 py-3 align-top leading-6 text-[#5C4A3A]">סבב ההודעות הבא, בלי SMS חלופי</td>
                   </tr>
                   <tr>
-                    <th className="px-4 py-3 font-bold text-[#2C241C]">נרכשה חבילת שיחות</th>
-                    <td className="px-4 py-3 leading-6 text-[#5C4A3A]">ההודעות לא סגרו תשובה</td>
-                    <td className="px-4 py-3 leading-6 text-[#5C4A3A]">שיחה לפי המסלול שנבחר, בלי הבטחה שכולם יענו</td>
+                    <th className="px-3 py-3 align-top font-bold text-[#2C241C]">נרכשה חבילת שיחות</th>
+                    <td className="px-3 py-3 align-top leading-6 text-[#5C4A3A]">ההודעות לא סגרו תשובה</td>
+                    <td className="px-3 py-3 align-top leading-6 text-[#5C4A3A]">שיחה לפי המסלול שנבחר, בלי הבטחה שכולם יענו</td>
                   </tr>
                 </tbody>
               </table>
