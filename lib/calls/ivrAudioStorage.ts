@@ -8,7 +8,7 @@ import {
   GetObjectCommand,
   HeadObjectCommand,
 } from "@aws-sdk/client-s3";
-import { r2Client, R2_BUCKET_NAME } from "@/lib/r2";
+import { getR2BucketName, getR2Client } from "@/lib/r2";
 
 const AUDIO_CONTENT_TYPES = new Set([
   "audio/mpeg",
@@ -204,9 +204,9 @@ export async function uploadIvrAudioToR2(input: {
   }
 
   const contentType = input.contentType || "audio/mpeg";
-  await r2Client.send(
+  await getR2Client().send(
     new PutObjectCommand({
-      Bucket: R2_BUCKET_NAME,
+      Bucket: getR2BucketName(),
       Key: input.key,
       Body: input.buffer,
       ContentType: contentType,
@@ -222,7 +222,7 @@ export async function uploadIvrAudioToR2(input: {
   }
 
   return {
-    bucket: R2_BUCKET_NAME,
+    bucket: getR2BucketName(),
     key: input.key,
     contentType: verified.contentType || contentType,
     sizeBytes: verified.sizeBytes,
@@ -249,9 +249,9 @@ export async function verifyIvrAudioInR2(
   const timeoutMs = Math.max(500, Number(options?.timeoutMs || 2500));
   try {
     const result = await Promise.race([
-      r2Client.send(
+      getR2Client().send(
         new HeadObjectCommand({
-          Bucket: R2_BUCKET_NAME,
+          Bucket: getR2BucketName(),
           Key: r2Key,
         })
       ),
@@ -365,9 +365,9 @@ export async function verifyIvrPublicAudioHttp(
 }
 
 export async function getIvrAudioObjectFromR2(key: string) {
-  const result = await r2Client.send(
+  const result = await getR2Client().send(
     new GetObjectCommand({
-      Bucket: R2_BUCKET_NAME,
+      Bucket: getR2BucketName(),
       Key: key,
     })
   );

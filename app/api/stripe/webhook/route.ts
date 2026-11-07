@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { NextResponse } from "next/server";
+import { lazyStripe } from "@/lib/lazyStripe";
 
 import connectDB from "@/lib/mongodb";
 import Payment from "@/models/Payment";
@@ -15,15 +16,7 @@ export const dynamic = "force-dynamic";
    Stripe instance
 ============================================================ */
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error("Missing STRIPE_SECRET_KEY");
-}
-
-if (!process.env.STRIPE_WEBHOOK_SECRET) {
-  throw new Error("Missing STRIPE_WEBHOOK_SECRET");
-}
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+const stripe = lazyStripe({
   apiVersion: "2025-11-17.clover",
 });
 
@@ -643,6 +636,14 @@ function getEmployeeSalePackageFlags(sale: any, user: any) {
 ============================================================ */
 
 export async function POST(req: Request) {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error("Missing STRIPE_SECRET_KEY");
+  }
+
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    throw new Error("Missing STRIPE_WEBHOOK_SECRET");
+  }
+
   try {
     const signature = req.headers.get("stripe-signature");
 

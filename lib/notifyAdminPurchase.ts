@@ -1,14 +1,13 @@
 import { Resend } from "resend";
 import { assertExternalSendAllowed } from "@/lib/env/externalSends";
 
-/* ============================================================
-   INIT
-============================================================ */
-if (!process.env.RESEND_API_KEY) {
-  throw new Error("❌ Missing RESEND_API_KEY");
+function resendClient() {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    throw new Error("❌ Missing RESEND_API_KEY");
+  }
+  return new Resend(apiKey);
 }
-
-const resend = new Resend(process.env.RESEND_API_KEY);
 
 /* ============================================================
    TYPES
@@ -72,7 +71,7 @@ export async function notifyAdminPurchase({
 
   /* ================= SEND ================= */
   try {
-    const result = await resend.emails.send({
+    const result = await resendClient().emails.send({
       from: "Invistimo <support@invistimo.com>",
       to: recipients,
       subject: `רכישה חדשה במערכת – ${amount} ${currency.toUpperCase()}`,

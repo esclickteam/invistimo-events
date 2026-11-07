@@ -1,6 +1,6 @@
-import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { lazyStripe } from "@/lib/lazyStripe";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
 
@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 /* ============================================================
    Stripe instance
 ============================================================ */
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripe = lazyStripe();
 
 /* ============================================================
    Packages (fixed prices)

@@ -1,14 +1,14 @@
-import Stripe from "stripe";
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
+import { lazyStripe } from "@/lib/lazyStripe";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
 
 /* ============================================================
    Stripe
 ============================================================ */
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
+const stripe = lazyStripe();
 
 /* ============================================================
    מחיר שדרוג לפי חבילה בלבד
