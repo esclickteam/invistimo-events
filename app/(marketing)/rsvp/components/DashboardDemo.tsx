@@ -1,4 +1,6 @@
-/** Static illustration of RSVP status — clearly labeled as sample data. */
+import Link from "next/link";
+
+/** Static illustration of RSVP status. The numbers are a sample, not a client event. */
 
 export default function DashboardDemo() {
   return (
@@ -17,10 +19,10 @@ export default function DashboardDemo() {
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { value: "148", label: "אישרו הגעה", tone: "text-[#2F6B3C]" },
-          { value: "27", label: "לא מגיעים", tone: "text-[#9B3B32]" },
-          { value: "41", label: "עדיין לא השיבו", tone: "text-[#A06A1C]" },
-          { value: "216", label: "מוזמנים", tone: "text-[#35281F]" },
+          { value: "148", label: "רשומות שאישרו", tone: "text-[#2F6B3C]" },
+          { value: "27", label: "רשומות שלא מגיעות", tone: "text-[#9B3B32]" },
+          { value: "41", label: "רשומות בלי תשובה", tone: "text-[#A06A1C]" },
+          { value: "216", label: "רשומות ברשימה", tone: "text-[#35281F]" },
         ].map((item) => (
           <div
             key={item.label}
@@ -35,13 +37,17 @@ export default function DashboardDemo() {
       <div className="mt-5 rounded-2xl border border-[#EADCC8] bg-white/90 p-4">
         <div className="mb-2 flex items-center justify-between text-sm font-bold text-[#514033]">
           <span>התקדמות תשובות</span>
-          <span className="text-[#A77A38]">68%</span>
+          <span className="text-[#A77A38]">81%</span>
         </div>
         <div className="h-3 overflow-hidden rounded-full bg-[#F0E4D2]" aria-hidden>
-          <div className="h-full w-[68%] rounded-full bg-gradient-to-l from-[#C7A56B] to-[#A77A38]" />
+          <div className="h-full w-[81%] rounded-full bg-gradient-to-l from-[#C7A56B] to-[#A77A38]" />
         </div>
         <p className="mt-3 text-sm leading-6 text-[#6D5B4A]">
-          175 מתוך 216 השיבו · 296 מגיעים צפויים לפי האישורים
+          175 מתוך 216 רשומות השיבו. מתוך 148 הרשומות שאישרו נספרים 296 אנשים — רשומה אחת יכולה
+          לכלול זוג או משפחה, ולכן מספר האנשים גבוה ממספר הרשומות.{" "}
+          <Link href="/info/guides/guest-list" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+            איך סופרים רשומות מול אנשים
+          </Link>
         </p>
       </div>
 

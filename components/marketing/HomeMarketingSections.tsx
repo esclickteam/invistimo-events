@@ -372,8 +372,9 @@ export default function HomeMarketingSections() {
             אישורי הגעה וסידורי הושבה במקום אחד
           </h2>
           <p className="lux-lede mt-5">
-            שולחים הזמנה, כל אורח מקבל קישור אישי לאישור, ורואים מי מגיע ברשימת המוזמנים. כשיש
-            תשובות, ממשיכים לאותה רשימה ובונים את מפת השולחנות.
+            Invistimo היא מערכת ישראלית לאישורי הגעה ולניהול אורחים. שולחים הזמנה, כל אורח מקבל
+            קישור אישי, ורואים מי מגיע ברשימה. כשיש תשובות, ממשיכים לאותה רשימה ובונים את מפת
+            השולחנות.
           </p>
           <p className="mt-4 text-base leading-8 text-[#6B5360]">
             <Link href="/rsvp" className="font-bold text-[#842B4C] underline-offset-4 hover:underline">

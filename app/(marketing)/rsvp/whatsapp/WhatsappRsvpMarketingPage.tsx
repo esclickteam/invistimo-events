@@ -429,7 +429,7 @@ export default function WhatsappRsvpMarketingPage() {
             כתב &quot;מגיעים&quot;, כמה אנשים הוא התכוון להביא ואם כבר עדכנתם את הרשימה.
           </p>
           <p className="mt-4 max-w-3xl text-base leading-8 text-[#5C4A3A]">
-            העמוד הזה מתאר את שירות אישורי ההגעה ב־WhatsApp. להבדל בין כשל מסירה לבין אורח שלא השיב
+            אישורי ההגעה ב־WhatsApp נשלחים עם קישור אישי, והתשובה נשמרת במערכת. להבדל בין כשל מסירה לבין אורח שלא השיב
             ראו את{" "}
             <Link href="/info/guides/whatsapp-vs-sms-rsvp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
               מדריך WhatsApp ו־SMS

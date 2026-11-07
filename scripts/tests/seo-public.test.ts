@@ -454,6 +454,7 @@ test("pillar clusters do not assign one URL to two topics and answer-first cover
   assert.ok(PAGE_ANSWERS["/faq"]);
   assert.ok(tableFor("/pricing"));
   assert.equal(tableFor("/rsvp"), null);
+  assert.equal(tableFor("/info/guides/rsvp-corporate-events")?.rows.length, 5);
   assert.ok(PAGE_ANSWERS["/rsvp"]);
   const page = read("components/marketing/PublicContentPage.tsx");
   assert.match(page, /<h1/);
@@ -537,6 +538,21 @@ test("answers.json mirrors PAGE_ANSWERS for machine readers", () => {
   assert.notEqual(PAGE_ANSWERS["/rsvp"], PAGE_ANSWERS["/rsvp/chatuna"]);
   assert.ok(Array.isArray(raw.aiMonitorQuestions));
   assert.ok(raw.aiMonitorQuestions.length >= 6);
+});
+
+test("RSVP sample dashboard counts records and people separately", () => {
+  const demo = read("app/(marketing)/rsvp/components/DashboardDemo.tsx");
+  assert.match(demo, /148/);
+  assert.match(demo, /27/);
+  assert.match(demo, /41/);
+  assert.match(demo, /216/);
+  assert.match(demo, /175 מתוך 216 רשומות השיבו/);
+  assert.match(demo, /296 אנשים/);
+  assert.match(demo, /81%/);
+  assert.match(demo, /w-\[81%\]/);
+  assert.doesNotMatch(demo, /68%/);
+  assert.equal(148 + 27 + 41, 216);
+  assert.equal(148 + 27, 175);
 });
 
 test("seo documentation deliverables exist", () => {

@@ -9,6 +9,8 @@ export type FactTable = {
   caption: string;
   headers: string[];
   rows: string[][];
+  /** Wrap to the viewport. Other tables keep a minimum width and scroll sideways. */
+  fitWidth?: boolean;
 };
 
 /** Direct answer shown before the long explanation. Visible text, not hidden. */
@@ -146,9 +148,25 @@ export function answerFor(path: string) {
   return PAGE_ANSWERS[path] || "";
 }
 
+const CORPORATE_COMPARISON: FactTable = {
+  caption: "אותה מערכת. ההבדל הוא מקור הרשימה וההקשר, לא מנגנון האישור.",
+  fitWidth: true,
+  headers: ["", "חתונה", "אירוע חברה"],
+  rows: [
+    ["רשימה", "שני צדדים, משפחה וחברים", "עובדים, אורחים או קובץ מהארגון"],
+    ["ייבוא", "הקלדה או אקסל", "הקלדה או אקסל. אין משיכה מקבוצת WhatsApp"],
+    ["אישור", "קישור אישי, תשובה על הרשומה", "אותו קישור אישי ואותה תשובה על הרשומה"],
+    ["מכסה", "רשומה עם טלפון", "רשומה עם טלפון, לא לפי שם החברה"],
+    ["מספר לספק", "מעבירים לאולם לפי המועד שסוכם", "מעבירים לקייטרינג או לאולם. המערכת לא שולחת אותו לבד"],
+  ],
+};
+
 export function tableFor(path: string) {
   if (PACKAGE_TABLE_PATHS.has(path)) {
     return PACKAGE_COMPARISON;
+  }
+  if (path === "/info/guides/rsvp-corporate-events") {
+    return CORPORATE_COMPARISON;
   }
   return null;
 }
