@@ -24,9 +24,10 @@
  *    not an invented contractual commitment.
  * 10. Reserve meals are added to the central estimate for portion planning.
  *     They are not extra guests and are not drawn as chairs.
- * 11. The status map draws every invited guest once, by the status that was
- *     typed. The forecast map draws the selected forecast only, with everyone
- *     else as an outline. A contract minimum is a comparison figure, not a chair.
+ * 11. The central map draws only the central estimate: high, medium, and low
+ *     probability seats that sum to that number. Empty seats on the last table
+ *     complete the table and are not part of the estimate. Status counts stay
+ *     in the written breakdown. A contract minimum is a separate figure, not a chair.
  */
 
 export const BUILTIN_GROUPS = [
@@ -225,6 +226,9 @@ export type SeatMark =
   | "forecast-pending"
   | "forecast-low"
   | "forecast-outside"
+  | "prob-high"
+  | "prob-medium"
+  | "prob-low"
   | "pad";
 
 export type ArrivalResult = {
@@ -649,6 +653,16 @@ export function forecastSequence(result: ArrivalResult, level: ForecastLevel): S
     ["forecast-pending", view.pending],
     ["forecast-low", view.low],
     ["forecast-outside", view.outside],
+  ]);
+}
+
+export function centralMapSequence(result: ArrivalResult): SeatMark[] {
+  if (!result.forecastReady) return [];
+  const view = result.forecastViews.mid;
+  return interleave([
+    ["prob-high", view.show + view.high],
+    ["prob-medium", view.undecided + view.pending],
+    ["prob-low", view.low],
   ]);
 }
 

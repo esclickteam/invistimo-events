@@ -12,6 +12,7 @@ import {
   illustrateChairs,
   illustrateSequence,
   forecastSequence,
+  centralMapSequence,
   statusSequence,
   mapKnownGroupName,
   type ArrivalInputs,
@@ -512,6 +513,32 @@ test("status chairs match typed counts and forecast chairs match the selected to
   assert.equal(wider.rangeLow, 20);
   assert.equal(wider.rangeMid, 40);
   assert.equal(wider.rangeHigh, 60);
+});
+
+test("the central map draws exactly the central estimate and pads only the last table", () => {
+  const sample = Array.from({ length: 153 }, () => "prob-high" as const);
+  const picture = illustrateSequence(sample, 10);
+  const flat = picture.tables.flat();
+  assert.equal(picture.tables.length, 16);
+  assert.equal(flat.filter((seat) => seat !== "pad").length, 153);
+  assert.equal(flat.filter((seat) => seat === "pad").length, 7);
+
+  const result = computeArrival(input({ groups: [group({ count: 200 })] }));
+  const marks = centralMapSequence(result);
+  assert.equal(marks.length, result.rangeMid);
+  const drawn = illustrateSequence(marks, 10);
+  const seats = drawn.tables.flat();
+  const included = seats.filter((seat) => seat !== "pad");
+  assert.equal(included.length, result.rangeMid);
+  assert.equal(
+    included.filter((seat) => seat === "prob-high").length +
+      included.filter((seat) => seat === "prob-medium").length +
+      included.filter((seat) => seat === "prob-low").length,
+    result.rangeMid
+  );
+  const tables = Math.ceil(result.rangeMid / 10);
+  assert.equal(drawn.tables.length, tables);
+  assert.equal(seats.filter((seat) => seat === "pad").length, tables * 10 - result.rangeMid);
 });
 
 test("event date becomes a season without leaving the calendar", () => {
