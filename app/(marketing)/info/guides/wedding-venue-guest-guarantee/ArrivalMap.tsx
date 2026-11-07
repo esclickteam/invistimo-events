@@ -16,41 +16,31 @@ function peopleLabel(value: number) {
 
 function SeatGlyph({ mark, x, y, r }: { mark: SeatMark; x: number; y: number; r: number }) {
   if (mark === "prob-high") {
-    return (
-      <g>
-        <circle cx={x} cy={y} r={r} fill="#087F68" stroke="#065C4C" strokeWidth="1.15" />
-        <circle cx={x} cy={y} r={Math.max(1.3, r * 0.28)} fill="#F4FFFB" />
-      </g>
-    );
+    return <circle cx={x} cy={y} r={r} fill="#0B7A62" stroke="#064E40" strokeWidth="1.4" />;
   }
   if (mark === "prob-medium") {
-    return <circle cx={x} cy={y} r={r} fill="#D6A329" stroke="#8A6810" strokeWidth="1.15" />;
+    return <circle cx={x} cy={y} r={r} fill="#E0A106" stroke="#8A6410" strokeWidth="1.4" />;
   }
   if (mark === "prob-low") {
-    return (
-      <g>
-        <circle cx={x} cy={y} r={r} fill="#F4F2F6" stroke="#6F6A7C" strokeWidth="1.7" />
-        <circle cx={x} cy={y} r={Math.max(1.2, r * 0.34)} fill="#6F6A7C" />
-      </g>
-    );
+    return <circle cx={x} cy={y} r={r} fill="#6E657F" stroke="#3E384C" strokeWidth="1.4" />;
   }
-  return <circle cx={x} cy={y} r={r * 0.82} fill="#E7E1D6" stroke="#D5CFC4" strokeWidth="1" />;
+  return <circle cx={x} cy={y} r={r * 0.78} fill="#E6E0D6" stroke="#C9C2B6" strokeWidth="1" />;
 }
 
 function TableFigure({ number, seats }: { number: number; seats: SeatMark[] }) {
   const size = 120;
   const center = size / 2;
-  const orbit = 46;
+  const orbit = 49;
   const count = Math.max(seats.length, 1);
-  const chairRadius = Math.max(5.6, Math.min(7.6, (2 * Math.PI * orbit) / count / 2 - 1.6));
+  const chairRadius = Math.max(4.6, Math.min(8.1, (2 * Math.PI * orbit) / count / 2 - 1.7));
   return (
-    <figure className="m-0" style={{ contentVisibility: "auto", containIntrinsicSize: "78px" }}>
-      <svg viewBox={`0 0 ${size} ${size}`} className="block h-[4.85rem] w-[4.85rem]" role="img" aria-label={`שולחן ${number}, המחשה`}>
+    <figure className="m-0 h-[7.5rem] w-[7.5rem]" style={{ contentVisibility: "auto", containIntrinsicSize: "120px" }}>
+      <svg viewBox={`0 0 ${size} ${size}`} className="block h-full w-full" role="img" aria-label={`שולחן ${number}, המחשה`}>
         {seats.map((mark, index) => {
           const angle = -Math.PI / 2 + (index * 2 * Math.PI) / count;
           return <SeatGlyph key={`${mark}-${index}`} mark={mark} x={center + orbit * Math.cos(angle)} y={center + orbit * Math.sin(angle)} r={chairRadius} />;
         })}
-        <circle cx={center} cy={center} r={13} fill="#FFFDF8" stroke="#C6A15A" strokeWidth="1.15" />
+        <circle cx={center} cy={center} r={12} fill="#FFFDF8" stroke="#C6A15A" strokeWidth="1.2" />
         <text x={center} y={center + 0.4} textAnchor="middle" dominantBaseline="central" fill="#42182F" fontSize="11" fontWeight="700" fontFamily="Heebo, Arial, sans-serif">
           {number}
         </text>
@@ -101,8 +91,8 @@ export default function ArrivalMap({
         <p className="mt-4 text-sm leading-6 text-[#5E4735]">ההערכה המרכזית היא 0, ולכן אין כיסאות צבועים.</p>
       ) : (
         <div
-          className="mt-4 grid justify-start gap-x-3 gap-y-3"
-          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(4.85rem, 4.85rem))" }}
+          className="mt-4 grid justify-start gap-x-4 gap-y-4"
+          style={{ gridTemplateColumns: "repeat(auto-fill, minmax(7.5rem, 7.5rem))" }}
         >
           {picture.tables.map((table, index) => (
             <TableFigure key={index} number={index + 1} seats={table} />
@@ -110,20 +100,22 @@ export default function ArrivalMap({
         </div>
       )}
 
-      <ul className="mt-5 flex flex-wrap gap-x-5 gap-y-2">
+      <ul className="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-4">
         {LEGEND.map((item) => (
-          <li key={item.mark} className="flex items-center gap-2 text-sm text-[#3A2433]">
-            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-              <SeatGlyph mark={item.mark} x={8} y={8} r={5.4} />
+          <li key={item.mark} className="flex items-center gap-2 border border-[#E7D6BC] bg-[#FFFDF8] px-3 py-2">
+            <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" className="shrink-0">
+              <SeatGlyph mark={item.mark} x={11} y={11} r={7.2} />
             </svg>
-            <span className="font-semibold">{item.label}</span>
-            <span className="font-black tabular-nums">{peopleLabel(counts.get(item.mark) || 0)}</span>
-            <span className="text-[#5E4735]">{item.hint}</span>
+            <span className="min-w-0">
+              <span className="block text-sm font-bold text-[#2C241C]">{item.label}</span>
+              <span className="block text-sm font-black tabular-nums text-[#42182F]">{peopleLabel(counts.get(item.mark) || 0)} מקומות</span>
+              <span className="block text-xs leading-5 text-[#5E4735]">{item.hint}</span>
+            </span>
           </li>
         ))}
       </ul>
       <p className="mt-3 max-w-3xl text-sm leading-6 text-[#5E4735]">
-        הצבעים ממחישים את רמת הסבירות להגעה לפי ההערכה המרכזית. זוהי תחזית לצורכי תכנון בלבד, ולא נתון על הגעה בפועל או שיבוץ לשולחנות.
+        הצבעים ממחישים את רמת הסבירות להגעה לפי ההערכה המרכזית. זוהי תחזית לצורכי תכנון בלבד, ולא נתון על הגעה בפועל או שיבוץ לשולחנות. כל כיסא הוא מקום סטטיסטי בתחזית, לא אורח מזוהה.
       </p>
       {result.totalInvited > included ? (
         <p className="mt-2 text-sm leading-6 text-[#5E4735]">

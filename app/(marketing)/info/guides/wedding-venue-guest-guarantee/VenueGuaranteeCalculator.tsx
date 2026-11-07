@@ -990,59 +990,44 @@ export default function VenueGuaranteeCalculator() {
 
       {step === 2 && result.forecastReady ? (
         <section className="mt-8" aria-labelledby="forecast-step">
-          <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
-            <div>
-              <p className="text-sm font-bold text-[#7A5530]">צפויים להגיע</p>
-              <p className="mt-1 text-2xl font-black tabular-nums text-[#2C241C]" dir="ltr">
+          <div>
+            <h3 id="forecast-step" className="text-sm font-bold tracking-[0.14em] text-[#7A5530]">הערכה מרכזית</h3>
+            <p key={result.rangeMid} className="arrival-figure mt-1 text-7xl font-black leading-none tabular-nums text-[#42182F] md:text-8xl" aria-live="polite">
+              {formatPeople(result.rangeMid)}
+            </p>
+            <p className="mt-3 text-lg font-bold text-[#2C241C]">
+              צפויים להגיע{" "}
+              <span dir="ltr" className="tabular-nums">
                 {result.isRange ? `${formatPeople(result.rangeLow)}–${formatPeople(result.rangeHigh)}` : formatPeople(result.rangeMid)}
+              </span>
+            </p>
+            <p className="mt-1 text-base font-bold text-[#3A2433]">מתוך {formatPeople(result.totalInvited)} מוזמנים</p>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              <p className="border border-[#E4D3B8] bg-white px-3 py-2 text-sm leading-6 text-[#3A2433]">
+                <span className="block text-xs font-bold text-[#7A5530]">אישורי הגעה</span>
+                {result.confirmedReceived > 0
+                  ? `${formatPeople(result.confirmedReceived)} אישרו. זהו נתון נפרד מהתחזית, ולא נוכחות ביום האירוע.`
+                  : "לא הוזנו. אישור שהתקבל אינו נספר כנוכחות ביום האירוע."}
               </p>
-            </div>
-            <div>
-              <h3 id="forecast-step" className="text-sm font-bold text-[#7A5530]">הערכה מרכזית</h3>
-              <p key={result.rangeMid} className="arrival-figure mt-1 text-6xl font-black leading-none tabular-nums text-[#42182F] md:text-7xl" aria-live="polite">
-                {formatPeople(result.rangeMid)}
-              </p>
-            </div>
-            <div className="text-sm leading-6 text-[#3A2433]">
-              <p className="font-bold">מתוך {formatPeople(result.totalInvited)} מוזמנים</p>
-              <p className="mt-1">
+              <p className="border border-[#E4D3B8] bg-white px-3 py-2 text-sm leading-6 text-[#3A2433]">
+                <span className="block text-xs font-bold text-[#7A5530]">התחייבות לאולם</span>
                 {result.contractMissing
-                  ? "התחייבות לאולם: לא הוזנה"
-                  : `התחייבות לאולם: ${formatPeople(result.venueMin || 0)} מנות`}
+                  ? "לא הוזנה. אין מספר חוזי מומצא."
+                  : `${formatPeople(result.venueMin || 0)} מנות בהסכם. נתון חוזי נפרד, לא כיסא במפה.`}
               </p>
             </div>
           </div>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <p className="text-base font-bold text-[#2C241C]">טווח הגעה משוער</p>
-                <details className="group">
-                  <summary className="inline-flex min-h-11 cursor-pointer list-none items-center border border-[#D9C4A4] bg-white px-3 text-sm font-bold text-[#5E4735] [&::-webkit-details-marker]:hidden">
-                    הסבר על הטווח
-                  </summary>
-                  <p className="mt-3 max-w-xl text-sm leading-6 text-[#5E4735]">
-                    טווח ההגעה מציג הערכה נמוכה וגבוהה למספר האורחים שעשויים להגיע. הוא מחושב לפי קבוצות המוזמנים, אחוזי ההגעה שהוגדרו, אישורי ההגעה שכבר התקבלו ונתוני האירוע. הטווח נועד לעזור בתכנון ואינו מבטיח כמה אורחים יגיעו בפועל.
-                  </p>
-                </details>
-              </div>
-              <p className="mt-2 text-base leading-7 text-[#5E4735]">
-                {result.isRange
-                  ? `${formatPeople(result.rangeLow)} עד ${formatPeople(result.rangeHigh)}`
-                  : "קצות הטווח נפגשים במספר המרכזי."}
+          <div className="mt-4">
+            <details className="group">
+              <summary className="inline-flex min-h-11 cursor-pointer list-none items-center border border-[#D9C4A4] bg-white px-3 text-sm font-bold text-[#5E4735] [&::-webkit-details-marker]:hidden">
+                הסבר על הטווח
+              </summary>
+              <p className="mt-3 max-w-xl text-sm leading-6 text-[#5E4735]">
+                הטווח מציג הערכה נמוכה וגבוהה סביב המספר המרכזי. הוא מחושב לפי קבוצות המוזמנים, אחוזי הצפי, אישורי ההגעה שכבר התקבלו ונתוני האירוע. הוא נועד לתכנון, ואינו מספר נוכחות ליום האירוע.
               </p>
-              <dl className="mt-4 grid grid-cols-3 gap-2">
-                {(
-                  [
-                    ["תחזית נמוכה", result.rangeLow, "border-[#E4D3B8]"],
-                    ["תחזית מרכזית", result.rangeMid, "border-[#42182F]"],
-                    ["תחזית גבוהה", result.rangeHigh, "border-[#C6A15A]"],
-                  ] as const
-                ).map(([label, value, border]) => (
-                  <div key={label} className={`border bg-[#FFFDF8] px-2 py-3 ${border}`}>
-                    <dt className="text-xs font-bold leading-5 text-[#5E4735]">{label}</dt>
-                    <dd className="mt-1 text-2xl font-black tabular-nums text-[#42182F] sm:text-3xl">{formatPeople(value)}</dd>
-                  </div>
-                ))}
-              </dl>
-              <p className="mt-3 text-base leading-7 text-[#5E4735]">זו הערכה לפי הנחות גלויות, לא מספר לחתימה ולא הבטחה.</p>
+            </details>
+          </div>
+          <p className="mt-3 text-base leading-7 text-[#5E4735]">זו הערכה לפי הנחות גלויות, לא מספר לחתימה ולא הבטחה.</p>
               <ArrivalMap result={result} seatsValue={form.seats} onSeatsChange={(value) => patch({ seats: value })} />
               <details className="mt-4">
                 <summary className="cursor-pointer text-sm font-bold text-[#5E4735]">איך חושבה התחזית?</summary>
@@ -1094,7 +1079,7 @@ export default function VenueGuaranteeCalculator() {
               <div className="mx-auto mt-10 max-w-3xl">
               <ul className="mt-6 space-y-2 text-sm leading-6 text-[#3A2433]">
                 <li><span className="font-bold">מוזמנים ברשימה:</span> {formatPeople(result.totalInvited)}</li>
-                <li><span className="font-bold">אישרו בפועל:</span> {formatPeople(result.confirmedReceived)}</li>
+                <li><span className="font-bold">אישורי הגעה שהתקבלו:</span> {formatPeople(result.confirmedReceived)}. זה אינו מספר נוכחות.</li>
                 <li><span className="font-bold">צפויים להגיע:</span> {formatPeople(result.rangeMid)}. זו התחזית המרכזית.</li>
                 <li>
                   <span className="font-bold">התחייבות חוזית:</span>{" "}
