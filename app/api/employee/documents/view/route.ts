@@ -6,7 +6,7 @@ import db from "@/lib/db";
 import User from "@/models/User";
 import EmployeeForm101 from "@/models/EmployeeForm101";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { r2Client, R2_BUCKET_NAME } from "@/lib/r2";
+import { getR2BucketName, getR2Client } from "@/lib/r2";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
   try {
     await db();
 
-    if (!R2_BUCKET_NAME) {
+    if (!process.env.R2_BUCKET_NAME) {
       return NextResponse.json(
         {
           success: false,
@@ -192,9 +192,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const r2Response = await r2Client.send(
+    const r2Response = await getR2Client().send(
       new GetObjectCommand({
-        Bucket: R2_BUCKET_NAME,
+        Bucket: getR2BucketName(),
         Key: r2Key,
       })
     );

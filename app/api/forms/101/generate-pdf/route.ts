@@ -12,7 +12,7 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import EmployeeForm101 from "@/models/EmployeeForm101";
 import Form101Template from "@/models/Form101Template";
 import User from "@/models/User";
-import { r2Client, R2_BUCKET_NAME } from "@/lib/r2";
+import { getR2BucketName, getR2Client } from "@/lib/r2";
 import { buildEmployeeSnapshot } from "@/lib/employeeSnapshot";
 
 export const runtime = "nodejs";
@@ -2256,7 +2256,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!R2_BUCKET_NAME) {
+    if (!process.env.R2_BUCKET_NAME) {
       return NextResponse.json(
         {
           success: false,
@@ -2339,9 +2339,9 @@ export async function POST(req: NextRequest) {
 
     const fileUrl = buildPrivateDocumentViewUrl(r2Key);
 
-    await r2Client.send(
+    await getR2Client().send(
       new PutObjectCommand({
-        Bucket: R2_BUCKET_NAME,
+        Bucket: getR2BucketName(),
         Key: r2Key,
         Body: pdfBuffer,
         ContentType: "application/pdf",

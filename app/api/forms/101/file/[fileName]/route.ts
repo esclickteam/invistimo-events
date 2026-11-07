@@ -6,7 +6,7 @@ import db from "@/lib/db";
 import User from "@/models/User";
 import EmployeeForm101 from "@/models/EmployeeForm101";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { r2Client, R2_BUCKET_NAME } from "@/lib/r2";
+import { getR2BucketName, getR2Client } from "@/lib/r2";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -170,9 +170,9 @@ export async function GET(req: NextRequest, context: RouteContext) {
       );
     }
 
-    const r2Response = await r2Client.send(
+    const r2Response = await getR2Client().send(
       new GetObjectCommand({
-        Bucket: R2_BUCKET_NAME,
+        Bucket: getR2BucketName(),
         Key: r2Key,
       })
     );

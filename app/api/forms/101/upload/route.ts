@@ -8,7 +8,7 @@ import db from "@/lib/db";
 import User from "@/models/User";
 import EmployeeForm101 from "@/models/EmployeeForm101";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { r2Client, R2_BUCKET_NAME } from "@/lib/r2";
+import { getR2BucketName, getR2Client } from "@/lib/r2";
 import { buildEmployeeSnapshot } from "@/lib/employeeSnapshot";
 
 export const runtime = "nodejs";
@@ -442,9 +442,9 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    await r2Client.send(
+    await getR2Client().send(
       new PutObjectCommand({
-        Bucket: R2_BUCKET_NAME,
+        Bucket: getR2BucketName(),
         Key: r2Key,
         Body: buffer,
         ContentType: file.type,

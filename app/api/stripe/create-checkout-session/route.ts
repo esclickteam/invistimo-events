@@ -1,14 +1,10 @@
-import Stripe from "stripe";
 import { NextResponse } from "next/server";
+import { lazyStripe } from "@/lib/lazyStripe";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-if (!process.env.STRIPE_SECRET_KEY) {
-  throw new Error("Missing STRIPE_SECRET_KEY");
-}
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+const stripe = lazyStripe({
   apiVersion: "2025-11-17.clover",
 });
 

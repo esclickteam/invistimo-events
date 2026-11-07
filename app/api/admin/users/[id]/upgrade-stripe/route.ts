@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import Stripe from "stripe";
+import { lazyStripe } from "@/lib/lazyStripe";
 
 import { connectDB } from "@/lib/db";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
@@ -12,7 +12,7 @@ export const runtime = "nodejs";
 /* =========================================================
    STRIPE
 ========================================================= */
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+const stripe = lazyStripe({
   apiVersion: "2025-11-17.clover",
 });
 
