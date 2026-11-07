@@ -580,7 +580,7 @@ export default function BarBatMitzvahMarketingPage() {
           שאלות נפוצות — בר ובת מצווה
         </h2>
         <p className="mt-4 max-w-2xl text-[16px] leading-8 text-[#5C6B7A]">
-          תשובות לפי מה שהמערכת באמת מאפשרת — בלי הבטחות על ייבוא מוואטסאפ או מחירים אחידים.
+          תשובות על אישור דרך ההורים, רשומות בלי טלפון, ומחיר לפי הרשומות במחשבון.
         </p>
         <div className="mt-10">
           <FaqBlock />

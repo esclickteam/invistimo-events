@@ -877,7 +877,7 @@ export default function ChatunaMarketingPage() {
           שאלות נפוצות על אישורי הגעה לחתונה
         </h2>
         <p className="mt-4 max-w-2xl text-[16px] leading-8 text-[#5C4A3A]">
-          תשובות מלאות לפי מה שהמערכת באמת מאפשרת — בלי הבטחות על אחוזי הגעה או חיסכון קבוע.
+          תשובות על שליחה, מעקב מול האולם, והושבה אחרי שיש תשובות.
         </p>
         <div className="mt-10">
           <FaqBlock />

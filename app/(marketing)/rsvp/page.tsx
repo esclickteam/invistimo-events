@@ -62,7 +62,7 @@ export default function RsvpPage() {
         <div className="mx-auto max-w-3xl space-y-4 leading-8">
           <h2 className="text-2xl font-black text-[#35281F]">עמודים קשורים לפי סוג האירוע והערוץ</h2>
           <p>
-            העמוד הזה הוא מערכת אישורי ההגעה, גם לחתונה וגם לאירוע. לפירוט על האולם והמנות עברו ל־<Link href="/rsvp/chatuna" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">אישורי הגעה לחתונה</Link>
+            מערכת אישורי ההגעה מרכזת את הרשימה ואת התשובות לכל סוג אירוע. לפירוט על האולם והמנות עברו ל־<Link href="/rsvp/chatuna" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">אישורי הגעה לחתונה</Link>
             . לחינה ולמשפחה קרובה יש{" "}
             <Link href="/rsvp/hina" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
               אישורי הגעה לחינה
@@ -77,6 +77,13 @@ export default function RsvpPage() {
             , ולברית או בריתה בזמן קצר יש{" "}
             <Link href="/rsvp/brit-brita" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
               אישורי הגעה לברית ובריתה
+            </Link>
+            . לאירוע חברה או כנס יש{" "}
+            <Link
+              href="/info/guides/rsvp-corporate-events"
+              className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+            >
+              מדריך אישורי הגעה לאירוע חברה
             </Link>
             . לערוץ הוואטסאפ —{" "}
             <Link href="/rsvp/whatsapp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">

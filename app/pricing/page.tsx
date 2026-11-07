@@ -100,6 +100,15 @@ const PACKAGE_DIFF: { label: string; values: Record<PackageId, string> }[] = [
     label: "סבב מוקד אנושי",
     values: { messages: "לא כלול", voice: "לא כלול", personal: "3", hybrid: "1" },
   },
+  {
+    label: "הושבה וניהול אירוע",
+    values: {
+      messages: "תוספת נפרדת",
+      voice: "תוספת נפרדת",
+      personal: "תוספת נפרדת",
+      hybrid: "תוספת נפרדת",
+    },
+  },
 ];
 
 function FeatureList({ items }: { items: string[] }) {
@@ -417,6 +426,7 @@ export default function PricingPage() {
             ) : null}
             <p className="mb-4 text-sm font-bold leading-6 text-[#42182F]">
               ההבדל בין החבילות הוא אופן המענה. אין חבילה מומלצת אחת — הבחירה תלויה אם צריך שיחות, ומי עונה.
+              הטבלה נשארת קריאה גם לפני שמזיזים את מספר הרשומות. הושבה וניהול אירוע אינם משנים את סוג החבילה.
             </p>
             <div className="mb-5 grid gap-3 md:hidden">
               {packages.map((pkg) => (

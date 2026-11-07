@@ -57,7 +57,7 @@ async function measure(page, pathName) {
     const html = document.documentElement.outerHTML;
     const sections = {
       answer: false, // dedicated short-answer SEO chrome removed site-wide
-      benefits: /למה זה עובד|יתרונות|למה זה עובד בפועל|למה זה עובד באמת/.test(text),
+      benefits: /מה מקבלים|למה זה עובד|יתרונות|למה זה עובד בפועל|למה זה עובד באמת/.test(text),
       steps: /איך זה עובד|השלבים|איך זה עובד/.test(text) || document.querySelectorAll("ol li").length >= 3,
       eventTypes: /מתאים לסוגי אירועים|בר\/בת מצווה|אירוע חברה/.test(text),
       faq: /שאלות נפוצות|מה חשוב לדעת/.test(text) && document.querySelectorAll("details, [aria-expanded]").length > 0,

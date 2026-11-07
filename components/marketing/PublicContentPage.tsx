@@ -160,9 +160,9 @@ export default function PublicContentPage({
       {benefits.length ? (
         <section className="px-5 py-12 md:px-8 md:py-16">
           <div className="mx-auto max-w-6xl">
-            <h2 className="text-center text-3xl font-black text-[#35281F] md:text-4xl">למה זה עובד בפועל</h2>
+            <h2 className="text-center text-3xl font-black text-[#35281F] md:text-4xl">מה מקבלים</h2>
             <p className="mx-auto mt-3 max-w-2xl text-center leading-8 text-[#5C4A3A]">
-              יתרונות שמבוססים על מה שהמערכת באמת עושה — בלי הבטחות מספריות שלא פורסמו.
+              מה שקורה בחשבון אחרי שבוחרים את השירות: רשימה, הודעות ותשובות במקום אחד.
             </p>
             <ul className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               {benefits.map((benefit) => (

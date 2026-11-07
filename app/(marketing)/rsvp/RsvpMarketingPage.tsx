@@ -496,7 +496,7 @@ export default function RSVPPage() {
             כל מה שרציתם לדעת על אישורי הגעה
           </h2>
           <p className="mt-4 text-base leading-8 text-[#6D5B4A]">
-            תשובות ברורות על אישורי הגעה לחתונה ולאירועים — לפי מה שהמערכת באמת מאפשרת.
+            תשובות על קישור אישי, סבבי הודעות, ומה קורה כשאורח עדיין לא השיב.
           </p>
           <div className="mt-10 space-y-3">
             {RSVP_FAQS.map((faq) => (
