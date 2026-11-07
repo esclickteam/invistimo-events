@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { centralMapSequence, illustrateSequence, type ArrivalResult, type SeatMark } from "./calcLogic";
+
+const PREVIEW_ROWS = 4;
 
 const LEGEND: { mark: SeatMark; label: string; hint: string }[] = [
   { mark: "prob-high", label: "צפי גבוה", hint: "סיכוי גבוה להגעה" },
@@ -64,6 +66,25 @@ export default function ArrivalMap({
   const counts = new Map<SeatMark, number>();
   for (const seat of picture.tables.flat()) counts.set(seat, (counts.get(seat) || 0) + 1);
   const included = (counts.get("prob-high") || 0) + (counts.get("prob-medium") || 0) + (counts.get("prob-low") || 0);
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [columns, setColumns] = useState(7);
+  const [expanded, setExpanded] = useState(false);
+  const previewTables = Math.max(1, columns) * PREVIEW_ROWS;
+  const canToggle = picture.tables.length > previewTables;
+  const shownTables = expanded || !canToggle ? picture.tables : picture.tables.slice(0, previewTables);
+
+  useLayoutEffect(() => {
+    const node = gridRef.current;
+    if (!node) return;
+    const measure = () => {
+      const tracks = getComputedStyle(node).gridTemplateColumns.split(" ").filter((part) => part && part !== "none");
+      if (tracks.length > 0) setColumns(tracks.length);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [included, picture.tables.length, expanded]);
 
   function stepSeats(delta: number) {
     onSeatsChange(String(Math.min(16, Math.max(4, seats + delta))));
@@ -91,14 +112,35 @@ export default function ArrivalMap({
         <p className="mt-4 text-sm leading-6 text-[#5E4735]">ההערכה המרכזית היא 0, ולכן אין כיסאות צבועים.</p>
       ) : (
         <div
+          ref={gridRef}
           className="mt-4 grid justify-start gap-x-4 gap-y-4"
           style={{ gridTemplateColumns: "repeat(auto-fill, minmax(7.5rem, 7.5rem))" }}
         >
-          {picture.tables.map((table, index) => (
+          {shownTables.map((table, index) => (
             <TableFigure key={index} number={index + 1} seats={table} />
           ))}
         </div>
       )}
+
+      {canToggle ? (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            className="inline-flex min-h-12 items-center justify-center border border-[#D9C4A4] bg-white px-6 text-sm font-bold text-[#5E4735] transition-colors hover:border-[#A68448]"
+            aria-expanded={expanded}
+            onClick={() => setExpanded((value) => !value)}
+          >
+            {expanded ? "צמצום השולחנות" : "הצגת כל השולחנות"}
+          </button>
+          <p className="text-sm leading-6 text-[#5E4735]">
+            {expanded
+              ? `מוצגים כל ${peopleLabel(picture.tables.length)} השולחנות.`
+              : `מוצגות ${peopleLabel(PREVIEW_ROWS)} שורות מתוך ${peopleLabel(Math.ceil(picture.tables.length / Math.max(1, columns)))}.`}
+            {" "}
+            המקרא סופר את כל {peopleLabel(included)} המקומות בתחזית המרכזית.
+          </p>
+        </div>
+      ) : null}
 
       <ul className="mt-5 grid grid-cols-2 gap-2 lg:grid-cols-4">
         {LEGEND.map((item) => (
