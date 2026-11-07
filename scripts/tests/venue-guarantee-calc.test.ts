@@ -315,6 +315,15 @@ test("seat count changes the drawing only", () => {
   assert.notEqual(wide.tables.length, tighter.tables.length);
 });
 
+test("a contract gap is counted for comparison and is not drawn as a chair", () => {
+  const picture = illustrateChairs({ confirmed: 8, high: 2, undecided: 1, low: 3, commitment: 6 }, 10);
+  const seats = picture.tables.flat();
+  assert.equal(seats.filter((seat) => seat === "commitment").length, 0);
+  assert.equal(seats.filter((seat) => seat === "confirmed").length, 8);
+  assert.equal(picture.drawnCommitment, 0);
+  assert.equal(picture.tables.length, 2);
+});
+
 test("share link restores numbers and assumptions without guest names", () => {
   const payload = {
     ...input({

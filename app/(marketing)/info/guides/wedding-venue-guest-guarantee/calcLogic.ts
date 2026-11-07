@@ -24,8 +24,8 @@
  *    not an invented contractual commitment.
  * 10. Reserve meals are added to the central estimate for portion planning.
  *     They are not extra guests and are not drawn as chairs.
- * 11. Chairs illustrate the central estimate. Outlined chairs appear only when
- *     a typed contract minimum is higher than that estimate.
+ * 11. Chairs illustrate the central guest forecast only. A typed contract
+ *     minimum stays a comparison figure and is not drawn as a guest chair.
  */
 
 export const BUILTIN_GROUPS = [
@@ -514,13 +514,20 @@ export function computeArrival(raw: ArrivalInputs): ArrivalResult {
 
 export function illustrateChairs(counts: ChairCounts, seatsPerTable: number, cap = ILLUSTRATION_CAP) {
   const seats = Math.min(16, Math.max(4, clampCount(seatsPerTable) || 10));
-  const sequence: ChairKind[] = [
-    ...Array.from({ length: counts.confirmed }, () => "confirmed" as const),
-    ...Array.from({ length: counts.high }, () => "high" as const),
-    ...Array.from({ length: counts.undecided }, () => "undecided" as const),
-    ...Array.from({ length: counts.low }, () => "low" as const),
-    ...Array.from({ length: counts.commitment }, () => "commitment" as const),
+  const buckets: ChairKind[][] = [
+    Array.from({ length: counts.confirmed }, () => "confirmed" as const),
+    Array.from({ length: counts.high }, () => "high" as const),
+    Array.from({ length: counts.undecided }, () => "undecided" as const),
+    Array.from({ length: counts.low }, () => "low" as const),
   ];
+  const sequence: ChairKind[] = [];
+  const cursor = buckets.map(() => 0);
+  const total = buckets.reduce((sum, bucket) => sum + bucket.length, 0);
+  while (sequence.length < total) {
+    buckets.forEach((bucket, index) => {
+      if (cursor[index] < bucket.length) sequence.push(bucket[cursor[index]++]);
+    });
+  }
   const drawn = sequence.slice(0, cap);
   const truncated = sequence.length - drawn.length;
   const tables: ChairKind[][] = [];
@@ -537,7 +544,7 @@ export function illustrateChairs(counts: ChairCounts, seatsPerTable: number, cap
     tables,
     truncated,
     drawnPeople: Math.min(cap, counts.confirmed + counts.high + counts.undecided + counts.low),
-    drawnCommitment: drawn.filter((kind) => kind === "commitment").length,
+    drawnCommitment: 0,
   };
 }
 
