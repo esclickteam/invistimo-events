@@ -129,7 +129,7 @@ export default function PublicContentPage({
 
       {/* ===== HERO ===== */}
       {magazine ? (
-      <section className="relative isolate px-5 pb-12 pt-14 md:px-8 md:pb-16 md:pt-20">
+      <section className="relative isolate px-5 pb-6 pt-8 md:px-8 md:pb-8 md:pt-10">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,#E9D4AF_0%,transparent_36%),linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_100%)]" />
 
         <div className="mx-auto max-w-6xl">
@@ -152,15 +152,12 @@ export default function PublicContentPage({
             {eyebrow}
           </span>
 
-          <h1 className="mt-6 max-w-4xl text-4xl font-black leading-[1.12] tracking-[-0.03em] text-[#35281F] md:text-6xl">
+          <h1 className="mt-4 max-w-3xl text-3xl font-black leading-tight text-[#35281F] md:text-4xl">
             {title}
-            {titleAccent ? (
-              <>
-                {" "}
-                <span className="mt-3 block text-[#842B4C]">{titleAccent}</span>
-              </>
-            ) : null}
           </h1>
+          {titleAccent ? (
+            <p className="mt-3 max-w-3xl text-lg font-bold leading-8 text-[#842B4C] md:text-xl">{titleAccent}</p>
+          ) : null}
           <div className="mt-5">
             <GuideToolbar title={title} path={path} readingMinutes={readingMinutes} />
           </div>
@@ -186,16 +183,7 @@ export default function PublicContentPage({
             <p className="mt-8 max-w-3xl text-base leading-8 text-[#5C4A3A] md:text-lg">{answer}</p>
           ) : null}
 
-          <p className={`max-w-3xl text-lg leading-8 text-[#5C4A3A] ${answer ? "mt-4" : "mt-8"}`}>{lede}</p>
-
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <TrackedCtaLink href={primaryCta.href} className={ctaClass} location={`hero_cta:${path}`}>
-              {primaryCta.label}
-            </TrackedCtaLink>
-            <TrackedCtaLink href={secondaryCta.href} className={secondaryClass} location={`hero_cta:${path}`}>
-              {secondaryCta.label}
-            </TrackedCtaLink>
-          </div>
+          <p className={`max-w-3xl text-lg leading-8 text-[#5C4A3A] ${answer ? "mt-4" : "mt-6"}`}>{lede}</p>
         </div>
       </section>
       ) : (
@@ -251,7 +239,7 @@ export default function PublicContentPage({
       </section>
       )}
 
-      {benefits.length ? (
+      {!magazine && benefits.length ? (
         <section className="px-5 py-12 md:px-8 md:py-16">
           <div className="mx-auto max-w-6xl">
             <h2 className="text-center text-3xl font-black text-[#35281F] md:text-4xl">מה מקבלים</h2>
@@ -276,7 +264,7 @@ export default function PublicContentPage({
         </section>
       ) : null}
 
-      {steps.length ? (
+      {!magazine && steps.length ? (
         <section className="bg-[#FFFDF8]/70 px-5 py-12 md:px-8 md:py-16">
           <div className="mx-auto max-w-6xl">
             <h2 className="text-3xl font-black text-[#35281F] md:text-4xl">איך זה עובד</h2>
@@ -295,7 +283,7 @@ export default function PublicContentPage({
         </section>
       ) : null}
 
-      {showEventTypes ? (
+      {!magazine && showEventTypes ? (
         <section className="px-5 py-12 md:px-8 md:py-16">
           <div className="mx-auto max-w-6xl">
             <h2 className="text-3xl font-black text-[#35281F] md:text-4xl">{EVENT_TYPE_SECTION.heading}</h2>
@@ -428,6 +416,50 @@ export default function PublicContentPage({
             </section>
           ) : null}
 
+          {magazine && benefits.length ? (
+            <section className="mt-14">
+              <h2 className="text-2xl font-black text-[#35281F]">מה מקבלים</h2>
+              <ul className="mt-5 grid gap-4 md:grid-cols-2">
+                {benefits.map((benefit) => (
+                  <li key={benefit.title} className="border border-[#E6D2AA] bg-[#FFFDF8] p-5">
+                    <h3 className="text-lg font-black text-[#35281F]">{benefit.title}</h3>
+                    <p className="mt-2 leading-7 text-[#5C4A3A]">{benefit.text}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
+          {magazine && steps.length ? (
+            <section className="mt-12">
+              <h2 className="text-2xl font-black text-[#35281F]">איך זה עובד</h2>
+              <ol className="mt-5 grid gap-4 md:grid-cols-2">
+                {steps.map((step, index) => (
+                  <li key={step.title} className="border border-[#E6D2AA] bg-white p-5">
+                    <p className="text-sm font-black text-[#8A642E]">{index + 1}</p>
+                    <h3 className="mt-2 text-lg font-black text-[#35281F]">{step.title}</h3>
+                    <p className="mt-2 leading-7 text-[#5C4A3A]">{step.text}</p>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
+
+          {magazine && showEventTypes ? (
+            <section className="mt-12">
+              <h2 className="text-2xl font-black text-[#35281F]">{EVENT_TYPE_SECTION.heading}</h2>
+              <p className="mt-3 leading-8 text-[#5C4A3A]">{EVENT_TYPE_SECTION.lede}</p>
+              <ul className="mt-5 grid gap-4 sm:grid-cols-2">
+                {EVENT_TYPES.map((item) => (
+                  <li key={item.label} className="border border-[#E6D2AA] bg-white p-5">
+                    <h3 className="text-lg font-black text-[#35281F]">{item.label}</h3>
+                    <p className="mt-2 leading-7 text-[#5C4A3A]">{item.blurb}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
+
           <section className="mt-14 border border-[#C5A582] bg-[#42182F] p-7 md:p-10">
             <p className="text-[11px] font-bold tracking-[0.18em] text-[#C5A582]">הצטרפות</p>
             <h2 className="mt-2 text-3xl font-black text-[#FFF8F0]">{ctaTitle}</h2>
@@ -450,7 +482,7 @@ export default function PublicContentPage({
             </div>
           </section>
 
-          {siblings.length ? (
+          {!magazine && siblings.length ? (
             <section className="mt-12">
               <h2 className="text-xl font-black text-[#35281F]">באותו נושא</h2>
               <ul className="mt-4 flex flex-wrap gap-3">
@@ -468,6 +500,7 @@ export default function PublicContentPage({
             </section>
           ) : null}
 
+          {!magazine ? (
           <section className="mt-10 pb-16">
             <h2 className="text-xl font-black text-[#35281F]">עמודים קשורים</h2>
             <ul className="mt-4 flex flex-wrap gap-3">
@@ -483,6 +516,7 @@ export default function PublicContentPage({
               ))}
             </ul>
           </section>
+          ) : null}
         </div>
         </div>
       </article>

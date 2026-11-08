@@ -100,52 +100,67 @@ function CategoryRail({
   };
 
   const chip = (active: boolean) =>
-    `shrink-0 snap-start border px-4 py-2 text-sm font-bold whitespace-nowrap ${
+    `shrink-0 border px-4 py-2 text-sm font-bold whitespace-nowrap ${
       active
         ? "border-[#42182F] bg-[#42182F] text-[#FFF8F0]"
         : "border-[#E6D2AA] bg-white text-[#35281F] hover:border-[#C7A56B]"
     }`;
 
   return (
-    <div className="relative mt-6 flex items-center gap-2">
-      {overflow && canPrev ? (
-        <button
-          type="button"
-          aria-label="קטגוריות קודמות"
-          onClick={() => nudge("start")}
-          className="hidden h-9 w-9 shrink-0 items-center justify-center border border-[#E6D2AA] bg-[#FFFDF8] text-lg text-[#8A642E] md:flex"
-        >
-          ›
-        </button>
-      ) : null}
-      <nav
-        ref={scroller}
-        aria-label="קטגוריות הבלוג"
-        className={`${styles.rail} min-w-0 flex-1 flex flex-nowrap gap-2 overflow-x-auto scroll-smooth pb-3 snap-x`}
-      >
-        <button type="button" onClick={() => onSelect("all")} className={chip(categoryId === "all")}>
-          הכל
-        </button>
-        {categories.map((category) => (
+    <div className="mt-5">
+      <div className="flex items-center gap-2">
+        {overflow && canPrev ? (
           <button
-            key={category.id}
             type="button"
-            onClick={() => onSelect(category.id)}
-            className={chip(categoryId === category.id)}
+            aria-label="קטגוריות קודמות"
+            onClick={() => nudge("start")}
+            className="h-10 shrink-0 border border-[#E6D2AA] bg-[#FFFDF8] px-3 text-sm font-bold text-[#8A642E]"
           >
-            {category.title}
+            הקודם
           </button>
-        ))}
-      </nav>
-      {overflow && canNext ? (
-        <button
-          type="button"
-          aria-label="קטגוריות נוספות"
-          onClick={() => nudge("end")}
-          className="hidden h-9 w-9 shrink-0 items-center justify-center border border-[#E6D2AA] bg-[#FFFDF8] text-lg text-[#8A642E] md:flex"
-        >
-          ‹
-        </button>
+        ) : null}
+        <div className="relative min-w-0 flex-1">
+          <nav
+            ref={scroller}
+            aria-label="קטגוריות הבלוג"
+            className={`${styles.rail} ${
+              canNext && canPrev ? styles.railFadeBoth : canNext ? styles.railFadeNext : canPrev ? styles.railFadePrev : ""
+            } flex flex-nowrap gap-2 overflow-x-auto scroll-smooth pb-2`}
+          >
+            <button type="button" onClick={() => onSelect("all")} className={chip(categoryId === "all")}>
+              הכל
+            </button>
+            {categories.map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                onClick={() => onSelect(category.id)}
+                className={chip(categoryId === category.id)}
+              >
+                {category.title}
+              </button>
+            ))}
+          </nav>
+          {overflow && canPrev ? (
+            <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-[#FBF6EE] to-transparent" />
+          ) : null}
+          {overflow && canNext ? (
+            <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-[#FBF6EE] to-transparent" />
+          ) : null}
+        </div>
+        {overflow && canNext ? (
+          <button
+            type="button"
+            aria-label="קטגוריות נוספות"
+            onClick={() => nudge("end")}
+            className="h-10 shrink-0 border border-[#C7A56B] bg-[#FFFDF8] px-3 text-sm font-bold text-[#8A642E]"
+          >
+            עוד
+          </button>
+        ) : null}
+      </div>
+      {overflow ? (
+        <p className="mt-1 text-xs font-bold text-[#8A642E]">גללו לצד, או לחצו על ״עוד״, כדי לראות את כל הקטגוריות.</p>
       ) : null}
     </div>
   );
@@ -190,7 +205,7 @@ export default function BlogMagazine({
 
   return (
     <div dir="rtl" className="bg-[#FBF6EE] text-[#3F3025]">
-      <section className={`${styles.rise} relative isolate overflow-hidden px-5 pb-10 pt-14 md:px-8 md:pt-20`}>
+      <section className={`${styles.rise} relative isolate overflow-hidden px-5 pb-4 pt-8 md:px-8 md:pt-10`}>
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_12%_10%,rgba(201,164,92,0.28),transparent_36%),radial-gradient(circle_at_88%_0%,rgba(132,43,76,0.08),transparent_32%),linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_100%)]" />
         <div className="mx-auto max-w-6xl">
           <p className="text-sm font-semibold text-[#7A6042]">
@@ -200,16 +215,16 @@ export default function BlogMagazine({
             <span className="px-1.5 text-[#C7A56B]">/</span>
             בלוג
           </p>
-          <h1 className="mt-6 max-w-4xl text-4xl font-black leading-[1.15] text-[#35281F] md:text-6xl">
+          <h1 className="mt-3 max-w-4xl text-3xl font-black leading-tight text-[#35281F] md:text-5xl">
             המגזין של Invistimo — כל מה שצריך לדעת על אירועים
           </h1>
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-[#5C4A3A]">
+          <p className="mt-3 max-w-2xl text-base leading-7 text-[#5C4A3A] md:text-lg">
             מדריכים מעשיים לתכנון אירוע, אישורי הגעה, הזמנות, סידורי הושבה וניהול אורחים. נכתב מתוך
             העבודה השוטפת עם זוגות, משפחות ואולמות בישראל.
           </p>
 
           <form
-            className="mt-8 max-w-2xl"
+            className="mt-5 max-w-2xl"
             role="search"
             onSubmit={(event) => event.preventDefault()}
           >
@@ -221,7 +236,7 @@ export default function BlogMagazine({
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="לדוגמה: הושבה, Save the Date, רשימת מוזמנים"
-              className="mt-2 h-14 w-full border border-[#E6D2AA] bg-white px-4 text-base text-[#35281F] outline-none focus:border-[#8A642E]"
+              className="mt-2 h-12 w-full border border-[#E6D2AA] bg-white px-4 text-base text-[#35281F] outline-none focus:border-[#8A642E]"
             />
           </form>
 
@@ -264,10 +279,10 @@ export default function BlogMagazine({
         <>
           {hero ? (
             <Reveal>
-            <section className="mx-auto max-w-6xl px-5 py-8 md:px-8">
+            <section className="mx-auto max-w-6xl px-5 pb-8 pt-2 md:px-8">
               <article className="border border-[#E6D2AA] bg-[#FFFDF8]">
                 <Link href={hero.href} className="grid md:grid-cols-2">
-                  <div className="relative min-h-72 overflow-hidden bg-[#F3E6D4] md:min-h-[28rem]">
+                  <div className="relative min-h-56 overflow-hidden bg-[#F3E6D4] md:min-h-80">
                     <ArticleCover article={hero} />
                   </div>
                   <div className="flex flex-col justify-center px-6 py-8 md:px-10">
