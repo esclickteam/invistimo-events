@@ -16,6 +16,7 @@ export type BlogEditorValue = {
   categoryId: string;
   subcategoryId: string;
   coverImage: string;
+  coverAlt: string;
   seoTitle: string;
   seoDescription: string;
   featured: boolean;
@@ -32,6 +33,7 @@ const EMPTY: BlogEditorValue = {
   categoryId: "planning",
   subcategoryId: "timelines",
   coverImage: "",
+  coverAlt: "",
   seoTitle: "",
   seoDescription: "",
   featured: false,
@@ -115,7 +117,7 @@ export default function BlogEditor({
         <label className="grid gap-1 text-sm font-bold">
           תוכן
           <textarea value={value.body} onChange={(event) => patch({ body: event.target.value })} className="min-h-64 border px-3 py-2 font-medium" />
-          <span className="font-medium text-[var(--admin-muted)]">פסקה חדשה אחרי שורה ריקה. כותרת: ## כותרת. כותרת משנה: ### כותרת.</span>
+          <span className="font-medium text-[var(--admin-muted)]">פסקה חדשה אחרי שורה ריקה. כותרת: ## כותרת. כותרת משנה: ### כותרת. רשימה: שורה שמתחילה ב־«- ». רשימה ממוספרת: «1. ». טבלה: שורות שמתחילות ומסתיימות ב־|. הדגשה: **טקסט**. קישור: [טקסט](/path). תמונה: ![תיאור](/path.jpg). שאלות נפוצות נשמרות בשדה למטה, לא בגוף.</span>
         </label>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="grid gap-1 text-sm font-bold">
@@ -146,6 +148,10 @@ export default function BlogEditor({
               if (file) upload(file).catch((err) => setError(err.message));
             }}
           />
+        </label>
+        <label className="grid gap-1 text-sm font-bold">
+          תיאור התמונה
+          <input value={value.coverAlt} onChange={(event) => patch({ coverAlt: event.target.value })} className="h-10 border px-3 font-medium" placeholder="מה רואים בתמונה" />
         </label>
         <div className="grid gap-4 md:grid-cols-2">
           <label className="grid gap-1 text-sm font-bold">

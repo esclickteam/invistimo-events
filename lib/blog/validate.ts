@@ -12,6 +12,7 @@ export type BlogPostInput = {
   categoryId?: string;
   subcategoryId?: string;
   coverImage?: string;
+  coverAlt?: string;
   seoTitle?: string;
   seoDescription?: string;
   featured?: boolean;
@@ -57,6 +58,7 @@ export function cleanPostInput(body: BlogPostInput) {
     categoryId,
     subcategoryId,
     coverImage: String(body.coverImage || "").trim(),
+    coverAlt: String(body.coverAlt || "").trim().slice(0, 300),
     seoTitle: String(body.seoTitle || "").trim(),
     seoDescription: String(body.seoDescription || "").trim(),
     featured: Boolean(body.featured),

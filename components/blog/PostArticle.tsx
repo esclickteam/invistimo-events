@@ -1,30 +1,45 @@
 import Link from "next/link";
+import { blocksFromBody, richTokens, type PostBlock } from "@/lib/blog/markdown";
 import { formatReadingTime } from "@/lib/blog/reading";
 import { BLOG_HUB_PATH, categoryPath, type BlogCategoryId } from "@/lib/blog/taxonomy";
 
-export type PostBlock =
-  | { type: "p"; text: string }
-  | { type: "h2"; id: string; text: string }
-  | { type: "h3"; id: string; text: string };
+export { blocksFromBody, type PostBlock };
 
-export function blocksFromBody(body: string): PostBlock[] {
-  const chunks = body.replace(/\r\n/g, "\n").split(/\n{2,}/);
-  const blocks: PostBlock[] = [];
-  let heading = 0;
-  for (const chunk of chunks) {
-    const text = chunk.trim();
-    if (!text) continue;
-    if (text.startsWith("### ")) {
-      heading += 1;
-      blocks.push({ type: "h3", id: `s-${heading}`, text: text.slice(4).trim() });
-    } else if (text.startsWith("## ")) {
-      heading += 1;
-      blocks.push({ type: "h2", id: `s-${heading}`, text: text.slice(3).trim() });
-    } else {
-      blocks.push({ type: "p", text });
+const richLinkClass = "font-bold text-[#8A642E] underline decoration-[#E6D2AA] underline-offset-4";
+
+function RichText({ text, rewriteHref }: { text: string; rewriteHref?: (href: string) => string }) {
+  return richTokens(text).map((token, index) => {
+    if (token.type === "strong") {
+      return (
+        <strong key={index} className="font-black text-[#35281F]">
+          {token.text}
+        </strong>
+      );
     }
-  }
-  return blocks;
+    if (token.type === "image") {
+      return (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img key={index} src={token.src} alt={token.alt} className="my-4 aspect-[16/9] w-full object-cover" />
+      );
+    }
+    if (token.type === "link") {
+      if (token.external) {
+        return (
+          <a key={index} href={token.href} target="_blank" rel="noopener noreferrer" className={richLinkClass}>
+            {token.text}
+            <span className="sr-only"> נפתח בחלון חדש</span>
+          </a>
+        );
+      }
+      const href = rewriteHref ? rewriteHref(token.href) : token.href;
+      return (
+        <Link key={index} href={href} className={richLinkClass}>
+          {token.text}
+        </Link>
+      );
+    }
+    return <span key={index}>{token.text}</span>;
+  });
 }
 
 export default function PostArticle({
@@ -38,6 +53,7 @@ export default function PostArticle({
   categoryId,
   faqs,
   related,
+  rewriteHref,
 }: {
   title: string;
   excerpt: string;
@@ -49,9 +65,12 @@ export default function PostArticle({
   categoryId: BlogCategoryId;
   faqs: { q: string; a: string }[];
   related: { href: string; title: string }[];
+  rewriteHref?: (href: string) => string;
 }) {
   const blocks = blocksFromBody(body);
-  const toc = blocks.filter((block) => block.type === "h2" || block.type === "h3");
+  const toc = blocks.filter(
+    (block): block is Extract<PostBlock, { type: "h2" | "h3" }> => block.type === "h2" || block.type === "h3",
+  );
 
   return (
     <article dir="rtl" className="bg-[#FBF6EE] text-[#3F3025]">
@@ -112,9 +131,60 @@ export default function PostArticle({
                 </h3>
               );
             }
+            if (block.type === "ul" || block.type === "ol") {
+              const ListTag = block.type === "ol" ? "ol" : "ul";
+              return (
+                <ListTag
+                  key={`l-${index}`}
+                  className={`mt-4 space-y-2 pr-6 text-base leading-8 text-[#5C4A3A] md:text-lg ${block.type === "ol" ? "list-decimal" : "list-disc"}`}
+                >
+                  {block.items.map((item, itemIndex) => (
+                    <li key={`${index}-${itemIndex}`}>
+                      <RichText text={item} rewriteHref={rewriteHref} />
+                    </li>
+                  ))}
+                </ListTag>
+              );
+            }
+            if (block.type === "image") {
+              return (
+                <figure key={`i-${index}`} className="mt-6">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={block.src} alt={block.alt} className="aspect-[16/9] w-full object-cover" />
+                </figure>
+              );
+            }
+            if (block.type === "table") {
+              return (
+                <div key={`t-${index}`} className="mt-6 max-w-full overflow-x-auto overscroll-x-contain border border-[#E6D2AA]" tabIndex={0} role="region" aria-label="טבלה">
+                  <table className="w-full border-collapse text-[13px] leading-6 sm:text-sm sm:leading-7">
+                    <thead className="bg-[#42182F] text-[#FFF8F0]">
+                      <tr>
+                        {block.headers.map((header, headerIndex) => (
+                          <th key={`${index}-h-${headerIndex}`} scope="col" className="px-2 py-2 text-right font-black sm:px-3">
+                            <RichText text={header} rewriteHref={rewriteHref} />
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {block.rows.map((row, rowIndex) => (
+                        <tr key={`${index}-r-${rowIndex}`} className={rowIndex % 2 ? "bg-[#FFFDF8]" : "bg-white"}>
+                          {row.map((cell, cellIndex) => (
+                            <td key={`${index}-${rowIndex}-${cellIndex}`} className="border-t border-[#E6D2AA] px-2 py-2 align-top break-words sm:px-3">
+                              <RichText text={cell} rewriteHref={rewriteHref} />
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            }
             return (
               <p key={`p-${index}`} className="mt-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
-                {block.text}
+                <RichText text={block.text} rewriteHref={rewriteHref} />
               </p>
             );
           })}

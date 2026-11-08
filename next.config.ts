@@ -58,6 +58,8 @@ const nextConfig: NextConfig = {
       "/dashboard/:path*",
       "/admin",
       "/admin/:path*",
+      "/blog/drafts",
+      "/blog/drafts/:path*",
       "/producer",
       "/producer/:path*",
       "/producer-staff",
@@ -134,6 +136,9 @@ const nextConfig: NextConfig = {
     "/api/marketing/rsvp-calls-demo": [
       "./public/audio/rsvp-calls-dana-demo.mp3",
     ],
+    "/blog/drafts": ["./content/drafts/**/*"],
+    "/blog/drafts/[slug]": ["./content/drafts/**/*"],
+    "/api/admin/blog/import-drafts": ["./content/drafts/**/*"],
   },
 };
 

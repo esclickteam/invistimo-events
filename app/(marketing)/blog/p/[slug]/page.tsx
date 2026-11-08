@@ -75,7 +75,7 @@ export default async function BlogPostPage({ params }: Props) {
         excerpt={post.excerpt}
         body={post.body}
         image={post.coverImage || category.image}
-        imageAlt={post.title}
+        imageAlt={post.coverAlt || post.title}
         readingMinutes={minutesFromText(`${post.title}\n${post.excerpt}\n${post.body}`)}
         categoryTitle={category.title}
         categoryId={post.categoryId}
