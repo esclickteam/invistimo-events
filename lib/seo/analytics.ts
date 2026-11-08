@@ -128,6 +128,7 @@ const PARAM_KEYS = new Set([
   "metric_value",
   "metric_rating",
   "submission_id",
+  "search_term",
 ]);
 
 export function safePublicPath(value: string) {
@@ -164,6 +165,13 @@ export function sanitizeEventParams(params?: Record<string, string>) {
     }
     if (key === "currency") {
       if (value === "ILS") safe[key] = value;
+      continue;
+    }
+    if (key === "search_term") {
+      const term = value.replace(/\s+/g, " ");
+      if (term.length < 2 || term.length > 100) continue;
+      if (term.includes("@") || /\d{8,}/.test(term)) continue;
+      safe[key] = term;
       continue;
     }
     if (value.includes("@") || /\d{8,}/.test(value) || !SAFE_TOKEN.test(value)) continue;
@@ -268,6 +276,24 @@ export function trackPublicEvent(name: string, params?: Record<string, string>) 
   if (typeof window === "undefined" || typeof window.gtag !== "function") return;
   if (!EVENT_NAME.test(name)) return;
   window.gtag("event", name, sanitizeEventParams(params));
+}
+
+export function blogSearchTerm(value: string) {
+  return value.trim().replace(/\s+/g, " ");
+}
+
+/** A search counts once the query has settled, and not again for the same term. */
+export function shouldTrackBlogSearch(previous: string, next: string) {
+  const term = blogSearchTerm(next);
+  if (term.length < 2 || term === previous) return false;
+  return Boolean(sanitizeEventParams({ search_term: term }).search_term);
+}
+
+export function trackBlogSearch(term: string, pagePath: string) {
+  const search_term = blogSearchTerm(term);
+  const safe = sanitizeEventParams({ search_term, page_path: pagePath });
+  if (!safe.search_term || !safe.page_path) return;
+  trackPublicEvent("view_search_results", safe);
 }
 
 const WEB_VITAL_NAMES = new Set(["LCP", "INP", "CLS"]);

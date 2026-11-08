@@ -128,6 +128,15 @@ test("header service mega menu includes core ready services", () => {
 });
 
 test("header event dropdown lists the four ready event pages", () => {
+  const events = HEADER_PRIMARY.find((item) => item.id === "events");
+  assert.ok(events && events.kind === "dropdown");
+  if (!events || events.kind !== "dropdown") return;
+  assert.equal(events.label, "סוגי אירועים");
+  assert.equal(events.columns[0]?.title, "סוגי אירועים");
+  assert.deepEqual(
+    events.columns[0]?.links.map((link) => link.label),
+    ["חתונה", "חינה", "בר ובת מצווה", "ברית ובריתה"]
+  );
   assert.deepEqual(
     EVENT_LINKS.map((link) => link.href).sort(),
     [
