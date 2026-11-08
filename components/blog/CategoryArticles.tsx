@@ -3,8 +3,9 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import ArticleCard from "@/components/blog/ArticleCard";
+import { useBlogSearchTracking } from "@/components/blog/useBlogSearchTracking";
 import type { BlogArticle } from "@/lib/blog/articles";
-import { BLOG_HUB_PATH, type BlogCategory } from "@/lib/blog/taxonomy";
+import { BLOG_HUB_PATH, categoryPath, type BlogCategory } from "@/lib/blog/taxonomy";
 
 function normalize(value: string) {
   return value.trim().toLowerCase().replace(/\s+/g, " ");
@@ -18,6 +19,7 @@ export default function CategoryArticles({
   articles: BlogArticle[];
 }) {
   const [query, setQuery] = useState("");
+  const commitSearch = useBlogSearchTracking(query, categoryPath(category.id));
   const [subcategoryId, setSubcategoryId] = useState("all");
   const [sort, setSort] = useState<"new" | "popular">("new");
 
@@ -42,7 +44,14 @@ export default function CategoryArticles({
 
   return (
     <div>
-      <form className="mt-8 max-w-xl" role="search" onSubmit={(event) => event.preventDefault()}>
+      <form
+        className="mt-8 max-w-xl"
+        role="search"
+        onSubmit={(event) => {
+          event.preventDefault();
+          commitSearch();
+        }}
+      >
         <label htmlFor="category-search" className="text-sm font-bold text-[#7A6042]">
           חיפוש בקטגוריה
         </label>
@@ -95,8 +104,12 @@ export default function CategoryArticles({
 
       {visible.length ? (
         <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {visible.map((article) => (
-            <ArticleCard key={article.id} article={article} />
+          {visible.map((article, index) => (
+            <ArticleCard
+              key={article.id}
+              article={article}
+              priority={index === 0 && normalize(query).length === 0}
+            />
           ))}
         </div>
       ) : (

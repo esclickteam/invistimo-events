@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import ArticleCard from "@/components/blog/ArticleCard";
+import { useBlogSearchTracking } from "@/components/blog/useBlogSearchTracking";
 import styles from "@/components/blog/blog.module.css";
 import { formatReadingTime } from "@/lib/blog/reading";
 import type { BlogArticle } from "@/lib/blog/articles";
@@ -197,6 +199,7 @@ export default function BlogMagazine({
     });
   }, [articles, categoryId, query]);
 
+  const commitSearch = useBlogSearchTracking(query, BLOG_HUB_PATH);
   const searching = normalize(query).length > 0 || categoryId !== "all";
   const hero = articles.find((article) => article.hero) || [...articles].sort(byPopular)[0];
   const recommended = articles.filter((article) => article.featured).slice(0, 3);
@@ -226,7 +229,10 @@ export default function BlogMagazine({
           <form
             className="mt-5 max-w-2xl"
             role="search"
-            onSubmit={(event) => event.preventDefault()}
+            onSubmit={(event) => {
+              event.preventDefault();
+              commitSearch();
+            }}
           >
             <label htmlFor="blog-search" className="text-sm font-bold text-[#7A6042]">
               חיפוש מאמרים
@@ -278,7 +284,6 @@ export default function BlogMagazine({
       ) : (
         <>
           {hero ? (
-            <Reveal>
             <section className="mx-auto max-w-6xl px-5 pb-8 pt-2 md:px-8">
               <article className="border border-[#E6D2AA] bg-[#FFFDF8]">
                 <Link href={hero.href} className="grid md:grid-cols-2">
@@ -297,13 +302,14 @@ export default function BlogMagazine({
                   </div>
                 </Link>
               </article>
+              <Reveal>
               <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {recommended.map((article) => (
                   <ArticleCard key={article.id} article={article} />
                 ))}
               </div>
+              </Reveal>
             </section>
-            </Reveal>
           ) : null}
 
           <Reveal>
@@ -415,12 +421,27 @@ export default function BlogMagazine({
 }
 
 function ArticleCover({ article }: { article: BlogArticle }) {
+  if (!article.image.startsWith("/")) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={article.image}
+        alt={article.imageAlt}
+        fetchPriority="high"
+        className="absolute inset-0 h-full w-full object-cover"
+      />
+    );
+  }
+
   return (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
+    <Image
       src={article.image}
       alt={article.imageAlt}
-      className="absolute inset-0 h-full w-full object-cover"
+      fill
+      priority
+      fetchPriority="high"
+      sizes="(min-width: 768px) 50vw, 100vw"
+      className="object-cover"
     />
   );
 }

@@ -12,7 +12,7 @@ import {
 
 function HeaderMark({ className }: { className: string }) {
   return (
-    <span className={`relative inline-flex shrink-0 items-center ${className}`}>
+    <span className={`relative inline-flex shrink-0 overflow-hidden ${className}`}>
       <img
         src="/invistimo-logo.png"
         alt=""
@@ -20,7 +20,7 @@ function HeaderMark({ className }: { className: string }) {
         height={60}
         decoding="async"
         fetchPriority="low"
-        className="site-header-logo-ink h-full w-auto select-none"
+        className="site-header-logo-ink absolute inset-0 h-full w-full object-contain select-none"
         draggable={false}
       />
       <img
@@ -30,7 +30,7 @@ function HeaderMark({ className }: { className: string }) {
         height={60}
         decoding="async"
         fetchPriority="low"
-        className="site-header-logo-light pointer-events-none absolute inset-0 h-full w-auto select-none brightness-0 invert drop-shadow-[0_2px_10px_rgba(0,0,0,0.35)]"
+        className="site-header-logo-light pointer-events-none absolute inset-0 h-full w-full object-contain select-none brightness-0 invert drop-shadow-[0_2px_10px_rgba(0,0,0,0.35)]"
         draggable={false}
       />
     </span>

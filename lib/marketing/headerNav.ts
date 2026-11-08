@@ -125,7 +125,7 @@ export const HEADER_PRIMARY: HeaderNavItem[] = [
   },
   {
     id: "events",
-    label: "לאירועים",
+    label: "סוגי אירועים",
     kind: "dropdown",
     columns: [
       {

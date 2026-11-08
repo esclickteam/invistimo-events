@@ -170,6 +170,8 @@ export default function PublicContentPage({
                 width={1600}
                 height={900}
                 priority
+                fetchPriority="high"
+                sizes="(min-width: 1024px) 768px, 100vw"
                 className="aspect-[16/9] w-full object-cover"
               />
             </figure>

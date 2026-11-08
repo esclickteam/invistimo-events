@@ -19,6 +19,7 @@ function Cover({
         alt={alt}
         fill
         priority={priority}
+        fetchPriority={priority ? "high" : "auto"}
         sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
         className="object-cover transition duration-500 group-hover:scale-[1.04]"
       />
