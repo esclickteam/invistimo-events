@@ -19,21 +19,18 @@ export type DraftArticle = {
   wave: 1 | 2;
 };
 
-const WAVE_ONE = new Set(["rsvp-bar-bat-mitzvah", "brit-guest-list", "conference-participants"]);
+const WAVE_ONE = new Set(["rsvp-bar-bat-mitzvah", "brit-guest-list"]);
 
 const ORDER = [
   "rsvp-bar-bat-mitzvah",
   "brit-guest-list",
-  "conference-participants",
   "rsvp-henna-two-sides",
   "when-to-send-bar-mitzvah-rsvp",
   "bar-mitzvah-seating",
   "bar-mitzvah-meal-count",
   "save-the-date-family-events",
-  "company-event-meal-count",
   "when-to-add-call-package",
   "henna-seating-two-sides",
-  "company-event-or-conference",
 ];
 
 /** Draft review is for local work and preview deployments. Production and public staging stay closed. */

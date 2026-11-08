@@ -25,7 +25,7 @@ export default function DraftMagazinePage() {
         </p>
         <h1 className="mt-8 text-4xl font-black text-[#35281F]">טיוטות המגזין</h1>
         <p className="mt-4 leading-8 text-[#5C4A3A]">
-          שלושה מאמרים מוכנים לפעימה הראשונה. תשעה נוספים ממתינים לפעימה השנייה, אחרי שהראשונה תיבדק.
+          שני מאמרים מוכנים לפעימה הראשונה. שבעה נוספים ממתינים לפעימה השנייה, אחרי שהראשונה תיבדק.
         </p>
         {waves.map((wave) => (
           <section key={wave} className="mt-10">
