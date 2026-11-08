@@ -3,6 +3,7 @@ import PublicContentPage from "@/components/marketing/PublicContentPage";
 import { articleNode } from "@/lib/seo/jsonld";
 import { getGuide, GUIDES, guidePath } from "@/lib/seo/guides";
 import { pageMetadata } from "@/lib/seo/site";
+import { placementForSlug, categoryById, categoryPath, BLOG_HUB_PATH } from "@/lib/blog/taxonomy";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -51,10 +52,18 @@ export default async function GuidePage({ params }: Props) {
   const guide = getGuide(slug);
   if (!guide) notFound();
   const path = guidePath(guide.slug);
+  const placement = placementForSlug(guide.slug);
+  const category = placement ? categoryById(placement.categoryId) : null;
+  const breadcrumbs = [
+    { name: "ראשי", path: "/" },
+    { name: "בלוג", path: BLOG_HUB_PATH },
+    ...(category ? [{ name: category.title, path: categoryPath(category.id) }] : []),
+    { name: guide.h1, path },
+  ];
 
   return (
     <PublicContentPage
-      eyebrow="מדריך"
+      eyebrow={category?.title || "בלוג"}
       title={guide.h1}
       titleAccent={guide.titleAccent}
       lede={guide.lede}
@@ -66,17 +75,13 @@ export default async function GuidePage({ params }: Props) {
       showEventTypes={guide.showEventTypes}
       ctaTitle={guide.ctaTitle}
       ctaLede={guide.ctaLede}
-      breadcrumbs={[
-        { name: "ראשי", path: "/" },
-        { name: "מדריכים", path: "/info/guides" },
-        { name: guide.h1, path },
-      ]}
+      breadcrumbs={breadcrumbs}
       path={path}
       related={
         guide.related?.length
           ? guide.related
           : [
-              { href: "/info/guides", label: "כל המדריכים" },
+              { href: "/blog", label: "כל המאמרים" },
               { href: "/pricing", label: "חבילות ומחירים" },
               { href: "/rsvp", label: "אישורי הגעה" },
               { href: "/faq", label: "שאלות נפוצות" },

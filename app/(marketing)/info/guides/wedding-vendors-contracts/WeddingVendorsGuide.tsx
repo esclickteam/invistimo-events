@@ -178,13 +178,13 @@ export default function WeddingVendorsGuide() {
           <p className="text-sm font-semibold text-[#7A6042]">
             <Link href="/" className="hover:text-[#8A642E]">ראשי</Link>
             <span className="px-1.5 text-[#C7A56B]">/</span>
-            <Link href="/info/guides" className="hover:text-[#8A642E]">מדריכים</Link>
+            <Link href="/blog" className="hover:text-[#8A642E]">בלוג</Link>
             <span className="px-1.5 text-[#C7A56B]">/</span>
             ספקים וחוזים
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
             <p className="text-sm font-black tracking-[0.12em] text-[#7A5530]">בוחרים נכון. חותמים בביטחון.</p>
-            <GuideToolbar title="מדריך ספקים וחוזים לחתונה | Invistimo" path={PATH} readingMinutes={30} />
+            <GuideToolbar title="מדריך ספקים וחוזים לחתונה | Invistimo" path={PATH} readingMinutes={12} />
           </div>
           <h1 className="mt-4 max-w-4xl text-[1.85rem] font-black leading-[1.18] tracking-[-0.03em] text-[#2C241C] md:text-[2.55rem]">
             איך בוחרים ספקים לחתונה ומה חייבים לבדוק לפני שסוגרים?

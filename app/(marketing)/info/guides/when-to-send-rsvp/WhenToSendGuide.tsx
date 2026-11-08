@@ -564,7 +564,7 @@ export default function WhenToSendGuide() {
               { href: "/info/guides/whatsapp-vs-sms-rsvp", label: "באיזה ערוץ כדאי לשלוח אישורי הגעה?" },
               { href: "/rsvp/save-the-date", label: "Save the Date" },
               { href: "/pricing", label: "חבילות ומחירים" },
-              { href: "/info/guides", label: "כל המדריכים" },
+              { href: "/blog", label: "לכל המאמרים" },
             ].map((l) => (
               <Link
                 key={l.href}

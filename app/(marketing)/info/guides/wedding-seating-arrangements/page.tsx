@@ -25,7 +25,7 @@ export const metadata = pageMetadata({
 
 const breadcrumbs = [
   { name: "ראשי", path: "/" },
-  { name: "מדריכים", path: "/info/guides" },
+  { name: "בלוג", path: "/blog" },
   { name: "סידורי הושבה לחתונה", path: PATH },
 ];
 

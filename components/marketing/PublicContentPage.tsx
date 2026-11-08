@@ -8,6 +8,8 @@ import { clusterSiblings } from "@/lib/seo/clusters";
 import { EVENT_TYPES, EVENT_TYPE_SECTION } from "@/lib/seo/eventTypes";
 import { breadcrumbNode, faqNode, graph, organizationNode } from "@/lib/seo/jsonld";
 import { btnPrimaryDark, btnSecondary } from "@/lib/ui/buttonClasses";
+import { formatReadingTime, minutesFromText } from "@/lib/blog/reading";
+import StickyToc from "@/components/marketing/guides/StickyToc";
 
 export type { FactTable };
 
@@ -84,6 +86,26 @@ export default function PublicContentPage({
   const answer = answerFor(path);
   const table = tableFor(path);
   const siblings = clusterSiblings(path);
+  const readingMinutes = minutesFromText(
+    [
+      title,
+      titleAccent || "",
+      lede,
+      answer || "",
+      ...sections.flatMap((section) => [
+        section.heading,
+        ...section.paragraphs,
+        ...(section.bullets || []),
+      ]),
+      ...faqs.flatMap((faq) => [faq.q, faq.a]),
+      ...benefits.flatMap((benefit) => [benefit.title, benefit.text]),
+      ...steps.flatMap((step) => [step.title, step.text]),
+    ].join("\n")
+  );
+  const toc = [
+    ...sections.map((section, index) => ({ id: `section-${index}`, label: section.heading })),
+    ...(faqs.length ? [{ id: "faq", label: "שאלות נפוצות" }] : []),
+  ];
   const data = graph([
     organizationNode(),
     breadcrumbNode(breadcrumbs),
@@ -134,6 +156,7 @@ export default function PublicContentPage({
                 </>
               ) : null}
             </h1>
+            <p className="mt-4 text-sm font-bold text-[#7A6042]">{formatReadingTime(readingMinutes)}</p>
 
             {answer ? (
               <p className="mt-6 max-w-2xl text-base leading-8 text-[#5C4A3A] md:text-lg">{answer}</p>
@@ -219,13 +242,16 @@ export default function PublicContentPage({
       ) : null}
 
       <article className="px-5 py-6 md:px-8 md:py-10">
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[16rem_minmax(0,1fr)]">
+          {toc.length > 1 ? <StickyToc items={toc} /> : <div className="hidden lg:block" />}
+          <div className="min-w-0 max-w-3xl">
           {table ? <FactTableView table={table} /> : null}
 
           {sections.map((section, index) => (
             <section
               key={section.heading}
-              className={`mt-12 rounded-[32px] border border-[#E6D2AA]/80 p-6 md:p-8 ${
+              id={`section-${index}`}
+              className={`mt-12 scroll-mt-28 rounded-[32px] border border-[#E6D2AA]/80 p-6 md:p-8 ${
                 index % 2 === 0 ? "bg-white/80" : "bg-[#FFF8EA]/55"
               }`}
             >
@@ -316,7 +342,7 @@ export default function PublicContentPage({
           ))}
 
           {faqs.length ? (
-            <section className="mt-14">
+            <section id="faq" className="mt-14 scroll-mt-28">
               <h2 className="text-3xl font-black text-[#35281F]">שאלות נפוצות</h2>
               <div className="mt-6 space-y-4">
                 {faqs.map((faq) => (
@@ -386,6 +412,7 @@ export default function PublicContentPage({
               ))}
             </ul>
           </section>
+        </div>
         </div>
       </article>
     </main>

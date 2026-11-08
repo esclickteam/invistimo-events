@@ -421,7 +421,7 @@ export default function PricingMarketingExtras() {
                 סידורי הושבה
               </Link>
               {" · "}
-              <Link href="/info/guides" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              <Link href="/blog" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
                 מרכז המדריכים
               </Link>
               {" · "}

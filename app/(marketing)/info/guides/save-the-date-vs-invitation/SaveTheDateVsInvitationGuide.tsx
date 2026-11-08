@@ -193,8 +193,8 @@ export default function SaveTheDateVsInvitationGuide() {
                 ראשי
               </Link>
               <span className="px-1.5 text-[#C7A56B]">/</span>
-              <Link href="/info/guides" className="hover:text-[#8A642E]">
-                מדריכים
+              <Link href="/blog" className="hover:text-[#8A642E]">
+                בלוג
               </Link>
               <span className="px-1.5 text-[#C7A56B]">/</span>
               <span>Save the Date מול הזמנה</span>
@@ -227,7 +227,7 @@ export default function SaveTheDateVsInvitationGuide() {
               </p>
             </div>
             <div className="mt-6 flex flex-wrap items-center gap-3">
-              <GuideToolbar title="Save the Date מול הזמנה לחתונה" path={PATH} readingMinutes={14} />
+              <GuideToolbar title="Save the Date מול הזמנה לחתונה" path={PATH} readingMinutes={16} />
               <span className="text-xs font-semibold text-[#7A6042]">{UPDATED_LABEL}</span>
             </div>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -1019,7 +1019,7 @@ export default function SaveTheDateVsInvitationGuide() {
                 { href: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },
                 { href: "/seating-explained", label: "סידורי הושבה" },
                 { href: "/pricing", label: "חבילות ומחירים" },
-                { href: "/info/guides", label: "מרכז המדריכים" },
+                { href: "/blog", label: "הבלוג" },
                 { href: "/try", label: "דמו Invistimo" },
               ].map((link) => (
                 <li key={link.href}>

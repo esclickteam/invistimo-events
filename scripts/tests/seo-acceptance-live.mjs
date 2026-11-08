@@ -26,7 +26,7 @@ const CORE = [
   "/pricing",
   "/faq",
   "/info/about",
-  "/info/guides",
+  "/blog",
   "/contact",
   "/credit-gifts",
   "/wedding-website",
@@ -249,7 +249,7 @@ async function checkRobotsAndSitemap() {
 }
 
 async function checkInternalLinksSample() {
-  const pages = ["/rsvp", "/pricing", "/info/guides", "/seating-explained", "/event-management"];
+  const pages = ["/rsvp", "/pricing", "/blog", "/seating-explained", "/event-management"];
   const report = [];
   for (const pathname of pages) {
     const { status, text } = await fetchText(`${BASE}${pathname}`);

@@ -489,7 +489,7 @@ export default function WeddingAlcoholGuide() {
               { href: "/info/guides/guest-list", label: "רשימת מוזמנים" },
               { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
               { href: "/info/guides/cost-rsvp-wedding", label: "עלויות אישורי הגעה" },
-              { href: "/info/guides", label: "כל המדריכים" },
+              { href: "/blog", label: "לכל המאמרים" },
             ].map((l) => (
               <Link
                 key={l.href}

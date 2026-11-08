@@ -227,8 +227,8 @@ export default function EventManagementVsProductionGuide() {
               ראשי
             </Link>
             <span className="px-1.5 text-[#C7A56B]">/</span>
-            <Link href="/info/guides" className="hover:text-[#8A642E]">
-              מדריכים
+            <Link href="/blog" className="hover:text-[#8A642E]">
+              בלוג
             </Link>
             <span className="px-1.5 text-[#C7A56B]">/</span>
             ניהול מול הפקה
@@ -239,7 +239,7 @@ export default function EventManagementVsProductionGuide() {
             <GuideToolbar
               title="ניהול אירוע או הפקת אירוע? | Invistimo"
               path={PATH}
-              readingMinutes={18}
+              readingMinutes={13}
             />
           </div>
 
@@ -664,7 +664,7 @@ export default function EventManagementVsProductionGuide() {
                 { href: "/info/guides/wedding-vendors-contracts", label: "ספקים וחוזים" },
                 { href: "/info/guides/event-day-checklist", label: "בדיקה לפני יום האירוע" },
                 { href: "/pricing", label: "חבילות ומחירים" },
-                { href: "/info/guides", label: "כל המדריכים" },
+                { href: "/blog", label: "לכל המאמרים" },
               ].map((link) => (
                 <li key={link.href}>
                   <Link

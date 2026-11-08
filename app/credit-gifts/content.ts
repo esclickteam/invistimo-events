@@ -304,7 +304,7 @@ export const RELATED_INTERNAL = [
   { href: LINKS.pricing, label: "חבילות ומחירים" },
   { href: LINKS.seating, label: "סידורי הושבה" },
   { href: LINKS.eventManagement, label: "ניהול אירוע" },
-  { href: LINKS.guides, label: "מרכז המדריכים" },
+  { href: LINKS.guides, label: "הבלוג" },
   { href: LINKS.sendInvite, label: "מדריך שליחת הזמנות" },
   { href: LINKS.guideBitPaybox, label: "מדריך bit ו־PayBox" },
   { href: LINKS.demo, label: "דמו" },

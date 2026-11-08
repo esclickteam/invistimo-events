@@ -17,7 +17,7 @@ const LINKS = [
   { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
   { href: "/services/alcohol-management", label: "ניהול אלכוהול באירועים" },
   { href: "/pricing", label: "חבילות ומחירים" },
-  { href: "/info/guides", label: "מדריכים" },
+  { href: "/blog", label: "בלוג" },
   { href: "/info/about", label: "אודות" },
 ];
 

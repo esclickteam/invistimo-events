@@ -150,8 +150,8 @@ export default function WeddingSeatingGuide() {
               ראשי
             </Link>
             <span className="px-1.5 text-[#C7A56B]">/</span>
-            <Link href="/info/guides" className="hover:text-[#8A642E]">
-              מדריכים
+            <Link href="/blog" className="hover:text-[#8A642E]">
+              בלוג
             </Link>
             <span className="px-1.5 text-[#C7A56B]">/</span>
             סידורי הושבה לחתונה
@@ -943,7 +943,7 @@ export default function WeddingSeatingGuide() {
                 { href: "/info/guides/wedding-planning", label: "תכנון חתונה" },
                 { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
                 { href: "/rsvp/calls", label: "שיחות אישורי הגעה" },
-                { href: "/info/guides", label: "כל המדריכים" },
+                { href: "/blog", label: "לכל המאמרים" },
               ].map((l) => (
                 <Link
                   key={l.href}

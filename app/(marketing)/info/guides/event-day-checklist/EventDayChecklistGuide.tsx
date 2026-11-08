@@ -309,15 +309,15 @@ export default function EventDayChecklistGuide() {
               ראשי
             </Link>
             <span className="px-1.5 text-[#C7A56B]">/</span>
-            <Link href="/info/guides" className="hover:text-[#8A642E]">
-              מדריכים
+            <Link href="/blog" className="hover:text-[#8A642E]">
+              בלוג
             </Link>
             <span className="px-1.5 text-[#C7A56B]">/</span>
             צ׳קליסט לפני יום האירוע
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
             <p className="text-sm font-black tracking-[0.12em] text-[#7A5530]">Invistimo · מדריך עבודה</p>
-            <GuideToolbar title="מה בודקים לפני יום האירוע? | Invistimo" path={PATH} readingMinutes={42} />
+            <GuideToolbar title="מה בודקים לפני יום האירוע? | Invistimo" path={PATH} readingMinutes={20} />
           </div>
           <h1 className="mt-4 max-w-4xl text-[1.75rem] font-black leading-[1.18] tracking-[-0.03em] text-[#2C241C] md:text-[2.45rem]">
             מה בודקים לפני יום האירוע? הצ׳קליסט המלא לחתונה בלי הפתעות
@@ -1111,7 +1111,7 @@ export default function EventDayChecklistGuide() {
                 למחשבון החבילות
               </TrackedCtaLink>
               <TrackedCtaLink
-                href="/info/guides"
+                href="/blog"
                 className="inline-flex min-h-12 items-center justify-center rounded-none border border-white/35 bg-white/10 px-8 py-3.5 text-base font-black text-white"
                 location={`footer_guides:${PATH}`}
               >

@@ -142,7 +142,7 @@ const CORE_GUIDES: Guide[] = [
       { href: "/info/guides/when-to-send-rsvp", label: "מתי שולחים אישורי הגעה" },
       { href: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },
       { href: "/pricing", label: "חבילות ומחירים" },
-      { href: "/info/guides", label: "כל המדריכים" },
+      { href: "/blog", label: "לכל המאמרים" },
     ],
     faqs: [
       {
@@ -177,7 +177,7 @@ const CORE_GUIDES: Guide[] = [
       { href: "/wedding-website", label: "אתר חתונה" },
       { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
       { href: "/rsvp/save-the-date", label: "Save the Date" },
-      { href: "/info/guides", label: "מרכז המדריכים" },
+      { href: "/blog", label: "הבלוג" },
       { href: "/pricing", label: "חבילות ומחירים" },
       { href: "/try", label: "דמו" },
     ],
@@ -230,7 +230,7 @@ const CORE_GUIDES: Guide[] = [
       { href: "/info/guides/wedding-seating-arrangements", label: "מדריך סידורי הושבה" },
       { href: "/pricing", label: "מחירון" },
       { href: "/try/dashboard/check-in", label: "דמו קבלת פנים" },
-      { href: "/info/guides", label: "מרכז המדריכים" },
+      { href: "/blog", label: "הבלוג" },
     ],
   },
   {
@@ -254,7 +254,7 @@ const CORE_GUIDES: Guide[] = [
       { href: "/info/guides/table-number-message", label: "הודעת מספר שולחן" },
       { href: "/seating-explained", label: "סידורי הושבה" },
       { href: "/pricing", label: "חבילות ומחירים" },
-      { href: "/info/guides", label: "מרכז המדריכים" },
+      { href: "/blog", label: "הבלוג" },
       { href: "/try", label: "דמו Invistimo" },
     ],
   },
@@ -364,7 +364,7 @@ const CORE_GUIDES: Guide[] = [
       { href: "/seating-explained", label: "סידורי הושבה" },
       { href: "/rsvp", label: "אישורי הגעה" },
       { href: "/pricing", label: "חבילות ומחירים" },
-      { href: "/info/guides", label: "כל המדריכים" },
+      { href: "/blog", label: "לכל המאמרים" },
     ],
   },
   {
@@ -598,7 +598,7 @@ const CORE_GUIDES: Guide[] = [
       { href: "/seating-explained", label: "הושבה דיגיטלית" },
       { href: "/pricing", label: "חבילות ומחירים" },
       { href: "/try", label: "דמו" },
-      { href: "/info/guides", label: "מרכז המדריכים" },
+      { href: "/blog", label: "הבלוג" },
     ],
   },
 ];

@@ -25,7 +25,7 @@ export const GETTING_STARTED_ITEMS: FaqItem[] = [
     a: "השירותים המרכזיים הם הזמנה דיגיטלית, אישורי הגעה (WhatsApp, ולפי חבילה גם SMS ושיחות), Save the Date, רשימת מוזמנים, סידורי הושבה (כתוספת), מערכת ניהול אירוע עצמאית (כתוספת), ואתר חתונה אישי. אפשר לבחור שירותים לפי הצורך במחשבון החבילות.",
     links: [
       { href: "/pricing", label: "מחשבון החבילות" },
-      { href: "/info/guides", label: "מרכז המדריכים" },
+      { href: "/blog", label: "הבלוג" },
     ],
     keywords: ["שירותים", "מה כולל"],
     updatedAt: U,
@@ -177,7 +177,7 @@ export const GETTING_STARTED_ITEMS: FaqItem[] = [
     q: "האם צריך ידע טכני?",
     a: "לא נדרש ידע טכני מיוחד. הממשק מיועד לשימוש עצמי: העלאת רשימה, שליחת הזמנות ומעקב אחרי תשובות. אם נתקעים — אפשר לפנות לתמיכה או לעיין במדריכים.",
     links: [
-      { href: "/info/guides", label: "מדריכים" },
+      { href: "/blog", label: "מדריכים" },
       { href: "/contact", label: "תמיכה" },
     ],
     updatedAt: U,

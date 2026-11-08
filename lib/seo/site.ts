@@ -212,10 +212,10 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
     priority: 0.6,
   },
   {
-    path: "/info/guides",
-    title: "מדריכים לאישורי הגעה, הזמנות והושבה | Invistimo",
+    path: "/blog",
+    title: "המגזין של Invistimo | אירועים, חתונות ואישורי הגעה",
     description:
-      "מרכז הידע של Invistimo: בחירת חברה, רשימת מוזמנים, מחיר, תזמון, אורחים שלא עונים, הושבה, אתר חתונה וניהול האירוע.",
+      "המגזין של Invistimo: מדריכים לתכנון אירוע, אישורי הגעה, הזמנות דיגיטליות, סידורי הושבה וניהול אורחים בישראל.",
     changeFrequency: "weekly",
     priority: 0.8,
   },

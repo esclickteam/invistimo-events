@@ -25,8 +25,8 @@ export const QUICK_HELP_LINKS = [
     hint: "מחשבון חבילות לפי מספר רשומות",
   },
   {
-    href: "/info/guides",
-    label: "מרכז המדריכים",
+    href: "/blog",
+    label: "הבלוג",
     hint: "מדריכים מעשיים לתכנון האירוע",
   },
   {

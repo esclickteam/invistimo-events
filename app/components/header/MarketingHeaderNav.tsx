@@ -8,9 +8,8 @@ import {
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
-  type MouseEvent as ReactMouseEvent,
 } from "react";
-import { Calculator, CalendarDays, ChevronDown, ChevronLeft, LayoutGrid, Users } from "lucide-react";
+import { Calculator, CalendarDays, ChevronDown, ChevronLeft, Gem, LayoutGrid, MessageCircle, Users, Briefcase } from "lucide-react";
 import {
   HEADER_PRIMARY,
   isHeaderPathActive,
@@ -18,13 +17,11 @@ import {
   type HeaderNavItem,
   type HeaderNavLink,
 } from "@/lib/marketing/headerNav";
-import {
-  categoryForSlug,
-  GUIDE_CATEGORIES,
-  type GuideCategory,
-  type GuideCategoryId,
-} from "@/lib/marketing/guideCatalog";
+import { blogMenu, type BlogCategoryId } from "@/lib/blog/taxonomy";
+import { placementForSlug } from "@/lib/blog/taxonomy";
 import styles from "./guidesMenu.module.css";
+
+const BLOG_MENU = blogMenu();
 
 type MarketingHeaderNavProps = {
   pathname: string;
@@ -35,10 +32,18 @@ type GuidesMotion = "closed" | "pre" | "open" | "closing";
 
 const CATEGORY_ICONS = {
   planning: CalendarDays,
-  guests: Users,
+  rsvp: MessageCircle,
   seating: LayoutGrid,
+  weddings: Gem,
+  family: Users,
+  business: Briefcase,
   tools: Calculator,
 } as const;
+
+function CategoryIcon({ id }: { id: BlogCategoryId }) {
+  const Icon = CATEGORY_ICONS[id];
+  return <Icon size={18} strokeWidth={1.5} aria-hidden className="mt-0.5 shrink-0 text-[#8A642E]" />;
+}
 
 function linkClass(active: boolean, compact?: boolean) {
   return [
@@ -60,17 +65,17 @@ function ActiveUnderline({ show }: { show: boolean }) {
   );
 }
 
-function CategoryIcon({ id }: { id: GuideCategoryId }) {
-  const Icon = CATEGORY_ICONS[id];
-  return <Icon size={18} strokeWidth={1.5} aria-hidden className="mt-0.5 shrink-0 text-[#8A642E]" />;
-}
-
 function menuIsActive(
   item: Exclude<HeaderNavItem, { kind: "link" }>,
   pathname: string
 ) {
   if (item.kind === "guides") {
-    return pathname === "/info/guides" || pathname.startsWith("/info/guides/");
+    return (
+      pathname === "/blog" ||
+      pathname.startsWith("/blog/") ||
+      pathname === "/info/guides" ||
+      pathname.startsWith("/info/guides/")
+    );
   }
 
   return (
@@ -231,14 +236,21 @@ function GuidesPanel({
   visible: boolean;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const [activeId, setActiveId] = useState<GuideCategoryId>(GUIDE_CATEGORIES[0].id);
+  const [activeId, setActiveId] = useState<BlogCategoryId>(BLOG_MENU[0]?.id || "planning");
 
   useEffect(() => {
+    if (pathname.startsWith("/blog/")) {
+      const id = pathname.split("/")[2] as BlogCategoryId;
+      if (BLOG_MENU.some((category) => category.id === id)) {
+        setActiveId(id);
+        return;
+      }
+    }
     const slug = pathname.startsWith("/info/guides/")
       ? pathname.slice("/info/guides/".length).split(/[/?#]/)[0]
       : "";
-    const match = slug ? categoryForSlug(slug) : undefined;
-    if (match) setActiveId(match.id);
+    const match = slug ? placementForSlug(slug) : undefined;
+    if (match) setActiveId(match.categoryId);
   }, [pathname]);
 
   useEffect(() => {
@@ -264,7 +276,7 @@ function GuidesPanel({
     const focusCategory = (element?: HTMLElement) => {
       if (!element) return;
       element.focus();
-      const nextId = element.dataset.catId as GuideCategoryId | undefined;
+      const nextId = element.dataset.catId as BlogCategoryId | undefined;
       if (nextId) setActiveId(nextId);
     };
 
@@ -303,32 +315,19 @@ function GuidesPanel({
     }
   };
 
-  const onCategoryClick = (
-    event: ReactMouseEvent<HTMLAnchorElement>,
-    category: GuideCategory
-  ) => {
-    const hoverNone = window.matchMedia("(hover: none)").matches;
-    if (hoverNone && activeId !== category.id) {
-      event.preventDefault();
-      setActiveId(category.id);
-      return;
-    }
-    onNavigate?.();
-  };
-
   return (
     <div
       ref={panelRef}
       id={id}
       role="region"
-      aria-label="מדריכים"
+      aria-label="בלוג"
       onKeyDown={onPanelKeyDown}
-      className="w-[min(40rem,calc(100vw-1.5rem))] border border-[#D9BE80] bg-[#FFFDF8] text-[#3F3025] shadow-[0_18px_40px_rgba(66,24,47,0.12)]"
+      className="w-[min(52rem,calc(100vw-1.5rem))] border border-[#D9BE80] bg-[#FFFDF8] text-[#3F3025] shadow-[0_18px_40px_rgba(66,24,47,0.12)]"
     >
       <div className="max-h-[min(34rem,calc(100dvh-7.5rem))] overflow-y-auto overscroll-contain">
         <div className="grid md:grid-cols-[minmax(14rem,0.92fr)_minmax(0,1.08fr)]">
           <ul className="border-[#E7D8BD] md:border-l" aria-label="קטגוריות">
-            {GUIDE_CATEGORIES.map((category) => {
+            {BLOG_MENU.map((category) => {
               const selected = category.id === activeId;
               return (
                 <li key={category.id} className="border-b border-[#E7D8BD] last:border-b-0">
@@ -339,8 +338,16 @@ function GuidesPanel({
                     aria-current={selected ? "true" : undefined}
                     onMouseEnter={() => setActiveId(category.id)}
                     onFocus={() => setActiveId(category.id)}
-                    onClick={(event) => onCategoryClick(event, category)}
-                    className={`flex min-h-16 items-start gap-3 px-4 py-3 text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#8A642E] ${
+                    onClick={(event) => {
+                      const hoverNone = window.matchMedia("(hover: none)").matches;
+                      if (hoverNone && activeId !== category.id) {
+                        event.preventDefault();
+                        setActiveId(category.id);
+                        return;
+                      }
+                      onNavigate?.();
+                    }}
+                    className={`flex min-h-14 items-center gap-3 px-4 py-3 text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#8A642E] ${
                       selected
                         ? "border-r-2 border-r-[#842B4C] bg-[#FBF6EE]"
                         : "border-r-2 border-r-transparent hover:bg-[#FBF6EE]"
@@ -367,7 +374,7 @@ function GuidesPanel({
           </ul>
 
           <div className="border-t border-[#E7D8BD] md:border-t-0">
-            {GUIDE_CATEGORIES.map((category) => {
+            {BLOG_MENU.map((category) => {
               const selected = category.id === activeId;
               return (
                 <div
@@ -380,10 +387,10 @@ function GuidesPanel({
                     {category.title}
                   </p>
                   <ul className="mt-1">
-                    {category.featured.map((link) => {
-                      const active = isHeaderPathActive(pathname, link.href);
+                    {category.links.map((link) => {
+                      const active = isHeaderPathActive(pathname, link.href.split("#")[0]);
                       return (
-                        <li key={link.href}>
+                        <li key={`${category.id}-${link.href}`}>
                           <Link
                             href={link.href}
                             data-guide-link=""
@@ -405,7 +412,7 @@ function GuidesPanel({
                     onClick={onNavigate}
                     className="mt-1 inline-flex min-h-11 items-center px-1 text-[14px] font-bold text-[#8A642E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8A642E]"
                   >
-                    {category.allLabel}
+                    לכל המאמרים בקטגוריה
                     <span aria-hidden className="px-1">
                       ←
                     </span>
@@ -418,11 +425,11 @@ function GuidesPanel({
 
         <div className="border-t border-[#E7D8BD] bg-[#FBF6EE] px-4 py-3">
           <Link
-            href="/info/guides"
+            href="/blog"
             onClick={onNavigate}
             className="inline-flex min-h-11 items-center text-[15px] font-extrabold text-[#42182F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8A642E]"
           >
-            לכל המדריכים
+            לכל המאמרים
             <span aria-hidden className="px-1 text-lg leading-none">
               ←
             </span>
@@ -687,7 +694,7 @@ export function MobileMarketingNav({
   onNavigate,
 }: MarketingHeaderNavProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [guideCategoryId, setGuideCategoryId] = useState<GuideCategoryId | null>(null);
+  const [guideCategoryId, setGuideCategoryId] = useState<BlogCategoryId | null>(null);
 
   return (
     <nav
@@ -772,8 +779,8 @@ export function MobileMarketingNav({
                         >
                           <div className={styles.foldInner} inert={!categoryOpen}>
                             <ul className="px-4 pb-2">
-                              {category.featured.map((link) => (
-                                <li key={link.href}>
+                              {category.links.map((link) => (
+                                <li key={`${category.id}-${link.href}`}>
                                   <Link
                                     href={link.href}
                                     onClick={onNavigate}
@@ -789,7 +796,7 @@ export function MobileMarketingNav({
                               onClick={onNavigate}
                               className="mx-4 mb-3 inline-flex min-h-11 items-center border border-[#C5A582] bg-[#FFF8F0] px-4 text-[14px] font-bold text-[#42182F]"
                             >
-                              {category.allLabel}
+                              לכל המאמרים בקטגוריה
                             </Link>
                           </div>
                         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { formatReadingTime } from "@/lib/blog/reading";
 
 type Props = {
   title: string;
@@ -44,8 +45,8 @@ export default function GuideToolbar({ title, path, readingMinutes }: Props) {
 
   return (
     <div className="flex flex-wrap items-center gap-2 print:hidden">
-      <span className="rounded-full border border-[#E6D2AA] bg-white/80 px-3 py-1.5 text-xs font-bold text-[#7A6042]">
-        כ־{readingMinutes} דק׳ קריאה
+      <span className="border border-[#E6D2AA] bg-white/80 px-3 py-1.5 text-xs font-bold text-[#7A6042]">
+        {formatReadingTime(readingMinutes)}
       </span>
       <button
         type="button"
