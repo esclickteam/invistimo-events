@@ -117,7 +117,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="he" dir="rtl" className={heebo.variable} suppressHydrationWarning>
       <body
-        className={`${heebo.className} min-h-screen bg-[#f7f3ee] text-[#5c4632]`}
+        className="min-h-screen bg-[#f7f3ee] text-[#5c4632]"
         suppressHydrationWarning
       >
         <Providers>
