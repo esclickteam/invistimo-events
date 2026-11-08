@@ -17,6 +17,7 @@ const BlogPostSchema = new Schema(
     categoryId: { type: String, required: true, index: true },
     subcategoryId: { type: String, required: true },
     coverImage: { type: String, default: "" },
+    coverAlt: { type: String, default: "", maxlength: 300 },
     seoTitle: { type: String, default: "", maxlength: 180 },
     seoDescription: { type: String, default: "", maxlength: 320 },
     featured: { type: Boolean, default: false },

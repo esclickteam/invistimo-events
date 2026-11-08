@@ -34,6 +34,7 @@ export async function GET(req: Request, { params }: Params) {
       categoryId: post.categoryId,
       subcategoryId: post.subcategoryId,
       coverImage: post.coverImage || "",
+      coverAlt: post.coverAlt || "",
       seoTitle: post.seoTitle || "",
       seoDescription: post.seoDescription || "",
       featured: Boolean(post.featured),
