@@ -103,21 +103,28 @@ test("draft preview stays closed on production and out of the sitemap", async ()
   assert.equal(urls.some((url) => url.includes("/blog/drafts")), false);
   const route = fs.readFileSync(path.join(root, "app/api/admin/blog/import-drafts/route.ts"), "utf8");
   assert.match(route, /auth\.role !== "admin"/);
+  assert.match(route, /auth\.impersonated/);
   assert.match(route, /status: "draft"/);
+  assert.match(route, /publishedAt: undefined/);
+  assert.doesNotMatch(route, /export async function GET/);
   assert.doesNotMatch(route, /status: "published"/);
+  const draftPage = fs.readFileSync(path.join(root, "app/(marketing)/blog/drafts/[slug]/page.tsx"), "utf8");
+  assert.match(draftPage, /draftsPreviewEnabled\(\)/);
+  assert.match(draftPage, /notFound\(\)/);
+  assert.match(draftPage, /NOINDEX/);
 });
 
-test("nine private-event drafts are distinct, priced from the live site, and linked", () => {
+test("twelve private-event drafts are distinct, priced from the live site, and linked", () => {
   const articles = loadDraftArticles();
-  assert.equal(articles.length, 9);
+  assert.equal(articles.length, 12);
   assert.equal(articles.filter((article) => article.wave === 1).length, 2);
   const slugs = new Set(articles.map((article) => article.slug));
   for (const removed of ["birthday-guest-list", "conference-participants", "company-event-meal-count", "company-event-or-conference"]) {
     assert.equal(slugs.has(removed), false);
   }
-  assert.equal(slugs.size, 9);
+  assert.equal(slugs.size, 12);
   const openings = new Set(articles.map((article) => article.body.slice(0, 80)));
-  assert.equal(openings.size, 9);
+  assert.equal(openings.size, 12);
 
   for (const article of articles) {
     assert.equal(GUIDES.some((guide) => guide.slug === article.slug), false);

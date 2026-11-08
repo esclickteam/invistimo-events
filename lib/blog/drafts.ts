@@ -31,6 +31,9 @@ const ORDER = [
   "save-the-date-family-events",
   "when-to-add-call-package",
   "henna-seating-two-sides",
+  "henna-meal-count",
+  "personal-link-whatsapp-group",
+  "what-to-send-the-venue",
 ];
 
 /** Draft review is for local work and preview deployments. Production and public staging stay closed. */
