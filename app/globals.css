@@ -38,6 +38,15 @@
   overflow-x: hidden;
 }
 
+/* Heebo's built-in fallback is Arial, which has no Hebrew glyphs, so the first paint
+   used a narrower system font and the category grid shifted when Heebo arrived.
+   Segoe UI Hebrew wraps like Heebo, so the swap keeps the same line breaks. */
+@font-face {
+  font-family: "heebo Fallback";
+  src: local("Segoe UI"), local("Arial Hebrew");
+  unicode-range: U+0590-05FF, U+FB1D-FB4F, U+200E, U+200F;
+}
+
 /* -----------------------------------------------------------
    רקע WOW – שכבות אלגנטיות
 ----------------------------------------------------------- */
