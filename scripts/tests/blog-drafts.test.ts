@@ -107,14 +107,15 @@ test("draft preview stays closed on production and out of the sitemap", async ()
   assert.doesNotMatch(route, /status: "published"/);
 });
 
-test("thirteen drafts are distinct, priced from the live site, and linked", () => {
+test("twelve drafts are distinct, priced from the live site, and linked", () => {
   const articles = loadDraftArticles();
-  assert.equal(articles.length, 13);
+  assert.equal(articles.length, 12);
   assert.equal(articles.filter((article) => article.wave === 1).length, 3);
   const slugs = new Set(articles.map((article) => article.slug));
-  assert.equal(slugs.size, 13);
+  assert.equal(slugs.has("birthday-guest-list"), false);
+  assert.equal(slugs.size, 12);
   const openings = new Set(articles.map((article) => article.body.slice(0, 80)));
-  assert.equal(openings.size, 13);
+  assert.equal(openings.size, 12);
 
   for (const article of articles) {
     assert.equal(GUIDES.some((guide) => guide.slug === article.slug), false);

@@ -31,7 +31,6 @@ const ORDER = [
   "bar-mitzvah-meal-count",
   "save-the-date-family-events",
   "company-event-meal-count",
-  "birthday-guest-list",
   "when-to-add-call-package",
   "henna-seating-two-sides",
   "company-event-or-conference",
