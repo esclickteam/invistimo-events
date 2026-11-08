@@ -363,7 +363,7 @@ export default function EventDayChecklistGuide() {
         <div className="mx-auto max-w-6xl px-5 pb-10 md:px-8">
           <figure className="overflow-hidden rounded-[28px] border border-[#E6D2AA] shadow-[0_24px_60px_rgba(58,39,20,0.12)]">
             <Image
-              src="/images/rsvp/guides/wedding-planning/hero-reception.jpg"
+              src="/marketing/luxury/editorial-details.webp"
               alt="קבלת פנים באולם חתונה עם שולחנות ערוכים ואווירת ערב חמה"
               width={1600}
               height={900}

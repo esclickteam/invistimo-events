@@ -4,6 +4,7 @@ import { articleNode } from "@/lib/seo/jsonld";
 import { getGuide, GUIDES, guidePath } from "@/lib/seo/guides";
 import { pageMetadata } from "@/lib/seo/site";
 import { placementForSlug, categoryById, categoryPath, BLOG_HUB_PATH } from "@/lib/blog/taxonomy";
+import { coverFor } from "@/lib/blog/covers";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -72,6 +73,8 @@ export default async function GuidePage({ params }: Props) {
       benefits={guide.benefits}
       steps={guide.steps}
       media={guide.media}
+      cover={coverFor(guide.slug, guide.h1) || undefined}
+      magazine
       showEventTypes={guide.showEventTypes}
       ctaTitle={guide.ctaTitle}
       ctaLede={guide.ctaLede}

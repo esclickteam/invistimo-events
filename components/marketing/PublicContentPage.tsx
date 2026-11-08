@@ -10,6 +10,7 @@ import { breadcrumbNode, faqNode, graph, organizationNode } from "@/lib/seo/json
 import { btnPrimaryDark, btnSecondary } from "@/lib/ui/buttonClasses";
 import { formatReadingTime, minutesFromText } from "@/lib/blog/reading";
 import StickyToc from "@/components/marketing/guides/StickyToc";
+import GuideToolbar from "@/components/marketing/guides/GuideToolbar";
 
 export type { FactTable };
 
@@ -58,6 +59,8 @@ export default function PublicContentPage({
   benefits = [],
   steps = [],
   media,
+  cover,
+  magazine = false,
   showEventTypes = false,
   ctaTitle = "רוצים להתקדם עם האירוע?",
   ctaLede = "המחיר נקבע לפי מספר הרשומות והחבילה במחשבון. אין כאן מחיר כללי לאירוע.",
@@ -77,6 +80,8 @@ export default function PublicContentPage({
   benefits?: ContentBenefit[];
   steps?: ContentStep[];
   media?: ContentMedia;
+  cover?: { src: string; alt: string };
+  magazine?: boolean;
   showEventTypes?: boolean;
   ctaTitle?: string;
   ctaLede?: string;
@@ -112,17 +117,92 @@ export default function PublicContentPage({
     ...(faqs.length ? [faqNode(faqs)] : []),
     ...extraJsonLd,
   ]);
+  const radius = magazine ? "" : "rounded-[28px]";
+  const panel = magazine ? "" : "rounded-[32px]";
+  const tile = magazine ? "" : "rounded-[24px]";
+  const pill = magazine ? "" : "rounded-full";
+  const soft = magazine ? "" : "rounded-2xl";
 
   return (
     <main dir="rtl" className="overflow-hidden bg-[#FBF6EE] text-[#3F3025]">
       <JsonLd data={data} />
 
       {/* ===== HERO ===== */}
+      {magazine ? (
+      <section className="relative isolate px-5 pb-12 pt-14 md:px-8 md:pb-16 md:pt-20">
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,#E9D4AF_0%,transparent_36%),linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_100%)]" />
+
+        <div className="mx-auto max-w-6xl">
+          <nav aria-label="מיקום בעמוד" className="mb-6 text-sm font-semibold text-[#7A6042]">
+            {breadcrumbs.map((item, index) => (
+              <span key={item.path}>
+                {index > 0 ? <span className="px-1.5 text-[#C7A56B]">/</span> : null}
+                {index === breadcrumbs.length - 1 ? (
+                  <span>{item.name}</span>
+                ) : (
+                  <Link href={item.path} className="hover:text-[#8A642E]">
+                    {item.name}
+                  </Link>
+                )}
+              </span>
+            ))}
+          </nav>
+
+          <span className="inline-flex border border-[#E6D2AA] bg-white px-4 py-1.5 text-sm font-bold text-[#7A6042]">
+            {eyebrow}
+          </span>
+
+          <h1 className="mt-6 max-w-4xl text-4xl font-black leading-[1.12] tracking-[-0.03em] text-[#35281F] md:text-6xl">
+            {title}
+            {titleAccent ? (
+              <>
+                {" "}
+                <span className="mt-3 block text-[#842B4C]">{titleAccent}</span>
+              </>
+            ) : null}
+          </h1>
+          <div className="mt-5">
+            <GuideToolbar title={title} path={path} readingMinutes={readingMinutes} />
+          </div>
+
+          {cover ? (
+            <figure className="mt-8 overflow-hidden border border-[#E6D2AA] bg-white">
+              <Image
+                src={cover.src}
+                alt={cover.alt}
+                width={1600}
+                height={900}
+                priority
+                className="aspect-[16/9] w-full object-cover"
+              />
+            </figure>
+          ) : media ? (
+            <div className="mt-8">
+              <HeroMedia media={media} />
+            </div>
+          ) : null}
+
+          {answer ? (
+            <p className="mt-8 max-w-3xl text-base leading-8 text-[#5C4A3A] md:text-lg">{answer}</p>
+          ) : null}
+
+          <p className={`max-w-3xl text-lg leading-8 text-[#5C4A3A] ${answer ? "mt-4" : "mt-8"}`}>{lede}</p>
+
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <TrackedCtaLink href={primaryCta.href} className={ctaClass} location={`hero_cta:${path}`}>
+              {primaryCta.label}
+            </TrackedCtaLink>
+            <TrackedCtaLink href={secondaryCta.href} className={secondaryClass} location={`hero_cta:${path}`}>
+              {secondaryCta.label}
+            </TrackedCtaLink>
+          </div>
+        </div>
+      </section>
+      ) : (
       <section className="relative isolate px-5 pb-12 pt-14 md:px-8 md:pb-16 md:pt-20">
         <div className="absolute inset-0 -z-10 bg-[radial-gradient(circle_at_top_right,#E9D4AF_0%,transparent_36%),radial-gradient(circle_at_top_left,#F5E8D3_0%,transparent_32%),linear-gradient(180deg,#FFFDF8_0%,#FBF6EE_55%,#F6EBDD_100%)]" />
         <div className="absolute left-[8%] top-24 -z-10 h-56 w-56 rounded-full bg-[#D8B77C]/20 blur-3xl" />
         <div className="absolute bottom-10 right-[12%] -z-10 h-64 w-64 rounded-full bg-[#B59668]/15 blur-3xl" />
-
         <div className="mx-auto grid max-w-6xl items-center gap-10 lg:grid-cols-[1.15fr_0.85fr]">
           <div>
             <nav aria-label="מיקום בעמוד" className="mb-6 text-sm font-semibold text-[#7A6042]">
@@ -139,33 +219,24 @@ export default function PublicContentPage({
                 </span>
               ))}
             </nav>
-
             <span className="inline-flex items-center gap-2 rounded-full border border-[#EADDC8] bg-white/70 px-5 py-2 text-sm font-bold text-[#7A6042] shadow-[0_12px_35px_rgba(91,63,32,0.08)] backdrop-blur-xl">
               <span className="h-2 w-2 rounded-full bg-[#C7A56B]" />
               {eyebrow}
             </span>
-
             <h1 className="mt-6 max-w-3xl text-4xl font-black leading-[1.12] tracking-[-0.03em] text-[#35281F] md:text-6xl">
               {title}
               {titleAccent ? (
                 <>
                   {" "}
-                  <span className="mt-3 block text-[#842B4C]">
-                    {titleAccent}
-                  </span>
+                  <span className="mt-3 block text-[#842B4C]">{titleAccent}</span>
                 </>
               ) : null}
             </h1>
             <p className="mt-4 text-sm font-bold text-[#7A6042]">{formatReadingTime(readingMinutes)}</p>
-
             {answer ? (
               <p className="mt-6 max-w-2xl text-base leading-8 text-[#5C4A3A] md:text-lg">{answer}</p>
             ) : null}
-
-            <p className={`max-w-2xl text-lg leading-8 text-[#5C4A3A] ${answer ? "mt-4" : "mt-6"}`}>
-              {lede}
-            </p>
-
+            <p className={`max-w-2xl text-lg leading-8 text-[#5C4A3A] ${answer ? "mt-4" : "mt-6"}`}>{lede}</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <TrackedCtaLink href={primaryCta.href} className={ctaClass} location={`hero_cta:${path}`}>
                 {primaryCta.label}
@@ -175,10 +246,10 @@ export default function PublicContentPage({
               </TrackedCtaLink>
             </div>
           </div>
-
           {media ? <HeroMedia media={media} /> : <HeroAtmosphere />}
         </div>
       </section>
+      )}
 
       {benefits.length ? (
         <section className="px-5 py-12 md:px-8 md:py-16">
@@ -191,7 +262,7 @@ export default function PublicContentPage({
               {benefits.map((benefit) => (
                 <li
                   key={benefit.title}
-                  className="rounded-[28px] border border-[#E6D2AA] bg-gradient-to-l from-[#FFF8EA] via-[#FFFDF7] to-[#F7E8CA] p-6 shadow-[0_16px_40px_rgba(151,108,49,0.08)]"
+                  className={`${radius} border border-[#E6D2AA] p-6 ${magazine ? "bg-[#FFFDF8]" : "bg-gradient-to-l from-[#FFF8EA] via-[#FFFDF7] to-[#F7E8CA] shadow-[0_16px_40px_rgba(151,108,49,0.08)]"}`}
                 >
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#C7A56B] text-sm font-black text-white">
                     ✓
@@ -211,7 +282,7 @@ export default function PublicContentPage({
             <h2 className="text-3xl font-black text-[#35281F] md:text-4xl">איך זה עובד</h2>
             <ol className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
               {steps.map((step, index) => (
-                <li key={step.title} className="rounded-[28px] border border-[#E6D2AA] bg-white p-6">
+                <li key={step.title} className={`${radius} border border-[#E6D2AA] bg-white p-6`}>
                   <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#3F3A34] text-sm font-black text-white">
                     {index + 1}
                   </span>
@@ -231,7 +302,7 @@ export default function PublicContentPage({
             <p className="mt-4 max-w-3xl leading-8 text-[#5C4A3A]">{EVENT_TYPE_SECTION.lede}</p>
             <ul className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {EVENT_TYPES.map((item) => (
-                <li key={item.label} className="rounded-[24px] border border-[#E6D2AA] bg-white/90 p-5">
+                <li key={item.label} className={`${tile} border border-[#E6D2AA] bg-white/90 p-5`}>
                   <h3 className="text-lg font-black text-[#35281F]">{item.label}</h3>
                   <p className="mt-2 leading-7 text-[#5C4A3A]">{item.blurb}</p>
                 </li>
@@ -251,7 +322,7 @@ export default function PublicContentPage({
             <section
               key={section.heading}
               id={`section-${index}`}
-              className={`mt-12 scroll-mt-28 rounded-[32px] border border-[#E6D2AA]/80 p-6 md:p-8 ${
+              className={`mt-12 scroll-mt-28 ${panel} border border-[#E6D2AA]/80 p-6 md:p-8 ${
                 index % 2 === 0 ? "bg-white/80" : "bg-[#FFF8EA]/55"
               }`}
             >
@@ -266,7 +337,7 @@ export default function PublicContentPage({
                   {section.bullets.map((bullet) => (
                     <li
                       key={bullet}
-                      className="flex items-start gap-3 rounded-2xl border border-[#E6D2AA] bg-[#FFFDF8] px-4 py-3 leading-7"
+                      className={`flex items-start gap-3 ${soft} border border-[#E6D2AA] bg-[#FFFDF8] px-4 py-3 leading-7`}
                     >
                       <span className="mt-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#C7A56B] text-[11px] font-black text-white">
                         ✓
@@ -281,7 +352,7 @@ export default function PublicContentPage({
                   {section.compare.map((item) => (
                     <li
                       key={item.title}
-                      className="rounded-[24px] border border-[#E6D2AA] bg-[#FFFDF8] p-5 shadow-[0_12px_28px_rgba(95,68,34,0.06)]"
+                      className={`${tile} border border-[#E6D2AA] bg-[#FFFDF8] p-5 shadow-[0_12px_28px_rgba(95,68,34,0.06)]`}
                     >
                       <p className="text-sm font-black tracking-wide text-[#A67C3D]">{item.title}</p>
                       <p className="mt-2 text-[15px] leading-7 text-[#5C4A3A]">{item.text}</p>
@@ -294,7 +365,7 @@ export default function PublicContentPage({
                   {section.timeline.map((item, stepIndex) => (
                     <li
                       key={item.title}
-                      className="relative flex gap-4 rounded-[24px] border border-[#E6D2AA] bg-[#FFFDF8] p-4 md:p-5"
+                      className={`relative flex gap-4 ${tile} border border-[#E6D2AA] bg-[#FFFDF8] p-4 md:p-5`}
                     >
                       <span
                         className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-black text-white ${
@@ -312,7 +383,7 @@ export default function PublicContentPage({
                 </ol>
               ) : null}
               {section.callout ? (
-                <div className="mt-6 overflow-hidden rounded-[24px] border border-[#E3C990] bg-gradient-to-l from-[#FFF8EA] via-white to-[#F7E8CA] p-5 md:p-6">
+                <div className={`mt-6 overflow-hidden ${tile} border border-[#E3C990] bg-gradient-to-l from-[#FFF8EA] via-white to-[#F7E8CA] p-5 md:p-6`}>
                   {section.callout.title ? (
                     <p className="text-sm font-black tracking-wide text-[#A67C3D]">{section.callout.title}</p>
                   ) : null}
@@ -346,7 +417,7 @@ export default function PublicContentPage({
               <h2 className="text-3xl font-black text-[#35281F]">שאלות נפוצות</h2>
               <div className="mt-6 space-y-4">
                 {faqs.map((faq) => (
-                  <details key={faq.q} className="rounded-[24px] border border-[#E6D2AA] bg-white px-5 py-4" open>
+                  <details key={faq.q} className={`${tile} border border-[#E6D2AA] bg-white px-5 py-4`} open>
                     <summary className="cursor-pointer list-none">
                       <h3 className="text-lg font-black text-[#35281F]">{faq.q}</h3>
                     </summary>
@@ -387,7 +458,7 @@ export default function PublicContentPage({
                   <li key={link.path}>
                     <Link
                       href={link.path}
-                      className="inline-flex min-h-11 items-center rounded-full border border-[#E6D2AA] bg-white px-4 py-2 text-sm font-bold text-[#5E4735]"
+                      className={`inline-flex min-h-11 items-center ${pill} border border-[#E6D2AA] bg-white px-4 py-2 text-sm font-bold text-[#5E4735]`}
                     >
                       {link.label}
                     </Link>
@@ -404,7 +475,7 @@ export default function PublicContentPage({
                 <li key={link.href}>
                   <Link
                     href={link.href}
-                    className="inline-flex rounded-full border border-[#E6D2AA] bg-white px-4 py-2 text-sm font-bold text-[#5E4735]"
+                    className={`inline-flex ${pill} border border-[#E6D2AA] bg-white px-4 py-2 text-sm font-bold text-[#5E4735]`}
                   >
                     {link.label}
                   </Link>

@@ -51,14 +51,14 @@ export default function GuideToolbar({ title, path, readingMinutes }: Props) {
       <button
         type="button"
         onClick={() => window.print()}
-        className="rounded-full border border-[#E6D2AA] bg-white/80 px-3 py-1.5 text-xs font-bold text-[#5E4735] transition hover:bg-white"
+        className="border border-[#E6D2AA] bg-white/80 px-3 py-1.5 text-xs font-bold text-[#5E4735] transition hover:bg-white"
       >
         הדפסה
       </button>
       <button
         type="button"
         onClick={copyLink}
-        className="rounded-full border border-[#E6D2AA] bg-white/80 px-3 py-1.5 text-xs font-bold text-[#5E4735] transition hover:bg-white"
+        className="border border-[#E6D2AA] bg-white/80 px-3 py-1.5 text-xs font-bold text-[#5E4735] transition hover:bg-white"
       >
         {copied ? "הקישור הועתק" : "העתקת קישור"}
       </button>
@@ -66,7 +66,7 @@ export default function GuideToolbar({ title, path, readingMinutes }: Props) {
         <button
           type="button"
           onClick={shareNative}
-          className="rounded-full border border-[#E6D2AA] bg-white/80 px-3 py-1.5 text-xs font-bold text-[#5E4735] transition hover:bg-white"
+          className="border border-[#E6D2AA] bg-white/80 px-3 py-1.5 text-xs font-bold text-[#5E4735] transition hover:bg-white"
         >
           שיתוף
         </button>
@@ -75,7 +75,7 @@ export default function GuideToolbar({ title, path, readingMinutes }: Props) {
           href={`https://wa.me/?text=${encodeURIComponent(`${title}\n${url}`)}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="rounded-full border border-[#E6D2AA] bg-white/80 px-3 py-1.5 text-xs font-bold text-[#5E4735] transition hover:bg-white"
+          className="border border-[#E6D2AA] bg-white/80 px-3 py-1.5 text-xs font-bold text-[#5E4735] transition hover:bg-white"
         >
           WhatsApp
         </a>

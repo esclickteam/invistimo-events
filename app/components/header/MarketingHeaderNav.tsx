@@ -9,7 +9,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import { Calculator, CalendarDays, ChevronDown, ChevronLeft, Gem, LayoutGrid, MessageCircle, Users, Briefcase } from "lucide-react";
+import { Calculator, CalendarDays, ChevronDown, Gem, LayoutGrid, MessageCircle, Users, Briefcase } from "lucide-react";
 import {
   HEADER_PRIMARY,
   isHeaderPathActive,
@@ -322,119 +322,65 @@ function GuidesPanel({
       role="region"
       aria-label="בלוג"
       onKeyDown={onPanelKeyDown}
-      className="w-[min(52rem,calc(100vw-1.5rem))] border border-[#D9BE80] bg-[#FFFDF8] text-[#3F3025] shadow-[0_18px_40px_rgba(66,24,47,0.12)]"
+      className="w-[min(76rem,calc(100vw-1.5rem))] border border-[#D9BE80] bg-[#FFFDF8] text-[#3F3025] shadow-[0_18px_40px_rgba(66,24,47,0.12)]"
     >
-      <div className="max-h-[min(34rem,calc(100dvh-7.5rem))] overflow-y-auto overscroll-contain">
-        <div className="grid md:grid-cols-[minmax(14rem,0.92fr)_minmax(0,1.08fr)]">
-          <ul className="border-[#E7D8BD] md:border-l" aria-label="קטגוריות">
-            {BLOG_MENU.map((category) => {
-              const selected = category.id === activeId;
-              return (
-                <li key={category.id} className="border-b border-[#E7D8BD] last:border-b-0">
-                  <Link
-                    href={category.href}
-                    data-guide-cat=""
-                    data-cat-id={category.id}
-                    aria-current={selected ? "true" : undefined}
-                    onMouseEnter={() => setActiveId(category.id)}
-                    onFocus={() => setActiveId(category.id)}
-                    onClick={(event) => {
-                      const hoverNone = window.matchMedia("(hover: none)").matches;
-                      if (hoverNone && activeId !== category.id) {
-                        event.preventDefault();
-                        setActiveId(category.id);
-                        return;
-                      }
-                      onNavigate?.();
-                    }}
-                    className={`flex min-h-14 items-center gap-3 px-4 py-3 text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[#8A642E] ${
-                      selected
-                        ? "border-r-2 border-r-[#842B4C] bg-[#FBF6EE]"
-                        : "border-r-2 border-r-transparent hover:bg-[#FBF6EE]"
-                    }`}
-                  >
-                    <CategoryIcon id={category.id} />
-                    <span className="min-w-0">
-                      <span className="block text-[15px] font-bold leading-6 text-[#35281F]">
-                        {category.title}
-                      </span>
-                      <span className="mt-0.5 block text-[13px] font-medium leading-5 text-[#7A6042]">
-                        {category.description}
-                      </span>
-                    </span>
-                    <ChevronLeft
-                      size={16}
-                      aria-hidden
-                      className={`mr-auto mt-1 shrink-0 ${selected ? "text-[#842B4C]" : "text-[#C5A582]"}`}
-                    />
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-
-          <div className="border-t border-[#E7D8BD] md:border-t-0">
-            {BLOG_MENU.map((category) => {
-              const selected = category.id === activeId;
-              return (
-                <div
-                  key={category.id}
-                  data-featured-panel={category.id}
-                  hidden={!selected}
-                  className="px-4 py-3"
-                >
-                  <p className="px-1 text-[12px] font-bold tracking-[0.04em] text-[#9A6E24]">
-                    {category.title}
-                  </p>
-                  <ul className="mt-1">
-                    {category.links.map((link) => {
-                      const active = isHeaderPathActive(pathname, link.href.split("#")[0]);
-                      return (
-                        <li key={`${category.id}-${link.href}`}>
-                          <Link
-                            href={link.href}
-                            data-guide-link=""
-                            aria-current={active ? "page" : undefined}
-                            onClick={onNavigate}
-                            className={`block min-h-11 px-1 py-2 text-[15px] font-semibold leading-6 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8A642E] ${
-                              active ? "text-[#842B4C]" : "text-[#35281F] hover:text-[#8A642E]"
-                            }`}
-                          >
-                            {link.label}
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <Link
-                    href={category.href}
-                    data-guide-link=""
-                    onClick={onNavigate}
-                    className="mt-1 inline-flex min-h-11 items-center px-1 text-[14px] font-bold text-[#8A642E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8A642E]"
-                  >
-                    לכל המאמרים בקטגוריה
-                    <span aria-hidden className="px-1">
-                      ←
-                    </span>
-                  </Link>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="border-t border-[#E7D8BD] bg-[#FBF6EE] px-4 py-3">
-          <Link
-            href="/blog"
-            onClick={onNavigate}
-            className="inline-flex min-h-11 items-center text-[15px] font-extrabold text-[#42182F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8A642E]"
-          >
-            לכל המאמרים
-            <span aria-hidden className="px-1 text-lg leading-none">
-              ←
-            </span>
-          </Link>
-        </div>
+      <div className="grid grid-cols-2 lg:grid-cols-4">
+        {BLOG_MENU.map((category) => {
+          const selected = category.id === activeId;
+          return (
+            <section
+              key={category.id}
+              data-featured-panel={category.id}
+              className={`border-b border-l border-[#E7D8BD] px-3 py-3 ${selected ? "bg-[#FBF6EE]" : "bg-[#FFFDF8]"}`}
+            >
+              <Link
+                href={category.href}
+                data-guide-cat=""
+                data-cat-id={category.id}
+                aria-current={selected ? "true" : undefined}
+                onMouseEnter={() => setActiveId(category.id)}
+                onFocus={() => setActiveId(category.id)}
+                onClick={onNavigate}
+                className="flex items-center gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8A642E]"
+              >
+                <CategoryIcon id={category.id} />
+                <span className="text-[14px] font-black leading-5 text-[#35281F]">{category.title}</span>
+              </Link>
+              <ul className={`mt-2 grid gap-x-3 ${category.links.length > 4 ? "grid-cols-2" : "grid-cols-1"}`}>
+                {category.links.map((link) => {
+                  const active = isHeaderPathActive(pathname, link.href.split("#")[0]);
+                  return (
+                    <li key={`${category.id}-${link.href}`}>
+                      <Link
+                        href={link.href}
+                        data-guide-link=""
+                        aria-current={active ? "page" : undefined}
+                        onClick={onNavigate}
+                        className={`block py-1 text-[13px] font-semibold leading-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8A642E] ${
+                          active ? "text-[#842B4C]" : "text-[#5C4A3A] hover:text-[#8A642E]"
+                        }`}
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
+      <div className="border-t border-[#E7D8BD] bg-[#FBF6EE] px-4 py-2">
+        <Link
+          href="/blog"
+          onClick={onNavigate}
+          className="inline-flex min-h-10 items-center text-[14px] font-extrabold text-[#42182F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8A642E]"
+        >
+          לכל המאמרים
+          <span aria-hidden className="px-1">
+            ←
+          </span>
+        </Link>
       </div>
     </div>
   );

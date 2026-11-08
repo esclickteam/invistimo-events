@@ -396,7 +396,7 @@ export default function ChooseRsvpCompanyGuide() {
               className="overflow-hidden border-y border-[#E6D2AA]"
             >
               <Image
-                src="/images/rsvp/guides/wedding-planning/hero-reception.jpg"
+                src="/marketing/blog/how-to-choose-rsvp-company.webp"
                 alt="אורחים בחתונה באולם מואר — המחשה לבחירת שירות אישורי הגעה לאירוע"
                 width={1920}
                 height={900}
@@ -408,7 +408,7 @@ export default function ChooseRsvpCompanyGuide() {
           ) : (
             <div className="overflow-hidden border-y border-[#E6D2AA]">
               <Image
-                src="/images/rsvp/guides/wedding-planning/hero-reception.jpg"
+                src="/marketing/blog/how-to-choose-rsvp-company.webp"
                 alt="אורחים בחתונה באולם מואר — המחשה לבחירת שירות אישורי הגעה לאירוע"
                 width={1920}
                 height={900}

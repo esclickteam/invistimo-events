@@ -237,7 +237,7 @@ export default function WeddingPlanningGuide() {
               className="overflow-hidden border-y border-[#E6D2AA]"
             >
               <Image
-                src="/images/rsvp/guides/wedding-planning/hero-reception.jpg"
+                src="/marketing/luxury/editorial-couple-garden.webp"
                 alt="שולחנות חתונה ערוכים באולם עם מפות שמנת, נרות ומרכזי פרחים באווירה חגיגית"
                 width={1920}
                 height={900}
@@ -249,7 +249,7 @@ export default function WeddingPlanningGuide() {
           ) : (
             <div className="overflow-hidden border-y border-[#E6D2AA]">
               <Image
-                src="/images/rsvp/guides/wedding-planning/hero-reception.jpg"
+                src="/marketing/luxury/editorial-couple-garden.webp"
                 alt="שולחנות חתונה ערוכים באולם עם מפות שמנת, נרות ומרכזי פרחים באווירה חגיגית"
                 width={1920}
                 height={900}

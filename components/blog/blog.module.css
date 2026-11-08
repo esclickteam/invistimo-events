@@ -6,6 +6,23 @@
   animation: none;
 }
 
+.rail {
+  scrollbar-color: #c7a56b transparent;
+  scrollbar-width: thin;
+}
+
+.rail::-webkit-scrollbar {
+  height: 8px;
+}
+
+.rail::-webkit-scrollbar-track {
+  background: #f3e6cf;
+}
+
+.rail::-webkit-scrollbar-thumb {
+  background: #8a642e;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .rise {
     animation: blogRise 680ms ease both;

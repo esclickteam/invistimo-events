@@ -309,7 +309,7 @@ export default function EventManagementVsProductionGuide() {
               className="overflow-hidden rounded-[28px] border border-[#E6D2AA] bg-[#FFFDF8] shadow-[0_24px_60px_rgba(58,39,20,0.12)]"
             >
               <Image
-                src="/images/rsvp/guides/wedding-planning/hero-reception.jpg"
+                src="/marketing/blog/event-management-vs-production.webp"
                 alt="קבלת פנים באירוע — המחשה לתכנון וניהול חתונה"
                 width={900}
                 height={1100}

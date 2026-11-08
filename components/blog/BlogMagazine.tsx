@@ -54,6 +54,103 @@ function Reveal({ children, className = "" }: { children: ReactNode; className?:
   );
 }
 
+function CategoryRail({
+  categories,
+  categoryId,
+  onSelect,
+}: {
+  categories: BlogCategory[];
+  categoryId: string;
+  onSelect: (id: string) => void;
+}) {
+  const scroller = useRef<HTMLDivElement>(null);
+  const [overflow, setOverflow] = useState(false);
+  const [canPrev, setCanPrev] = useState(false);
+  const [canNext, setCanNext] = useState(false);
+
+  const update = () => {
+    const el = scroller.current;
+    if (!el) return;
+    const max = el.scrollWidth - el.clientWidth;
+    const has = max > 4;
+    const pos = Math.abs(el.scrollLeft);
+    setOverflow(has);
+    setCanPrev(pos > 8);
+    setCanNext(has && pos < max - 8);
+  };
+
+  useEffect(() => {
+    update();
+    const el = scroller.current;
+    if (!el) return;
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    el.addEventListener("scroll", update, { passive: true });
+    return () => {
+      observer.disconnect();
+      el.removeEventListener("scroll", update);
+    };
+  }, [categories.length]);
+
+  const nudge = (toward: "start" | "end") => {
+    const el = scroller.current;
+    if (!el) return;
+    const delta = toward === "end" ? -240 : 240;
+    el.scrollBy({ left: delta, behavior: "smooth" });
+  };
+
+  const chip = (active: boolean) =>
+    `shrink-0 snap-start border px-4 py-2 text-sm font-bold whitespace-nowrap ${
+      active
+        ? "border-[#42182F] bg-[#42182F] text-[#FFF8F0]"
+        : "border-[#E6D2AA] bg-white text-[#35281F] hover:border-[#C7A56B]"
+    }`;
+
+  return (
+    <div className="relative mt-6 flex items-center gap-2">
+      {overflow && canPrev ? (
+        <button
+          type="button"
+          aria-label="קטגוריות קודמות"
+          onClick={() => nudge("start")}
+          className="hidden h-9 w-9 shrink-0 items-center justify-center border border-[#E6D2AA] bg-[#FFFDF8] text-lg text-[#8A642E] md:flex"
+        >
+          ›
+        </button>
+      ) : null}
+      <nav
+        ref={scroller}
+        aria-label="קטגוריות הבלוג"
+        className={`${styles.rail} min-w-0 flex-1 flex flex-nowrap gap-2 overflow-x-auto scroll-smooth pb-3 snap-x`}
+      >
+        <button type="button" onClick={() => onSelect("all")} className={chip(categoryId === "all")}>
+          הכל
+        </button>
+        {categories.map((category) => (
+          <button
+            key={category.id}
+            type="button"
+            onClick={() => onSelect(category.id)}
+            className={chip(categoryId === category.id)}
+          >
+            {category.title}
+          </button>
+        ))}
+      </nav>
+      {overflow && canNext ? (
+        <button
+          type="button"
+          aria-label="קטגוריות נוספות"
+          onClick={() => nudge("end")}
+          className="hidden h-9 w-9 shrink-0 items-center justify-center border border-[#E6D2AA] bg-[#FFFDF8] text-lg text-[#8A642E] md:flex"
+        >
+          ‹
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 export default function BlogMagazine({
   articles,
   categories,
@@ -128,33 +225,7 @@ export default function BlogMagazine({
             />
           </form>
 
-          <nav aria-label="קטגוריות הבלוג" className="mt-6 flex gap-2 overflow-x-auto pb-2 md:flex-wrap md:overflow-visible md:pb-0">
-            <button
-              type="button"
-              onClick={() => setCategoryId("all")}
-              className={`shrink-0 border px-4 py-2 text-sm font-bold ${
-                categoryId === "all"
-                  ? "border-[#42182F] bg-[#42182F] text-[#FFF8F0]"
-                  : "border-[#E6D2AA] bg-white text-[#35281F] hover:border-[#C7A56B]"
-              }`}
-            >
-              הכל
-            </button>
-            {categories.map((category) => (
-              <button
-                key={category.id}
-                type="button"
-                onClick={() => setCategoryId(category.id)}
-                className={`shrink-0 border px-4 py-2 text-sm font-bold ${
-                  categoryId === category.id
-                    ? "border-[#42182F] bg-[#42182F] text-[#FFF8F0]"
-                    : "border-[#E6D2AA] bg-white text-[#35281F] hover:border-[#C7A56B]"
-                }`}
-              >
-                {category.title}
-              </button>
-            ))}
-          </nav>
+          <CategoryRail categories={categories} categoryId={categoryId} onSelect={setCategoryId} />
         </div>
       </section>
 

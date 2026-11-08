@@ -4,6 +4,7 @@ import type { Guide } from "@/lib/seo/guides";
 import { GUIDES, guidePath } from "@/lib/seo/guides";
 import { routeContentDate } from "@/lib/seo/contentDates";
 import { countWords, minutesFromWordCount } from "@/lib/blog/reading";
+import { coverFor } from "@/lib/blog/covers";
 import {
   BLOG_CATEGORIES,
   BLOG_PLACEMENTS,
@@ -33,17 +34,6 @@ export type BlogArticle = {
   searchText: string;
   source: "guide" | "post";
 };
-
-const IMAGE_CYCLE = [
-  "/marketing/luxury/editorial-details.webp",
-  "/marketing/luxury/editorial-bouquet.webp",
-  "/marketing/luxury/editorial-tablescape.webp",
-  "/marketing/luxury/editorial-couple-garden.webp",
-  "/marketing/luxury/editorial-ceremony.webp",
-  "/marketing/luxury/editorial-reception.webp",
-  "/marketing/luxury/editorial-rings-flowers.webp",
-  "/marketing/luxury/editorial-bride-veil.webp",
-];
 
 function hebrewWords(source: string) {
   return source
@@ -78,21 +68,14 @@ function guideBlob(guide: Guide) {
   return parts.filter(Boolean).join("\n");
 }
 
-function imageFor(guide: Guide, index: number) {
-  if (guide.media?.type === "image" && guide.media.src.startsWith("/")) {
-    return { src: guide.media.src, alt: guide.media.alt || guide.h1 };
-  }
-  const category = BLOG_PLACEMENTS[guide.slug]
-    ? categoryById(BLOG_PLACEMENTS[guide.slug].categoryId)
-    : null;
-  return {
-    src: category?.image || IMAGE_CYCLE[index % IMAGE_CYCLE.length],
-    alt: guide.h1,
-  };
+function imageFor(guide: Guide) {
+  const cover = coverFor(guide.slug, guide.h1);
+  if (!cover) throw new Error(`Guide ${guide.slug} is missing a unique cover`);
+  return cover;
 }
 
 export function codeArticles(): BlogArticle[] {
-  return GUIDES.map((guide, index) => {
+  return GUIDES.map((guide) => {
     const placement = BLOG_PLACEMENTS[guide.slug];
     if (!placement) {
       throw new Error(`Guide ${guide.slug} is missing a blog placement`);
@@ -104,7 +87,7 @@ export function codeArticles(): BlogArticle[] {
     }
     const blob = `${guideBlob(guide)}\n${dedicatedBlob(guide.slug)}`;
     const dates = routeContentDate(guidePath(guide.slug));
-    const image = imageFor(guide, index);
+    const image = imageFor(guide);
     return {
       id: `guide:${guide.slug}`,
       slug: guide.slug,
