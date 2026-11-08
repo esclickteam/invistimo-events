@@ -42,8 +42,8 @@ export default async function BlogPostPage({ params }: Props) {
 
   const category = categoryById(post.categoryId);
   const path = `/blog/p/${post.slug}`;
-  const faqs = (post.faqs || [])
-    .map((faq: { q?: string; a?: string }) => ({ q: String(faq?.q || ""), a: String(faq?.a || "") }))
+  const faqs = ((post.faqs || []) as { q?: string; a?: string }[])
+    .map((faq) => ({ q: String(faq?.q || ""), a: String(faq?.a || "") }))
     .filter((faq) => faq.q && faq.a);
   const feed = await getBlogFeed();
   const related = feed

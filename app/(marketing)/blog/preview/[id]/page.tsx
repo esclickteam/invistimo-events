@@ -38,8 +38,8 @@ export default async function BlogPreviewPage({ params }: Props) {
       readingMinutes={minutesFromText(`${post.title}\n${post.excerpt}\n${post.body}`)}
       categoryTitle={category.title}
       categoryId={post.categoryId}
-      faqs={(post.faqs || [])
-        .map((faq: { q?: string; a?: string }) => ({ q: String(faq?.q || ""), a: String(faq?.a || "") }))
+      faqs={((post.faqs || []) as { q?: string; a?: string }[])
+        .map((faq) => ({ q: String(faq?.q || ""), a: String(faq?.a || "") }))
         .filter((faq) => faq.q && faq.a)}
       related={[]}
     />
