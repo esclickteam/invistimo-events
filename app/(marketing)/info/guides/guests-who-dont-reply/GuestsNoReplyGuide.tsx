@@ -526,7 +526,7 @@ export default function GuestsNoReplyGuide() {
             </TrackedCtaLink>
           </div>
           <p className="mt-8 text-sm text-[#B8A890]">
-            <Link href="/info/guides" className="underline-offset-4 hover:underline">
+            <Link href="/blog" className="underline-offset-4 hover:underline">
               כל המדריכים
             </Link>
             {" · "}

@@ -12,18 +12,18 @@ import {
 } from "../../lib/seo/contentDates";
 import { guidePath, GUIDES } from "../../lib/seo/guides";
 import { CORE_PUBLIC_ROUTES } from "../../lib/seo/site";
+import { indexableCategoryPaths } from "../../lib/blog/taxonomy";
 
 const root = path.resolve(process.cwd());
 
-test("final QA: sitemap has 42 URLs and lastmod matches content dates only", () => {
-  const items = sitemap();
-  assert.equal(items.length, 42);
-
+test("final QA: sitemap includes guides, the blog, and dated category pages", async () => {
+  const items = await sitemap();
   const required = [
     ...CORE_PUBLIC_ROUTES.map((route) => route.path),
     ...GUIDES.map((guide) => guidePath(guide.slug)),
+    ...indexableCategoryPaths(),
   ];
-  assert.equal(required.length, 42);
+  assert.equal(items.length, required.length);
 
   for (const pathKey of required) {
     assert.ok(ROUTE_CONTENT_DATES[pathKey], pathKey);
@@ -47,12 +47,12 @@ test("final QA: sitemap has 42 URLs and lastmod matches content dates only", () 
 test("final QA: footer unchanged vs published main IA", () => {
   assert.deepEqual(collectFooterHrefs(), [
     "/accessibility",
+    "/blog",
     "/contact",
     "/credit-gifts",
     "/event-management",
     "/faq",
     "/info/about",
-    "/info/guides",
     "/info/guides/seating-plan",
     "/info/guides/when-to-send-rsvp",
     "/invitations/chatuna",

@@ -285,8 +285,8 @@ export default function TableNumberGuide() {
               ראשי
             </Link>
             <span className="px-1.5 text-[#C7A56B]">/</span>
-            <Link href="/info/guides" className="hover:text-[#8A642E]">
-              מדריכים
+            <Link href="/blog" className="hover:text-[#8A642E]">
+              בלוג
             </Link>
             <span className="px-1.5 text-[#C7A56B]">/</span>
             הודעת מספר שולחן
@@ -1101,7 +1101,7 @@ export default function TableNumberGuide() {
                   { href: "/info/guides/guests-who-dont-reply", label: "אורחים שלא עונים" },
                   { href: "/pricing", label: "חבילות ומחירים" },
                   { href: "/event-management", label: "ניהול אירוע" },
-                  { href: "/info/guides", label: "מרכז המדריכים" },
+                  { href: "/blog", label: "הבלוג" },
                   { href: "/try", label: "דמו" },
                   { href: "/try/dashboard/seating", label: "דמו מפת הושבה" },
                 ].map((link) => (

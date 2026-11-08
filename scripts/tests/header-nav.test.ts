@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { GUIDE_CATEGORIES } from "../../lib/marketing/guideCatalog";
+import { blogMenu, isBlogCategoryId, BLOG_PLACEMENTS } from "../../lib/blog/taxonomy";
 import {
   collectHeaderHrefs,
   HEADER_PRIMARY,
   SERVICE_COLUMNS,
   EVENT_LINKS,
 } from "../../lib/marketing/headerNav";
-import { GUIDES, guidePath } from "../../lib/seo/guides";
+import { GUIDES } from "../../lib/seo/guides";
 
 const ROOT = path.resolve(__dirname, "../..");
 
@@ -21,6 +21,10 @@ function pageExistsForHref(href: string): boolean {
 
   if (href.startsWith("/try/")) {
     return existsSync(path.join(ROOT, "app", href.slice(1), "page.tsx"));
+  }
+
+  if (href === "/blog" || (href.startsWith("/blog/") && isBlogCategoryId(href.split("/")[2] || ""))) {
+    return existsSync(path.join(ROOT, "app/(marketing)/blog/page.tsx"));
   }
 
   if (href.startsWith("/info/guides/") && href !== "/info/guides") {
@@ -52,57 +56,53 @@ test("header nav only links to existing ready pages", () => {
   }
 });
 
-test("guides menu is four compact categories", () => {
+test("blog menu lists seven categories and only real destinations", () => {
   const guides = HEADER_PRIMARY.find((item) => item.id === "guides");
   assert.ok(guides && guides.kind === "guides");
   if (!guides || guides.kind !== "guides") return;
 
+  assert.equal(guides.label, "בלוג");
+  assert.equal(guides.footerLink.href, "/blog");
+  assert.equal(guides.footerLink.label, "לכל המאמרים");
   assert.deepEqual(
     guides.categories.map((category) => category.title),
-    ["תכנון חתונה", "מוזמנים ואישורי הגעה", "סידורי הושבה", "כלים ומחשבונים"]
+    [
+      "תכנון וארגון אירועים",
+      "אישורי הגעה והזמנות",
+      "סידורי הושבה וניהול אורחים",
+      "חתונות",
+      "אירועים משפחתיים",
+      "אירועים עסקיים",
+      "טיפים, כלים ומחשבונים",
+    ]
   );
-  assert.equal(guides.footerLink.href, "/info/guides");
-  assert.equal(guides.footerLink.label, "לכל המדריכים");
+  assert.deepEqual(guides.categories, blogMenu());
 
   for (const category of guides.categories) {
-    assert.ok(category.description.length > 0);
-    assert.ok(category.featured.length > 0 && category.featured.length <= 4);
-    assert.equal(category.href, `/info/guides#cat-${category.id}`);
-    for (const link of category.featured) {
-      assert.ok(
-        category.slugs.includes(link.slug),
-        `${link.slug} is featured outside its category`
-      );
-      assert.equal(link.href, guidePath(link.slug));
+    assert.equal(category.href, `/blog/${category.id}`);
+    assert.ok(category.links.length > 0, category.id);
+    for (const link of category.links) {
+      assert.ok(link.href.startsWith("/"));
+      assert.equal(link.label.length > 0, true);
     }
   }
 });
 
-test("every published guide belongs to one knowledge-center category", () => {
-  const listed = GUIDE_CATEGORIES.flatMap((category) => category.slugs);
-  assert.equal(new Set(listed).size, listed.length, "a guide is listed twice");
-  assert.equal(listed.length, GUIDES.length);
-
+test("every published guide belongs to one blog category", () => {
+  assert.equal(Object.keys(BLOG_PLACEMENTS).length, GUIDES.length);
   for (const guide of GUIDES) {
-    assert.ok(listed.includes(guide.slug), `published guide missing from hub categories: ${guide.slug}`);
+    assert.ok(BLOG_PLACEMENTS[guide.slug], guide.slug);
   }
 });
 
-test("guides hub keeps its H1 and can reach every article", () => {
-  const page = readFileSync(
-    path.join(ROOT, "app/(marketing)/info/guides/page.tsx"),
-    "utf8"
-  );
-  const library = readFileSync(
-    path.join(ROOT, "components/marketing/GuidesLibrary.tsx"),
-    "utf8"
-  );
-  assert.match(page, /מדריכים לאישורי הגעה/);
-  assert.match(page, /להזמנות, הושבה וניהול אירוע/);
+test("blog hub keeps the magazine headline", () => {
+  const page = readFileSync(path.join(ROOT, "app/(marketing)/blog/page.tsx"), "utf8");
+  const magazine = readFileSync(path.join(ROOT, "components/blog/BlogMagazine.tsx"), "utf8");
   assert.match(page, /pageMetadata/);
-  assert.match(page, /GUIDES\.map/);
-  assert.match(library, /חיפוש במדריכים/);
-  assert.match(library, /כל המדריכים/);
+  assert.match(magazine, /המגזין של Invistimo — כל מה שצריך לדעת על אירועים/);
+  assert.match(magazine, /חיפוש מאמרים/);
+  assert.match(magazine, /formatReadingTime/);
+  assert.doesNotMatch(magazine, /שם כותב|תמונת כותב/);
 });
 
 test("header service mega menu includes core ready services", () => {

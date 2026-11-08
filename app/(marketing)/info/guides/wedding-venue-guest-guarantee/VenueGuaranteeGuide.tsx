@@ -699,7 +699,7 @@ export default function VenueGuaranteeGuide() {
               { href: "/rsvp/bar-bat-mitzvah", label: "אישורי הגעה לבר ובת מצווה" },
               { href: "/info/guides/cost-rsvp-wedding", label: "עלויות אישורי הגעה" },
               { href: "/info/guides/wedding-alcohol-calculator", label: "מחשבון אלכוהול לחתונה" },
-              { href: "/info/guides", label: "כל המדריכים" },
+              { href: "/blog", label: "לכל המאמרים" },
             ].map((l) => (
               <Link
                 key={l.href}

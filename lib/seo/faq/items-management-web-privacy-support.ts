@@ -490,7 +490,7 @@ export const SUPPORT_ITEMS: FaqItem[] = [
     q: "האם אפשר לקבל הדרכה?",
     a: "כן. אפשר להיעזר במרכז המדריכים, להתנסות בדמו, או לפנות לתמיכה לשאלות על שימוש במערכת. הדרכה מורחבת מתואמת לפי הצורך.",
     links: [
-      { href: "/info/guides", label: "מרכז המדריכים" },
+      { href: "/blog", label: "הבלוג" },
       { href: "/try", label: "דמו" },
     ],
     updatedAt: U,

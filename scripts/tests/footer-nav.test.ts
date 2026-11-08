@@ -63,12 +63,12 @@ test("footer link set stays aligned with the published public IA on main", () =>
     hrefs,
     [
       "/accessibility",
+      "/blog",
       "/contact",
       "/credit-gifts",
       "/event-management",
       "/faq",
       "/info/about",
-      "/info/guides",
       "/info/guides/seating-plan",
       "/info/guides/when-to-send-rsvp",
       "/invitations/chatuna",

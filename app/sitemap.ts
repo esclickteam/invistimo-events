@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { indexableCategoryPaths, isBlogCategoryId } from "@/lib/blog/taxonomy";
 import { lastModifiedFor } from "@/lib/seo/contentDates";
 import { guidePath, GUIDES } from "@/lib/seo/guides";
 import { absoluteUrl, CORE_PUBLIC_ROUTES } from "@/lib/seo/site";
@@ -16,7 +17,7 @@ function sitemapLastModified(path: string): Date {
   }
 }
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const core = CORE_PUBLIC_ROUTES.map((route) => ({
     url: absoluteUrl(route.path),
     lastModified: sitemapLastModified(route.path),
@@ -31,5 +32,31 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
 
-  return [...core, ...guides];
+  const categories = indexableCategoryPaths().map((path) => ({
+    url: absoluteUrl(path),
+    lastModified: sitemapLastModified(path),
+    changeFrequency: "weekly" as const,
+    priority: 0.64,
+  }));
+
+  const managed: MetadataRoute.Sitemap = [];
+  if (process.env.MONGO_URI || process.env.MONGODB_URI) {
+    try {
+      const { listPublishedPosts } = await import("@/lib/blog/feed");
+      const posts = await listPublishedPosts();
+      for (const post of posts) {
+        if (!isBlogCategoryId(String(post.categoryId || ""))) continue;
+        managed.push({
+          url: absoluteUrl(`/blog/p/${post.slug}`),
+          lastModified: post.updatedAt ? new Date(post.updatedAt) : new Date("2026-11-08T00:00:00.000Z"),
+          changeFrequency: "monthly",
+          priority: 0.6,
+        });
+      }
+    } catch (error) {
+      console.error("[sitemap] blog posts skipped", error);
+    }
+  }
+
+  return [...core, ...guides, ...categories, ...managed];
 }

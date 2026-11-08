@@ -21,7 +21,7 @@ const MARKETING = [
   "/pricing",
   "/faq",
   "/info/about",
-  "/info/guides",
+  "/blog",
   "/info/guides/cost-rsvp-wedding",
   "/info/guides/when-to-send-rsvp",
   "/info/guides/send-digital-invitation",

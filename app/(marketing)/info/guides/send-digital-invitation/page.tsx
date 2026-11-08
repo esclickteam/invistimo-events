@@ -49,7 +49,7 @@ export const metadata: Metadata = {
 
 const breadcrumbs = [
   { name: "ראשי", path: "/" },
-  { name: "מדריכים", path: "/info/guides" },
+  { name: "בלוג", path: "/blog" },
   { name: "איך שולחים הזמנה דיגיטלית לחתונה", path: PATH },
 ];
 

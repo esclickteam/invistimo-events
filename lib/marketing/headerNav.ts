@@ -4,7 +4,7 @@
  * Rule for future pages: build content → desktop/mobile QA → SEO check →
  * owner approval → publish → then add the link here. Never add Preview/WIP URLs.
  */
-import { GUIDE_CATEGORIES, type GuideCategory } from "@/lib/marketing/guideCatalog";
+import { blogMenu, type BlogMenuCategory } from "@/lib/blog/taxonomy";
 
 export type HeaderNavLink = {
   href: string;
@@ -31,7 +31,7 @@ export type HeaderNavItem =
       id: string;
       label: string;
       kind: "guides";
-      categories: GuideCategory[];
+      categories: BlogMenuCategory[];
       footerLink: HeaderNavLink;
     };
 
@@ -137,12 +137,12 @@ export const HEADER_PRIMARY: HeaderNavItem[] = [
   },
   {
     id: "guides",
-    label: "מדריכים",
+    label: "בלוג",
     kind: "guides",
-    categories: GUIDE_CATEGORIES,
+    categories: blogMenu(),
     footerLink: {
-      href: "/info/guides",
-      label: "לכל המדריכים",
+      href: "/blog",
+      label: "לכל המאמרים",
     },
   },
   { id: "pricing", label: "חבילות ומחירים", href: "/pricing", kind: "link" },
@@ -159,9 +159,10 @@ export function collectHeaderHrefs(): string[] {
       continue;
     }
     if (item.kind === "guides") {
-      hrefs.add(item.footerLink.href);
+      hrefs.add(item.footerLink.href.split("#")[0]);
       for (const category of item.categories) {
-        for (const link of category.featured) hrefs.add(link.href);
+        hrefs.add(category.href.split("#")[0]);
+        for (const link of category.links) hrefs.add(link.href.split("#")[0]);
       }
       continue;
     }

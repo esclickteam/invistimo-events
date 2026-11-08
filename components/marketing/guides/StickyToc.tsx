@@ -39,24 +39,27 @@ export default function StickyToc({ items, title = "תוכן עניינים" }: 
       {/* Mobile: horizontal chips */}
       <nav
         aria-label={title}
-        className="sticky top-0 z-20 -mx-5 mb-8 overflow-x-auto border-b border-[#E6D2AA]/80 bg-[#FBF6EE]/95 px-5 py-3 backdrop-blur print:hidden lg:hidden"
+        className="mb-8 border border-[#E6D2AA] bg-[#FFFDF8] print:hidden lg:hidden"
       >
-        <ul className="flex min-w-max gap-2">
-          {items.map((item) => (
-            <li key={item.id}>
-              <a
-                href={`#${item.id}`}
-                className={`inline-flex whitespace-nowrap rounded-full border px-3 py-1.5 text-xs font-bold transition ${
-                  active === item.id
-                    ? "border-[#C7A56B] bg-[#FFF8EA] text-[#5E4735]"
-                    : "border-[#EADDC8] bg-white/70 text-[#7A6042]"
-                }`}
-              >
-                {item.label}
-              </a>
-            </li>
-          ))}
-        </ul>
+        <details>
+          <summary className="cursor-pointer px-4 py-3 text-sm font-black text-[#8A642E]">
+            {title}
+          </summary>
+          <ol className="space-y-1 border-t border-[#E6D2AA] px-4 py-3">
+            {items.map((item, index) => (
+              <li key={item.id}>
+                <a
+                  href={`#${item.id}`}
+                  className={`block py-1.5 text-sm font-semibold ${
+                    active === item.id ? "text-[#842B4C]" : "text-[#5C4A3A]"
+                  }`}
+                >
+                  {index + 1}. {item.label}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </details>
       </nav>
 
       {/* Desktop: sticky sidebar */}

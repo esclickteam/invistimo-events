@@ -116,7 +116,7 @@ const RELATED = [
   { href: "/pricing", label: "מחירון ומחשבון" },
   { href: "/try/dashboard/check-in", label: "דמו קבלת פנים" },
   { href: "/try/dashboard/seating", label: "דמו מפת הושבה" },
-  { href: "/info/guides", label: "מרכז המדריכים" },
+  { href: "/blog", label: "הבלוג" },
 ];
 
 const DEMO_VIDEOS = [
@@ -223,7 +223,7 @@ export default function ReceptionSeatingGuide() {
               </TrackedCtaLink>
             </div>
             <div className="mt-8">
-              <GuideToolbar title={H1} path={PATH} readingMinutes={18} />
+              <GuideToolbar title={H1} path={PATH} readingMinutes={13} />
             </div>
           </div>
 

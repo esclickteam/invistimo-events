@@ -135,7 +135,7 @@ export default function FAQPage() {
                 יצירת קשר
               </TrackedCtaLink>
               <TrackedCtaLink
-                href="/info/guides"
+                href="/blog"
                 className={secondaryClass}
                 location="footer_cta:/faq"
               >

@@ -162,7 +162,7 @@ const RELATED = [
   { href: "/info/guides/send-digital-invitation", label: "איך שולחים הזמנה" },
   { href: "/rsvp/save-the-date", label: "Save the Date" },
   { href: "/rsvp/chatuna", label: "אישורי הגעה לחתונה" },
-  { href: "/info/guides", label: "מרכז המדריכים" },
+  { href: "/blog", label: "הבלוג" },
   { href: "/pricing", label: "חבילות ומחירים" },
   { href: "/try", label: "דמו" },
 ];
@@ -256,15 +256,15 @@ export default function BitPayboxGuide() {
               ראשי
             </Link>
             <span className="px-1.5 text-[#C7A56B]">/</span>
-            <Link href="/info/guides" className="hover:text-[#8A642E]">
-              מדריכים
+            <Link href="/blog" className="hover:text-[#8A642E]">
+              בלוג
             </Link>
             <span className="px-1.5 text-[#C7A56B]">/</span>
             <span>bit ו־PayBox</span>
           </nav>
           <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
             <p className="text-sm font-black tracking-[0.12em] text-[#7A5530]">מדריך · Invistimo</p>
-            <GuideToolbar title={TITLE_SHARE} path={PATH} readingMinutes={18} />
+            <GuideToolbar title={TITLE_SHARE} path={PATH} readingMinutes={13} />
           </div>
           <div className="mt-4 grid items-center gap-10 lg:grid-cols-[1.05fr_0.95fr]">
             <div>

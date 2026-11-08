@@ -39,9 +39,9 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   },
   {
     id: "guides",
-    title: "מדריכים וכלים",
+    title: "הבלוג",
     links: [
-      { href: "/info/guides", label: "מרכז המדריכים" },
+      { href: "/blog", label: "כל המאמרים" },
       { href: "/info/guides/when-to-send-rsvp", label: "מדריך אישורי הגעה" },
       { href: "/info/guides/seating-plan", label: "מדריך סידורי הושבה" },
       { href: "/faq", label: "שאלות נפוצות" },

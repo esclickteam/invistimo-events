@@ -241,8 +241,8 @@ export default function SendDigitalInvitationGuide() {
               ראשי
             </Link>
             <span className="px-1.5 text-[#C7A56B]">/</span>
-            <Link href="/info/guides" className="hover:text-[#8A642E]">
-              מדריכים
+            <Link href="/blog" className="hover:text-[#8A642E]">
+              בלוג
             </Link>
             <span className="px-1.5 text-[#C7A56B]">/</span>
             הזמנה דיגיטלית
@@ -250,7 +250,7 @@ export default function SendDigitalInvitationGuide() {
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
             <p className="text-sm font-black tracking-[0.12em] text-[#7A5530]">Invistimo · מדריך הזמנות</p>
-            <GuideToolbar title="איך שולחים הזמנה דיגיטלית לחתונה" path={PATH} readingMinutes={22} />
+            <GuideToolbar title="איך שולחים הזמנה דיגיטלית לחתונה" path={PATH} readingMinutes={17} />
           </div>
 
           <h1 className="mt-4 max-w-4xl text-[1.75rem] font-black leading-[1.18] tracking-[-0.03em] text-[#2C241C] md:text-[2.55rem]">
@@ -1158,7 +1158,7 @@ export default function SendDigitalInvitationGuide() {
                   מתנות באשראי, bit ו־PayBox
                 </Link>
                 {" · "}
-                <Link href="/info/guides" className="underline-offset-4 hover:underline">
+                <Link href="/blog" className="underline-offset-4 hover:underline">
                   מרכז המדריכים
                 </Link>
               </p>

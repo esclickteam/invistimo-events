@@ -25,6 +25,7 @@ import {
   websiteNode,
 } from "../../lib/seo/jsonld";
 import { ROUTE_CONTENT_DATES } from "../../lib/seo/contentDates";
+import { indexableCategoryPaths } from "../../lib/blog/taxonomy";
 import { CORE_PUBLIC_ROUTES, OG_IMAGE, pageMetadata } from "../../lib/seo/site";
 import { SERVICE_PAGES } from "../../lib/seo/services";
 import robots from "../../app/robots";
@@ -45,6 +46,7 @@ function read(rel: string) {
 const EXISTING_SINGLE_SEGMENTS = new Set([
   "accessibility",
   "admin",
+  "blog",
   "check-in",
   "contact",
   "credit-gifts",
@@ -132,13 +134,18 @@ test("IndexNow key is hosted as a public file whose contents match its name", ()
   assert.equal(fs.readFileSync(path.join(root, "public", names[0]), "utf8").trim(), key);
 });
 
-test("sitemap lists public guides and omits private or auth URLs", () => {
-  const urls = sitemap().map((item) => item.url);
+test("sitemap lists public guides and omits private or auth URLs", async () => {
+  const items = await sitemap();
+  const urls = items.map((item) => item.url);
   assert.ok(urls.includes("https://www.invistimo.com") || urls.includes("https://www.invistimo.com/"));
   assert.ok(urls.includes("https://www.invistimo.com/rsvp/chatuna"));
-  assert.ok(urls.includes("https://www.invistimo.com/info/guides"));
+  assert.ok(urls.includes("https://www.invistimo.com/blog"));
+  assert.equal(urls.includes("https://www.invistimo.com/info/guides"), false);
+  for (const categoryPath of indexableCategoryPaths()) {
+    assert.ok(urls.includes(`https://www.invistimo.com${categoryPath}`));
+  }
   assert.ok(urls.includes("https://www.invistimo.com/services/alcohol-management"));
-  const lastMods = sitemap().map((item) => String(item.lastModified));
+  const lastMods = items.map((item) => String(item.lastModified));
   assert.ok(new Set(lastMods).size > 1, "lastmod must follow each page, not one build stamp");
   assert.equal(lastMods.some((value) => value.startsWith("2026-10-27T10:00:00")), false);
   for (const guide of GUIDES) {
@@ -173,10 +180,11 @@ test("next.config must not permanently redirect a live guide URL", () => {
   }
 });
 
-test("every sitemap route has a content-date row so lastmod never throws", () => {
+test("every sitemap route has a content-date row so lastmod never throws", async () => {
   const required = [
     ...CORE_PUBLIC_ROUTES.map((route) => route.path),
     ...GUIDES.map((guide) => guidePath(guide.slug)),
+    ...indexableCategoryPaths(),
   ];
   for (const pathKey of required) {
     assert.ok(
@@ -184,12 +192,11 @@ test("every sitemap route has a content-date row so lastmod never throws", () =>
       `missing ROUTE_CONTENT_DATES for ${pathKey}`
     );
   }
-  // Calling sitemap() must remain resilient even if a future route is forgotten —
-  // coverage above is the CI guard; runtime catch is in app/sitemap.ts.
-  assert.equal(sitemap().length, required.length);
+  const items = await sitemap();
+  assert.equal(items.length, required.length);
 });
 
-test("sitemap URLs are not blocked by robots.txt disallow rules", () => {
+test("sitemap URLs are not blocked by robots.txt disallow rules", async () => {
   const rules = robots();
   const list = Array.isArray(rules.rules) ? rules.rules : [rules.rules];
   const disallow = new Set(
@@ -198,7 +205,7 @@ test("sitemap URLs are not blocked by robots.txt disallow rules", () => {
       return value.filter((item): item is string => Boolean(item));
     })
   );
-  for (const item of sitemap()) {
+  for (const item of await sitemap()) {
     const pathname = new URL(item.url).pathname || "/";
     for (const prefix of disallow) {
       if (prefix === "/") continue;

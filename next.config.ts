@@ -34,6 +34,11 @@ const nextConfig: NextConfig = {
         destination: "/rsvp/hina",
         permanent: true,
       },
+      {
+        source: "/info/guides",
+        destination: "/blog",
+        statusCode: 301,
+      },
     ];
   },
   async headers() {
