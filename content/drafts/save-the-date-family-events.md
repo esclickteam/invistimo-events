@@ -9,7 +9,7 @@ seoTitle: Save the Date לחינה ולבר מצווה | מתי שולחים
 seoDescription: מתי Save the Date מתאים לחינה או לבר מצווה, מה הוא לא מחליף, ומה המחיר שמופיע בעמוד השירות.
 excerpt: Save the Date שומר תאריך. הוא לא אוסף תשובה, לא סוגר מנות, ולא מחליף הזמנה או אישור הגעה.
 coverImage: /marketing/blog/save-the-date-family.jpg
-coverAlt: כרטיס קרם ריק ליד ורדים לבנים ומעטפה פתוחה, בלי כיתוב
+coverAlt: כרטיס קרם ריק ליד ורדים לבנים וסרט זהב, בלי כיתוב
 importNote: בעת העברה ל־/admin/blog מוחקים מהגוף את מקטע «שאלות נפוצות», כי התבנית מציגה את השדה faqs בנפרד.
 overlap: מדריך Save the Date מול הזמנה ומדריך מתי שולחים Save the Date לחתונה נשארים על חתונה. כאן האירוע הוא חינה או בר ובת מצווה.
 faqs:
