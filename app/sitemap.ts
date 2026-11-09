@@ -1,8 +1,12 @@
 import type { MetadataRoute } from "next";
 import { indexableCategoryPaths, isBlogCategoryId } from "@/lib/blog/taxonomy";
+import { indexableBlogCategoryPaths } from "@/lib/blog/feed";
 import { lastModifiedFor } from "@/lib/seo/contentDates";
 import { guidePath, GUIDES } from "@/lib/seo/guides";
 import { absoluteUrl, CORE_PUBLIC_ROUTES } from "@/lib/seo/site";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 /**
  * Sitemap must never 500 because a content-date row was forgotten.
@@ -38,6 +42,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     changeFrequency: "weekly" as const,
     priority: 0.64,
   }));
+  const knownCategories = new Set(categories.map((item) => item.url));
+  for (const path of await indexableBlogCategoryPaths()) {
+    const url = absoluteUrl(path);
+    if (knownCategories.has(url)) continue;
+    knownCategories.add(url);
+    categories.push({
+      url,
+      lastModified: sitemapLastModified(path),
+      changeFrequency: "weekly" as const,
+      priority: 0.64,
+    });
+  }
 
   const managed: MetadataRoute.Sitemap = [];
   if (process.env.MONGO_URI || process.env.MONGODB_URI) {
