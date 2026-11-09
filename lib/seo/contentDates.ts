@@ -31,6 +31,7 @@ export const ROUTE_CONTENT_DATES: Record<string, RouteContentDate> = {
   "/blog/seating": { published: "2026-11-08", modified: "2026-11-08" },
   "/blog/weddings": { published: "2026-11-08", modified: "2026-11-08" },
   "/blog/tools": { published: "2026-11-08", modified: "2026-11-08" },
+  "/blog/family": { published: "2026-11-09", modified: "2026-11-09" },
   "/contact": { published: "2025-12-15", modified: "2026-10-26" },
   "/credit-gifts": { published: "2026-01-05", modified: "2026-10-26" },
   "/wedding-website": { published: "2026-07-26", modified: "2026-11-02" },

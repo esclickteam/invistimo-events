@@ -100,21 +100,30 @@ export function softwareNode(description: string, path = "/") {
   };
 }
 
+function isoDate(value?: Date | string | null) {
+  if (!value) return "";
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString();
+}
+
 export function articleNode(input: {
   title: string;
   description: string;
   path: string;
+  publishedAt?: Date | string | null;
+  modifiedAt?: Date | string | null;
 }) {
   const dates = routeContentDate(input.path);
+  const published = dates?.published || isoDate(input.publishedAt);
+  const modified = dates?.modified || isoDate(input.modifiedAt) || published;
   return {
     "@type": "Article",
     headline: input.title,
     description: input.description,
     inLanguage: "he-IL",
     mainEntityOfPage: absoluteUrl(input.path),
-    ...(dates
-      ? { datePublished: dates.published, dateModified: dates.modified }
-      : {}),
+    ...(published ? { datePublished: published, dateModified: modified } : {}),
     author: { "@id": ORGANIZATION_ID },
     publisher: {
       "@type": "Organization",

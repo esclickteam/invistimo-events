@@ -60,6 +60,8 @@ export default async function BlogPostPage({ params }: Props) {
             title: post.title,
             description: post.excerpt,
             path,
+            publishedAt: post.publishedAt,
+            modifiedAt: post.updatedAt,
           }),
           breadcrumbNode([
             { name: "ראשי", path: "/" },
