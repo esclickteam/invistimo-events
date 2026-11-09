@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { articleBody, draftHref, draftsPreviewEnabled, loadDraftArticles } from "../../lib/blog/drafts";
+import { chooseDraftsToImport } from "../../lib/blog/importSelection";
 import { blocksFromBody, richTokens, safeHref, safeImageSrc } from "../../lib/blog/markdown";
 import { GUIDES } from "../../lib/seo/guides";
 import { isBlogCategoryId, subcategoryById } from "../../lib/blog/taxonomy";
@@ -104,10 +105,16 @@ test("draft preview stays closed on production and out of the sitemap", async ()
   const route = fs.readFileSync(path.join(root, "app/api/admin/blog/import-drafts/route.ts"), "utf8");
   assert.match(route, /auth\.role !== "admin"/);
   assert.match(route, /auth\.impersonated/);
+  assert.match(route, /export async function GET/);
   assert.match(route, /status: "draft"/);
   assert.match(route, /publishedAt: undefined/);
-  assert.doesNotMatch(route, /export async function GET/);
   assert.doesNotMatch(route, /status: "published"/);
+  const adminPage = fs.readFileSync(path.join(root, "app/admin/blog/page.tsx"), "utf8");
+  const dialog = fs.readFileSync(path.join(root, "app/admin/blog/DraftImportDialog.tsx"), "utf8");
+  assert.match(adminPage, /DraftImportDialog/);
+  assert.match(dialog, /ייבוא טיוטות/);
+  assert.match(dialog, /אישור ייבוא/);
+  assert.match(dialog, /בחירת כל המאמרים הזמינים/);
   const draftPage = fs.readFileSync(path.join(root, "app/(marketing)/blog/drafts/[slug]/page.tsx"), "utf8");
   assert.match(draftPage, /draftsPreviewEnabled\(\)/);
   assert.match(draftPage, /notFound\(\)/);
@@ -168,6 +175,19 @@ test("twelve private-event drafts are distinct, priced from the live site, and l
       assert.equal(pageExists(token.href.split("#")[0]), true, token.href);
     }
   }
+});
+
+test("import keeps existing posts and accepts only the prepared drafts", () => {
+  const articles = loadDraftArticles();
+  assert.equal(articles.length, 12);
+  const first = articles[0].slug;
+  const second = articles[1].slug;
+  const choice = chooseDraftsToImport(articles, [first, first, second, "not-a-draft"], [first]);
+  assert.deepEqual(choice.selected.map((article) => article.slug), [second]);
+  assert.deepEqual(choice.skipped, [first]);
+  assert.deepEqual(choice.unknown, ["not-a-draft"]);
+  const empty = chooseDraftsToImport(articles, [], []);
+  assert.equal(empty.selected.length, 0);
 });
 
 test("article body drops the duplicate FAQ section", () => {
