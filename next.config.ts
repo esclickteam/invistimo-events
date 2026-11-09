@@ -39,6 +39,11 @@ const nextConfig: NextConfig = {
         destination: "/blog",
         statusCode: 301,
       },
+      {
+        source: "/blog/business",
+        destination: "/blog",
+        statusCode: 301,
+      },
     ];
   },
   async headers() {

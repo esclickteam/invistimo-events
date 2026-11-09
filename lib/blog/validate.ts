@@ -1,8 +1,13 @@
 import { GUIDES } from "@/lib/seo/guides";
-import { BLOG_CATEGORY_IDS, isBlogCategoryId, subcategoryById } from "@/lib/blog/taxonomy";
+import {
+  BLOG_CATEGORY_IDS,
+  RETIRED_BLOG_CATEGORY_IDS,
+  isBlogCategoryId,
+  subcategoryById,
+} from "@/lib/blog/taxonomy";
 
 const SLUG = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const RESERVED = new Set<string>(["p", "preview", ...BLOG_CATEGORY_IDS]);
+const RESERVED = new Set<string>(["p", "preview", ...BLOG_CATEGORY_IDS, ...RETIRED_BLOG_CATEGORY_IDS]);
 
 export type BlogPostInput = {
   title?: string;

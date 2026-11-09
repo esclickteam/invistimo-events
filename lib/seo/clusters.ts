@@ -34,7 +34,6 @@ export const PILLARS: ContentPillar[] = [
       { path: "/info/guides/guest-list", label: "רשימת מוזמנים" },
       { path: "/info/guides/wedding-venue-guest-guarantee", label: "כמה אורחים כדאי להתחייב לאולם?" },
       { path: "/info/guides/tracking-rsvp-responses", label: "מעקב אחרי תשובות" },
-      { path: "/info/guides/rsvp-corporate-events", label: "אישורי הגעה לאירוע חברה" },
       { path: "/info/guides/how-phone-rsvp-works", label: "איך עובדות שיחות אישור" },
       { path: "/info/guides/import-guest-list", label: "בניית וייבוא רשימת מוזמנים" },
       { path: "/info/guides/last-minute-guest-changes", label: "שינויי הגעה ברגע האחרון" },
