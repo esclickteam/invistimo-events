@@ -763,6 +763,8 @@ export async function GET(req: NextRequest) {
           producerId: producerId || null,
           preRsvpMessages,
         },
+      }, {
+        headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
       });
     }
 
@@ -876,6 +878,8 @@ export async function GET(req: NextRequest) {
         limit,
         remaining,
       },
+    }, {
+      headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
     });
   } catch (err) {
     console.error("🔥 ERROR in /api/guests GET:", err);

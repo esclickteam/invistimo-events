@@ -28,6 +28,10 @@ import {
 } from "@/lib/guestPhonePolicy";
 import { countAllocatedSeats } from "@/lib/seating/allocatedSeats";
 import {
+  isArrivalOnlyPayload,
+  persistActualArrivedCount,
+} from "@/lib/liveArrivals/persistActualArrived";
+import {
   appendGuestSeats,
   buildCurrentTableLiveOption,
   describeAllocatedGap,
@@ -1658,10 +1662,12 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     /* ===============================
        actualArrivedCount — מגיעים בפועל
     =============================== */
-    if (
-      typeof data.actualArrivedCount === "number" &&
-      data.actualArrivedCount >= 0
-    ) {
+    const touchesActualArrived =
+      (typeof data.actualArrivedCount === "number" &&
+        data.actualArrivedCount >= 0) ||
+      typeof data.actualArrivedDelta === "number";
+
+    if (touchesActualArrived) {
       const canUpdateActualArrived =
         isOwner ||
         isAdmin ||
@@ -1678,25 +1684,55 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
         );
       }
 
-      guest.actualArrivedCount = Math.max(
-        0,
-        Number(data.actualArrivedCount || 0)
-      );
+      const persisted = await persistActualArrivedCount({
+        guest,
+        actualArrivedCount: data.actualArrivedCount,
+        actualArrivedDelta: data.actualArrivedDelta,
+      });
+
+      if (!persisted) {
+        return NextResponse.json(
+          { success: false, error: "Invalid actualArrivedCount" },
+          { status: 400 }
+        );
+      }
+
+      // Count is already stored. Do not let a later full-document save
+      // overwrite it with a stale value, and do not depend on guest.save()
+      // (that path validates the whole guest and can drop the arrival).
+      guest.actualArrivedCount = persisted.actualArrivedCount;
+      guest.unmarkModified("actualArrivedCount");
 
       if (guest.actualArrivedCount > 0 && guest.rsvp !== "yes") {
-        guest.rsvp = "yes";
+        const arrivedCount =
+          !guest.arrivedCount || Number(guest.arrivedCount) === 0
+            ? Math.max(1, Number(guest.guestsCount || 1))
+            : Number(guest.arrivedCount);
 
-        if ("status" in guest) {
-          guest.status = "yes";
-        }
-
-        if (!guest.arrivedCount || guest.arrivedCount === 0) {
-          guest.arrivedCount = guest.guestsCount ?? 1;
-
-          if ("amount" in guest) {
-            guest.amount = guest.arrivedCount;
+        await InvitationGuest.updateOne(
+          {
+            _id: guest._id,
+            invitationId: guest.invitationId,
+            rsvp: { $ne: "yes" },
+          },
+          {
+            $set: {
+              rsvp: "yes",
+              status: "yes",
+              arrivedCount,
+              amount: arrivedCount,
+            },
           }
-        }
+        );
+
+        guest.rsvp = "yes";
+        guest.status = "yes";
+        guest.arrivedCount = arrivedCount;
+        if ("amount" in guest) guest.amount = arrivedCount;
+        guest.unmarkModified("rsvp");
+        guest.unmarkModified("status");
+        guest.unmarkModified("arrivedCount");
+        guest.unmarkModified("amount");
       }
 
       const shouldSyncSeatsToActual =
@@ -1741,6 +1777,36 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
 
         if (seatingResult?.releaseAudit) {
           (guest as any).__releaseAudit = seatingResult.releaseAudit;
+        }
+
+        if (isArrivalOnlyPayload(data)) {
+          const fresh = await InvitationGuest.findById(guest._id).lean();
+          const [kosherGuest] = await annotateGuestsWithKosher([
+            fresh ||
+              (typeof (guest as any).toObject === "function"
+                ? (guest as any).toObject()
+                : guest),
+          ]);
+          if (kosherGuest) {
+            kosherGuest.actualArrivedCount = persisted.actualArrivedCount;
+          }
+
+          const syncedTables = (guest as any).__syncedTables || null;
+          const seatStatus = (guest as any).__seatStatus || null;
+          const suggestedTables = (guest as any).__suggestedTables || [];
+          const currentTable = (guest as any).__currentTable || null;
+          const releaseAudit = (guest as any).__releaseAudit || null;
+
+          return NextResponse.json({
+            success: true,
+            guest: kosherGuest,
+            arrivalPersisted: true,
+            tables: syncedTables,
+            seatStatus,
+            suggestedTables,
+            currentTable,
+            releaseAudit,
+          });
         }
     }
 

@@ -49,7 +49,7 @@ import {
   matchesGuestLinkOpenFilter,
   guestLinkWasOpened,
 } from "@/lib/guestLinkTracking";
-import { mergeGuestActivity } from "@/lib/dashboardGuestActivity";
+import { mergeActualArrivals, mergeGuestActivity } from "@/lib/dashboardGuestActivity";
 import { countGuestsTowardRecordQuota } from "@/lib/guestRecordQuota";
 import { phoneNeedsReview } from "@/lib/guestPhone";
 import { phoneSearchMatches, toWhatsappDigits } from "@/lib/phones/international";
@@ -394,6 +394,9 @@ const actualArrivedSaveTimersRef = useRef<
   Record<string, ReturnType<typeof setTimeout>>
 >({});
 const actualArrivedRequestVersionRef = useRef<Record<string, number>>({});
+const actualArrivedBaseRef = useRef<Record<string, number>>({});
+const actualArrivedInFlightRef = useRef<Record<string, boolean>>({});
+const liveArrivalOverlayRef = useRef<Map<string, number>>(new Map());
 const guestsAutoRefreshRef = useRef(false);
 const demoSessionFingerprintRef = useRef("");
 
@@ -863,11 +866,32 @@ const canViewActualArrived =
           .map((guest: Guest) => normalizeGuestForDashboard(guest))
       : [];
 
+    const pendingArrivalIds = new Set<string>([
+      ...Object.keys(actualArrivedSaveTimersRef.current || {}),
+      ...Object.entries(actualArrivedInFlightRef.current)
+        .filter(([, pending]) => pending)
+        .map(([id]) => id),
+    ]);
+    const overlayRows = [...liveArrivalOverlayRef.current.entries()].map(
+      ([id, actualArrivedCount]) => ({ id, actualArrivedCount })
+    );
+    const arrivedGuests = mergeActualArrivals(
+      nextGuests,
+      overlayRows,
+      pendingArrivalIds
+    ).map((guest) => {
+      const id = String(guest._id || guest.id || "");
+      if (!pendingArrivalIds.has(id)) return guest;
+      const drafted = actualArrivedDraftRef.current[id];
+      if (typeof drafted !== "number") return guest;
+      return { ...guest, actualArrivedCount: drafted };
+    });
+
     setGuests((prev) => {
       if (
-        prev.length === nextGuests.length &&
+        prev.length === arrivedGuests.length &&
         prev.every((guest, index) => {
-          const next = nextGuests[index];
+          const next = arrivedGuests[index];
           return (
             String(guest._id || guest.id) === String(next._id || next.id) &&
             guest.rsvp === next.rsvp &&
@@ -891,7 +915,7 @@ const canViewActualArrived =
         return prev;
       }
 
-      return nextGuests;
+      return arrivedGuests;
     });
 
     writeGuestCache(invitationId, nextGuests);
@@ -1463,7 +1487,34 @@ if (!canDeleteAllGuests) {
         const data = JSON.parse(raw);
         if (!Array.isArray(data?.guests)) return;
 
-        setGuests((prev) => mergeGuestActivity(prev, data.guests));
+        const pendingArrivalIds = new Set<string>([
+          ...Object.keys(actualArrivedSaveTimersRef.current || {}),
+          ...Object.entries(actualArrivedInFlightRef.current)
+            .filter(([, pending]) => pending)
+            .map(([id]) => id),
+        ]);
+        for (const patch of data.guests) {
+          const id = String(patch?.id || "");
+          if (!id || pendingArrivalIds.has(id)) continue;
+          if (typeof patch.actualArrivedCount === "number") {
+            liveArrivalOverlayRef.current.set(
+              id,
+              Math.max(0, Math.floor(patch.actualArrivedCount))
+            );
+          }
+        }
+        setGuests((prev) => {
+          const merged = mergeGuestActivity(prev, data.guests);
+          if (!pendingArrivalIds.size) return merged;
+          const prevById = new Map(
+            prev.map((guest) => [String(guest._id || guest.id || ""), guest])
+          );
+          return merged.map((guest) => {
+            const id = String(guest._id || guest.id || "");
+            if (!pendingArrivalIds.has(id)) return guest;
+            return prevById.get(id) || guest;
+          });
+        });
 
         if (typeof data.unreadGuestMessages === "number") {
           window.dispatchEvent(
@@ -1486,10 +1537,81 @@ if (!canDeleteAllGuests) {
       applySnapshot(event.data);
     };
 
+    source.onerror = () => {
+      // The browser reconnects automatically. The 1s poll below covers the gap.
+    };
+
     return () => {
       source.close();
     };
   }, [invitationId, isDemo]);
+
+  useEffect(() => {
+    if (isDemo || !isLiveDashboard || !invitationId) return;
+
+    let stopped = false;
+
+    const pullArrivals = async () => {
+      if (stopped || document.visibilityState === "hidden") return;
+
+      try {
+        const params = new URLSearchParams({ invitationId });
+        if (invitationEventId) params.set("eventId", invitationEventId);
+        const res = await fetch(`/api/dashboard/live-arrivals?${params.toString()}`, {
+          credentials: "include",
+          cache: "no-store",
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || data?.success === false || !Array.isArray(data.guests)) return;
+        if (
+          invitationEventId &&
+          data.eventId &&
+          String(data.eventId) !== String(invitationEventId)
+        ) {
+          return;
+        }
+
+        const pendingArrivalIds = new Set<string>([
+          ...Object.keys(actualArrivedSaveTimersRef.current || {}),
+          ...Object.entries(actualArrivedInFlightRef.current)
+            .filter(([, pending]) => pending)
+            .map(([id]) => id),
+        ]);
+
+        for (const row of data.guests) {
+          const id = String(row?.id || "");
+          if (!id || pendingArrivalIds.has(id)) continue;
+          liveArrivalOverlayRef.current.set(
+            id,
+            Math.max(0, Math.floor(Number(row.actualArrivedCount || 0)))
+          );
+        }
+
+        setGuests((prev) =>
+          mergeActualArrivals(prev, data.guests, pendingArrivalIds)
+        );
+      } catch {
+        // The next tick retries. A dropped poll must not clear local arrivals.
+      }
+    };
+
+    void pullArrivals();
+    const interval = window.setInterval(pullArrivals, 1000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void pullArrivals();
+    };
+    window.addEventListener("online", pullArrivals);
+    window.addEventListener("focus", pullArrivals);
+    document.addEventListener("visibilitychange", onVisible);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+      window.removeEventListener("online", pullArrivals);
+      window.removeEventListener("focus", pullArrivals);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [isDemo, isLiveDashboard, invitationId, invitationEventId]);
 
   useEffect(() => {
     if (isDemo) return;
@@ -2322,9 +2444,22 @@ const saveActualArrivedToServer = async (
   options?: {
     syncSeatsToActual?: boolean;
     checkSeatOptionsOnly?: boolean;
+    delta?: number;
   }
 ) => {
   const safeNext = Math.max(0, Number(next || 0));
+  const useDelta =
+    typeof options?.delta === "number" &&
+    Number.isFinite(options.delta) &&
+    options.syncSeatsToActual !== true &&
+    options.checkSeatOptionsOnly !== true;
+
+  if (useDelta && options?.delta === 0) {
+    delete actualArrivedInFlightRef.current[guestId];
+    return;
+  }
+
+  actualArrivedInFlightRef.current[guestId] = true;
 
   try {
     const res = await fetch(`/api/guests/${guestId}`, {
@@ -2332,7 +2467,9 @@ const saveActualArrivedToServer = async (
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        actualArrivedCount: safeNext,
+        ...(useDelta
+          ? { actualArrivedDelta: options?.delta }
+          : { actualArrivedCount: safeNext }),
 
         // רגיל: false
         // שחרור כיסאות: true
@@ -2453,11 +2590,20 @@ const saveActualArrivedToServer = async (
   } catch (err) {
     console.error("actualArrivedCount error:", err);
     alert("שגיאת רשת בעדכון מגיעים בפועל");
+  } finally {
+    delete actualArrivedInFlightRef.current[guestId];
   }
 };
 
-const updateActualArrived = (guestId: string, next: number) => {
+const updateActualArrived = (guestId: string, next: number, baseIfNew?: number) => {
   const safeNext = Math.max(0, Number(next || 0));
+
+  if (typeof actualArrivedBaseRef.current[guestId] !== "number") {
+    actualArrivedBaseRef.current[guestId] = Math.max(
+      0,
+      Number(baseIfNew ?? safeNext)
+    );
+  }
 
   actualArrivedDraftRef.current[guestId] = safeNext;
 
@@ -2482,8 +2628,13 @@ const updateActualArrived = (guestId: string, next: number) => {
   }
 
   actualArrivedSaveTimersRef.current[guestId] = setTimeout(() => {
+    delete actualArrivedSaveTimersRef.current[guestId];
     const latest = actualArrivedDraftRef.current[guestId] ?? safeNext;
-    saveActualArrivedToServer(guestId, latest, nextVersion);
+    const base = actualArrivedBaseRef.current[guestId];
+    delete actualArrivedBaseRef.current[guestId];
+    const delta =
+      typeof base === "number" ? latest - base : undefined;
+    saveActualArrivedToServer(guestId, latest, nextVersion, { delta });
   }, 60);
 };
 
@@ -3209,7 +3360,7 @@ const eventLocation = resolveEventLocation(invitation, event);
     actualArrivedDraftRef.current[g._id] ??
     Number(g.actualArrivedCount || 0);
 
-  updateActualArrived(g._id, Math.max(0, current - 1));
+  updateActualArrived(g._id, Math.max(0, current - 1), current);
 }}
               className="h-7 w-7 rounded-full bg-[#F7F4EF] hover:bg-[#EFE8DE] font-black"
             >
@@ -3227,7 +3378,7 @@ const eventLocation = resolveEventLocation(invitation, event);
     actualArrivedDraftRef.current[g._id] ??
     Number(g.actualArrivedCount || 0);
 
-  updateActualArrived(g._id, current + 1);
+  updateActualArrived(g._id, current + 1, current);
 }}
               className="h-7 w-7 rounded-full bg-[#F7F4EF] hover:bg-[#EFE8DE] font-black"
             >

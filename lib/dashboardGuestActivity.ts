@@ -142,3 +142,46 @@ export function mergeGuestActivity<T extends {
 
   return changed ? next : guests;
 }
+
+export function chunkGuestActivity<T>(items: T[], size = 20): T[][] {
+  const chunkSize = Math.max(1, Math.floor(size) || 20);
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += chunkSize) {
+    chunks.push(items.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
+
+export function mergeActualArrivals<T extends {
+  _id?: unknown;
+  id?: unknown;
+  actualArrivedCount?: unknown;
+}>(
+  guests: T[],
+  rows: Array<{ id: string; actualArrivedCount: number }>,
+  pendingIds?: ReadonlySet<string>
+): T[] {
+  if (!Array.isArray(guests) || guests.length === 0 || !Array.isArray(rows) || rows.length === 0) {
+    return guests;
+  }
+
+  const byId = new Map<string, number>();
+  for (const row of rows) {
+    const id = String(row?.id || "").trim();
+    if (!id) continue;
+    const count = Number(row.actualArrivedCount);
+    byId.set(id, Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0);
+  }
+
+  let changed = false;
+  const next = guests.map((guest) => {
+    const id = String(guest._id || guest.id || "").trim();
+    if (!id || pendingIds?.has(id) || !byId.has(id)) return guest;
+    const actualArrivedCount = byId.get(id)!;
+    if (Number(guest.actualArrivedCount || 0) === actualArrivedCount) return guest;
+    changed = true;
+    return { ...guest, actualArrivedCount };
+  });
+
+  return changed ? next : guests;
+}

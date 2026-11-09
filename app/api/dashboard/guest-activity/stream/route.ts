@@ -5,6 +5,7 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import InvitationGuest from "@/models/InvitationGuest";
 import GuestWeddingMessage from "@/models/GuestWeddingMessage";
 import {
+  chunkGuestActivity,
   guestActivityFingerprint,
   type GuestActivityPatch,
 } from "@/lib/dashboardGuestActivity";
@@ -12,6 +13,7 @@ import { findManagedPrimaryInvitation } from "@/lib/findManagedPrimaryInvitation
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 function sseMessage(eventName: string, data: unknown) {
   return `event: ${eventName}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -92,6 +94,7 @@ export async function GET(req: NextRequest) {
     let poll: ReturnType<typeof setInterval> | null = null;
     let changeStream: any = null;
     let lastFingerprint = "";
+    const lastPatchKey = new Map<string, string>();
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -117,10 +120,36 @@ export async function GET(req: NextRequest) {
           const snapshot = await loadSnapshot(invitation._id);
           if (!force && snapshot.fingerprint === lastFingerprint) return;
           lastFingerprint = snapshot.fingerprint;
-          send("snapshot", {
-            guests: snapshot.guests,
-            unreadGuestMessages: snapshot.unreadGuestMessages,
-            updatedAt: snapshot.updatedAt,
+
+          const changed = snapshot.guests.filter((guest) => {
+            const key = [
+              guest.actualArrivedCount,
+              guest.arrivedCount,
+              guest.rsvp,
+              guest.openCount,
+              guest.guestsCount,
+              guest.notes,
+              guest.lastOpenedAt,
+            ].join("|");
+            const previous = lastPatchKey.get(guest.id);
+            lastPatchKey.set(guest.id, key);
+            return force || previous !== key;
+          });
+
+          if (!changed.length) return;
+
+          // Small events so proxies and EventSource can deliver them.
+          // Every device on this invitation gets the same patches.
+          // Connections are not keyed by user, so the same account can
+          // stay open on several devices at once.
+          const chunks = chunkGuestActivity(changed, 20);
+          chunks.forEach((guests, index) => {
+            send("snapshot", {
+              guests,
+              unreadGuestMessages:
+                index === 0 ? snapshot.unreadGuestMessages : undefined,
+              updatedAt: snapshot.updatedAt,
+            });
           });
         };
 
@@ -152,8 +181,10 @@ export async function GET(req: NextRequest) {
 
         send("connected", {
           invitationId: String(invitation._id),
+          eventId: invitation.eventId ? String(invitation.eventId) : null,
           connectedAt: new Date().toISOString(),
         });
+        sendComment(`flush ${" ".repeat(2048)}`);
 
         await pushSnapshot(true);
 
@@ -163,7 +194,7 @@ export async function GET(req: NextRequest) {
 
         poll = setInterval(() => {
           void pushSnapshot(false);
-        }, 3000);
+        }, 1000);
 
         try {
           changeStream = InvitationGuest.watch(
@@ -207,6 +238,7 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type": "text/event-stream; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
+        "Content-Encoding": "none",
         Connection: "keep-alive",
         "X-Accel-Buffering": "no",
       },
