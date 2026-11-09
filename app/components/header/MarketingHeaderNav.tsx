@@ -9,7 +9,7 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import { Calculator, CalendarDays, ChevronDown, Gem, LayoutGrid, MessageCircle, Users, Briefcase } from "lucide-react";
+import { Calculator, CalendarDays, ChevronDown, Gem, LayoutGrid, MessageCircle, Users } from "lucide-react";
 import {
   HEADER_PRIMARY,
   isHeaderPathActive,
@@ -36,7 +36,6 @@ const CATEGORY_ICONS = {
   seating: LayoutGrid,
   weddings: Gem,
   family: Users,
-  business: Briefcase,
   tools: Calculator,
 } as const;
 

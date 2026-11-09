@@ -9,9 +9,17 @@ export const BLOG_CATEGORY_IDS = [
   "seating",
   "weddings",
   "family",
-  "business",
   "tools",
 ] as const;
+
+/** Retired magazine paths. The category page redirects; the id stays reserved. */
+export const RETIRED_BLOG_CATEGORY_IDS = ["business"] as const;
+
+/**
+ * Published guides that stay on their own URL and stay out of the magazine:
+ * search, category rails, recommended cards, and related articles.
+ */
+export const MAGAZINE_EXCLUDED_SLUGS = ["rsvp-corporate-events"] as const;
 
 export type BlogCategoryId = (typeof BLOG_CATEGORY_IDS)[number];
 
@@ -145,22 +153,6 @@ export const BLOG_CATEGORIES: BlogCategory[] = [
     ],
   },
   {
-    id: "business",
-    title: "אירועים עסקיים",
-    description: "כנסים, אירועי חברה וניהול משתתפים",
-    intro:
-      "הרשמה, אישורי הגעה וניהול משתתפים לאירוע חברה, כנס או יום גיבוש. בלי רשימת אורחים פרטית של חתונה, ועם אותו צורך בסדר.",
-    image: "/marketing/luxury/editorial-reception.webp",
-    subcategories: [
-      { id: "conferences", title: "כנסים" },
-      { id: "company", title: "אירועי חברה" },
-      { id: "offsite", title: "ימי גיבוש" },
-      { id: "registration", title: "הרשמה לאירועים" },
-      { id: "participants", title: "ניהול משתתפים" },
-      { id: "invites", title: "הזמנות לאירועים עסקיים" },
-    ],
-  },
-  {
     id: "tools",
     title: "טיפים, כלים ומחשבונים",
     description: "אלכוהול, מוזמנים והשוואת מחיר",
@@ -215,8 +207,6 @@ export const BLOG_PLACEMENTS: Record<string, BlogPlacement> = {
   "wedding-planning": { categoryId: "weddings", subcategoryId: "plan", popularRank: 1 },
   "wedding-website-guide": { categoryId: "weddings", subcategoryId: "sites", popularRank: 31 },
   "wedding-website-vs-digital-invitation": { categoryId: "weddings", subcategoryId: "sites", popularRank: 32 },
-
-  "rsvp-corporate-events": { categoryId: "business", subcategoryId: "company", popularRank: 33 },
 
   "wedding-alcohol-calculator": { categoryId: "tools", subcategoryId: "alcohol", popularRank: 4 },
   "wedding-venue-guest-guarantee": { categoryId: "tools", subcategoryId: "guests-calc", popularRank: 6 },

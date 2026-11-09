@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { blogMenu, isBlogCategoryId, BLOG_PLACEMENTS } from "../../lib/blog/taxonomy";
+import { blogMenu, isBlogCategoryId, BLOG_PLACEMENTS, MAGAZINE_EXCLUDED_SLUGS } from "../../lib/blog/taxonomy";
+import { codeArticles } from "../../lib/blog/articles";
 import {
   collectHeaderHrefs,
   HEADER_PRIMARY,
@@ -56,7 +57,7 @@ test("header nav only links to existing ready pages", () => {
   }
 });
 
-test("blog menu lists seven categories and only real destinations", () => {
+test("blog menu lists six categories and only real destinations", () => {
   const guides = HEADER_PRIMARY.find((item) => item.id === "guides");
   assert.ok(guides && guides.kind === "guides");
   if (!guides || guides.kind !== "guides") return;
@@ -72,7 +73,6 @@ test("blog menu lists seven categories and only real destinations", () => {
       "סידורי הושבה וניהול אורחים",
       "חתונות",
       "אירועים משפחתיים",
-      "אירועים עסקיים",
       "טיפים, כלים ומחשבונים",
     ]
   );
@@ -88,11 +88,22 @@ test("blog menu lists seven categories and only real destinations", () => {
   }
 });
 
-test("every published guide belongs to one blog category", () => {
-  assert.equal(Object.keys(BLOG_PLACEMENTS).length, GUIDES.length);
+test("every magazine guide belongs to one blog category", () => {
+  const excluded = new Set<string>(MAGAZINE_EXCLUDED_SLUGS);
+  assert.equal(Object.keys(BLOG_PLACEMENTS).length, GUIDES.length - excluded.size);
   for (const guide of GUIDES) {
+    if (excluded.has(guide.slug)) {
+      assert.equal(BLOG_PLACEMENTS[guide.slug], undefined, guide.slug);
+      continue;
+    }
     assert.ok(BLOG_PLACEMENTS[guide.slug], guide.slug);
   }
+  const titles = codeArticles().map((article) => article.title);
+  assert.equal(titles.includes("אישורי הגעה לאירוע חברה"), false);
+  assert.equal(blogMenu().some((category) => category.id === "business" || category.title === "אירועים עסקיים"), false);
+  const nextConfig = readFileSync(path.join(ROOT, "next.config.ts"), "utf8");
+  assert.match(nextConfig, /source: "\/blog\/business"/);
+  assert.match(nextConfig, /destination: "\/blog"/);
 });
 
 test("blog hub keeps the magazine headline", () => {

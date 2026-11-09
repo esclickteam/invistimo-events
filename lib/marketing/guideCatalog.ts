@@ -1,6 +1,7 @@
 /**
  * Knowledge-center categories for the compact guides menu and /info/guides.
- * Every published guide slug appears once. The header shows at most four
+ * Magazine-excluded guides stay published on their own URL and are omitted here.
+ * The header shows at most four
  * featured guides per category; the hub lists the full set.
  */
 import { guidePath } from "@/lib/seo/guides";
@@ -95,7 +96,6 @@ export const GUIDE_CATEGORIES: GuideCategory[] = [
       "overseas-guests-rsvp",
       "last-minute-guest-changes",
       "whatsapp-invitation-wording",
-      "rsvp-corporate-events",
       "reduce-meal-waste",
     ],
     [

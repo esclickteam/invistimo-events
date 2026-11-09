@@ -9,6 +9,7 @@ import {
   BLOG_CATEGORIES,
   BLOG_PLACEMENTS,
   HERO_SLUG,
+  MAGAZINE_EXCLUDED_SLUGS,
   RECOMMENDED_SLUGS,
   categoryById,
   type BlogCategoryId,
@@ -75,7 +76,9 @@ function imageFor(guide: Guide) {
 }
 
 export function codeArticles(): BlogArticle[] {
-  return GUIDES.map((guide) => {
+  return GUIDES.filter(
+    (guide) => !(MAGAZINE_EXCLUDED_SLUGS as readonly string[]).includes(guide.slug)
+  ).map((guide) => {
     const placement = BLOG_PLACEMENTS[guide.slug];
     if (!placement) {
       throw new Error(`Guide ${guide.slug} is missing a blog placement`);
