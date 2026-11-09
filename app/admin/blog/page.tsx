@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AdminButton, AdminEmptyState, AdminPanel } from "@/app/components/admin/ui/AdminUI";
+import DraftImportDialog from "./DraftImportDialog";
 
 type Row = {
   id: string;
@@ -16,20 +17,27 @@ export default function AdminBlogPage() {
   const [posts, setPosts] = useState<Row[]>([]);
   const [error, setError] = useState("");
 
-  useEffect(() => {
+  function loadPosts() {
     fetch("/api/admin/blog")
       .then((response) => response.json())
       .then((data) => setPosts(data.posts || []))
       .catch(() => setError("לא ניתן לטעון את המאמרים"));
+  }
+
+  useEffect(() => {
+    loadPosts();
   }, []);
 
   return (
     <div className="grid gap-4" dir="rtl">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-black">בלוג</h1>
-        <Link href="/admin/blog/new">
-          <AdminButton>מאמר חדש</AdminButton>
-        </Link>
+        <div className="flex gap-2">
+          <DraftImportDialog onImported={loadPosts} />
+          <Link href="/admin/blog/new">
+            <AdminButton>מאמר חדש</AdminButton>
+          </Link>
+        </div>
       </div>
       {error ? <p className="text-sm font-bold text-red-700">{error}</p> : null}
       <AdminPanel>

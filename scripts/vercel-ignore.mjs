@@ -5,6 +5,7 @@ const allowed = new Set([
   "fix/magazine-launch-followup",
   "fix/hebrew-font-cls",
   "content/magazine-drafts-preview",
+  "feat/admin-blog-draft-import",
 ]);
 
 // Vercel builds when this command exits 1, and skips the deployment when it exits 0.
