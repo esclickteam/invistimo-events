@@ -854,7 +854,7 @@ const canViewActualArrived =
       return;
     }
 
-    const nextGuests = Array.isArray(data.guests)
+    const nextGuests: Guest[] = Array.isArray(data.guests)
       ? data.guests
           .filter((guest: Guest) => {
             const hasId = Boolean(guest?._id || guest?.id);
@@ -875,11 +875,11 @@ const canViewActualArrived =
     const overlayRows = [...liveArrivalOverlayRef.current.entries()].map(
       ([id, actualArrivedCount]) => ({ id, actualArrivedCount })
     );
-    const arrivedGuests = mergeActualArrivals(
+    const arrivedGuests: Guest[] = mergeActualArrivals(
       nextGuests,
       overlayRows,
       pendingArrivalIds
-    ).map((guest) => {
+    ).map((guest): Guest => {
       const id = String(guest._id || guest.id || "");
       if (!pendingArrivalIds.has(id)) return guest;
       const drafted = actualArrivedDraftRef.current[id];
