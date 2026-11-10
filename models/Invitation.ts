@@ -80,6 +80,27 @@ const PublicEventPageSchema = new Schema(
           "האירוע מתקיים בהתאם להנחיות פיקוד העורף, יש מרחב מוגן במקום.",
       },
     },
+
+    /* קישורים נוספים לאורחים — Additive only; default disabled */
+    guestLinksSection: {
+      enabled: { type: Boolean, default: false },
+      title: { type: String, default: "מידע נוסף לאורחים" },
+      subtitle: { type: String, default: "" },
+      links: [
+        {
+          id: { type: String, default: "" },
+          label: { type: String, default: "" },
+          url: { type: String, default: "" },
+          visibility: {
+            type: String,
+            enum: ["personal", "public", "both"],
+            default: "both",
+          },
+          enabled: { type: Boolean, default: true },
+          order: { type: Number, default: 0 },
+        },
+      ],
+    },
   },
   { _id: false }
 );

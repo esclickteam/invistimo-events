@@ -6,9 +6,11 @@ import EventLocationCard from "@/app/components/EventLocationCard";
 import TransportationGuestSection from "@/app/components/TransportationGuestSection";
 import GuestRsvpForm from "@/components/rsvp/GuestRsvpForm";
 import { GiftSection, PublicEventNoteSection } from "@/components/rsvp/GuestRsvpExtras";
+import GuestLinksSection from "@/components/rsvp/GuestLinksSection";
 import { personalRsvpAppearance } from "@/components/rsvp/rsvpAppearances";
 import { useGuestRsvpController } from "@/lib/rsvp/useGuestRsvpController";
 import { cleanStr, type GiftOptions, type PublicEventNote } from "@/lib/rsvp/guestRsvpLogic";
+import type { GuestLinksSection as GuestLinksSectionData } from "@/lib/eventDetails/guestLinksSection";
 import { resolveEventLocation } from "@/lib/navigationLinks";
 import { getPersonalSiteRedirectPath } from "@/lib/guestInviteUrl";
 
@@ -17,9 +19,11 @@ type PreviewImageMode = "portrait" | "square";
 function StaffPreviewCard({
   publicEventNote,
   giftOptions,
+  guestLinksSection,
 }: {
   publicEventNote: PublicEventNote;
   giftOptions?: GiftOptions;
+  guestLinksSection?: GuestLinksSectionData | null;
 }) {
   return (
     <section className="mt-7 w-full max-w-md overflow-hidden rounded-[34px] border border-[#eadfce] bg-white/92 p-6 text-center shadow-[0_28px_90px_rgba(92,66,38,0.16)] backdrop-blur">
@@ -37,6 +41,12 @@ function StaffPreviewCard({
       <div className="mt-5 rounded-2xl border border-[#eadfce] bg-[#fffaf2] px-4 py-3 text-sm font-black text-[#8f6437]">
         טופס אישור ההגעה מוסתר במצב צפייה.
       </div>
+
+      <GuestLinksSection
+        section={guestLinksSection}
+        page="personal"
+        className="mt-5"
+      />
 
       <PublicEventNoteSection note={publicEventNote} />
 
@@ -108,6 +118,7 @@ export default function PublicInvitePage({ params }: any) {
     shareId,
     giftOptions,
     publicEventNote,
+    guestLinksSection,
   } = rsvp;
 
   const [previewOverrideImage, setPreviewOverrideImage] = useState("");
@@ -224,7 +235,11 @@ export default function PublicInvitePage({ params }: any) {
         />
 
         {isStaffPreview ? (
-          <StaffPreviewCard publicEventNote={publicEventNote} giftOptions={giftOptions} />
+          <StaffPreviewCard
+            publicEventNote={publicEventNote}
+            giftOptions={giftOptions}
+            guestLinksSection={guestLinksSection}
+          />
         ) : (
           <GuestRsvpForm
             controller={rsvp}

@@ -17,6 +17,10 @@ import {
   type PublicEventNote,
   type RsvpValue,
 } from "./guestRsvpLogic";
+import {
+  normalizeGuestLinksSection,
+  type GuestLinksSection,
+} from "@/lib/eventDetails/guestLinksSection";
 
 export type GuestRsvpSuccessMode = "personal" | "inline";
 
@@ -34,6 +38,7 @@ export type GuestRsvpController = {
   activeMenuOptions: MenuOption[];
   giftOptions: GiftOptions | undefined;
   publicEventNote: PublicEventNote;
+  guestLinksSection: GuestLinksSection;
   heartTrigger: number;
   errorMessage: string;
   chooseYes: () => void;
@@ -211,6 +216,14 @@ export function useGuestRsvpController(options: Options = {}): GuestRsvpControll
     () => resolvePublicEventNote(invite, event),
     [invite, event]
   );
+  const guestLinksSection = useMemo(
+    () =>
+      normalizeGuestLinksSection(
+        invite?.publicEventPage?.guestLinksSection ||
+          event?.publicEventPage?.guestLinksSection
+      ),
+    [invite, event]
+  );
 
   const chooseYes = useCallback(() => {
     setSent(false);
@@ -364,6 +377,7 @@ export function useGuestRsvpController(options: Options = {}): GuestRsvpControll
     activeMenuOptions,
     giftOptions,
     publicEventNote,
+    guestLinksSection,
     heartTrigger,
     errorMessage,
     chooseYes,
@@ -401,6 +415,7 @@ export function useGuestRsvpDemoController(): GuestRsvpController {
     activeMenuOptions: [],
     giftOptions: undefined,
     publicEventNote: { enabled: false, text: "" },
+    guestLinksSection: normalizeGuestLinksSection(null),
     heartTrigger,
     errorMessage,
     chooseYes: () => {
