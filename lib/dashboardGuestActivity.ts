@@ -137,7 +137,7 @@ export function mergeGuestActivity<T extends {
       rsvpUpdatedAt,
       rsvpRespondedAt,
       lastResponseAt,
-    };
+    } as T;
   });
 
   return changed ? next : guests;
@@ -180,7 +180,7 @@ export function mergeActualArrivals<T extends {
     const actualArrivedCount = byId.get(id)!;
     if (Number(guest.actualArrivedCount || 0) === actualArrivedCount) return guest;
     changed = true;
-    return { ...guest, actualArrivedCount };
+    return { ...guest, actualArrivedCount } as T;
   });
 
   return changed ? next : guests;

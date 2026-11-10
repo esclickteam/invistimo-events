@@ -875,11 +875,11 @@ const canViewActualArrived =
     const overlayRows = [...liveArrivalOverlayRef.current.entries()].map(
       ([id, actualArrivedCount]) => ({ id, actualArrivedCount })
     );
-    const arrivedGuests = mergeActualArrivals(
+    const arrivedGuests = mergeActualArrivals<Guest>(
       nextGuests,
       overlayRows,
       pendingArrivalIds
-    ).map((guest) => {
+    ).map((guest): Guest => {
       const id = String(guest._id || guest.id || "");
       if (!pendingArrivalIds.has(id)) return guest;
       const drafted = actualArrivedDraftRef.current[id];
@@ -1588,7 +1588,7 @@ if (!canDeleteAllGuests) {
         }
 
         setGuests((prev) =>
-          mergeActualArrivals(prev, data.guests, pendingArrivalIds)
+          mergeActualArrivals<Guest>(prev, data.guests, pendingArrivalIds)
         );
       } catch {
         // The next tick retries. A dropped poll must not clear local arrivals.
