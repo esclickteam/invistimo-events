@@ -532,7 +532,6 @@ export default function AddGuestModal({
 
                 <GuestPhoneField
                   id={`add-guest-phone-${row.id}`}
-                  stacked
                   value={row.phone}
                   country={row.phoneCountry as CountryCode}
                   onCountryChange={(country) =>
@@ -555,25 +554,6 @@ export default function AddGuestModal({
                       return { ...prev, [row.id]: duplicate };
                     })
                   }
-                  className="
-                    h-[48px]
-                    w-full
-                    rounded-2xl
-                    border
-                    border-[#E3D6C3]
-                    bg-[#FCFAF6]
-                    px-4
-                    text-sm
-                    font-bold
-                    text-[#241A14]
-                    outline-none
-                    transition
-                    placeholder:text-[#B0A79D]
-                    focus:border-[#B8844F]
-                    focus:bg-white
-                    focus:ring-4
-                    focus:ring-[#D9B46F]/15
-                  "
                 />
 
                 <select
