@@ -42,6 +42,8 @@ import {
   addressRemainder,
   dedupeLocationField,
 } from "@/lib/messages/locationText";
+import GuestLinksSection from "@/components/rsvp/GuestLinksSection";
+import { normalizeGuestLinksSection } from "@/lib/eventDetails/guestLinksSection";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -580,6 +582,10 @@ export default async function PublicEventInfoPage({
   const gifts = getGiftSettings(event, invitation, publicEventPage);
   const hasGifts = Boolean(gifts.creditUrl || gifts.payboxUrl || gifts.bitPhone);
 
+  const guestLinksSection = normalizeGuestLinksSection(
+    publicEventPage?.guestLinksSection
+  );
+
   const note = getNoteSettings(publicEventPage);
 
   return (
@@ -810,6 +816,8 @@ export default async function PublicEventInfoPage({
                 </div>
               </SectionShell>
             )}
+
+            <GuestLinksSection section={guestLinksSection} page="public" />
 
             {hasGifts && (
               <SectionShell

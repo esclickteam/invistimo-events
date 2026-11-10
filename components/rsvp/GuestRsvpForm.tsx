@@ -6,8 +6,10 @@ import { RSVP_COPY } from "@/lib/rsvp/guestRsvpLogic";
 import type { GuestRsvpController } from "@/lib/rsvp/useGuestRsvpController";
 import HeartBurst, { HeartBurstStyles } from "./HeartBurst";
 import { GiftSection, PublicEventNoteSection } from "./GuestRsvpExtras";
+import GuestLinksSection from "./GuestLinksSection";
 import type { RsvpAppearance } from "./rsvpAppearances";
 import { personalRsvpAppearance } from "./rsvpAppearances";
+import type { GuestLinksSection as GuestLinksSectionData } from "@/lib/eventDetails/guestLinksSection";
 
 export type GuestRsvpCopy = {
   heading?: string;
@@ -28,6 +30,8 @@ type Props = {
   showHeading?: boolean;
   showTransportation?: boolean;
   showGiftAndNote?: boolean;
+  /** When omitted, uses controller.guestLinksSection for the personal invite page. */
+  guestLinksSection?: GuestLinksSectionData | null;
   allowUpdateAfterSubmit?: boolean;
   /** Override default Hebrew strings (wedding-site editor). */
   copy?: GuestRsvpCopy;
@@ -72,6 +76,7 @@ export default function GuestRsvpForm({
   showHeading = true,
   showTransportation = false,
   showGiftAndNote = true,
+  guestLinksSection,
   allowUpdateAfterSubmit = true,
   copy,
   forceSent = false,
@@ -84,6 +89,7 @@ export default function GuestRsvpForm({
     activeMenuOptions,
     giftOptions,
     publicEventNote,
+    guestLinksSection: controllerGuestLinksSection,
     heartTrigger,
     errorMessage,
     chooseYes,
@@ -98,6 +104,11 @@ export default function GuestRsvpForm({
     token,
     selectedGuest,
   } = controller;
+
+  const resolvedGuestLinksSection =
+    guestLinksSection !== undefined
+      ? guestLinksSection
+      : controllerGuestLinksSection;
 
   const guestToken = String(selectedGuest?.token || token || "").trim();
   const heading = copy?.heading || RSVP_COPY.heading;
@@ -296,6 +307,13 @@ export default function GuestRsvpForm({
           </button>
 
           {errorMessage ? <p className={appearance.error}>{errorMessage}</p> : null}
+
+          {/* After RSVP submit controls, before note + gift — additive only */}
+          <GuestLinksSection
+            section={resolvedGuestLinksSection}
+            page="personal"
+            className="mt-7"
+          />
 
           {showGiftAndNote ? (
             <>

@@ -5,6 +5,7 @@ import InvitationGuest from "@/models/InvitationGuest";
 import Event from "@/models/Event";
 import { recordGuestLinkOpen } from "@/lib/guestLinkTracking.server";
 import { resolveAndPersistEventLocation } from "@/lib/persistEventMapPin";
+import { normalizeGuestLinksSection } from "@/lib/eventDetails/guestLinksSection";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +103,8 @@ function normalizePublicEventPage(raw: any) {
       enabled: noteEnabled,
       text: noteText,
     },
+
+    guestLinksSection: normalizeGuestLinksSection(raw?.guestLinksSection),
 
     // תאימות אחורה אם יש קוד ישן בפרונט
     noteEnabled,

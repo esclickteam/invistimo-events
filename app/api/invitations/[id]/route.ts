@@ -21,6 +21,7 @@ import { persistSharedIdentityMirror } from "@/lib/eventDetails/persistSharedIde
 import { ensureAutoIvrNarration } from "@/lib/calls/ivrAutoNarration";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { writeAdminAuditLog } from "@/lib/admin/auditLog";
+import { normalizeGuestLinksSection } from "@/lib/eventDetails/guestLinksSection";
 
 import { v2 as cloudinary } from "cloudinary";
 
@@ -139,6 +140,8 @@ function normalizePublicEventPage(input: any) {
       enabled: note?.enabled === true,
       text: cleanString(note?.text),
     },
+
+    guestLinksSection: normalizeGuestLinksSection(input?.guestLinksSection),
   };
 }
 

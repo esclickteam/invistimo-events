@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import {
+  ArrowDown,
+  ArrowUp,
   CalendarClock,
   ImagePlus,
   Plus,
@@ -16,6 +18,14 @@ import {
   composeGuestLocationLabel,
   sanitizeStoredLocationText,
 } from "@/lib/messages/locationText";
+import {
+  createGuestLinkId,
+  GUEST_LINKS_DEFAULT_TITLE,
+  normalizeGuestLinksSection,
+  sanitizeGuestLinkUrl,
+  type GuestLinkItem,
+  type GuestLinkVisibility,
+} from "@/lib/eventDetails/guestLinksSection";
 
 function hasManualWazeDest(location?: {
   wazeLat?: number | null;
@@ -154,6 +164,12 @@ export default function EventDetailsForm({
         enabled: false,
         text: "האירוע מתקיים בהתאם להנחיות פיקוד העורף, יש מרחב מוגן במקום.",
       },
+      guestLinksSection: {
+        enabled: false,
+        title: GUEST_LINKS_DEFAULT_TITLE,
+        subtitle: "",
+        links: [] as GuestLinkItem[],
+      },
     },
   });
   const [formError, setFormError] = useState("");
@@ -265,6 +281,9 @@ export default function EventDetailsForm({
             event.publicEventPage?.noteText ||
             "האירוע מתקיים בהתאם להנחיות פיקוד העורף, יש מרחב מוגן במקום.",
         },
+        guestLinksSection: normalizeGuestLinksSection(
+          event.publicEventPage?.guestLinksSection
+        ),
       },
     });
   }, [event]);
@@ -391,6 +410,100 @@ export default function EventDetailsForm({
     });
   }
 
+  function addGuestLink() {
+    setForm((f) => {
+      const links = f.publicEventPage.guestLinksSection.links;
+      const next: GuestLinkItem = {
+        id: createGuestLinkId(),
+        label: "",
+        url: "",
+        visibility: "both",
+        enabled: true,
+        order: links.length,
+      };
+
+      return {
+        ...f,
+        publicEventPage: {
+          ...f.publicEventPage,
+          enabled: true,
+          guestLinksSection: {
+            ...f.publicEventPage.guestLinksSection,
+            enabled: true,
+            links: [...links, next],
+          },
+        },
+      };
+    });
+  }
+
+  function updateGuestLink(
+    index: number,
+    patch: Partial<GuestLinkItem>
+  ) {
+    setForm((f) => {
+      const links = f.publicEventPage.guestLinksSection.links.map((link, i) =>
+        i === index ? { ...link, ...patch } : link
+      );
+
+      return {
+        ...f,
+        publicEventPage: {
+          ...f.publicEventPage,
+          enabled: true,
+          guestLinksSection: {
+            ...f.publicEventPage.guestLinksSection,
+            links,
+          },
+        },
+      };
+    });
+  }
+
+  function removeGuestLink(index: number) {
+    setForm((f) => {
+      const links = f.publicEventPage.guestLinksSection.links
+        .filter((_, i) => i !== index)
+        .map((link, order) => ({ ...link, order }));
+
+      return {
+        ...f,
+        publicEventPage: {
+          ...f.publicEventPage,
+          enabled: true,
+          guestLinksSection: {
+            ...f.publicEventPage.guestLinksSection,
+            links,
+          },
+        },
+      };
+    });
+  }
+
+  function moveGuestLink(index: number, direction: -1 | 1) {
+    setForm((f) => {
+      const links = [...f.publicEventPage.guestLinksSection.links];
+      const target = index + direction;
+      if (target < 0 || target >= links.length) return f;
+
+      const tmp = links[index];
+      links[index] = links[target];
+      links[target] = tmp;
+
+      return {
+        ...f,
+        publicEventPage: {
+          ...f.publicEventPage,
+          enabled: true,
+          guestLinksSection: {
+            ...f.publicEventPage.guestLinksSection,
+            links: links.map((link, order) => ({ ...link, order })),
+          },
+        },
+      };
+    });
+  }
+
   /* ============================================================
      💾 Save → UPDATE Invitation
   ============================================================ */
@@ -431,6 +544,29 @@ export default function EventDetailsForm({
         setSaving(false);
         return;
       }
+
+      const guestLinksDraft = form.publicEventPage.guestLinksSection;
+      if (guestLinksDraft.enabled) {
+        for (const link of guestLinksDraft.links) {
+          const label = (link.label || "").trim();
+          const rawUrl = (link.url || "").trim();
+          if (!label && !rawUrl) continue;
+          if (!label) {
+            setFormError("לכל קישור לאורחים חובה להזין שם לכפתור");
+            setSaving(false);
+            return;
+          }
+          if (!sanitizeGuestLinkUrl(rawUrl)) {
+            setFormError(
+              "כתובת קישור לאורחים חייבת להיות כתובת http או https תקינה"
+            );
+            setSaving(false);
+            return;
+          }
+        }
+      }
+
+      const guestLinksNormalized = normalizeGuestLinksSection(guestLinksDraft);
 
       // A typed address (no autocomplete pick) still needs a pin. The
       // production Maps key is referrer-restricted, so this has to happen
@@ -530,6 +666,7 @@ export default function EventDetailsForm({
             enabled: form.publicEventPage.note.enabled === true,
             text: form.publicEventPage.note.text.trim(),
           },
+          guestLinksSection: guestLinksNormalized,
         },
       };
 
@@ -1364,6 +1501,226 @@ export default function EventDetailsForm({
                     </p>
                   </div>
                 </div>
+              </div>
+
+              {/* קישורים נוספים לאורחים — Additive only */}
+              <div
+                data-tour="guest-links-section"
+                className="rounded-[22px] border border-[#D9B46F]/55 bg-gradient-to-br from-[#FFF9EF] via-white to-[#FFFDF8] p-4 shadow-sm"
+              >
+                <div className="mb-4">
+                  <h4 className="text-base font-black text-[#3A2A1C]">
+                    קישורים נוספים לאורחים
+                  </h4>
+                  <p className="mt-1 text-xs font-semibold leading-6 text-[#7B6754]">
+                    אזור כפתורים מותאם אישית שיופיע בהזמנה האישית ו/או הציבורית,
+                    מיד אחרי אישור ההגעה ולפני ההערה והמתנה.
+                  </p>
+                </div>
+
+                <label className="mb-4 flex cursor-pointer items-center justify-between gap-3 rounded-2xl border border-[#EFE4D6] bg-[#FCFAF6] px-4 py-3">
+                  <span className="text-sm font-black text-[#6B5B4A]">
+                    הצגת אזור הקישורים לאורחים
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={form.publicEventPage.guestLinksSection.enabled}
+                    onChange={(e) =>
+                      setForm((f) => ({
+                        ...f,
+                        publicEventPage: {
+                          ...f.publicEventPage,
+                          enabled: true,
+                          guestLinksSection: {
+                            ...f.publicEventPage.guestLinksSection,
+                            enabled: e.target.checked,
+                          },
+                        },
+                      }))
+                    }
+                    className="h-5 w-5 accent-[#B8844F]"
+                  />
+                </label>
+
+                {form.publicEventPage.guestLinksSection.enabled && (
+                  <div className="space-y-4">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="flex flex-col gap-2">
+                        <label className="px-1 text-sm font-black text-[#6B5B4A]">
+                          שם האזור
+                        </label>
+                        <input
+                          value={form.publicEventPage.guestLinksSection.title}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              publicEventPage: {
+                                ...f.publicEventPage,
+                                guestLinksSection: {
+                                  ...f.publicEventPage.guestLinksSection,
+                                  title: e.target.value,
+                                },
+                              },
+                            }))
+                          }
+                          placeholder={GUEST_LINKS_DEFAULT_TITLE}
+                          className="h-[52px] w-full rounded-[18px] border border-[#E3D6C3] bg-white px-4 text-sm font-bold text-[#241A14] outline-none focus:border-[#B8844F] focus:ring-4 focus:ring-[#D9B46F]/15"
+                        />
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <label className="px-1 text-sm font-black text-[#6B5B4A]">
+                          כותרת משנה (אופציונלי)
+                        </label>
+                        <input
+                          value={form.publicEventPage.guestLinksSection.subtitle}
+                          onChange={(e) =>
+                            setForm((f) => ({
+                              ...f,
+                              publicEventPage: {
+                                ...f.publicEventPage,
+                                guestLinksSection: {
+                                  ...f.publicEventPage.guestLinksSection,
+                                  subtitle: e.target.value,
+                                },
+                              },
+                            }))
+                          }
+                          placeholder="כל מה שצריך לדעת לקראת האירוע"
+                          className="h-[52px] w-full rounded-[18px] border border-[#E3D6C3] bg-white px-4 text-sm font-bold text-[#241A14] outline-none focus:border-[#B8844F] focus:ring-4 focus:ring-[#D9B46F]/15"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {form.publicEventPage.guestLinksSection.links.map(
+                        (link, index) => (
+                          <div
+                            key={link.id}
+                            className="rounded-2xl border border-[#EFE4D6] bg-[#FCFAF6] p-4"
+                          >
+                            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                              <span className="text-sm font-black text-[#6B5B4A]">
+                                קישור {index + 1}
+                              </span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => moveGuestLink(index, -1)}
+                                  disabled={index === 0}
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#E3D6C3] bg-white text-[#6B5B4A] disabled:opacity-40"
+                                  aria-label="הזזה למעלה"
+                                >
+                                  <ArrowUp className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => moveGuestLink(index, 1)}
+                                  disabled={
+                                    index ===
+                                    form.publicEventPage.guestLinksSection.links
+                                      .length -
+                                      1
+                                  }
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[#E3D6C3] bg-white text-[#6B5B4A] disabled:opacity-40"
+                                  aria-label="הזזה למטה"
+                                >
+                                  <ArrowDown className="h-4 w-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => removeGuestLink(index)}
+                                  className="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-red-200 bg-white text-red-600"
+                                  aria-label="מחיקת קישור"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="grid gap-3">
+                              <input
+                                value={link.label}
+                                onChange={(e) =>
+                                  updateGuestLink(index, {
+                                    label: e.target.value,
+                                  })
+                                }
+                                placeholder="שם הכפתור"
+                                className="h-[48px] w-full rounded-[16px] border border-[#E3D6C3] bg-white px-4 text-sm font-bold text-[#241A14] outline-none focus:border-[#B8844F] focus:ring-4 focus:ring-[#D9B46F]/15"
+                              />
+
+                              <input
+                                value={link.url}
+                                onChange={(e) =>
+                                  updateGuestLink(index, {
+                                    url: e.target.value,
+                                  })
+                                }
+                                placeholder="https://..."
+                                dir="ltr"
+                                className="h-[48px] w-full rounded-[16px] border border-[#E3D6C3] bg-white px-4 text-sm font-bold text-[#241A14] outline-none focus:border-[#B8844F] focus:ring-4 focus:ring-[#D9B46F]/15"
+                              />
+
+                              <div className="grid gap-3 sm:grid-cols-2">
+                                <label className="flex flex-col gap-2">
+                                  <span className="px-1 text-xs font-black text-[#6B5B4A]">
+                                    מיקום הצגה
+                                  </span>
+                                  <select
+                                    value={link.visibility}
+                                    onChange={(e) =>
+                                      updateGuestLink(index, {
+                                        visibility: e.target
+                                          .value as GuestLinkVisibility,
+                                      })
+                                    }
+                                    className="h-[48px] w-full rounded-[16px] border border-[#E3D6C3] bg-white px-4 text-sm font-bold text-[#241A14] outline-none focus:border-[#B8844F] focus:ring-4 focus:ring-[#D9B46F]/15"
+                                  >
+                                    <option value="both">
+                                      אישי וציבורי
+                                    </option>
+                                    <option value="personal">
+                                      קישור אישי בלבד
+                                    </option>
+                                    <option value="public">
+                                      קישור ציבורי בלבד
+                                    </option>
+                                  </select>
+                                </label>
+
+                                <label className="flex cursor-pointer items-center justify-between gap-3 rounded-[16px] border border-[#E3D6C3] bg-white px-4 py-3">
+                                  <span className="text-sm font-black text-[#6B5B4A]">
+                                    קישור פעיל
+                                  </span>
+                                  <input
+                                    type="checkbox"
+                                    checked={link.enabled !== false}
+                                    onChange={(e) =>
+                                      updateGuestLink(index, {
+                                        enabled: e.target.checked,
+                                      })
+                                    }
+                                    className="h-5 w-5 accent-[#B8844F]"
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={addGuestLink}
+                      className="inline-flex h-[48px] w-full items-center justify-center gap-2 rounded-2xl border border-[#D9B46F]/60 bg-white px-4 text-sm font-black text-[#8B5E34] shadow-sm transition hover:bg-[#FFF7EA]"
+                    >
+                      <Plus className="h-4 w-4" />
+                      הוספת קישור
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Parking */}
