@@ -5,6 +5,7 @@ import {
   countryCallingCode,
   detectCountryFromInternationalInput,
   listPhoneCountries,
+  parseGuestPhone,
   phoneFieldError,
   type CountryCode,
 } from "@/lib/phones/international";
@@ -24,6 +25,42 @@ function countryName(iso: string) {
   } catch {
     return iso;
   }
+}
+
+/**
+ * Display-only: hide the selected dial code inside the number input so it is
+ * not duplicated next to the compact prefix control. Parent/storage value is
+ * unchanged until the user edits; save paths still receive whatever the parent
+ * holds (national or E.164) plus phoneCountry.
+ */
+export function toLocalPhoneDisplay(value: string, country: CountryCode) {
+  const raw = String(value ?? "");
+  if (!raw.trim()) return "";
+
+  const parsed = parseGuestPhone(raw);
+  if (parsed.ok && parsed.country === country && parsed.nationalNumber) {
+    return country === "IL" ? `0${parsed.nationalNumber}` : parsed.nationalNumber;
+  }
+
+  const dial = countryCallingCode(country);
+  const compact = raw
+    .trim()
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/[().\-\s]/g, "");
+
+  if (compact.startsWith(`+${dial}`)) {
+    let rest = compact.slice(dial.length + 1);
+    if (country === "IL" && rest && !rest.startsWith("0")) rest = `0${rest}`;
+    return rest;
+  }
+
+  if (compact.startsWith(`00${dial}`)) {
+    let rest = compact.slice(dial.length + 2);
+    if (country === "IL" && rest && !rest.startsWith("0")) rest = `0${rest}`;
+    return rest;
+  }
+
+  return raw;
 }
 
 export const DEFAULT_PHONE_COUNTRY: CountryCode = "IL";
@@ -94,6 +131,7 @@ export default function InternationalPhoneField({
   const message = error || validation;
   const dial = countryCallingCode(country);
   const selectedFlag = flagEmoji(country);
+  const displayValue = toLocalPhoneDisplay(value, country);
 
   useEffect(() => {
     if (!open) return;
@@ -159,13 +197,13 @@ export default function InternationalPhoneField({
               return next;
             });
           }}
-          className="flex h-full w-[5.75rem] shrink-0 items-center justify-center gap-1 border-r border-[#E3D6C3] bg-[#FCFAF6] px-1.5 text-[13px] font-bold text-[#241A14] outline-none transition hover:bg-white disabled:cursor-not-allowed sm:w-[6.25rem]"
+          className="flex h-full w-[100px] shrink-0 items-center justify-center gap-0.5 border-r border-[#E3D6C3] bg-[#FCFAF6] px-1 text-[12px] font-bold text-[#241A14] outline-none transition hover:bg-white disabled:cursor-not-allowed"
         >
-          <span aria-hidden="true" className="text-base leading-none">
+          <span aria-hidden="true" className="text-[15px] leading-none">
             {selectedFlag}
           </span>
           <span className="tabular-nums leading-none">+{dial}</span>
-          <span aria-hidden="true" className="text-[10px] text-[#8A7B69]">
+          <span aria-hidden="true" className="text-[9px] leading-none text-[#8A7B69]">
             ▾
           </span>
         </button>
@@ -177,7 +215,7 @@ export default function InternationalPhoneField({
           inputMode="tel"
           autoComplete="tel"
           disabled={disabled}
-          value={value}
+          value={displayValue}
           placeholder={placeholder}
           onChange={(event) => {
             const next = event.target.value;
@@ -186,7 +224,7 @@ export default function InternationalPhoneField({
             if (detected && detected !== country) onCountryChange(detected);
           }}
           onBlur={onBlur}
-          className="h-full min-w-0 flex-1 border-0 bg-transparent px-3 text-sm font-bold text-[#241A14] outline-none placeholder:text-[#A89C8E] disabled:cursor-not-allowed disabled:bg-[#F4EEE6]"
+          className="h-full min-w-0 w-0 flex-1 basis-0 border-0 bg-transparent px-3 text-sm font-bold text-[#241A14] outline-none placeholder:text-[#A89C8E] disabled:cursor-not-allowed disabled:bg-[#F4EEE6]"
         />
       </div>
 

@@ -17,6 +17,7 @@ import {
   toWhatsappRecipient,
   unsupportedWhatsappSummary,
 } from "../../lib/phones/international";
+import { toLocalPhoneDisplay } from "../../app/components/InternationalPhoneField";
 
 const root = path.resolve(process.cwd());
 
@@ -233,12 +234,13 @@ test("phone field UI keeps a compact dial prefix and full country labels in the 
   const add = read("app/components/AddGuestModal.tsx");
 
   assert.match(field, /dir="ltr"/);
-  assert.match(field, /w-\[5\.75rem\]/);
+  assert.match(field, /w-\[100px\]/);
+  assert.match(field, /w-0 flex-1 basis-0/);
   assert.match(field, /\+\{dial\}/);
   assert.match(field, /\{countryName\(iso\)\}/);
   assert.match(field, /\+\{countryCallingCode\(iso\)\}/);
   assert.match(field, /flagEmoji\(iso\)/);
-  assert.match(field, /min-w-0 flex-1/);
+  assert.match(field, /toLocalPhoneDisplay/);
   assert.doesNotMatch(
     field,
     /<select[\s\S]*countryName\(iso\)[\s\S]*<\/select>/
@@ -253,6 +255,16 @@ test("phone field UI keeps a compact dial prefix and full country labels in the 
   assert.match(addPhone, /GuestPhoneField/);
   assert.doesNotMatch(addPhone, /\bstacked\b/);
   assert.doesNotMatch(addPhone, /h-\[48px\]/);
+});
+
+test("phone field display strips a duplicated dial code without rewriting storage forms", () => {
+  assert.equal(toLocalPhoneDisplay("+972526850711", "IL"), "0526850711");
+  assert.equal(toLocalPhoneDisplay("972526850711", "IL"), "0526850711");
+  assert.equal(toLocalPhoneDisplay("0526850711", "IL"), "0526850711");
+  assert.equal(toLocalPhoneDisplay("+12109444809", "US"), "2109444809");
+  assert.equal(toLocalPhoneDisplay("+447911123456", "GB"), "7911123456");
+  // Unrelated international text stays visible until country detection updates.
+  assert.equal(toLocalPhoneDisplay("+12109444809", "IL"), "+12109444809");
 });
 
 test("send paths use the shared normalizer instead of an Israeli-only filter", () => {
