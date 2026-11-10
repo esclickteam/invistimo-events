@@ -137,7 +137,7 @@ export function mergeGuestActivity<T extends {
       rsvpUpdatedAt,
       rsvpRespondedAt,
       lastResponseAt,
-    };
+    } as T;
   });
 
   return changed ? next : guests;
@@ -174,13 +174,15 @@ export function mergeActualArrivals<T extends {
   }
 
   let changed = false;
-  const next = guests.map((guest) => {
+  const next: T[] = guests.map((guest) => {
     const id = String(guest._id || guest.id || "").trim();
     if (!id || pendingIds?.has(id) || !byId.has(id)) return guest;
     const actualArrivedCount = byId.get(id)!;
     if (Number(guest.actualArrivedCount || 0) === actualArrivedCount) return guest;
     changed = true;
-    return { ...guest, actualArrivedCount };
+    // Preserve the caller guest type; the generic constraint alone widens
+    // object spreads to {_id?, id?, actualArrivedCount?} under strict builds.
+    return { ...guest, actualArrivedCount } as T;
   });
 
   return changed ? next : guests;
