@@ -227,6 +227,34 @@ test("stored international forms stay valid and are not rewritten to Israel", ()
   assert.match(rsvp, /findOne\(\{\s*token,/);
 });
 
+test("phone field UI keeps a compact dial prefix and full country labels in the menu", () => {
+  const field = read("app/components/InternationalPhoneField.tsx");
+  const edit = read("app/components/EditGuestModal.tsx");
+  const add = read("app/components/AddGuestModal.tsx");
+
+  assert.match(field, /dir="ltr"/);
+  assert.match(field, /w-\[5\.75rem\]/);
+  assert.match(field, /\+\{dial\}/);
+  assert.match(field, /\{countryName\(iso\)\}/);
+  assert.match(field, /\+\{countryCallingCode\(iso\)\}/);
+  assert.match(field, /flagEmoji\(iso\)/);
+  assert.match(field, /min-w-0 flex-1/);
+  assert.doesNotMatch(
+    field,
+    /<select[\s\S]*countryName\(iso\)[\s\S]*<\/select>/
+  );
+  assert.doesNotMatch(field, /sm:w-\[168px\]/);
+  assert.match(edit, /<GuestPhoneField[\s\S]*?\/>/);
+  assert.doesNotMatch(
+    edit.match(/<GuestPhoneField[\s\S]*?\/>/)?.[0] || "",
+    /className=\{inputClass\}/
+  );
+  const addPhone = add.match(/<GuestPhoneField[\s\S]*?\/>/)?.[0] || "";
+  assert.match(addPhone, /GuestPhoneField/);
+  assert.doesNotMatch(addPhone, /\bstacked\b/);
+  assert.doesNotMatch(addPhone, /h-\[48px\]/);
+});
+
 test("send paths use the shared normalizer instead of an Israeli-only filter", () => {
   const preRsvp = read("app/api/messages/pre-rsvp/whatsapp/route.ts");
   const sendTemplate = read("app/api/whatsapp/send-template/route.ts");

@@ -297,7 +297,6 @@ export default function EditGuestModal({
                 disabled={phoneLocked}
                 placeholder={phoneLocked ? "ללא מספר טלפון" : "מספר טלפון"}
                 onDuplicateChange={setPhoneDuplicate}
-                className={inputClass}
               />
               {phoneLocked ? (
                 <p className="mt-1 text-[11px] font-bold text-[#8A7B69]">

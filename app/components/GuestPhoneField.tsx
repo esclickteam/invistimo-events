@@ -65,7 +65,11 @@ export default function GuestPhoneField({
   }, [onDuplicateChange, status.duplicate]);
 
   return (
-    <div className={`${className} ${disabled ? "pointer-events-none opacity-80" : ""}`}>
+    <div
+      className={`min-w-0 w-full ${className} ${
+        disabled ? "pointer-events-none opacity-80" : ""
+      }`}
+    >
       <InternationalPhoneField
         id={id}
         value={value}
