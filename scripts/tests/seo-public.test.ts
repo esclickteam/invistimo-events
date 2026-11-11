@@ -364,7 +364,7 @@ test("marketing pages no longer point the RSVP call to action at a missing short
     fs.existsSync(path.join(root, "public/marketing/videos/home-cinematic-hero-poster.jpg"))
   );
   assert.ok(fs.existsSync(path.join(root, "public/og-invistimo.jpg")));
-  assert.equal(GUIDES.length, 37);
+  assert.equal(GUIDES.length, 38);
   assert.equal(SERVICE_PAGES.length, 5);
   assert.match(read("lib/marketing/footerNav.ts"), /href: "\/pricing"/);
   assert.match(read("lib/marketing/footerNav.ts"), /href: "\/rsvp"/);
@@ -422,7 +422,7 @@ test("geo tasks name one primary page for the rsvp and seating queries", () => {
   ]);
   const primaries = new Map<string, string>([
     ["אישורי הגעה וסידורי הושבה", "/"],
-    ["אישורי הגעה לחתונה", "/rsvp"],
+    ["אישורי הגעה לחתונה", "/rsvp/chatuna"],
     ["סידורי הושבה לחתונה", "/seating-explained"],
     ["מערכת אישורי הגעה", "/rsvp"],
     ["אישורי הגעה בוואטסאפ", "/rsvp/whatsapp"],

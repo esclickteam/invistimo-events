@@ -363,8 +363,10 @@ export default function WhatsappRsvpMarketingPage() {
             </p>
             <p className="mt-5 max-w-xl text-base leading-8 text-[#5C4A3A] md:text-lg">
               רשימת המוזמנים מוכנה, האירוע מתקרב, ועכשיו צריך לדעת מי באמת מגיע. עם Invistimo שולחים
-              הודעות אישיות ב־WhatsApp, מאפשרים לאורחים לאשר הגעה בקישור נוח ומקבלים תמונה מסודרת של
-              התשובות במקום אחד. בלי לחפש אישורים בין שיחות ובלי לעדכן רשימות ידנית אחרי כל הודעה.
+              הודעות אישיות ב־WhatsApp עם קישור לכל אורח. בקישור בוחרים מגיע, לא מגיע או עדיין לא
+              בטוחים, ומציינים כמה מגיעים. בחבילת ההודעות יש שני סבבים למי שעדיין לא ענה. SMS נשאר
+              לתזכורת, לתודה, או כשהוואטסאפ לא נשלח. התשובות מתעדכנות במקום אחד, בלי לעדכן רשימה ידנית
+              אחרי כל הודעה.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
               <TrackedCtaLink href="/pricing" className={ctaPrimary} location={`hero_pricing:${PATH}`}>

@@ -36,6 +36,7 @@ export const PILLARS: ContentPillar[] = [
       { path: "/info/guides/tracking-rsvp-responses", label: "מעקב אחרי תשובות" },
       { path: "/info/guides/how-phone-rsvp-works", label: "איך עובדות שיחות אישור" },
       { path: "/info/guides/import-guest-list", label: "בניית וייבוא רשימת מוזמנים" },
+      { path: "/info/guides/wedding-guest-list-excel", label: "רשימת מוזמנים באקסל" },
       { path: "/info/guides/last-minute-guest-changes", label: "שינויי הגעה ברגע האחרון" },
       { path: "/info/guides/plus-ones-and-kids-rsvp", label: "+1 וילדים באישורי הגעה" },
       { path: "/info/guides/overseas-guests-rsvp", label: "אורחים מחו״ל" },

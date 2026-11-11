@@ -15,9 +15,9 @@ import { absoluteUrl, pageMetadata, SITE_NAME, SITE_URL } from "@/lib/seo/site";
 import type { Metadata } from "next";
 
 const PATH = "/invitations/chatuna";
-const TITLE = "הזמנות דיגיטליות לחתונה | עיצובים ואנימציות | Invistimo";
+const TITLE = "הזמנה דיגיטלית לחתונה | מובייל וקישור אישי | Invistimo";
 const DESCRIPTION =
-  "הזמנות דיגיטליות לחתונה בעיצובים יוקרתיים, תבניות מוכנות ואפשרויות התאמה אישית. צפו בדוגמאות, הכירו הזמנות מונפשות ושלבו אישורי הגעה.";
+  "הזמנה דיגיטלית לחתונה שנפתחת בטלפון, עם קישור אישי ואפשרות לאשר הגעה מתוך ההזמנה. דוגמאות ושליחה ב־WhatsApp. ההזמנה כלולה בחבילה.";
 
 const OG_INVITE = {
   url: absoluteUrl("/marketing/invites/invite-wedding-mia-alon.webp"),

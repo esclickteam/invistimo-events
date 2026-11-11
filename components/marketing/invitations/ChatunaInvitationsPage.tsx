@@ -368,7 +368,7 @@ export default function ChatunaInvitationsPage() {
                 בית
               </Link>
               <span className="px-1.5 text-[#C7A56B]">/</span>
-              <span>הזמנות דיגיטליות לחתונה</span>
+              <span>הזמנה דיגיטלית לחתונה</span>
             </nav>
 
             <p className="mb-3 font-[family-name:var(--font-invite-display)] text-4xl text-[#8A642E] md:text-5xl">
@@ -376,7 +376,7 @@ export default function ChatunaInvitationsPage() {
             </p>
 
             <h1 className="font-[family-name:var(--font-invite-display)] text-[2rem] font-medium leading-[1.2] text-[#241E18] sm:text-4xl md:text-5xl lg:text-[3.2rem]">
-              הזמנות דיגיטליות לחתונה, בעיצוב שמרגיש בדיוק כמוכם
+              הזמנה דיגיטלית לחתונה, בעיצוב שמרגיש בדיוק כמוכם
             </h1>
 
             <p className="mt-4 text-lg font-medium leading-8 text-[#5C4A38] md:mt-5 md:text-2xl md:leading-9">

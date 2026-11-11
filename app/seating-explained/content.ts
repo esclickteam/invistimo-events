@@ -3,9 +3,9 @@ import { INVISTIMO_WHATSAPP_PHONE, SEATING_ADDON_ILS } from "@/lib/pricing/packa
 export const SEATING_PATH = "/seating-explained";
 
 export const SEATING_META = {
-  title: "סידורי הושבה לחתונה | הושבה דיגיטלית ו־LIVE | Invistimo",
+  title: "סידורי הושבה לחתונה | סידור שולחנות ו־LIVE | Invistimo",
   description:
-    "עמוד השירות להושבה דיגיטלית: מפת שולחנות, שיבוץ מאשרים ו־LIVE ביום האירוע. להחלטות תכנון ולביצוע צעד־אחר־צעד יש מדריכים נפרדים במרכז הידע.",
+    "סידורי הושבה וסידור שולחנות לחתונה: חלוקה, מקומות פנויים, מספר שולחן ושינוי ברגע האחרון. מתחילים אחרי אישורי ההגעה.",
 } as const;
 
 export const UPDATED_AT = "2026-11-02";

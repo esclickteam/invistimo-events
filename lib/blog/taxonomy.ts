@@ -199,6 +199,7 @@ export const BLOG_PLACEMENTS: Record<string, BlogPlacement> = {
   "reduce-meal-waste": { categoryId: "seating", subcategoryId: "meals", popularRank: 25 },
   "guest-list": { categoryId: "seating", subcategoryId: "lists", popularRank: 4 },
   "import-guest-list": { categoryId: "seating", subcategoryId: "lists", popularRank: 26 },
+  "wedding-guest-list-excel": { categoryId: "seating", subcategoryId: "lists", popularRank: 33 },
   "table-number-message": { categoryId: "seating", subcategoryId: "changes", popularRank: 27 },
   "seating-live-day-of": { categoryId: "seating", subcategoryId: "arrival", popularRank: 28 },
   "venue-guest-check-in": { categoryId: "seating", subcategoryId: "arrival", popularRank: 29 },
