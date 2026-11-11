@@ -24,6 +24,10 @@ export type ContentSection = {
   timeline?: { title: string; text: string; tone?: "pre" | "rsvp" }[];
   /** Stacked formula / callout lines. */
   callout?: { title?: string; lines: string[] };
+  /** Plain comparison or example grid. */
+  table?: { caption?: string; headers: string[]; rows: string[][] };
+  /** Direct file download. No account. */
+  download?: { href: string; label: string };
 };
 
 export type ContentFaq = { q: string; a: string };
@@ -101,6 +105,7 @@ export default function PublicContentPage({
         section.heading,
         ...section.paragraphs,
         ...(section.bullets || []),
+        ...(section.table ? [...section.table.headers, ...section.table.rows.flat()] : []),
       ]),
       ...faqs.flatMap((faq) => [faq.q, faq.a]),
       ...benefits.flatMap((benefit) => [benefit.title, benefit.text]),
@@ -336,6 +341,48 @@ export default function PublicContentPage({
                     </li>
                   ))}
                 </ul>
+              ) : null}
+              {section.table ? (
+                <div className="mt-6 overflow-x-auto">
+                  <table className="w-full min-w-[640px] border-collapse text-right text-sm">
+                    {section.table.caption ? (
+                      <caption className="mb-3 text-right text-sm font-bold text-[#7A6042]">
+                        {section.table.caption}
+                      </caption>
+                    ) : null}
+                    <thead>
+                      <tr className="border-b border-[#E6D2AA] bg-[#FFF8EA]">
+                        {section.table.headers.map((header) => (
+                          <th key={header} className="px-3 py-2 font-black text-[#35281F]">
+                            {header}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {section.table.rows.map((row) => (
+                        <tr key={row.join("|")} className="border-b border-[#F0E4D0]">
+                          {row.map((cell, cellIndex) => (
+                            <td key={`${cell}-${cellIndex}`} className="px-3 py-2 leading-6 text-[#5C4A3A]">
+                              {cell}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+              {section.download ? (
+                <p className="mt-6">
+                  <a
+                    href={section.download.href}
+                    download
+                    className="inline-flex min-h-12 items-center justify-center bg-[#35281F] px-6 py-3 text-base font-black text-white hover:bg-[#5C4632]"
+                  >
+                    {section.download.label}
+                  </a>
+                </p>
               ) : null}
               {section.compare?.length ? (
                 <ul className="mt-6 grid gap-3 sm:grid-cols-2">
