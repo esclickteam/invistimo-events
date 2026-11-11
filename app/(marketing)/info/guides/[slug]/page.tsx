@@ -73,7 +73,11 @@ export default async function GuidePage({ params }: Props) {
       benefits={guide.benefits}
       steps={guide.steps}
       media={guide.media}
-      cover={coverFor(guide.slug, guide.h1) || undefined}
+      cover={
+        guide.slug === "wedding-guest-list-excel"
+          ? undefined
+          : coverFor(guide.slug, guide.h1) || undefined
+      }
       magazine
       showEventTypes={guide.showEventTypes}
       ctaTitle={guide.ctaTitle}
