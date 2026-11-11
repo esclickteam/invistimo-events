@@ -14,9 +14,9 @@ import {
 import { pageMetadata } from "@/lib/seo/site";
 import Link from "next/link";
 
-const TITLE = "מערכת אישורי הגעה לאירועים | Invistimo";
+const TITLE = "אישורי הגעה לאירועים | מערכת ושירות | Invistimo";
 const DESCRIPTION =
-  "מערכת אישורי הגעה לאירועים ולחתונה, וגם ניהול מוזמנים: קישור אישי, מעקב תשובות ושיחות לפי החבילה. פירוט על האולם והמנות נמצא בעמוד החתונה.";
+  "שירות ומערכת אישורי הגעה לאירועים: קישור אישי, סבבי הודעות ומעקב תשובות. לחתונה יש עמוד נפרד, ולמחיר יש מדריך נפרד.";
 
 export const metadata = pageMetadata({
   title: TITLE,
@@ -41,7 +41,7 @@ export default function RsvpPage() {
           organizationNode(),
           breadcrumbNode(breadcrumbs),
           serviceNode({
-            name: "מערכת אישורי הגעה לאירועים",
+            name: "אישורי הגעה לאירועים",
             description: DESCRIPTION,
             path: "/rsvp",
             serviceType: "אישורי הגעה",

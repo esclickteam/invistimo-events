@@ -88,7 +88,7 @@ export default function RSVPPage() {
               Invistimo
             </p>
             <h1 className="mt-5 font-[family-name:var(--font-rsvp-display)] text-3xl font-bold leading-[1.2] text-[#35281F] md:text-5xl">
-              מערכת אישורי הגעה לאירועים, בלי לרדוף אחרי האורחים
+              אישורי הגעה לאירועים, בלי לרדוף אחרי האורחים
             </h1>
             <p className="mt-5 text-lg font-semibold leading-8 text-[#5C4A3A] md:text-xl md:leading-9">
               אתם מתרגשים לקראת האירוע. אנחנו עוזרים לכם לדעת מי מגיע.
@@ -121,10 +121,12 @@ export default function RSVPPage() {
         </div>
 
         <p className="mx-auto mt-12 max-w-3xl text-center text-base leading-8 text-[#6D5B4A] md:mt-16 md:text-lg md:leading-9">
-          עם Invistimo שולחים לאורחים הודעות בוואטסאפ עם קישור אישי לאישור הגעה, עוקבים אחרי
-          התשובות בזמן אמת ומרכזים את כל המידע במקום אחד. זו גם מערכת לניהול מוזמנים: רשימה אחת,
-          סטטוס לכל רשומה, ומעקב אחרי מי עדיין לא השיב. אפשר לשלב סבבי הודעות, שיחות טלפוניות
-          ותזכורות, ואחר כך להמשיך ל<Link href="/seating-explained" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">סידורי הושבה</Link>. לפירוט על האולם והמנות יש{" "}
+          זה שירות אישורי הגעה לאירועים: חתונה, חינה, בר ובת מצווה, ברית או אירוע אחר. עם Invistimo
+          שולחים לאורחים הודעות בוואטסאפ עם קישור אישי, עוקבים אחרי התשובות בזמן אמת ומרכזים את כל
+          המידע במקום אחד. זו גם מערכת לניהול מוזמנים: רשימה אחת, סטטוס לכל רשומה, ומעקב אחרי מי
+          עדיין לא השיב. אפשר לשלב סבבי הודעות, שיחות טלפוניות ותזכורות, ואחר כך להמשיך ל
+          <Link href="/seating-explained" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">סידורי הושבה</Link>.
+          לחתונה — אולם, מנות ותזמון — יש{" "}
           <Link href="/rsvp/chatuna" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">עמוד חתונה</Link>
           , לערוץ עצמו יש{" "}
           <Link href="/rsvp/whatsapp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">עמוד וואטסאפ</Link>
@@ -160,20 +162,19 @@ export default function RSVPPage() {
             id="wedding-rsvp-heading"
             className="font-[family-name:var(--font-rsvp-display)] text-3xl font-bold text-[#35281F]"
           >
-            אישורי הגעה לחתונה
+            לחתונה יש עמוד משלה
           </h2>
           <p className="mt-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
-            לחתונה סופרים מגיעים מול האולם והמנות, ושולחים לכל אורח קישור אישי. התשובות נשארות
-            כאן, באותה מערכת.{" "}
+            כאן מתואר השירות לכל סוגי האירוע. אולם, מנות ותזמון לחתונה נמצאים ב־{" "}
             <Link href="/rsvp/chatuna" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
-              פירוט על האולם והמנות
+              אישורי הגעה לחתונה
             </Link>
-            ,{" "}
+            . הערוץ והמחיר נשארים בעמודים שלהם:{" "}
             <Link href="/rsvp/whatsapp" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
               אישורי הגעה בוואטסאפ
             </Link>
             {" "}ו<Link href="/info/guides/cost-rsvp-wedding" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">חישוב המחיר לפי רשומות</Link>
-            {" "}נמצאים בעמודים שלהם. את ההושבה ממשיכים אחרי שיש תשובות.
+            . את ההושבה ממשיכים אחרי שיש תשובות.
           </p>
         </div>
       </section>

@@ -12,9 +12,9 @@ import SaveTheDateMarketingPage from "./SaveTheDateMarketingPage";
 import { SAVE_THE_DATE_FAQS } from "./guideFaqs";
 
 const PATH = "/rsvp/save-the-date";
-const TITLE = "Save the Date לחתונה | מתי ולמה שולחים? | Invistimo";
+const TITLE = "Save the Date | סייב דה דייט לחתונה | Invistimo";
 const DESCRIPTION =
-  "Save the Date ב־WhatsApp עם תמונה מעוצבת, מרשימת המוזמנים. לא אוסף אישורי הגעה ולא נספר כסבב אישור. זמין כשהאפשרות פתוחה בחשבון.";
+  "מה זה Save the Date (סייב דה דייט), מתי שולחים ומה כותבים. הודעת וואטסאפ מוקדמת לחתונה — לא הזמנה ולא אישור הגעה.";
 
 export const metadata = pageMetadata({
   title: TITLE,

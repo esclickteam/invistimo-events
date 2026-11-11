@@ -63,7 +63,7 @@ function WhatsappPhone() {
         </div>
       </div>
       <p className="mt-3 text-center text-xs font-semibold text-[#7A6042]">
-        המחשה לפי תצוגת המוצר · תבנית מדיה save_the_date_image_he · נתוני דמו
+        המחשה לפי תצוגת המוצר · נתוני דמו
       </p>
     </div>
   );
@@ -151,7 +151,7 @@ export default function SaveTheDateMarketingPage() {
             </nav>
             <p className="text-sm font-black tracking-[0.14em] text-[#7A5530]">Save the Date · Invistimo</p>
             <h1 className="mt-3 max-w-2xl text-[1.85rem] font-black leading-[1.15] tracking-[-0.03em] text-[#2C241C] md:text-[2.55rem]">
-              Save the Date לחתונה — כי יש תאריכים שפשוט חייבים לשמור
+              Save the Date לחתונה, סייב דה דייט ששומר את התאריך
             </h1>
             <p className="mt-5 max-w-xl text-xl font-bold leading-9 text-[#5E4735]">
               עוד לפני ההזמנה הרשמית, תנו לאנשים שאתם אוהבים להיות חלק מההתרגשות.
@@ -200,7 +200,7 @@ export default function SaveTheDateMarketingPage() {
           </h2>
           <div className="mt-6 space-y-5 text-base leading-8 text-[#5C4A3A] md:text-lg">
             <p>
-              Save the Date, או בעברית «שמרו את התאריך», הוא הודעה מוקדמת שנשלחת לאורחים לפני ההזמנה הרשמית
+              Save the Date, ובעברית גם סייב דה דייט או «שמרו את התאריך», הוא הודעה מוקדמת שנשלחת לאורחים לפני ההזמנה הרשמית
               לחתונה. המטרה פשוטה: להודיע שהאירוע מתקרב ולאפשר לשריין את היום ביומן.
             </p>
             <p>
@@ -212,8 +212,16 @@ export default function SaveTheDateMarketingPage() {
               האנשים החשובים לכם בשמחה.
             </p>
             <p>
-              ב־Invistimo זו הודעת WhatsApp מוקדמת עם תמונה, כשהאפשרות פתוחה בחשבון. להבדל מול ההזמנה
-              הרשמית ראו את{" "}
+              דוגמה קצרה: «אנחנו מתחתנים. שמרו את 12 ביוני — ההזמנה בדרך.» או «סייב דה דייט: מיה ואלון,
+              4 בספטמבר, אזור תל אביב.» בלי שעת חופה ובלי בקשה לאשר הגעה.
+            </p>
+            <p>
+              ב־Invistimo זו הודעת WhatsApp מוקדמת עם תמונה, כשהאפשרות פתוחה בחשבון. את ההזמנה המלאה
+              שולחים אחר כך מ־{" "}
+              <Link href="/invitations/chatuna" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                הזמנה דיגיטלית לחתונה
+              </Link>
+              . להבדל מול ההזמנה הרשמית ראו את{" "}
               <Link
                 href="/info/guides/save-the-date-vs-invitation"
                 className="font-bold text-[#8A642E] underline-offset-4 hover:underline"

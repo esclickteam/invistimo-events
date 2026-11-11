@@ -109,6 +109,41 @@ export default function PricingMarketingExtras() {
       </RevealOnScroll>
 
       <RevealOnScroll>
+        <section className="px-5 py-12 md:px-8 md:py-16">
+          <div className="mx-auto max-w-3xl">
+            <h2 className="text-3xl font-black text-[#35281F] md:text-4xl">
+              אין חבילת אישורי הגעה בחינם
+            </h2>
+            <div className="mt-5 space-y-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
+              <p>
+                אישורי הגעה ב־Invistimo הם שירות בתשלום. המחיר נקבע במחשבון לפי מספר הרשומות, סוג החבילה
+                והתוספות, וכל המחירים כוללים מע״מ. אין מסלול שבו מנהלים אירוע שלם בלי תשלום, ואין אפליקציה
+                חינמית לניהול האירוע.
+              </p>
+              <p>
+                מה כלול תלוי בחבילה: הזמנה דיגיטלית, סבבי הודעות, ולפי המסלול גם שיחות, תזכורת ומספר שולחן.
+                הושבה דיגיטלית היא תוספת. האורחים לא מתקינים אפליקציה — הם עונים בקישור.
+              </p>
+              <p>
+                אפשר להתרשם מהמסכים ב־<Link href="/try" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">הדגמה</Link>{" "}
+                לפני שפונים לנציג. זו התנסות במערכת, לא אירוע בלי תשלום. גיליון או קבוצת וואטסאפ לא עולים
+                כסף, וגם לא נותנים קישור אישי, סבב תזכורת ומעקב אחד. המערכת עושה את זה, ויש לה מחיר.
+                פירוט הדוגמאות לפי רשומות נמצא ב־<Link href="/info/guides/cost-rsvp-wedding" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">כמה עולה אישורי הגעה</Link>.
+              </p>
+            </div>
+            <div className="mt-6">
+              <Link
+                href="#pricing-calculator"
+                className="inline-flex min-h-12 items-center justify-center bg-[#35281F] px-6 py-3 text-sm font-black text-[#F7F1E8]"
+              >
+                לחישוב המחיר לפי רשומות
+              </Link>
+            </div>
+          </div>
+        </section>
+      </RevealOnScroll>
+
+      <RevealOnScroll>
         <section className="bg-[#FFFDF8]/70 px-5 py-12 md:px-8 md:py-16">
           <div className="mx-auto max-w-4xl">
             <h2 className="text-3xl font-black text-[#35281F] md:text-4xl">

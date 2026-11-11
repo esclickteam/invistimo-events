@@ -10,7 +10,7 @@ import {
 const next = {
   site: "https://www.invistimo.com",
   note: "Factual short answers mirrored from public HTML. Not a ranking signal.",
-  updated: "2026-11-06",
+  updated: "2026-11-11",
   volumeNote: KEYWORD_VOLUME_NOTE,
   pageAnswers: PAGE_ANSWERS,
   packageComparison: PACKAGE_COMPARISON,

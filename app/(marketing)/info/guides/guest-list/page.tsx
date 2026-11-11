@@ -14,7 +14,7 @@ import { GUEST_LIST_FAQS } from "./guideFaqs";
 const PATH = "/info/guides/guest-list";
 const TITLE = "איך מנהלים רשימת מוזמנים לחתונה? מדריך מלא | Invistimo";
 const DESCRIPTION =
-  "איך מכינים רשימת מוזמנים לחתונה בלי כפילויות? מדריך לניהול זוגות ומשפחות, בדיקת מספרי טלפון, העלאת Excel, אישורי הגעה וסידורי הושבה.";
+  "איך מנהלים רשימת מוזמנים לחתונה בלי כפילויות: זוגות, משפחות ומספרי טלפון. את טבלת האקסל מכינים במדריך נפרד, ואת ההעלאה במדריך הייבוא.";
 
 const OG_SHARE = {
   url: absoluteUrl("/images/guides/guest-list/dashboard-guests.jpg"),

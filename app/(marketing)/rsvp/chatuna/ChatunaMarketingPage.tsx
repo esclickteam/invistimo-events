@@ -852,6 +852,39 @@ export default function ChatunaMarketingPage() {
         </div>
       </SectionShell>
 
+      {/* Channels */}
+      <SectionShell tone="cream">
+        <h2 className="font-[family-name:var(--font-chatuna-display)] text-3xl leading-tight text-[#2A211A] md:text-4xl">
+          וואטסאפ, SMS ושיחות — אותו תהליך לחתונה
+        </h2>
+        <div className="mt-6 max-w-3xl space-y-4 text-[16px] leading-8 text-[#5C4A3A]">
+          <p>
+            מתחילים בערך שבועיים עד שבועיים וחצי לפני החתונה, אחרי שההזמנה סופית. זו המלצת תכנון, לא תאריך קבוע.
+            בחבילת ההודעות יוצאים שני סבבי WhatsApp עם קישור אישי. האורח מסמן אם הוא מגיע וכמה מגיעים.
+          </p>
+          <p>
+            SMS בחבילה הוא תזכורת לקראת האירוע, ולעיתים הודעת תודה. הוא גם יכול לצאת כשהוואטסאפ לא נשלח.
+            שתיקה אינה מפעילה SMS. מי שלא ענה נשאר במעקב, ואפשר להוסיף שיחות מוקלטות או מוקד לפי החבילה.
+          </p>
+          <p>
+            את מספר המגיעים סופרים מתוך התשובות, לא מתוך רשימת השמות כולה, ואותו מספר משמש את האולם ואת המנות.
+            אחרי שיש תשובות יציבות ממשיכים ל
+            <Link href={LINKS.seating} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              סידורי הושבה
+            </Link>
+            . פירוט הערוץ נמצא ב
+            <Link href={LINKS.whatsapp} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              אישורי הגעה בוואטסאפ
+            </Link>
+            , והשירות הכללי לכל אירוע ב
+            <Link href={LINKS.rsvp} className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+              מערכת אישורי הגעה
+            </Link>
+            .
+          </p>
+        </div>
+      </SectionShell>
+
       {/* 15 Prep */}
       <SectionShell tone="cream">
         <h2 className="font-[family-name:var(--font-chatuna-display)] text-3xl leading-tight text-[#2A211A] md:text-4xl">

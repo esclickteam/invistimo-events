@@ -11,9 +11,9 @@ import CostRsvpGuide from "./CostRsvpGuide";
 import { COST_RSVP_FAQS } from "./guideFaqs";
 
 const PATH = "/info/guides/cost-rsvp-wedding";
-const TITLE = "כמה עולה אישורי הגעה לחתונה? מחיר לפי רשומות | Invistimo";
+const TITLE = "כמה עולה אישורי הגעה? מחיר לחתונה לפי רשומות | Invistimo";
 const DESCRIPTION =
-  "כמה עולה אישורי הגעה לחתונה? מחיר לפי 200, 350 ו־500 רשומות, בלי סכום אחד לכל חתונה. מה זו רשומה, מה לא נגרע מהמכסה, ומה מחושב בנפרד.";
+  "אישורי הגעה מחיר: כמה עולה לחתונה לפי 200, 350 ו־500 רשומות, בלי סכום אחד לכל אירוע. מה זו רשומה, מה לא נגרע מהמכסה, ומה מחושב בנפרד.";
 
 export const metadata = pageMetadata({
   title: TITLE,

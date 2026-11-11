@@ -92,6 +92,7 @@ export const GUIDE_CATEGORIES: GuideCategory[] = [
       "personal-rsvp-link",
       "manage-guests-after-rsvp",
       "import-guest-list",
+      "wedding-guest-list-excel",
       "plus-ones-and-kids-rsvp",
       "overseas-guests-rsvp",
       "last-minute-guest-changes",

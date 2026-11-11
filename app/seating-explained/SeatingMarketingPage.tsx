@@ -725,6 +725,39 @@ export default function SeatingMarketingPage() {
         </div>
       </Section>
 
+      <Section id="how-tables" tone="cream">
+        <Eyebrow>סידור שולחנות</Eyebrow>
+        <h2 className={`${display.className} mt-3 max-w-3xl text-3xl font-bold md:text-4xl`}>
+          איך עושים סידור שולחנות לחתונה
+        </h2>
+        <div className="mt-5 max-w-3xl space-y-4 text-base leading-8 text-[#6B5360] md:text-lg">
+          <p>
+            מתחילים מרשימת מי שאישר הגעה, לא מכל השמות. מחלקים שולחנות לפי קיבולת האולם ולפי קבוצות —
+            משפחה, צד חתן או כלה, חברים. אחר כך משבצים, רואים מקומות פנויים, ומעבירים אורח משולחן לשולחן
+            כשמשהו משתנה.
+          </p>
+          <p>
+            מספר שולחן נשלח אחרי שהשיבוץ יציב, רק למי שמשובץ באותו רגע. שינוי ברגע האחרון נעשה במפה.
+            הודעה שכבר יצאה לטלפון אינה מתחלפת לבד. מי שלא שובץ נשאר ברשימה עד שמוצאים לו מקום פנוי.
+          </p>
+          <p>
+            ההושבה יושבת על{" "}
+            <Link href={LINKS.rsvp} className="font-bold text-[#842B4C] underline-offset-4 hover:underline">
+              אישורי הגעה
+            </Link>
+            . החלטות על רזרבות ומנות נשארות ב
+            <Link href={LINKS.weddingSeatingGuide} className="font-bold text-[#842B4C] underline-offset-4 hover:underline">
+              מדריך סידורי הושבה לחתונה
+            </Link>
+            , ונוסח הודעת המספר ב
+            <Link href={LINKS.tableMessage} className="font-bold text-[#842B4C] underline-offset-4 hover:underline">
+              הודעת מספר שולחן
+            </Link>
+            .
+          </p>
+        </div>
+      </Section>
+
       {/* FAQ */}
       <Section id="faq" tone="cream">
         <Eyebrow>שאלות נפוצות</Eyebrow>

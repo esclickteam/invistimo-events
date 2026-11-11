@@ -43,6 +43,7 @@ const COVERS: Record<string, string> = {
   "overseas-guests-rsvp": "/marketing/blog/overseas-guests-rsvp.webp",
   "manage-guests-after-rsvp": "/marketing/blog/manage-guests-after-rsvp.webp",
   "import-guest-list": "/marketing/blog/import-guest-list.webp",
+  "wedding-guest-list-excel": "/images/guides/guest-list/guest-list-table.png",
 };
 
 export function coverFor(slug: string, alt: string): ArticleCover | null {

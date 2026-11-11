@@ -135,15 +135,6 @@ const BUILD_STEPS = [
   },
 ] as const;
 
-const EXCEL_TIPS = [
-  "שומרים מספרי טלפון כטקסט כדי לא לאבד אפסים מובילים.",
-  "מאחדים פורמטים שונים של מספרים לפני ההעלאה.",
-  "לא משאירים שורות כפולות בלי בדיקה.",
-  "לא יוצרים עמודות מיותרות מעבר לפורמט הייבוא.",
-  "לא מכניסים כמה מספרי טלפון לאותו תא.",
-  "מוודאים שכל שורה מייצגת את יחידת ההזמנה הרצויה.",
-] as const;
-
 const MERGE_TIPS = [
   "קובעים איש קשר מרכזי לכל צד.",
   "מאחדים רשימות בשלב מוקדם.",
@@ -698,104 +689,36 @@ export default function GuestListGuide() {
         </div>
       </section>
 
-      {/* Excel */}
+      {/* Excel handoff */}
       <section aria-labelledby="excel" className="bg-[#FBF6EE] px-5 py-16 md:px-8 md:py-20">
-        <div className="mx-auto max-w-6xl">
+        <div className="mx-auto max-w-3xl">
           <FadeIn>
             <Eyebrow>ייבוא</Eyebrow>
             <h2 id="excel" className="mt-3 max-w-3xl text-3xl font-black text-[#2C241C] md:text-4xl">
-              איך מסדרים קובץ Excel לפני שמעלים רשימת מוזמנים?
+              את הטבלה עצמה מכינים לפני שמנהלים אותה כאן
             </h2>
-            <p className="mt-5 max-w-3xl text-base leading-8 text-[#5C4A3A] md:text-lg">
-              אפשר להתחיל בגיליון מסודר ואז להעלות אותו למערכת לפי תבנית הייבוא של Invistimo. השדות
-              הנתמכים כוללים: שם מלא, טלפון, סטטוס, קרבה, קבוצה, מספר מוזמנים, הערות ושולחן.
+            <p className="mt-5 text-base leading-8 text-[#5C4A3A] md:text-lg">
+              המדריך הזה עוסק בניהול הרשימה אחרי שהיא קיימת. עמודות, זוגות, ילדים, צד חתן או כלה
+              וכפילויות בגיליון מוסברים ב־{" "}
+              <Link href="/info/guides/wedding-guest-list-excel" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                איך להכין רשימת מוזמנים לחתונה באקסל
+              </Link>
+              . ההעלאה לחשבון נמצאת ב־{" "}
+              <Link href="/info/guides/import-guest-list" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                בניית וייבוא רשימת מוזמנים
+              </Link>
+              .
             </p>
-          </FadeIn>
-
-          <div className="mt-10 grid items-start gap-8 lg:grid-cols-[0.95fr_1.05fr]">
-            <FadeIn>
-              <div className="overflow-x-auto rounded-[24px] border border-[#E7D3B0] bg-[#FFFDF8] shadow-[0_12px_32px_rgba(44,36,28,0.04)]">
-                <table className="min-w-full text-right text-sm">
-                  <caption className="sr-only">דוגמה למבנה גיליון ייבוא</caption>
-                  <thead className="bg-[#F7EDDF] text-xs font-black text-[#7A5530]">
-                    <tr>
-                      <th className="px-3 py-3">שם מלא</th>
-                      <th className="px-3 py-3">טלפון</th>
-                      <th className="px-3 py-3">מוזמנים</th>
-                      <th className="px-3 py-3">קבוצה</th>
-                      <th className="px-3 py-3">הערות</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-[#5C4A3A]">
-                    <tr className="border-t border-[#EAD9BE]">
-                      <td className="px-3 py-3 font-bold">ישראל ורונית כהן</td>
-                      <td className="px-3 py-3" dir="ltr">
-                        05X-XXX-XXXX
-                      </td>
-                      <td className="px-3 py-3">2</td>
-                      <td className="px-3 py-3">משפחת החתן</td>
-                      <td className="px-3 py-3">זוג</td>
-                    </tr>
-                    <tr className="border-t border-[#EAD9BE]">
-                      <td className="px-3 py-3 font-bold">משפחת לוי</td>
-                      <td className="px-3 py-3" dir="ltr">
-                        05X-XXX-XXXX
-                      </td>
-                      <td className="px-3 py-3">4</td>
-                      <td className="px-3 py-3">משפחת הכלה</td>
-                      <td className="px-3 py-3">שני ילדים</td>
-                    </tr>
-                    <tr className="border-t border-[#EAD9BE]">
-                      <td className="px-3 py-3 font-bold">מיכל ישראלי</td>
-                      <td className="px-3 py-3" dir="ltr">
-                        05X-XXX-XXXX
-                      </td>
-                      <td className="px-3 py-3">1</td>
-                      <td className="px-3 py-3">חברים</td>
-                      <td className="px-3 py-3">—</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div className="mt-5">
-                <TrackedCtaLink
-                  href="/Invistimo_v4.xlsx?v=4"
-                  className={ctaSecondary}
-                  location={`excel_template:${PATH}`}
-                >
-                  הורידו תבנית לרשימת מוזמנים
-                </TrackedCtaLink>
-              </div>
-            </FadeIn>
-
-            <FadeIn delay={0.05}>
-              <figure className="overflow-hidden rounded-[24px] border border-[#E7D3B0] bg-white shadow-[0_16px_40px_rgba(44,36,28,0.06)]">
-                <Image
-                  src="/images/guides/guest-list/import-excel-modal.png"
-                  alt="מסך ייבוא מוזמנים מאקסל ב־Invistimo עם הורדת תבנית והעלאת קובץ"
-                  width={1440}
-                  height={900}
-                  className="h-auto w-full object-cover object-top"
-                  loading="lazy"
-                  sizes="(max-width:1024px) 100vw, 50vw"
-                />
-                <figcaption className="px-4 py-3 text-sm leading-6 text-[#7A6042]">
-                  תהליך הייבוא במערכת: הורדת תבנית, מילוי הפרטים והעלאת XLSX/XLS.
-                </figcaption>
-              </figure>
-            </FadeIn>
-          </div>
-
-          <ul className="mt-8 grid gap-3 md:grid-cols-2">
-            {EXCEL_TIPS.map((tip) => (
-              <li
-                key={tip}
-                className="rounded-[18px] border border-[#E7D3B0] bg-[#FFFDF8] px-4 py-3 text-sm leading-7 text-[#5C4A3A]"
+            <div className="mt-6">
+              <TrackedCtaLink
+                href="/Invistimo_v4.xlsx?v=4"
+                className={ctaSecondary}
+                location={`excel_template:${PATH}`}
               >
-                {tip}
-              </li>
-            ))}
-          </ul>
+                הורידו תבנית לרשימת מוזמנים
+              </TrackedCtaLink>
+            </div>
+          </FadeIn>
         </div>
       </section>
 
