@@ -352,7 +352,7 @@ export const FAQ_TOPICS = [
   {
     id: "whatsapp",
     title: "WhatsApp ואורחים",
-    ids: ["how-wa", "app", "multi", "update", "abroad", "summer"],
+    ids: ["how-wa", "sms-role", "app", "multi", "update", "abroad", "summer"],
   },
   {
     id: "followup",
