@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import FactTableView from "@/components/seo/FactTableView";
@@ -11,6 +12,33 @@ import { btnPrimaryDark, btnSecondary } from "@/lib/ui/buttonClasses";
 import { formatReadingTime, minutesFromText } from "@/lib/blog/reading";
 import StickyToc from "@/components/marketing/guides/StickyToc";
 import GuideToolbar from "@/components/marketing/guides/GuideToolbar";
+
+/** Turns a markdown link to an internal path into a real link. Plain paragraphs stay text. */
+function ParagraphText({ text }: { text: string }) {
+  const pattern = /\[([^\]]+)\]\((\/[^)\s]+)\)/g;
+  if (!pattern.test(text)) return text;
+  pattern.lastIndex = 0;
+  const nodes: Array<string | ReactElement> = [];
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let index = 0;
+  while ((match = pattern.exec(text))) {
+    if (match.index > last) nodes.push(text.slice(last, match.index));
+    nodes.push(
+      <Link
+        key={index}
+        href={match[2]}
+        className="font-bold text-[#8A642E] underline-offset-4 hover:underline"
+      >
+        {match[1]}
+      </Link>
+    );
+    last = match.index + match[0].length;
+    index += 1;
+  }
+  if (last < text.length) nodes.push(text.slice(last));
+  return nodes;
+}
 
 export type { FactTable };
 
@@ -324,7 +352,7 @@ export default function PublicContentPage({
               <h2 className="text-2xl font-black text-[#35281F] md:text-3xl">{section.heading}</h2>
               {section.paragraphs.map((paragraph) => (
                 <p key={paragraph} className="mt-4 text-base leading-8 text-[#5C4A3A] md:text-lg">
-                  {paragraph}
+                  <ParagraphText text={paragraph} />
                 </p>
               ))}
               {section.bullets?.length ? (
