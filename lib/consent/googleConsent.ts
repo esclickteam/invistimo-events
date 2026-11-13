@@ -102,11 +102,12 @@ export function setMeasurementTransportBlocked(blocked: boolean) {
   window.__invistimoBlockMeasurement = blocked;
   if (!measurementId) return;
   const disableKey = `ga-disable-${measurementId}`;
+  const flags = window as unknown as Record<string, unknown>;
   if (blocked) {
-    (window as Window & Record<string, unknown>)[disableKey] = true;
+    flags[disableKey] = true;
     return;
   }
-  delete (window as Window & Record<string, unknown>)[disableKey];
+  delete flags[disableKey];
 }
 
 /** Consent Mode v2 defaults. This does not load gtag.js and does not send a hit. */
