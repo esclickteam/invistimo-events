@@ -8,6 +8,7 @@ const allowed = new Set([
   "feat/admin-blog-draft-import",
   "fix/magazine-sitemap-dates",
   "fix/remove-business-magazine",
+  "privacy/consent-security-a11y",
 ]);
 
 // Vercel builds when this command exits 1, and skips the deployment when it exits 0.
