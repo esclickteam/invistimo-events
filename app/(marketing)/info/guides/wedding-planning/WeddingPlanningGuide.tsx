@@ -335,6 +335,10 @@ export default function WeddingPlanningGuide() {
                 <Link href="/info/guides/guest-list" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
                   מדריך רשימת המוזמנים
                 </Link>
+                . אם הרשימה עדיין בגיליון, ההכנה של העמודות והספירה נמצאת ב{" "}
+                <Link href="/info/guides/wedding-guest-list-excel" className="font-bold text-[#8A642E] underline-offset-4 hover:underline">
+                  מדריך רשימת מוזמנים באקסל
+                </Link>
                 .
               </p>
             </Prose>

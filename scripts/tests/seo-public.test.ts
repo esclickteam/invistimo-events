@@ -14,6 +14,7 @@ import { PAGE_ANSWERS, tableFor } from "../../lib/seo/answers";
 import { PILLARS } from "../../lib/seo/clusters";
 import { GUIDES, guidePath } from "../../lib/seo/guides";
 import { GEO_TASKS } from "../../lib/seo/geoTasks";
+import { GEO_MEASUREMENTS, MEASUREMENT_VERDICTS } from "../../lib/seo/geoMeasurements";
 import { AI_MONITOR_QUESTIONS, KEYWORD_MAP } from "../../lib/seo/keywordMap";
 import {
   articleNode,
@@ -443,6 +444,39 @@ test("geo tasks name one primary page for the rsvp and seating queries", () => {
   }
   assert.equal(new Set(GEO_TASKS.map((task) => task.id)).size, GEO_TASKS.length);
   assert.doesNotMatch(JSON.stringify(GEO_TASKS), /AggregateRating|Review/);
+});
+
+test("the 11 Nov wave has 7, 14 and 28 day checkpoints and no invented zeros", () => {
+  const ids = GEO_MEASUREMENTS.map((item) => item.id);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.ok(GEO_MEASUREMENTS.some((item) => item.targetUrl === "/info/guides/wedding-guest-list-excel"));
+  for (const item of GEO_MEASUREMENTS) {
+    assert.equal(item.measurementDate, "2026-11-11");
+    assert.deepEqual(
+      item.checkpoints.map((point) => point.day),
+      [7, 14, 28]
+    );
+    assert.deepEqual(
+      item.checkpoints.map((point) => point.date),
+      ["2026-11-18", "2026-11-25", "2026-12-09"]
+    );
+    for (const point of item.checkpoints) {
+      assert.equal(point.verdict, "עדיין מוקדם למדוד");
+      assert.equal(point.after, null);
+      assert.ok(MEASUREMENT_VERDICTS.includes(point.verdict));
+    }
+    const numbers = [item.baseline.impressions, item.baseline.clicks, item.baseline.ctr, item.baseline.averagePosition];
+    const present = numbers.filter((value) => value !== null);
+    assert.ok(present.length === 0 || present.length === 4, item.id);
+  }
+  const wedding = GEO_MEASUREMENTS.find((item) => item.id === "wedding-rsvp");
+  assert.equal(wedding?.baseline.impressions, 81);
+  assert.equal(wedding?.baseline.clicks, 5);
+  assert.equal(wedding?.currentRankingUrl, "/rsvp");
+  assert.equal(wedding?.targetUrl, "/rsvp/chatuna");
+  const excel = GEO_MEASUREMENTS.find((item) => item.id === "excel-guest-list");
+  assert.equal(excel?.baseline.impressions, null);
+  assert.equal(excel?.baseline.clicks, null);
 });
 
 test("pillar clusters do not assign one URL to two topics and answer-first covers hubs", () => {

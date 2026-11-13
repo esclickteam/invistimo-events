@@ -711,7 +711,7 @@ export default function GuestListGuide() {
             </p>
             <div className="mt-6">
               <TrackedCtaLink
-                href="/Invistimo_v4.xlsx?v=4"
+                href="/wedding-guest-list-template.xlsx"
                 className={ctaSecondary}
                 location={`excel_template:${PATH}`}
               >

@@ -5,6 +5,8 @@
  * Wave of 11 Nov 2026 is marked done and waiting for a fresh measurement.
  * Do not edit the same pages again on the same day only because ranks have not moved.
  * The before-numbers for the earlier wave live in docs/seo/monitoring/pr-519-gsc-baseline-2026-11-05.json.
+ * The 7/14/28 checkpoints for this wave live in lib/seo/geoMeasurements.ts.
+ * A checkpoint records a verdict only. It does not change titles, pages, or links.
  */
 
 export type GeoTaskPriority = "high" | "medium";
