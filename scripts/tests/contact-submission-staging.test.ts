@@ -76,12 +76,13 @@ test.after(async () => {
   await mongod.stop();
 });
 
-function contactRequest(body: Record<string, unknown>, referer?: string) {
+function contactRequest(body: Record<string, unknown>, referer?: string, cookie?: string) {
   return new Request("https://staging.invistimo.com/api/contact", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...(referer ? { referer } : {}),
+      ...(cookie ? { cookie } : {}),
     },
     body: JSON.stringify(body),
   });
@@ -182,7 +183,8 @@ test("one intercepted staging-mode inquiry matches across the record, log, GA4, 
         utmCampaign: PERSON.phone,
         submissionId: "client-supplied-id",
       },
-      "https://news.example/story?utm_source=newsletter"
+      "https://news.example/story?utm_source=newsletter",
+      "invistimo_analytics=granted"
     )
   );
   const body = await response.json();
