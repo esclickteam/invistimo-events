@@ -169,7 +169,7 @@ async function main() {
     report.publicConnectClosed = policies
       .filter((value) => !value.includes("unsafe-eval"))
       .every((value) => !value.includes("wss:") && !/connect-src[^;]*\shttps:(?:\s|;)/.test(value));
-    await page.getByRole("dialog", { name: "עוגיות באתר Invistimo" }).waitFor();
+    await page.getByRole("dialog", { name: "עוגיות באתר" }).waitFor();
     await page.waitForTimeout(1500);
     report.blockedBeforeChoice = !measurement.some((url) => url.includes("google-analytics.com") || url.includes("googletagmanager.com"));
     report.userwayBeforeChoice = (await page.locator("script[src*='userway']").count()) === 0;
@@ -183,7 +183,7 @@ async function main() {
     const nextName = await page.evaluate(() => (document.activeElement?.textContent || "").trim());
     report.keyboardNames = [await accept.innerText(), nextName];
     report.focusRing = focusRing;
-    report.keyboardReachesChoice = nextName.includes("דחיית") || nextName.includes("התאמה");
+    report.keyboardReachesChoice = nextName.includes("דחי") || nextName.includes("הגדרות");
 
     await page.getByRole("button", { name: "אישור הכול" }).click();
     await page.waitForTimeout(1500);
@@ -213,7 +213,7 @@ async function main() {
 
     const mobile = await browser.newPage({ ...devices["Pixel 7"] });
     await mobile.goto(base + "/", { waitUntil: "domcontentloaded" });
-    const banner = mobile.getByRole("dialog", { name: "עוגיות באתר Invistimo" });
+    const banner = mobile.getByRole("dialog", { name: "עוגיות באתר" });
     await banner.waitFor();
     const box = await banner.boundingBox();
     const viewport = mobile.viewportSize();
@@ -293,7 +293,7 @@ async function main() {
 
     await page.goto(base + `/invite/${shareId}`, { waitUntil: "load" });
     await page.locator("script[src*='userway']").waitFor({ state: "attached", timeout: 10000 }).catch(() => undefined);
-    report.guestBanner = await page.getByRole("dialog", { name: "עוגיות באתר Invistimo" }).count();
+    report.guestBanner = await page.getByRole("dialog", { name: "עוגיות באתר" }).count();
     report.guestBannerAbsent = report.guestBanner === 0;
     report.userwayOnGuest = await page.locator("script[src*='userway']").count();
     report.userwayOnGuestLoaded = Number(report.userwayOnGuest) > 0;
@@ -343,12 +343,12 @@ async function main() {
         if (routePath.startsWith("/invite") || routePath.startsWith("/login") || routePath.startsWith("/dashboard")) {
           await probe.waitForTimeout(1200);
         } else {
-          await probe.getByRole("dialog", { name: "עוגיות באתר Invistimo" }).waitFor({ timeout: 8000 }).catch(() => undefined);
+          await probe.getByRole("dialog", { name: "עוגיות באתר" }).waitFor({ timeout: 8000 }).catch(() => undefined);
         }
       } catch {
         hosts.add("navigation-error");
       }
-      const banner = await probe.getByRole("dialog", { name: "עוגיות באתר Invistimo" }).count().catch(() => 0);
+      const banner = await probe.getByRole("dialog", { name: "עוגיות באתר" }).count().catch(() => 0);
       routeReport.push({ path: routePath, status, hosts: [...hosts], banner });
       await probe.close();
     }

@@ -80,7 +80,7 @@ async function desktop() {
     frame: home.headers()["x-frame-options"] || "",
     csp: (home.headers()["content-security-policy"] || "").includes("frame-ancestors 'self'"),
   };
-  await page.getByRole("dialog", { name: "עוגיות באתר Invistimo" }).waitFor();
+  await page.getByRole("dialog", { name: "עוגיות באתר" }).waitFor();
   report.blockedBeforeChoice = measurement.length === 0;
 
   await page.getByRole("button", { name: "דחיית עוגיות לא חיוניות" }).click();
@@ -88,7 +88,7 @@ async function desktop() {
   await page.reload({ waitUntil: "domcontentloaded" });
   report.staysBlockedAfterReject =
     measurement.length === 0 &&
-    (await page.getByRole("dialog", { name: "עוגיות באתר Invistimo" }).count()) === 0;
+    (await page.getByRole("dialog", { name: "עוגיות באתר" }).count()) === 0;
 
   await page.evaluate(() => {
     localStorage.clear();
@@ -96,7 +96,7 @@ async function desktop() {
   });
   measurement.length = 0;
   await page.reload({ waitUntil: "domcontentloaded" });
-  await page.getByRole("button", { name: "התאמה אישית" }).click();
+  await page.getByRole("button", { name: "הגדרות", exact: true }).click();
   await page.getByRole("checkbox", { name: /מדידה וניתוח/ }).check();
   await page.getByRole("button", { name: "שמירת הבחירה" }).click();
   await page.waitForTimeout(1200);
@@ -127,11 +127,11 @@ async function desktop() {
   await page.waitForTimeout(800);
   report.revokeStopsFuture =
     measurement.length === hitsBefore && (await page.locator("#invistimo-ga4").count()) === 0;
-  report.preferencePersists = (await page.getByRole("dialog", { name: "עוגיות באתר Invistimo" }).count()) === 0;
+  report.preferencePersists = (await page.getByRole("dialog", { name: "עוגיות באתר" }).count()) === 0;
 
   await page.goto(base + "/invite/qa-guest", { waitUntil: "domcontentloaded" });
   report.noBannerOnGuestLink =
-    (await page.getByRole("dialog", { name: "עוגיות באתר Invistimo" }).count()) === 0;
+    (await page.getByRole("dialog", { name: "עוגיות באתר" }).count()) === 0;
 
   await page.goto(base + "/contact", { waitUntil: "domcontentloaded" });
   report.contactNotice = (await page.getByRole("link", { name: "מדיניות הפרטיות" }).count()) > 0;

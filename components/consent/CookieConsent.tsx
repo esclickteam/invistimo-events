@@ -111,36 +111,67 @@ export default function CookieConsent() {
   }
 
   return (
-    <section
-      dir="rtl"
-      role="dialog"
-      aria-modal="false"
-      aria-labelledby={titleId}
-      aria-describedby={descriptionId}
-      className="fixed inset-x-0 bottom-0 z-[70] border-t border-[#C5A582] bg-[#F7F1E8] text-[#3E2D20] shadow-[0_-12px_40px_rgba(66,24,47,0.12)]"
-    >
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-4 sm:px-6 md:py-5">
-        <div className="max-w-3xl">
-          <h2 id={titleId} className="text-lg font-black text-[#42182F]">
-            {customizing ? "התאמת עוגיות" : "עוגיות באתר Invistimo"}
-          </h2>
-          <p id={descriptionId} className="mt-2 text-sm leading-6 text-[#5C4636]">
-            עוגיות חיוניות נדרשות להפעלת האתר. מדידה וכלים לא חיוניים כבויים עד שתבחרו.
-            אפשר לשנות את הבחירה בכל עת דרך „הגדרות עוגיות” בתחתית האתר.
-          </p>
-          <p className="mt-2 text-sm leading-6">
-            <Link href="/cookies" className="font-bold text-[#842B4C] underline underline-offset-4">
-              מדיניות העוגיות
-            </Link>
-            <span aria-hidden> · </span>
-            <Link href="/privacy" className="font-bold text-[#842B4C] underline underline-offset-4">
-              מדיניות הפרטיות
-            </Link>
-          </p>
+    <div className="pointer-events-none fixed inset-x-0 bottom-0 z-[70] flex justify-center px-3 pb-3 sm:px-5 sm:pb-5">
+      <section
+        dir="rtl"
+        role="dialog"
+        aria-modal="false"
+        aria-labelledby={titleId}
+        aria-describedby={descriptionId}
+        className="pointer-events-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-[920px] overflow-y-auto rounded-2xl bg-white text-[#1A1A1A] shadow-[0_10px_40px_rgba(20,16,12,0.16)] ring-1 ring-black/5"
+      >
+        <div className="flex flex-col gap-4 p-4 sm:p-5 md:flex-row md:items-center md:justify-between md:gap-8">
+          <div className="flex min-w-0 items-start gap-3">
+            <CookieMark />
+            <div className="min-w-0">
+              <h2 id={titleId} className="text-base font-bold leading-6 text-[#1A1A1A]">
+                עוגיות באתר
+              </h2>
+              <p id={descriptionId} className="mt-1 text-[13px] leading-5 text-[#3F3F3F] sm:text-sm sm:leading-6">
+                אנחנו משתמשים בעוגיות הכרחיות כדי שהאתר יעבוד. מדידה וכלים לא חיוניים נטענים רק אחרי הסכמה.{" "}
+                <Link href="/privacy" className="font-semibold text-[#1A1A1A] underline underline-offset-2">
+                  מדיניות הפרטיות
+                </Link>
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 md:flex md:shrink-0 md:items-center md:gap-3">
+            {customizing ? (
+              <button type="button" className={primaryButton} onClick={() => persist({ analytics, functional })}>
+                שמירת הבחירה
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={primaryButton}
+                onClick={() => persist({ analytics: true, functional: true })}
+              >
+                אישור הכול
+              </button>
+            )}
+            <button
+              type="button"
+              className={primaryButton}
+              aria-label="דחיית עוגיות לא חיוניות"
+              onClick={() => persist({ analytics: false, functional: false })}
+            >
+              דחייה
+            </button>
+            {customizing ? (
+              <button type="button" className={textButton} onClick={() => setCustomizing(false)}>
+                חזרה
+              </button>
+            ) : (
+              <button type="button" className={textButton} onClick={() => setCustomizing(true)}>
+                הגדרות
+              </button>
+            )}
+          </div>
         </div>
 
         {customizing ? (
-          <fieldset className="grid gap-3 border-0 p-0">
+          <fieldset className="grid gap-3 border-0 px-4 pb-4 sm:px-5 sm:pb-5">
             <legend className="sr-only">קטגוריות עוגיות</legend>
             <Choice
               title="חיוניות"
@@ -162,43 +193,28 @@ export default function CookieConsent() {
             />
           </fieldset>
         ) : null}
-
-        <div className="grid gap-2 sm:grid-cols-3">
-          {customizing ? (
-            <button type="button" className={primaryButton} onClick={() => persist({ analytics, functional })}>
-              שמירת הבחירה
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={primaryButton}
-              onClick={() => persist({ analytics: true, functional: true })}
-            >
-              אישור הכול
-            </button>
-          )}
-          <button
-            type="button"
-            className={secondaryButton}
-            onClick={() => persist({ analytics: false, functional: false })}
-          >
-            דחיית עוגיות לא חיוניות
-          </button>
-          {customizing ? (
-            <button type="button" className={secondaryButton} onClick={() => setCustomizing(false)}>
-              חזרה
-            </button>
-          ) : (
-            <button type="button" className={secondaryButton} onClick={() => setCustomizing(true)}>
-              התאמה אישית
-            </button>
-          )}
-        </div>
         <p className="sr-only" aria-live="polite">
           {savedNote}
         </p>
-      </div>
-    </section>
+      </section>
+    </div>
+  );
+}
+
+function CookieMark() {
+  return (
+    <span
+      className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#F8E7B0]"
+      aria-hidden
+    >
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="8" fill="#F3C14B" />
+        <circle cx="9" cy="10" r="1.15" fill="#7A4E12" />
+        <circle cx="13.6" cy="8.6" r="0.9" fill="#7A4E12" />
+        <circle cx="14.2" cy="13.1" r="1.15" fill="#7A4E12" />
+        <circle cx="10" cy="14.4" r="0.8" fill="#7A4E12" />
+      </svg>
+    </span>
   );
 }
 
@@ -217,7 +233,7 @@ function Choice({
 }) {
   const id = useId();
   return (
-    <label htmlFor={id} className="flex items-start gap-3 border border-[#E4D4BC] bg-[#FFF9F2] px-3 py-3">
+    <label htmlFor={id} className="flex items-start gap-3 rounded-xl border border-[#ECECEC] bg-[#FAFAFA] px-3 py-3">
       <input
         id={id}
         type="checkbox"
@@ -235,7 +251,7 @@ function Choice({
 }
 
 const primaryButton =
-  "inline-flex min-h-12 items-center justify-center rounded-none border border-[#42182F] bg-[#42182F] px-4 py-3 text-sm font-bold text-[#FFF8F0] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C5A582]";
+  "inline-flex min-h-11 items-center justify-center rounded-full bg-[#1A1A1A] px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-[#2C2C2C] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4A46A]";
 
-const secondaryButton =
-  "inline-flex min-h-12 items-center justify-center rounded-none border border-[#842B4C] bg-[#FFF9F2] px-4 py-3 text-sm font-bold text-[#42182F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C5A582]";
+const textButton =
+  "col-span-2 inline-flex min-h-11 items-center justify-center px-2 text-sm font-semibold text-[#1A1A1A] underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4A46A] md:col-auto";
