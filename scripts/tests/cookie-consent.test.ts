@@ -6,7 +6,7 @@ import test from "node:test";
 import { analyticsAllowed } from "../../lib/seo/analytics";
 import { isAnalyticsBrowserCookie } from "../../lib/consent/policy";
 import { createConsentRecord, parseConsent } from "../../lib/consent/storage";
-import { CONTENT_SECURITY_POLICY } from "../../lib/security/responseHeaders";
+import { CONTENT_SECURITY_POLICY, PUBLIC_CONTENT_SECURITY_POLICY } from "../../lib/security/responseHeaders";
 
 const root = path.resolve(process.cwd());
 
@@ -54,4 +54,11 @@ test("security headers cover the four report items without opening the frame", (
   assert.match(CONTENT_SECURITY_POLICY, /frame-ancestors 'self'/);
   assert.match(CONTENT_SECURITY_POLICY, /object-src 'none'/);
   assert.doesNotMatch(CONTENT_SECURITY_POLICY, /frame-ancestors \*/);
+  assert.match(CONTENT_SECURITY_POLICY, /unsafe-eval/);
+  assert.doesNotMatch(PUBLIC_CONTENT_SECURITY_POLICY, /unsafe-eval/);
+  assert.match(PUBLIC_CONTENT_SECURITY_POLICY, /unsafe-inline/);
+  const connect = PUBLIC_CONTENT_SECURITY_POLICY.split("; ").find((part) => part.startsWith("connect-src"));
+  const connectTokens = connect?.split(" ") || [];
+  assert.equal(connectTokens.includes("https:"), false);
+  assert.equal(connectTokens.includes("wss:"), false);
 });
