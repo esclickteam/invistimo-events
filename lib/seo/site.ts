@@ -266,6 +266,14 @@ export const CORE_PUBLIC_ROUTES: PublicRoute[] = [
     priority: 0.3,
   },
   {
+    path: "/cookies",
+    title: "מדיניות עוגיות | Invistimo",
+    description:
+      "אילו עוגיות וטכנולוגיות אחסון פועלות באתר Invistimo, לאיזו מטרה, וכיצד מאשרים, דוחים או משנים את הבחירה.",
+    changeFrequency: "yearly",
+    priority: 0.3,
+  },
+  {
     path: "/accessibility",
     title: "הצהרת נגישות | Invistimo",
     description: "הצהרת הנגישות של אתר Invistimo.",

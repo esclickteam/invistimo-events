@@ -1,3 +1,4 @@
+import { ANALYTICS_SIGNAL_COOKIE } from "@/lib/consent/policy";
 import { resolveAppEnv } from "@/lib/env/appEnv";
 import { isGaMeasurementId } from "@/lib/seo/analytics";
 
@@ -7,7 +8,7 @@ export const MAX_GA_ATTEMPTS = 3;
 /** Bound the visitor's wait. A silent Google endpoint must not hold the form. */
 export const GA4_MP_TIMEOUT_MS = 2_000;
 export const CONTACT_PAGE_CLIENT = "contact_page";
-export const ANALYTICS_CONSENT_COOKIE = "invistimo_analytics";
+export const ANALYTICS_CONSENT_COOKIE = ANALYTICS_SIGNAL_COOKIE;
 export const CONTACT_PAGE_LOCATION = "https://www.invistimo.com/contact";
 
 /** Production measurements stay on the public site. Other environments never use that host. */
@@ -158,8 +159,8 @@ export function parseGaSessionId(cookieValue: string) {
 }
 
 /**
- * Opt-out only. Missing consent is not a denial: this site has no consent
- * banner, and an ad blocker is not one of these signals.
+ * Measurement Protocol runs only after an explicit analytics grant.
+ * A missing cookie is not permission. GPC and DNT still block a grant.
  */
 export function measurementDenied(input: {
   gpc: string | null;
@@ -173,10 +174,10 @@ export function measurementDenied(input: {
     return { denied: true, reason: "dnt" };
   }
   const consent = String(input.consentCookie || "").trim().toLowerCase();
-  if (consent === "denied" || consent === "0" || consent === "false") {
-    return { denied: true, reason: "consent_cookie" };
+  if (consent === "granted" || consent === "1" || consent === "true") {
+    return { denied: false, reason: "" };
   }
-  return { denied: false, reason: "" };
+  return { denied: true, reason: "consent_cookie" };
 }
 
 export function createAnonymousClientId(random = Math.random, now = Date.now()) {

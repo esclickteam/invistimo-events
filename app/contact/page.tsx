@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import localFont from "next/font/local";
 import { motion, useReducedMotion } from "framer-motion";
+import PersonalDataNotice from "@/components/legal/PersonalDataNotice";
 import { isValidContactPhone } from "@/lib/contact/contactPhone";
 import { readBrowserInquiryContext } from "@/lib/contact/publicInquiryContext";
 import {
@@ -93,7 +94,7 @@ function CheckIcon() {
 }
 
 const fieldClass =
-  "w-full rounded-none border border-[#C5A582]/70 bg-[#FFF8F0] px-3.5 py-2.5 text-[15px] text-[#42182F] outline-none transition placeholder:text-[#8C7763] focus:border-[#842B4C] focus:bg-white focus:ring-2 focus:ring-[#C5A582]/40";
+  "w-full rounded-none border border-[#C5A582]/70 bg-[#FFF8F0] px-3.5 py-2.5 text-[15px] text-[#42182F] outline-none transition placeholder:text-[#6B5745] focus:border-[#842B4C] focus:bg-white focus:ring-2 focus:ring-[#C5A582]/40";
 
 const labelClass = "text-[13px] font-bold text-[#4A3728]";
 
@@ -242,7 +243,7 @@ export default function ContactPage() {
       <section className="relative mx-auto max-w-6xl px-5 pb-4 pt-8 md:px-8 md:pb-5 md:pt-10">
         <div className="grid items-center gap-6 lg:grid-cols-[1.2fr_0.8fr] lg:gap-10">
           <div className="order-1">
-            <p className="font-[family-name:var(--font-contact-display)] text-[11px] font-medium tracking-[0.28em] text-[#8A6A3E] sm:text-xs">
+            <p className="font-[family-name:var(--font-contact-display)] text-[11px] font-medium tracking-[0.28em] text-[#5C4636] sm:text-xs">
               INVISTIMO&nbsp;&nbsp;/&nbsp;&nbsp;יצירת קשר
             </p>
 
@@ -301,7 +302,7 @@ export default function ContactPage() {
                   }`}
                 />
               </div>
-              <figcaption className="mt-2 text-center font-[family-name:var(--font-contact-display)] text-[10px] tracking-[0.18em] text-[#9A8164] lg:text-start">
+              <figcaption className="mt-2 text-center font-[family-name:var(--font-contact-display)] text-[10px] tracking-[0.18em] text-[#5C4636] lg:text-start">
                 כל פרט מתחיל כאן
               </figcaption>
             </figure>
@@ -335,7 +336,7 @@ export default function ContactPage() {
                   aria-live="polite"
                   className="flex min-h-[320px] flex-col items-center justify-center py-10 text-center"
                 >
-                  <span className="text-[#8A6A3E]">
+                  <span className="text-[#5C4636]">
                     <CheckIcon />
                   </span>
                   <h2 className={`${display.className} mt-4 text-2xl font-medium text-[#2C2118] sm:text-[1.75rem]`}>
@@ -393,7 +394,7 @@ export default function ContactPage() {
                       <div className="flex flex-col gap-1.5">
                         <label htmlFor={`${formId}-email`} className={labelClass}>
                           דוא״ל
-                          <span className="font-semibold text-[#9A8164]"> (לא חובה)</span>
+                          <span className="font-semibold text-[#5C4636]"> (לא חובה)</span>
                         </label>
                         <input
                           id={`${formId}-email`}
@@ -416,7 +417,7 @@ export default function ContactPage() {
                             {fieldErrors.email}
                           </p>
                         ) : (
-                          <p id={`${formId}-email-hint`} className="text-xs text-[#9A8164]">
+                          <p id={`${formId}-email-hint`} className="text-xs text-[#5C4636]">
                             אופציונלי
                           </p>
                         )}
@@ -450,7 +451,7 @@ export default function ContactPage() {
                             {fieldErrors.phone}
                           </p>
                         ) : (
-                          <p id={`${formId}-phone-hint`} className="text-xs text-[#9A8164]">
+                          <p id={`${formId}-phone-hint`} className="text-xs text-[#5C4636]">
                             נחזור אליכם למספר הזה
                           </p>
                         )}
@@ -504,6 +505,8 @@ export default function ContactPage() {
                       </div>
                     ) : null}
 
+                    <PersonalDataNotice />
+
                     <button
                       type="submit"
                       disabled={loading}
@@ -538,7 +541,7 @@ export default function ContactPage() {
               <div>
                 <div className="flex items-center gap-2 text-[#25D366]">
                   <WhatsAppIcon className="h-4 w-4" />
-                  <span className="text-[11px] font-black tracking-[0.14em] text-[#8A6A3E]">
+                  <span className="text-[11px] font-black tracking-[0.14em] text-[#5C4636]">
                     WHATSAPP
                   </span>
                 </div>
@@ -564,13 +567,13 @@ export default function ContactPage() {
 
               {/* Email */}
               <div>
-                <div className="flex items-center gap-2 text-[#8A6A3E]">
+                <div className="flex items-center gap-2 text-[#5C4636]">
                   <MailIcon />
                   <span className="text-[11px] font-black tracking-[0.14em]">דוא״ל</span>
                 </div>
                 <a
                   href={`mailto:${CONTACT_EMAIL}`}
-                  className="mt-3 block font-[family-name:var(--font-contact-display)] text-lg text-[#2C2118] underline-offset-4 transition hover:text-[#8A6A3E] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4A46A]"
+                  className="mt-3 block font-[family-name:var(--font-contact-display)] text-lg text-[#2C2118] underline-offset-4 transition hover:text-[#5C4636] hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4A46A]"
                   dir="ltr"
                 >
                   {CONTACT_EMAIL}
@@ -581,7 +584,7 @@ export default function ContactPage() {
 
               {/* Hours */}
               <div>
-                <div className="flex items-center gap-2 text-[#8A6A3E]">
+                <div className="flex items-center gap-2 text-[#5C4636]">
                   <ClockIcon />
                   <span className="text-[11px] font-black tracking-[0.14em]">שעות פעילות</span>
                 </div>
@@ -595,7 +598,7 @@ export default function ContactPage() {
                     </div>
                   ))}
                 </dl>
-                <p className="mt-3 text-xs leading-5 text-[#9A8164]">
+                <p className="mt-3 text-xs leading-5 text-[#5C4636]">
                   פניות מחוץ לשעות הפעילות ייענו בהקדם האפשרי.
                 </p>
               </div>
@@ -608,7 +611,7 @@ export default function ContactPage() {
       <section className="border-t border-[#E2D2B8]/80 bg-[#F3EBE0]/55" aria-labelledby="quick-help-heading">
         <div className="mx-auto max-w-6xl px-5 py-12 md:px-8 md:py-14">
           <motion.div {...motionProps}>
-            <p className="text-[11px] font-black tracking-[0.16em] text-[#8A6A3E]">עזרה מהירה</p>
+            <p className="text-[11px] font-black tracking-[0.16em] text-[#5C4636]">עזרה מהירה</p>
             <h2 id="quick-help-heading" className={`${display.className} mt-2 text-2xl font-medium text-[#2C2118] sm:text-[1.85rem]`}>
               אולי התשובה כבר מחכה לכם
             </h2>
@@ -620,10 +623,10 @@ export default function ContactPage() {
                     className="group flex items-center justify-between gap-4 py-4 transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4A46A]"
                   >
                     <span>
-                      <span className="block text-[15px] font-bold text-[#2C2118] transition group-hover:text-[#8A6A3E]">
+                      <span className="block text-[15px] font-bold text-[#2C2118] transition group-hover:text-[#5C4636]">
                         {item.label}
                       </span>
-                      <span className="mt-0.5 block text-sm text-[#8A7660]">{item.hint}</span>
+                      <span className="mt-0.5 block text-sm text-[#5C4636]">{item.hint}</span>
                     </span>
                     <span
                       className="text-[#C4A46A] transition-transform group-hover:-translate-x-1"
@@ -643,7 +646,7 @@ export default function ContactPage() {
       <section className="bg-[#F8F3EA]" aria-labelledby="contact-faq-heading">
         <div className="mx-auto max-w-6xl px-5 py-12 md:px-8 md:py-16">
           <motion.div {...motionProps}>
-            <p className="text-[11px] font-black tracking-[0.16em] text-[#8A6A3E]">שאלות נפוצות</p>
+            <p className="text-[11px] font-black tracking-[0.16em] text-[#5C4636]">שאלות נפוצות</p>
             <h2
               id="contact-faq-heading"
               className={`${display.className} mt-2 max-w-2xl text-2xl font-medium text-[#2C2118] sm:text-[1.85rem]`}
@@ -657,7 +660,7 @@ export default function ContactPage() {
                   key={faq.q}
                   className="group py-1 open:bg-[#FFFDF8]/40"
                 >
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-start text-[15px] font-bold text-[#2C2118] transition marker:content-none hover:text-[#8A6A3E] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4A46A] [&::-webkit-details-marker]:hidden">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-start text-[15px] font-bold text-[#2C2118] transition marker:content-none hover:text-[#5C4636] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C4A46A] [&::-webkit-details-marker]:hidden">
                     <span>{faq.q}</span>
                     <span
                       className="shrink-0 text-lg leading-none text-[#C4A46A] transition group-open:rotate-45"

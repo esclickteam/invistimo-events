@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 import ClientShell from "./ClientShell";
 import SupportBotButton from "./components/SupportBotButton";
+import CookieConsent from "@/components/consent/CookieConsent";
 import MarketingAnalytics from "@/components/seo/MarketingAnalytics";
 
 type PublicPageShellProps = {
@@ -213,6 +214,7 @@ export default function PublicPageShell({ children }: PublicPageShellProps) {
     <>
       <MarketingAnalytics />
       <ClientShell>{children}</ClientShell>
+      <CookieConsent />
 
       {/* כפתור וואטסאפ / תמיכה — מופיע רק באתר הציבורי */}
       {shouldShowSupportBot ? <SupportBotButton /> : null}

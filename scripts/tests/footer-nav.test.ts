@@ -65,6 +65,7 @@ test("footer link set stays aligned with the published public IA on main", () =>
       "/accessibility",
       "/blog",
       "/contact",
+      "/cookies",
       "/credit-gifts",
       "/event-management",
       "/faq",

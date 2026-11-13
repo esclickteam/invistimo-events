@@ -1,6 +1,7 @@
 import "./globals.css";
 import type { ReactNode } from "react";
 import localFont from "next/font/local";
+import Script from "next/script";
 
 import Providers from "./providers";
 import AccessibilityScript from "./components/AccessibilityScript";
@@ -120,6 +121,23 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         className="min-h-screen bg-[#f7f3ee] text-[#5c4632]"
         suppressHydrationWarning
       >
+        <Script id="invistimo-consent-default" strategy="beforeInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            window.gtag = window.gtag || function gtag(){window.dataLayer.push(arguments);};
+            window.gtag('consent', 'default', {
+              ad_storage: 'denied',
+              ad_user_data: 'denied',
+              ad_personalization: 'denied',
+              analytics_storage: 'denied',
+              functionality_storage: 'denied',
+              personalization_storage: 'denied',
+              security_storage: 'granted',
+              wait_for_update: 500
+            });
+            window.__invistimoConsentDefault = true;
+          `}
+        </Script>
         <Providers>
           <PrivateChromeHider />
           <GlobalSoftphoneMount />

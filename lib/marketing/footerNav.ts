@@ -74,6 +74,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
 
 export const FOOTER_LEGAL_LINKS: FooterLink[] = [
   { href: "/privacy", label: "פרטיות" },
+  { href: "/cookies", label: "עוגיות" },
   { href: "/terms", label: "תקנון" },
   { href: "/accessibility", label: "נגישות" },
 ];

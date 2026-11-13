@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useId, useState } from "react";
 import { ChevronDown, Clock3 } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { OPEN_COOKIE_SETTINGS_EVENT } from "@/lib/consent/policy";
 import {
   FOOTER_COLUMNS,
   FOOTER_HOURS,
@@ -250,6 +251,13 @@ export default function Footer() {
                   className="transition hover:text-[#842B4C]"
                 />
               ))}
+              <button
+                type="button"
+                className="transition hover:text-[#842B4C] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C5A582]"
+                onClick={() => window.dispatchEvent(new Event(OPEN_COOKIE_SETTINGS_EVENT))}
+              >
+                הגדרות עוגיות
+              </button>
             </nav>
           </div>
         </div>

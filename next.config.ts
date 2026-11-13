@@ -1,4 +1,6 @@
 import type { NextConfig } from "next";
+import { publicCspSources } from "./lib/security/publicCspSources";
+import { DOCUMENT_SECURITY_HEADERS, PUBLIC_DOCUMENT_CSP_HEADER } from "./lib/security/responseHeaders";
 
 /** Media/scratch paths that must never be copied into Serverless Function traces. */
 const SERVERLESS_MEDIA_EXCLUDES = [
@@ -106,7 +108,17 @@ const nextConfig: NextConfig = {
       "/venue-client/:path*",
     ];
 
+    const publicSources = publicCspSources();
+
     return [
+      {
+        source: "/(.*)",
+        headers: DOCUMENT_SECURITY_HEADERS,
+      },
+      ...publicSources.map((source) => ({
+        source,
+        headers: [PUBLIC_DOCUMENT_CSP_HEADER],
+      })),
       {
         source: "/push-sw.js",
         headers: [

@@ -89,10 +89,7 @@ function InviteCard({
     <figure
       data-invite-slide
       aria-hidden={hidden || undefined}
-      className={`lux-invite-card relative shrink-0 overflow-hidden border border-[#C5A582]/35 bg-[#F5EEE8] shadow-[0_30px_80px_rgba(66,24,47,0.12)] ${
-        onActivate ? "cursor-pointer" : ""
-      }`}
-      onClick={onActivate ? () => onActivate(trackIndex) : undefined}
+      className="lux-invite-card relative shrink-0 overflow-hidden border border-[#C5A582]/35 bg-[#F5EEE8] shadow-[0_30px_80px_rgba(66,24,47,0.12)]"
     >
       <div className="aspect-[3/4] overflow-hidden">
         <img
@@ -107,10 +104,19 @@ function InviteCard({
           draggable={false}
         />
       </div>
-      <figcaption className="border-t border-[#C5A582]/35 px-5 py-4">
+      <figcaption aria-hidden={onActivate ? true : undefined} className="border-t border-[#C5A582]/35 px-5 py-4">
         <p className="text-[11px] font-bold tracking-[0.18em] text-[#842B4C]">{item.label}</p>
         <p className="mt-1 text-lg font-extrabold text-[#42182F]">{item.couple}</p>
       </figcaption>
+      {onActivate ? (
+        <button
+          type="button"
+          className="absolute inset-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C5A582]"
+          aria-label={`${item.label} — ${item.couple}`}
+          tabIndex={hidden ? -1 : 0}
+          onClick={() => onActivate(trackIndex)}
+        />
+      ) : null}
     </figure>
   );
 }
@@ -252,8 +258,16 @@ function InviteCarousel({ reduceMotion }: { reduceMotion: boolean }) {
       <div className="lux-invite-viewport">
         <div
           ref={scrollerRef}
-          className="lux-invite-row flex gap-4 overflow-x-auto"
+          role="region"
+          tabIndex={0}
+          className="lux-invite-row flex gap-4 overflow-x-auto focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#C5A582]"
           aria-label="הזמנות וכרטיסי שמירת תאריך"
+          onKeyDown={(event) => {
+            if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+            event.preventDefault();
+            const direction = event.key === "ArrowLeft" ? 1 : -1;
+            goToReal((active + direction + count) % count);
+          }}
         >
           {slides.map((slide) => (
             <InviteCard

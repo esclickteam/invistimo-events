@@ -49,6 +49,7 @@ test("final QA: footer unchanged vs published main IA", () => {
     "/accessibility",
     "/blog",
     "/contact",
+    "/cookies",
     "/credit-gifts",
     "/event-management",
     "/faq",

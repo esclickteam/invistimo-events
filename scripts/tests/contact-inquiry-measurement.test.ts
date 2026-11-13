@@ -66,7 +66,7 @@ function allowedInput(
     submissionId: SUBMISSION,
     gpc: null,
     dnt: null,
-    consentCookie: null,
+    consentCookie: "granted",
     gaCookie: "GA1.1.1234567890.1690000000",
     sessionCookie: "GS1.1.1690001111.1.1.1690002222.0.0.0",
     measurementId: MEASUREMENT_ID,
@@ -104,14 +104,15 @@ test("GA cookies are parsed and personal-looking values are dropped", () => {
   assert.equal(parseGaSessionId("0501234567"), "");
 });
 
-test("opt-out signals deny measurement and a missing banner does not", () => {
-  assert.equal(measurementDenied({ gpc: "1", dnt: null, consentCookie: null }).reason, "gpc");
-  assert.equal(measurementDenied({ gpc: null, dnt: "1", consentCookie: null }).reason, "dnt");
+test("measurement requires an explicit analytics grant", () => {
+  assert.equal(measurementDenied({ gpc: "1", dnt: null, consentCookie: "granted" }).reason, "gpc");
+  assert.equal(measurementDenied({ gpc: null, dnt: "1", consentCookie: "granted" }).reason, "dnt");
   assert.equal(
     measurementDenied({ gpc: null, dnt: null, consentCookie: "denied" }).reason,
     "consent_cookie"
   );
-  assert.equal(measurementDenied({ gpc: null, dnt: null, consentCookie: null }).denied, false);
+  assert.equal(measurementDenied({ gpc: null, dnt: null, consentCookie: null }).denied, true);
+  assert.equal(measurementDenied({ gpc: null, dnt: null, consentCookie: "granted" }).denied, false);
 });
 
 test("a successful contact inquiry sends one generate_lead without personal data", async () => {
@@ -253,6 +254,7 @@ test("consent, DNT, and GPC skip GA4 and still count the inquiry", async () => {
     { gpc: "1" },
     { dnt: "1" },
     { consentCookie: "denied" },
+    { consentCookie: null },
   ]) {
     const store = memoryStore();
     let sends = 0;
