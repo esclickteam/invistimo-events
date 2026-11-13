@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { findCoreRoute, pageMetadata } from "@/lib/seo/site";
 
 const route = findCoreRoute("/terms")!;
@@ -69,6 +70,19 @@ export default function TermsPage() {
     השימוש באתר, בתכניו, במערכותיו, בתשתיותיו ובשירותים המוצעים בו, מכל
     מכשיר, פלטפורמה או אמצעי תקשורת שהוא, כפוף לתנאי שימוש אלו, למדיניות
     הפרטיות של האתר ולהוראות כל דין החל במדינת ישראל, כפי שיהיו מעת לעת.
+  </p>
+
+  <p className="mt-4">
+    <Link href="/privacy" className="font-bold underline underline-offset-4">
+      מדיניות הפרטיות
+    </Link>
+    {" "}
+    ו
+    <Link href="/cookies" className="font-bold underline underline-offset-4">
+      מדיניות העוגיות
+    </Link>
+    {" "}
+    הן חלק ממסמכי האתר וזמינות לעיון לפני שימוש ובכל עת.
   </p>
 
   <p className="mt-4">

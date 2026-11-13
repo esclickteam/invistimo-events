@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { trackPublicEvent } from "@/lib/seo/analytics";
 import { readBrowserInquiryContext } from "@/lib/contact/publicInquiryContext";
@@ -269,7 +270,11 @@ export default function ContactForm({
             required
           />
           <span>
-            אני מאשר/ת ל־Invistimo ליצור איתי קשר בנוגע לפנייה זו, בהתאם למדיניות הפרטיות.
+            אני מאשר/ת ל־Invistimo ליצור איתי קשר בנוגע לפנייה זו, בהתאם ל
+            <Link href="/privacy" className="font-bold underline underline-offset-4">
+              מדיניות הפרטיות
+            </Link>
+            .
           </span>
         </label>
 

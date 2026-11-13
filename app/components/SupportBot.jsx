@@ -229,6 +229,7 @@ export default function SupportBot({ onClose }) {
                 <div className="space-y-2">
                   <input
                     type="text"
+                    aria-label="שם מלא"
                     value={fullName}
                     onChange={(event) => {
                       setFullName(event.target.value);
@@ -240,6 +241,7 @@ export default function SupportBot({ onClose }) {
 
                   <input
                     type="tel"
+                    aria-label="טלפון"
                     value={phone}
                     onChange={(event) => {
                       setPhone(event.target.value);
@@ -251,10 +253,18 @@ export default function SupportBot({ onClose }) {
                   />
 
                   {formError ? (
-                    <p className="text-xs font-bold leading-5 text-red-600">
+                    <p role="alert" className="text-xs font-bold leading-5 text-red-600">
                       {formError}
                     </p>
                   ) : null}
+
+                  <p className="text-[11px] leading-5 text-[#7B6754]">
+                    המשך לוואטסאפ מעביר את השם והטלפון לצורך הטיפול בפנייה, בהתאם ל
+                    <Link href="/privacy" className="font-bold underline underline-offset-4">
+                      מדיניות הפרטיות
+                    </Link>
+                    .
+                  </p>
 
                   <div className="grid grid-cols-[1fr_auto] gap-2">
                     <button

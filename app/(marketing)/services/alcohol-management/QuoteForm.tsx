@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import PersonalDataNotice from "@/components/legal/PersonalDataNotice";
 import { trackPublicEvent } from "@/lib/seo/analytics";
 import { readBrowserInquiryContext } from "@/lib/contact/publicInquiryContext";
 
@@ -192,12 +193,20 @@ export default function QuoteForm() {
         </label>
       </div>
 
-      {error ? <p className="mt-4 text-sm font-bold text-red-700">{error}</p> : null}
+      {error ? (
+        <p role="alert" className="mt-4 text-sm font-bold text-red-700">
+          {error}
+        </p>
+      ) : null}
+
+      <div className="mt-6">
+        <PersonalDataNotice />
+      </div>
 
       <button
         type="submit"
         disabled={loading}
-        className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-none bg-[#42182F] hover:bg-[#842B4C] px-8 text-base font-black text-white disabled:opacity-60 sm:w-auto"
+        className="mt-3 inline-flex min-h-12 w-full items-center justify-center rounded-none bg-[#42182F] hover:bg-[#842B4C] px-8 text-base font-black text-white disabled:opacity-60 sm:w-auto"
       >
         {loading ? "שולחים…" : "לקבלת הצעת מחיר מותאמת לאירוע"}
       </button>

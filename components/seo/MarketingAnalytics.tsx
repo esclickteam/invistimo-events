@@ -1,36 +1,36 @@
 "use client";
 
-import Script from "next/script";
 import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import WebVitalsReporter from "@/components/seo/WebVitalsReporter";
+import { CONSENT_CHANGED_EVENT } from "@/lib/consent/policy";
+import { hasAnalyticsConsent } from "@/lib/consent/storage";
 import {
   GA_MEASUREMENT_ID,
   aiTrafficLabel,
   analyticsAllowed,
   classifyPublicClick,
-  contentGroup,
   isGaMeasurementId,
   trackPublicEvent,
 } from "@/lib/seo/analytics";
-import WebVitalsReporter from "@/components/seo/WebVitalsReporter";
 
 function MarketingAnalyticsInner() {
   const pathname = usePathname() || "/";
   const searchParams = useSearchParams();
-  const enabled = isGaMeasurementId(GA_MEASUREMENT_ID) && analyticsAllowed(pathname);
-  const firstView = useRef(true);
   const seenAi = useRef("");
+  const [analyticsOn, setAnalyticsOn] = useState(false);
+  const enabled =
+    analyticsOn && isGaMeasurementId(GA_MEASUREMENT_ID) && analyticsAllowed(pathname);
+
+  useEffect(() => {
+    const sync = () => setAnalyticsOn(hasAnalyticsConsent());
+    sync();
+    window.addEventListener(CONSENT_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(CONSENT_CHANGED_EVENT, sync);
+  }, []);
 
   useEffect(() => {
     if (!enabled || typeof window.gtag !== "function") return;
-    if (firstView.current) {
-      firstView.current = false;
-    } else {
-      window.gtag("config", GA_MEASUREMENT_ID, {
-        page_path: pathname,
-        content_group: contentGroup(pathname),
-      });
-    }
     const search = searchParams?.toString() ? `?${searchParams.toString()}` : window.location.search || "";
     const source = aiTrafficLabel(document.referrer || "", search);
     if (!source || seenAi.current === `${source}:${pathname}`) return;
@@ -65,22 +65,7 @@ function MarketingAnalyticsInner() {
   }, [enabled, pathname]);
 
   if (!enabled) return null;
-
-  return (
-    <>
-      <Script src={`https://www.googletagmanager.com/gtag/js?id=${GA_MEASUREMENT_ID}`} strategy="afterInteractive" />
-      <Script id="invistimo-ga4" strategy="afterInteractive">
-        {`
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          window.gtag = gtag;
-          gtag('js', new Date());
-          gtag('config', '${GA_MEASUREMENT_ID}', { anonymize_ip: true, content_group: '${contentGroup(pathname)}', send_page_view: true });
-        `}
-      </Script>
-      <WebVitalsReporter />
-    </>
-  );
+  return <WebVitalsReporter />;
 }
 
 export default function MarketingAnalytics() {

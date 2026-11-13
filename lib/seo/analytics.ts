@@ -1,3 +1,6 @@
+import { updateGoogleAnalyticsConsent } from "@/lib/consent/googleConsent";
+import { hasAnalyticsConsent } from "@/lib/consent/storage";
+
 export const GA_MEASUREMENT_ID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() || "";
 
 export function isGaMeasurementId(value: string) {
@@ -273,6 +276,7 @@ export function classifyPublicClick(
 }
 
 export function trackPublicEvent(name: string, params?: Record<string, string>) {
+  if (!hasAnalyticsConsent()) return;
   if (typeof window === "undefined" || typeof window.gtag !== "function") return;
   if (!EVENT_NAME.test(name)) return;
   window.gtag("event", name, sanitizeEventParams(params));
@@ -338,6 +342,7 @@ export function trackWebVital(input: {
   rating: string;
   pagePath: string;
 }) {
+  if (!hasAnalyticsConsent()) return;
   if (typeof window === "undefined" || typeof window.gtag !== "function") return;
   if (!isGaMeasurementId(GA_MEASUREMENT_ID)) return;
   const hit = buildWebVitalEvent(input);
@@ -353,6 +358,8 @@ export function trackFunnelClick(href: string, pagePath: string, placement: stri
   if (typeof window === "undefined" || !isGaMeasurementId(GA_MEASUREMENT_ID)) {
     return Promise.resolve();
   }
+  if (!hasAnalyticsConsent()) return Promise.resolve();
+  updateGoogleAnalyticsConsent(true);
   const decision =
     classifyPublicClick(href, pagePath, { placement }) ||
     ({
@@ -418,6 +425,8 @@ function sendPrivateConversion(name: "sign_up" | "purchase", params: Record<stri
   if (typeof window === "undefined" || !isGaMeasurementId(GA_MEASUREMENT_ID)) {
     return Promise.resolve();
   }
+  if (!hasAnalyticsConsent()) return Promise.resolve();
+  updateGoogleAnalyticsConsent(true);
   const safe = sanitizeEventParams(params);
   if (document.getElementById("invistimo-ga4") && typeof window.gtag === "function") {
     window.gtag("event", name, safe);

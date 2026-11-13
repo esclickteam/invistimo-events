@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import localFont from "next/font/local";
 import { motion, useReducedMotion } from "framer-motion";
+import PersonalDataNotice from "@/components/legal/PersonalDataNotice";
 import { isValidContactPhone } from "@/lib/contact/contactPhone";
 import { readBrowserInquiryContext } from "@/lib/contact/publicInquiryContext";
 import {
@@ -503,6 +504,8 @@ export default function ContactPage() {
                         {error}
                       </div>
                     ) : null}
+
+                    <PersonalDataNotice />
 
                     <button
                       type="submit"

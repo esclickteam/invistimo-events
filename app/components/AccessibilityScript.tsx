@@ -3,9 +3,25 @@
 import { usePathname } from "next/navigation";
 import Script from "next/script";
 import { useEffect, useState } from "react";
+import { CONSENT_CHANGED_EVENT } from "@/lib/consent/policy";
+import { hasFunctionalConsent } from "@/lib/consent/storage";
+import { analyticsAllowed } from "@/lib/seo/analytics";
 
 export default function AccessibilityScript() {
   const pathname = usePathname();
+  const consentGate = analyticsAllowed(pathname);
+  const [functionalOn, setFunctionalOn] = useState(false);
+
+  useEffect(() => {
+    if (!consentGate) {
+      setFunctionalOn(true);
+      return;
+    }
+    const sync = () => setFunctionalOn(hasFunctionalConsent());
+    sync();
+    window.addEventListener(CONSENT_CHANGED_EVENT, sync);
+    return () => window.removeEventListener(CONSENT_CHANGED_EVENT, sync);
+  }, [consentGate]);
 
   const isInternal =
     pathname.startsWith("/dashboard") ||
@@ -50,7 +66,7 @@ export default function AccessibilityScript() {
   }, [isInternal]);
 
   // ❌ אזור מערכת – אין נגישות
-  if (isInternal) {
+  if (isInternal || (consentGate && !functionalOn)) {
     return null;
   }
 

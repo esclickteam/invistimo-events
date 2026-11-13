@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { DOCUMENT_SECURITY_HEADERS } from "./lib/security/responseHeaders";
 
 /** Media/scratch paths that must never be copied into Serverless Function traces. */
 const SERVERLESS_MEDIA_EXCLUDES = [
@@ -107,6 +108,10 @@ const nextConfig: NextConfig = {
     ];
 
     return [
+      {
+        source: "/(.*)",
+        headers: DOCUMENT_SECURITY_HEADERS,
+      },
       {
         source: "/push-sw.js",
         headers: [

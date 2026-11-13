@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import PersonalDataNotice from "@/components/legal/PersonalDataNotice";
 import { trackSignupConversion } from "@/lib/seo/analytics";
 import { Suspense, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
@@ -390,6 +391,8 @@ function RegisterFormInner() {
                   </Link>
                 </span>
               </label>
+
+              <PersonalDataNotice text="יצירת החשבון כרוכה בעיבוד הפרטים שמסרתם לצורך פתיחת החשבון ומתן השירות" />
 
               <button
                 type="submit"

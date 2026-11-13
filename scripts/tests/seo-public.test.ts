@@ -49,6 +49,7 @@ const EXISTING_SINGLE_SEGMENTS = new Set([
   "blog",
   "check-in",
   "contact",
+  "cookies",
   "credit-gifts",
   "dashboard",
   "e",
