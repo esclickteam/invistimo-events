@@ -1,5 +1,9 @@
 name: Contact submission trace
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || (github.event_name == 'push' && github.ref != 'refs/heads/main') }}
+
 on:
   pull_request:
     paths:
@@ -18,19 +22,26 @@ on:
 jobs:
   contact:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
+      - id: scope
+        uses: ./.github/actions/ci-scope
       - uses: actions/setup-node@v4
+        if: steps.scope.outputs.code == 'true'
         with:
           node-version: "22"
           cache: npm
 
       - name: Install
+        if: steps.scope.outputs.code == 'true'
         run: npm ci --no-audit --no-fund
 
       - name: Contact submission tests
+        if: steps.scope.outputs.code == 'true'
         run: npm run test:contact-inquiry-measurement
 
       - name: One isolated staging lead
+        if: steps.scope.outputs.code == 'true'
         run: npx tsx scripts/staging/run-contact-trace-http.ts

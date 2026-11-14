@@ -1,0 +1,44 @@
+name: CI change scope
+description: Marks documentation-only diffs so expensive steps can be skipped while the job still succeeds.
+outputs:
+  code:
+    description: true when the diff includes more than markdown or a license file
+    value: ${{ steps.scope.outputs.code }}
+runs:
+  using: composite
+  steps:
+    - id: scope
+      shell: bash
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        BASE_REF: ${{ github.base_ref }}
+        BEFORE_SHA: ${{ github.event.before }}
+      run: |
+        set -euo pipefail
+        code=true
+        changed=""
+        if [ "$EVENT_NAME" = "pull_request" ] && [ -n "${BASE_REF}" ]; then
+          if git fetch --no-tags --depth=1 origin "$BASE_REF"; then
+            changed="$(git diff --name-only FETCH_HEAD HEAD || true)"
+          fi
+        elif [ "$EVENT_NAME" = "push" ] && [ -n "${BEFORE_SHA}" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+          if git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null || git fetch --no-tags --depth=1 origin "$BEFORE_SHA"; then
+            if git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+              changed="$(git diff --name-only "$BEFORE_SHA" HEAD || true)"
+            fi
+          fi
+        fi
+        if [ -n "$changed" ]; then
+          code=false
+          while IFS= read -r path; do
+            [ -z "$path" ] && continue
+            case "$path" in
+              *.md|LICENSE|LICENSE.txt) ;;
+              *) code=true ;;
+            esac
+          done <<< "$changed"
+        fi
+        echo "code=$code" >> "$GITHUB_OUTPUT"
+        if [ "$code" = "false" ]; then
+          echo "Documentation-only change. Heavy checks are skipped and this job stays successful."
+        fi
