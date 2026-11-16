@@ -162,6 +162,8 @@ test("a failed prepare throws and does not return a c_limit URL", async () => {
 
 test("360dialog receives the original bytes by media id for every image template", async () => {
   process.env.WHATSAPP_API_KEY = "test-key";
+  const previousMedia = process.env.WHATSAPP_HEADER_MEDIA;
+  process.env.WHATSAPP_HEADER_MEDIA = "id";
   clearWhatsAppHeaderMediaCache();
   const file = await png(64, 64, 3, () => [20, 40, 80]);
   const stored =
@@ -234,6 +236,8 @@ test("360dialog receives the original bytes by media id for every image template
     });
   } finally {
     globalThis.fetch = originalFetch;
+    if (previousMedia == null) delete process.env.WHATSAPP_HEADER_MEDIA;
+    else process.env.WHATSAPP_HEADER_MEDIA = previousMedia;
   }
 
   assert.equal(posts.length, 5);

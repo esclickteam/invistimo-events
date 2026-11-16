@@ -36,6 +36,8 @@ test("the default provider stays 360dialog until the setting changes", () => {
 
 test("a 360dialog media id is not reused after switching to Bizuply", async () => {
   clearWhatsAppHeaderMediaCache();
+  const previousMedia = process.env.WHATSAPP_HEADER_MEDIA;
+  process.env.WHATSAPP_HEADER_MEDIA = "id";
   const previousProvider = process.env.WHATSAPP_PROVIDER;
   const previousDialog = process.env.WHATSAPP_API_KEY;
   const previousBizuply = process.env.BIZUPLY_WHATSAPP_API_KEY;
@@ -116,6 +118,8 @@ test("a 360dialog media id is not reused after switching to Bizuply", async () =
     clearWhatsAppHeaderMediaCache();
     if (previousProvider == null) delete process.env.WHATSAPP_PROVIDER;
     else process.env.WHATSAPP_PROVIDER = previousProvider;
+    if (previousMedia == null) delete process.env.WHATSAPP_HEADER_MEDIA;
+    else process.env.WHATSAPP_HEADER_MEDIA = previousMedia;
     if (previousDialog == null) delete process.env.WHATSAPP_API_KEY;
     else process.env.WHATSAPP_API_KEY = previousDialog;
     if (previousBizuply == null) delete process.env.BIZUPLY_WHATSAPP_API_KEY;

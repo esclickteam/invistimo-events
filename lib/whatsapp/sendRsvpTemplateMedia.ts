@@ -1,6 +1,10 @@
 import { dedupeGuestLocationText } from "@/lib/messages/locationText";
+import { resolveWhatsappHeaderMediaMode } from "@/lib/whatsapp/headerMediaMode";
 import { describeWhatsAppHeaderFile } from "@/lib/whatsapp/invitationImage";
-import { loadVerifiedWhatsappHeader } from "@/lib/whatsapp/prepareInvitationImage";
+import {
+  loadVerifiedWhatsappHeader,
+  prepareWhatsappInvitationImageUrl,
+} from "@/lib/whatsapp/prepareInvitationImage";
 import { getWhatsAppProvider, type WhatsAppProvider } from "@/lib/whatsapp/provider";
 import {
   forgetWhatsAppHeaderMediaId,
@@ -309,6 +313,37 @@ function buildHeaderComponent(mediaId: string) {
   };
 }
 
+function buildHeaderLinkComponent(verifiedLink: string) {
+  return {
+    type: "header",
+    parameters: [
+      {
+        type: "image",
+        image: {
+          link: verifiedLink,
+        },
+      },
+    ],
+  };
+}
+
+async function headerForRecipient(
+  headerImageUrl: string,
+  to: string,
+  provider: WhatsAppProvider
+) {
+  if (resolveWhatsappHeaderMediaMode(to) === "link") {
+    const link = await prepareWhatsappInvitationImageUrl(headerImageUrl);
+    if (!isValidHttpsUrl(link)) {
+      throw new Error("Invalid headerImageUrl (must be https)");
+    }
+    return { mediaId: "", component: buildHeaderLinkComponent(link) };
+  }
+
+  const mediaId = await verifiedHeaderMediaId(headerImageUrl, provider);
+  return { mediaId, component: buildHeaderComponent(mediaId) };
+}
+
 function buildUrlButtonComponent(buttonUrlParam: string) {
   return {
     type: "button",
@@ -341,7 +376,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
 
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const built = await assembleTemplate(input, templateName, provider);
+    const built = await assembleTemplate(input, templateName, to, provider);
     try {
       const sent = await provider.sendTemplate({
         to,
@@ -373,6 +408,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
 async function assembleTemplate(
   input: SendRsvpTemplateMediaInput,
   templateName: string,
+  to: string,
   provider: WhatsAppProvider
 ) {
   const customComponents = Array.isArray(input.components) ? input.components : null;
@@ -387,12 +423,12 @@ async function assembleTemplate(
 
   if (templateName === ROUND1_TEMPLATE) {
     buttonUrlParam = resolveButtonSuffix(input, templateName);
-    const headerMediaId = await verifiedHeaderMediaId(input.headerImageUrl, provider);
+    const header = await headerForRecipient(input.headerImageUrl, to, provider);
     return {
       buttonUrlParam,
-      mediaId: headerMediaId,
+      mediaId: header.mediaId,
       components: [
-        buildHeaderComponent(headerMediaId),
+        header.component,
         {
           type: "body",
           parameters: [
@@ -417,12 +453,12 @@ async function assembleTemplate(
 
   if (templateName === ROUND2_TEMPLATE || templateName === ROUND3_TEMPLATE) {
     buttonUrlParam = resolveButtonSuffix(input, templateName);
-    const headerMediaId = await verifiedHeaderMediaId(input.headerImageUrl, provider);
+    const header = await headerForRecipient(input.headerImageUrl, to, provider);
     return {
       buttonUrlParam,
-      mediaId: headerMediaId,
+      mediaId: header.mediaId,
       components: [
-        buildHeaderComponent(headerMediaId),
+        header.component,
         {
           type: "body",
           parameters: [
@@ -442,12 +478,12 @@ async function assembleTemplate(
       saveTheDateTitle: input.templateVariables?.saveTheDateTitle || input.eventTitle,
       eventDate: input.templateVariables?.eventDate || input.eventDate,
     });
-    const headerMediaId = await verifiedHeaderMediaId(input.headerImageUrl, provider);
+    const header = await headerForRecipient(input.headerImageUrl, to, provider);
     return {
       buttonUrlParam,
-      mediaId: headerMediaId,
+      mediaId: header.mediaId,
       components: [
-        buildHeaderComponent(headerMediaId),
+        header.component,
         {
           type: "body",
           parameters: saveTheDateBodyParameters({
@@ -465,12 +501,12 @@ async function assembleTemplate(
       eventDate: input.templateVariables?.eventDate || input.eventDate,
       eventLocation: input.templateVariables?.eventLocation || input.eventLocation,
     });
-    const headerMediaId = await verifiedHeaderMediaId(input.headerImageUrl, provider);
+    const header = await headerForRecipient(input.headerImageUrl, to, provider);
     return {
       buttonUrlParam,
-      mediaId: headerMediaId,
+      mediaId: header.mediaId,
       components: [
-        buildHeaderComponent(headerMediaId),
+        header.component,
         {
           type: "body",
           parameters: eventInvitationBodyParameters({

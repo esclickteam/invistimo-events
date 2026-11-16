@@ -56,6 +56,8 @@ test("media ids are reused only for the same WhatsApp channel and only before th
 });
 
 test("a failed upload is not cached and is not reported as a sent message", async () => {
+  const previousMedia = process.env.WHATSAPP_HEADER_MEDIA;
+  process.env.WHATSAPP_HEADER_MEDIA = "id";
   clearWhatsAppHeaderMediaCache();
   process.env.WHATSAPP_API_KEY = "channel-a";
   const file = await sharp({
@@ -112,6 +114,8 @@ test("a failed upload is not cached and is not reported as a sent message", asyn
   } finally {
     globalThis.fetch = originalFetch;
     clearWhatsAppHeaderMediaCache();
+    if (previousMedia == null) delete process.env.WHATSAPP_HEADER_MEDIA;
+    else process.env.WHATSAPP_HEADER_MEDIA = previousMedia;
   }
 
   assert.equal(mediaPosts, 2);
@@ -120,6 +124,8 @@ test("a failed upload is not cached and is not reported as a sent message", asyn
 
 test("a message response without an id is not success, and an expired media id is uploaded again", async () => {
   clearWhatsAppHeaderMediaCache();
+  const previousMedia = process.env.WHATSAPP_HEADER_MEDIA;
+  process.env.WHATSAPP_HEADER_MEDIA = "id";
   process.env.WHATSAPP_API_KEY = "channel-a";
   const file = await sharp({
     create: { width: 32, height: 16, channels: 3, background: "#886644" },
@@ -200,6 +206,8 @@ test("a message response without an id is not success, and an expired media id i
   } finally {
     globalThis.fetch = originalFetch;
     clearWhatsAppHeaderMediaCache();
+    if (previousMedia == null) delete process.env.WHATSAPP_HEADER_MEDIA;
+    else process.env.WHATSAPP_HEADER_MEDIA = previousMedia;
   }
 
   assert.deepEqual(mediaIds, ["media-1", "media-2"]);
