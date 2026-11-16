@@ -14,6 +14,7 @@ import {
   resolveWhatsappSendTemplateName,
 } from "../../lib/whatsapp/approvedTemplates";
 import { sendRsvpTemplateMedia } from "../../lib/whatsapp/sendRsvpTemplateMedia";
+import { fetchServingHeader } from "./support/headerFetch";
 
 const APPROVED_BODY = `משפחה וחברים יקרים,
 שמחים ונרגשים להזמינכם לחגוג איתנו את {{1}} 🤍
@@ -80,12 +81,12 @@ test("send payload for event_invitation matches preview variables", async () => 
   const captured: any[] = [];
   const originalFetch = globalThis.fetch;
 
-  globalThis.fetch = (async (_url: any, init: any) => {
+  globalThis.fetch = fetchServingHeader((_url, init) => {
     captured.push(JSON.parse(init.body));
     return new Response(JSON.stringify({ messages: [{ id: "wamid.test" }] }), {
       status: 200,
     });
-  }) as typeof fetch;
+  });
 
   try {
     await sendRsvpTemplateMedia({
@@ -191,12 +192,12 @@ test("invitation_only payload never keeps an RSVP template name or button", asyn
   const captured: any[] = [];
   const originalFetch = globalThis.fetch;
 
-  globalThis.fetch = (async (_url: any, init: any) => {
+  globalThis.fetch = fetchServingHeader((_url, init) => {
     captured.push(JSON.parse(init.body));
     return new Response(JSON.stringify({ messages: [{ id: "wamid.test" }] }), {
       status: 200,
     });
-  }) as typeof fetch;
+  });
 
   try {
     await sendRsvpTemplateMedia({

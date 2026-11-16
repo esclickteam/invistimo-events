@@ -279,6 +279,14 @@ async function safeParseResponse(res: Response): Promise<any> {
   }
 }
 
+async function verifiedHeaderImageUrl(value: string) {
+  const headerImageUrl = await prepareWhatsappInvitationImageUrl(value);
+  if (!isValidHttpsUrl(headerImageUrl)) {
+    throw new Error("Invalid headerImageUrl (must be https)");
+  }
+  return headerImageUrl;
+}
+
 function buildHeaderComponent(headerImageUrl: string) {
   return {
     type: "header",
@@ -324,14 +332,6 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
     throw new Error(`Invalid phone number: ${input.to}`);
   }
 
-  const headerImageUrl = await prepareWhatsappInvitationImageUrl(
-    input.headerImageUrl
-  );
-
-  if (!isValidHttpsUrl(headerImageUrl)) {
-    throw new Error("Invalid headerImageUrl (must be https)");
-  }
-
   const templateName = resolveSendTemplateName(input);
   const languageCode = (input.languageCode || DEFAULT_LANGUAGE_CODE).trim();
 
@@ -351,6 +351,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
 
   if (templateName === ROUND1_TEMPLATE) {
     buttonUrlParam = resolveButtonSuffix(input, templateName);
+    const headerImageUrl = await verifiedHeaderImageUrl(input.headerImageUrl);
 
     components = [
       buildHeaderComponent(headerImageUrl),
@@ -378,6 +379,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
     templateName === ROUND3_TEMPLATE
   ) {
     buttonUrlParam = resolveButtonSuffix(input, templateName);
+    const headerImageUrl = await verifiedHeaderImageUrl(input.headerImageUrl);
 
     components = [
       buildHeaderComponent(headerImageUrl),
@@ -398,6 +400,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
         input.templateVariables?.saveTheDateTitle || input.eventTitle,
       eventDate: input.templateVariables?.eventDate || input.eventDate,
     });
+    const headerImageUrl = await verifiedHeaderImageUrl(input.headerImageUrl);
 
     components = [
       buildHeaderComponent(headerImageUrl),
@@ -417,6 +420,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
       eventLocation:
         input.templateVariables?.eventLocation || input.eventLocation,
     });
+    const headerImageUrl = await verifiedHeaderImageUrl(input.headerImageUrl);
 
     components = [
       buildHeaderComponent(headerImageUrl),

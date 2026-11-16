@@ -1,5 +1,3 @@
-import { opaquePixelBounds } from "@/lib/invitations/opaquePixelBounds";
-
 export type InviteImageMode = "portrait" | "square";
 
 export type ImageInfo = {
@@ -34,12 +32,13 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+const MAX_PAYLOAD_BYTES = 3 * 1024 * 1024;
+const MAX_SIDE = 4096;
+
 /**
- * Compresses an invitation image for upload.
- * Scales down only when the file is larger than 1080×1920 (or 1080×1080
- * for a square). It does not pad a smaller image onto that plate.
- * Transparent padding is dropped before the JPEG flatten. Opaque paper,
- * including a white background, is kept.
+ * Keeps a JPEG or PNG that already fits the upload and WhatsApp limits.
+ * A larger file is scaled down with its own aspect ratio. No plate and no
+ * added white, black, or transparent margin.
  */
 export async function compressInviteImageFile(
   file: File,
@@ -57,65 +56,64 @@ export async function compressInviteImageFile(
     mode ||
     (aspectRatio > 0.9 && aspectRatio < 1.1 ? "square" : "portrait");
 
-  const maxWidth = 1080;
-  const maxHeight = detectedMode === "square" ? 1080 : 1920;
-  const scale = Math.min(maxWidth / naturalWidth, maxHeight / naturalHeight, 1);
+  const keepOriginal =
+    (file.type === "image/jpeg" || file.type === "image/png") &&
+    file.size <= MAX_PAYLOAD_BYTES &&
+    naturalWidth > 0 &&
+    naturalHeight > 0 &&
+    naturalWidth <= MAX_SIDE &&
+    naturalHeight <= MAX_SIDE;
 
-  const width = Math.max(1, Math.round(naturalWidth * scale));
-  const height = Math.max(1, Math.round(naturalHeight * scale));
-
-  const measured = document.createElement("canvas");
-  measured.width = width;
-  measured.height = height;
-  const measuredCtx = measured.getContext("2d");
-
-  if (!measuredCtx) {
-    throw new Error("CANVAS_CONTEXT_UNAVAILABLE");
+  if (keepOriginal) {
+    return {
+      base64: dataUrl,
+      mode: detectedMode,
+      info: {
+        width: naturalWidth,
+        height: naturalHeight,
+        aspectRatio,
+      },
+    };
   }
 
-  measuredCtx.drawImage(img, 0, 0, width, height);
-  const pixels = measuredCtx.getImageData(0, 0, width, height);
-  const opaque = opaquePixelBounds(pixels.data, width, height);
-  const crop =
-    opaque && opaque.width > 0 && opaque.height > 0
-      ? opaque
-      : { left: 0, top: 0, width, height };
-
+  let scale = Math.min(MAX_SIDE / naturalWidth, MAX_SIDE / naturalHeight, 1);
   const canvas = document.createElement("canvas");
-  canvas.width = crop.width;
-  canvas.height = crop.height;
-
   const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("CANVAS_CONTEXT_UNAVAILABLE");
+  const mime = file.type === "image/png" ? "image/png" : "image/jpeg";
 
-  if (!ctx) {
-    throw new Error("CANVAS_CONTEXT_UNAVAILABLE");
+  let width = 1;
+  let height = 1;
+  let base64 = "";
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    width = Math.max(1, Math.round(naturalWidth * scale));
+    height = Math.max(1, Math.round(naturalHeight * scale));
+    canvas.width = width;
+    canvas.height = height;
+    ctx.drawImage(img, 0, 0, width, height);
+    base64 =
+      mime === "image/png"
+        ? canvas.toDataURL("image/png")
+        : await shrinkBase64IfNeeded(
+            canvas,
+            canvas.toDataURL("image/jpeg", 0.92),
+            MAX_PAYLOAD_BYTES
+          );
+    if (estimateDataUrlBytes(base64) <= MAX_PAYLOAD_BYTES) break;
+    scale *= 0.75;
   }
 
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, crop.width, crop.height);
-  ctx.drawImage(
-    measured,
-    crop.left,
-    crop.top,
-    crop.width,
-    crop.height,
-    0,
-    0,
-    crop.width,
-    crop.height
-  );
-
-  const base64 = canvas.toDataURL("image/jpeg", 0.88);
-  const maxPayloadBytes = 3 * 1024 * 1024;
-  const optimizedBase64 = await shrinkBase64IfNeeded(canvas, base64, maxPayloadBytes);
+  if (estimateDataUrlBytes(base64) > MAX_PAYLOAD_BYTES) {
+    throw new Error("IMAGE_TOO_LARGE_AFTER_COMPRESSION");
+  }
 
   return {
-    base64: optimizedBase64,
+    base64,
     mode: detectedMode,
     info: {
-      width: crop.width,
-      height: crop.height,
-      aspectRatio: crop.width / crop.height,
+      width,
+      height,
+      aspectRatio: width / height,
     },
   };
 }
@@ -135,10 +133,6 @@ async function shrinkBase64IfNeeded(
   while (estimateDataUrlBytes(base64) > maxBytes && quality > 0.45) {
     quality -= 0.08;
     base64 = canvas.toDataURL("image/jpeg", quality);
-  }
-
-  if (estimateDataUrlBytes(base64) > maxBytes) {
-    throw new Error("IMAGE_TOO_LARGE_AFTER_COMPRESSION");
   }
 
   return base64;

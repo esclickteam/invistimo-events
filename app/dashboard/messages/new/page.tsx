@@ -18,7 +18,7 @@ import InternationalPhoneField, {
   DEFAULT_PHONE_COUNTRY,
 } from "@/app/components/InternationalPhoneField";
 import { phoneFieldError } from "@/lib/phones/international";
-import { toWhatsappInvitationImageUrl } from "@/lib/whatsapp/invitationImageUrl";
+import { stripCloudinaryTransforms } from "@/lib/whatsapp/invitationImageUrl";
 import {
   EVENT_INVITATION_TEMPLATE_NAME,
   SAVE_THE_DATE_TEMPLATE_NAME,
@@ -144,7 +144,7 @@ function cleanString(value: unknown) {
 }
 
 function getHighQualityCloudinaryImageUrl(value: unknown) {
-  return toWhatsappInvitationImageUrl(value);
+  return stripCloudinaryTransforms(value);
 }
 
 function buildEventLocationText(invitation: any, event: any): string {

@@ -26,9 +26,8 @@ import { normalizeGuestLinksSection } from "@/lib/eventDetails/guestLinksSection
 import { v2 as cloudinary } from "cloudinary";
 import {
   bufferFromImageDataUrl,
-  jpegDataUri,
-  normalizeInvitationImage,
-  UNCERTAIN_CANVAS_WARNING,
+  bytesForInvitationStorage,
+  imageDataUri,
 } from "@/lib/whatsapp/invitationImage";
 
 export const runtime = "nodejs";
@@ -1008,7 +1007,7 @@ export async function PUT(
       updatePayload.canvasData = canvasData;
     }
 
-    let imageWarning: string | null = null;
+    const imageWarning: string | null = null;
     const previewBase64 = pickBase64Image(body);
 
     if (isNonEmptyString(previewBase64)) {
@@ -1023,21 +1022,17 @@ export async function PUT(
         invitationBeforeUpdate._id
       )}_${Date.now()}`;
 
-      const normalized = await normalizeInvitationImage(
+      const stored = await bytesForInvitationStorage(
         bufferFromImageDataUrl(previewBase64)
       );
-      if (normalized.uncertainCanvas) {
-        imageWarning = UNCERTAIN_CANVAS_WARNING;
-      }
 
       const upload = await cloudinary.uploader.upload(
-        jpegDataUri(normalized.buffer),
+        imageDataUri(stored.buffer, stored.mime),
         {
           public_id: publicId,
           resource_type: "image",
           overwrite: false,
           invalidate: true,
-          format: "jpg",
         }
       );
 

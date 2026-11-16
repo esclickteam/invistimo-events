@@ -5,7 +5,7 @@ import { v2 as cloudinary } from "cloudinary";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { normalizeInvitationImage } from "@/lib/whatsapp/invitationImage";
+import { bytesForInvitationStorage } from "@/lib/whatsapp/invitationImage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -111,8 +111,8 @@ async function uploadImageToCloudinary({
   assertCloudinaryConfig();
 
   const arrayBuffer = await file.arrayBuffer();
-  const normalized = await normalizeInvitationImage(Buffer.from(arrayBuffer));
-  const buffer = normalized.buffer;
+  const stored = await bytesForInvitationStorage(Buffer.from(arrayBuffer));
+  const buffer = stored.buffer;
 
   const originalName = cleanString(file.name).replace(/\.[^/.]+$/, "");
   const safeName =
@@ -138,7 +138,6 @@ async function uploadImageToCloudinary({
         folder,
         public_id: publicId,
         resource_type: "image",
-        format: "jpg",
         overwrite: false,
         quality_analysis: true,
         colors: true,

@@ -11,6 +11,7 @@ import {
   sendRsvpTemplateMedia,
   TemplateVariableError,
 } from "../../lib/whatsapp/sendRsvpTemplateMedia";
+import { fetchServingHeader } from "./support/headerFetch";
 import { classifyWhatsappSendError } from "../../lib/whatsapp/roundDeliveryTracking";
 import { interpretSms4FreeResponse, sendSmsDetailed } from "../../lib/sendSMS";
 import { getPersonalSiteRedirectPath } from "../../lib/guestInviteUrl";
@@ -28,10 +29,10 @@ async function withFetch<T>(
 ) {
   const original = globalThis.fetch;
   const calls: Captured[] = [];
-  globalThis.fetch = (async (url: any, init: any) => {
-    calls.push({ url: String(url), body: init?.body ? JSON.parse(init.body) : null });
-    return impl(String(url), init);
-  }) as typeof fetch;
+  globalThis.fetch = fetchServingHeader((url, init) => {
+    calls.push({ url, body: init?.body ? JSON.parse(init.body) : null });
+    return impl(url, init);
+  });
   try {
     return await run(calls);
   } finally {

@@ -6,8 +6,8 @@ import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { canManageInvitation } from "@/lib/canManageInvitation";
 import {
   bufferFromImageDataUrl,
-  jpegDataUri,
-  normalizeInvitationImage,
+  bytesForInvitationStorage,
+  imageDataUri,
 } from "@/lib/whatsapp/invitationImage";
 
 export const runtime = "nodejs";
@@ -87,21 +87,21 @@ export async function POST(req: Request) {
     );
 
     /*
-      The bytes stored here are the bytes WhatsApp downloads (after the
-      baseline-JPEG delivery URL). Do not pad onto a fixed 1080×1920 plate
-      and do not store a palette PNG: phones transcode that into a black
-      band under the card. Normalize to the real artwork bounds first.
+      Store the original JPEG or PNG when it is already a valid WhatsApp
+      header. Do not pad onto a plate and do not add a background.
     */
-    const normalized = await normalizeInvitationImage(
+    const stored = await bytesForInvitationStorage(
       bufferFromImageDataUrl(base64Image)
     );
 
-    const upload = await cloudinary.uploader.upload(jpegDataUri(normalized.buffer), {
-      folder: "invistimo/invitations",
-      resource_type: "image",
-      overwrite: true,
-      format: "jpg",
-    });
+    const upload = await cloudinary.uploader.upload(
+      imageDataUri(stored.buffer, stored.mime),
+      {
+        folder: "invistimo/invitations",
+        resource_type: "image",
+        overwrite: true,
+      }
+    );
 
     const imageUrl = upload.secure_url;
 
@@ -154,7 +154,7 @@ export async function POST(req: Request) {
       height: upload.height,
       format: upload.format,
       bytes: upload.bytes,
-      imageWarning: normalized.warning,
+      imageWarning: null,
     });
   } catch (err) {
     console.error("❌ upload-preview error:", err);
