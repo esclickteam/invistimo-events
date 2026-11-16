@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 
 import {
   experimentalTemplateDraft,
+  LINK_DISPLAY_EXPERIMENT_ARMED,
+  linkDisplayCronAuthorized,
   linkDisplayRequestBody,
   LinkDisplayNotApproved,
   ONE_HEADER_PROBE_PHRASE,
@@ -112,6 +114,17 @@ test("an explicit approval posts one link body and then refuses a second send", 
     LinkDisplayNotApproved
   );
   assert.equal(seen.length, 1);
+});
+
+test("the cron is closed unless the existing secret matches, and the deploy is not armed", () => {
+  assert.equal(LINK_DISPLAY_EXPERIMENT_ARMED, false);
+  assert.equal(linkDisplayCronAuthorized("", "Bearer secret"), false);
+  assert.equal(linkDisplayCronAuthorized("secret", "Bearer other"), false);
+  assert.equal(linkDisplayCronAuthorized("secret", "Bearer secret"), true);
+  const route = readFileSync("app/api/cron/whatsapp-link-display/route.ts", "utf8");
+  assert.doesNotMatch(route, /x-vercel-cron/);
+  const customer = readFileSync("lib/whatsapp/sendRsvpTemplateMedia.ts", "utf8");
+  assert.doesNotMatch(customer, /linkDisplay|ONE_HEADER_PROBE/);
 });
 
 test("customer sends still choose the header from the media flag", () => {

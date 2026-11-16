@@ -16,18 +16,52 @@ import {
 
 export const ONE_HEADER_PROBE_PHRASE = "ONE_HEADER_PROBE_SEND";
 
+/** Stays false in the mechanism deploy. A later change arms the one send. */
+export const LINK_DISPLAY_EXPERIMENT_ARMED = false;
+
 const BUTTON_SUFFIX = "header-probe?token=display";
+
+export const LINK_DISPLAY_LOCK_ID = "one";
+export const LINK_DISPLAY_QUEUE_KEY = "whatsapp:link-display-experiment:one";
 
 export type OneHeaderProbeApproval = {
   phrase: typeof ONE_HEADER_PROBE_PHRASE;
   to: string;
 };
 
-let oneHeaderProbeSendConsumed = false;
+export type LinkDisplayLockStore = {
+  claim(): Promise<"claimed" | "already">;
+  complete(result: {
+    messageId: string;
+    providerResponse: Record<string, unknown>;
+  }): Promise<void>;
+  fail(error: { message: string }): Promise<void>;
+};
 
-/** Test-only. Production calls do not reset the one-send latch. */
+export function memoryLinkDisplayLock(): LinkDisplayLockStore {
+  let claimed = false;
+  return {
+    async claim() {
+      if (claimed) return "already";
+      claimed = true;
+      return "claimed";
+    },
+    async complete() {},
+    async fail() {},
+  };
+}
+
+let processStore = memoryLinkDisplayLock();
+
+/** Test-only. Production uses the database lock. */
 export function resetOneHeaderProbeSendForTests() {
-  oneHeaderProbeSendConsumed = false;
+  processStore = memoryLinkDisplayLock();
+}
+
+export function linkDisplayCronAuthorized(secret: string, authorization: string | null) {
+  const expected = String(secret || "").trim();
+  if (!expected) return false;
+  return String(authorization || "").trim() === `Bearer ${expected}`;
 }
 
 function digitsOnly(value: string) {
@@ -168,7 +202,6 @@ function buttonTextOf(body: LinkDisplayRequest) {
  * A second call, or any other number, is refused.
  */
 export function oneHeaderProbeSendAllowed(approval: OneHeaderProbeApproval | null | undefined) {
-  if (oneHeaderProbeSendConsumed) return false;
   if (!approval || approval.phrase !== ONE_HEADER_PROBE_PHRASE) return false;
   if (digitsOnly(approval.to) !== WHATSAPP_HEADER_PROBE_RECIPIENT) return false;
   const body = linkDisplayRequestBody(digitsOnly(approval.to));
@@ -182,21 +215,36 @@ export function oneHeaderProbeSendAllowed(approval: OneHeaderProbeApproval | nul
 
 export async function sendLinkDisplayExperiment(
   approval: OneHeaderProbeApproval | null | undefined,
-  deps: { fetch?: typeof fetch; apiKey?: string } = {}
+  deps: { fetch?: typeof fetch; apiKey?: string; store?: LinkDisplayLockStore } = {}
 ) {
   if (!oneHeaderProbeSendAllowed(approval)) {
     throw new LinkDisplayNotApproved();
   }
-  oneHeaderProbeSendConsumed = true;
+  const store = deps.store ?? processStore;
+  if ((await store.claim()) !== "claimed") {
+    throw new LinkDisplayNotApproved();
+  }
   const body = linkDisplayRequestBody(WHATSAPP_HEADER_PROBE_RECIPIENT);
-  const provider = createDialogProvider({
-    fetch: deps.fetch,
-    apiKey: deps.apiKey,
-  });
-  return provider.sendTemplate({
-    to: body.to,
-    templateName: body.template.name,
-    languageCode: body.template.language.code,
-    components: body.template.components,
-  });
+  try {
+    const provider = createDialogProvider({
+      fetch: deps.fetch,
+      apiKey: deps.apiKey,
+    });
+    const sent = await provider.sendTemplate({
+      to: body.to,
+      templateName: body.template.name,
+      languageCode: body.template.language.code,
+      components: body.template.components,
+    });
+    await store.complete({
+      messageId: sent.messageId,
+      providerResponse: sent.providerResponse,
+    });
+    return sent;
+  } catch (error) {
+    await store.fail({
+      message: error instanceof Error ? error.message : "send failed",
+    });
+    throw error;
+  }
 }
