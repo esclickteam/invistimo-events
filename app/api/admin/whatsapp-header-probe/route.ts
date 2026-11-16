@@ -12,6 +12,7 @@ import {
   type WhatsappHeaderProbeRecord,
   type WhatsappHeaderProbeStore,
 } from "@/lib/whatsapp/headerProbe";
+import { readLiveDialogTemplateHeaders } from "@/lib/whatsapp/dialogTemplateHeaders";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -102,7 +103,18 @@ export async function GET(req: NextRequest) {
   if (denied) return denied;
   await connectDB();
   const records = await mongoStore().list();
-  return NextResponse.json(statusBody(records));
+  const templates = await readLiveDialogTemplateHeaders().catch(() => ({
+    ok: false as const,
+    status: 0,
+    templates: [],
+    error: "TEMPLATES_UNAVAILABLE",
+  }));
+  return NextResponse.json({
+    ...statusBody(records),
+    templateHeaders: templates.templates,
+    templateRead: templates.ok ? "ok" : templates.error,
+    templateHttpStatus: templates.status,
+  });
 }
 
 export async function POST(req: NextRequest) {

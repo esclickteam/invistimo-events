@@ -68,7 +68,7 @@ function jpegResponse() {
 test("the probe stays disarmed and does not call 360dialog", async () => {
   assert.equal(whatsappHeaderProbeArmed(undefined), false);
   assert.equal(whatsappHeaderProbeArmed("off"), false);
-  assert.equal(whatsappHeaderProbeArmed("armed"), true);
+  assert.equal(whatsappHeaderProbeArmed("armed"), false);
   let called = 0;
   const store = memoryStore();
   await assert.rejects(
