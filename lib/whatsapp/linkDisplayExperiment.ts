@@ -16,8 +16,8 @@ import {
 
 export const ONE_HEADER_PROBE_PHRASE = "ONE_HEADER_PROBE_SEND";
 
-/** Stays false in the mechanism deploy. A later change arms the one send. */
-export const LINK_DISPLAY_EXPERIMENT_ARMED = false;
+/** Armed after the dormant deploy was checked. The database lock still allows one send. */
+export const LINK_DISPLAY_EXPERIMENT_ARMED = true;
 
 const BUTTON_SUFFIX = "header-probe?token=display";
 
