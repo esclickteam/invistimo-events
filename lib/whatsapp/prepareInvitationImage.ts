@@ -4,6 +4,7 @@ import { v2 as cloudinary } from "cloudinary";
 
 import {
   imageDataUri,
+  isMobileSafeWhatsAppJpeg,
   isReadyWhatsAppHeader,
   jpegBytesForWhatsAppHeader,
   sniffImageKind,
@@ -13,17 +14,20 @@ import { stripCloudinaryTransforms } from "@/lib/whatsapp/invitationImageUrl";
 /**
  * Chooses the https URL placed in header.image.link.
  *
- * A stored JPEG or PNG inside WhatsApp's limits is returned unchanged after
- * its bytes have been read. Anything else is converted without a plate and
- * uploaded as a new Cloudinary object. The original invitation file is not
- * overwritten.
+ * A stored PNG, or a baseline 4:2:0 JPEG at 72 DPI, inside WhatsApp's limits
+ * is returned unchanged after its bytes have been read. Any other JPEG is
+ * re-encoded at the same pixel size. The invitation sent at 13:11 was a
+ * 4:4:4 JPEG marked 150 DPI, and WhatsApp on iPhone drew it at the top-left
+ * of the bubble; JFIF prefers 4:2:0. The rewrite does not crop or add a
+ * plate. The derivative is a new Cloudinary object. The original invitation
+ * file is not overwritten.
  *
  * There is no silent fallback to a c_limit URL. If the source cannot be read
  * or the derivative cannot be verified, this throws and the send is not
  * marked successful.
  */
 
-const DERIVATIVE_PREFIX = "invistimo/whatsapp-delivery/v6_";
+const DERIVATIVE_PREFIX = "invistimo/whatsapp-delivery/v7_";
 
 type FetchLike = (
   input: string,
@@ -134,7 +138,13 @@ export async function prepareWhatsappInvitationImageUrl(
 
   const bytes = Buffer.from(await source.arrayBuffer());
   const size = await verifiedSize(bytes);
-  if (isReadyWhatsAppHeader(size.kind, bytes.length, size.width, size.height)) {
+  const ready = isReadyWhatsAppHeader(
+    size.kind,
+    bytes.length,
+    size.width,
+    size.height
+  );
+  if (ready && (size.kind !== "jpeg" || isMobileSafeWhatsAppJpeg(bytes))) {
     return stripped;
   }
 
