@@ -1,5 +1,7 @@
 import { dedupeGuestLocationText } from "@/lib/messages/locationText";
-import { prepareWhatsappInvitationImageUrl } from "@/lib/whatsapp/prepareInvitationImage";
+import { describeWhatsAppHeaderFile } from "@/lib/whatsapp/invitationImage";
+import { loadVerifiedWhatsappHeader } from "@/lib/whatsapp/prepareInvitationImage";
+import { uploadWhatsAppHeaderMedia } from "@/lib/whatsapp/uploadHeaderMedia";
 import {
   EVENT_INVITATION_TEMPLATE_NAME,
   SAVE_THE_DATE_TEMPLATE_NAME,
@@ -279,22 +281,34 @@ async function safeParseResponse(res: Response): Promise<any> {
   }
 }
 
-async function verifiedHeaderImageUrl(value: string) {
-  const headerImageUrl = await prepareWhatsappInvitationImageUrl(value);
-  if (!isValidHttpsUrl(headerImageUrl)) {
-    throw new Error("Invalid headerImageUrl (must be https)");
-  }
-  return headerImageUrl;
+async function verifiedHeaderMediaId(value: string) {
+  const header = await loadVerifiedWhatsappHeader(value);
+  return uploadWhatsAppHeaderMedia({
+    bytes: header.bytes,
+    mime: header.mime,
+    context: {
+      sourceUrl: header.sourceUrl,
+      normalized: header.normalized,
+      contentType: header.delivery.contentType,
+      contentLength: header.delivery.contentLength,
+      contentDisposition: header.delivery.contentDisposition,
+      cacheControl: header.delivery.cacheControl,
+      etag: header.delivery.etag,
+      redirected: header.delivery.redirected,
+      finalUrl: header.delivery.finalUrl,
+      structure: describeWhatsAppHeaderFile(header.bytes),
+    },
+  });
 }
 
-function buildHeaderComponent(headerImageUrl: string) {
+function buildHeaderComponent(mediaId: string) {
   return {
     type: "header",
     parameters: [
       {
         type: "image",
         image: {
-          link: headerImageUrl,
+          id: mediaId,
         },
       },
     ],
@@ -351,10 +365,10 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
 
   if (templateName === ROUND1_TEMPLATE) {
     buttonUrlParam = resolveButtonSuffix(input, templateName);
-    const headerImageUrl = await verifiedHeaderImageUrl(input.headerImageUrl);
+    const headerMediaId = await verifiedHeaderMediaId(input.headerImageUrl);
 
     components = [
-      buildHeaderComponent(headerImageUrl),
+      buildHeaderComponent(headerMediaId),
       {
         type: "body",
         parameters: [
@@ -379,10 +393,10 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
     templateName === ROUND3_TEMPLATE
   ) {
     buttonUrlParam = resolveButtonSuffix(input, templateName);
-    const headerImageUrl = await verifiedHeaderImageUrl(input.headerImageUrl);
+    const headerMediaId = await verifiedHeaderMediaId(input.headerImageUrl);
 
     components = [
-      buildHeaderComponent(headerImageUrl),
+      buildHeaderComponent(headerMediaId),
       {
         type: "body",
         parameters: [
@@ -400,10 +414,10 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
         input.templateVariables?.saveTheDateTitle || input.eventTitle,
       eventDate: input.templateVariables?.eventDate || input.eventDate,
     });
-    const headerImageUrl = await verifiedHeaderImageUrl(input.headerImageUrl);
+    const headerMediaId = await verifiedHeaderMediaId(input.headerImageUrl);
 
     components = [
-      buildHeaderComponent(headerImageUrl),
+      buildHeaderComponent(headerMediaId),
       {
         type: "body",
         parameters: saveTheDateBodyParameters({
@@ -420,10 +434,10 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
       eventLocation:
         input.templateVariables?.eventLocation || input.eventLocation,
     });
-    const headerImageUrl = await verifiedHeaderImageUrl(input.headerImageUrl);
+    const headerMediaId = await verifiedHeaderMediaId(input.headerImageUrl);
 
     components = [
-      buildHeaderComponent(headerImageUrl),
+      buildHeaderComponent(headerMediaId),
       {
         type: "body",
         parameters: eventInvitationBodyParameters({

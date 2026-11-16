@@ -106,6 +106,97 @@ export async function jpegBytesForWhatsAppHeader(bytes: Buffer) {
   return jpeg;
 }
 
+/**
+ * Structural facts WhatsApp's phone transcoder is sensitive to.
+ * Logging only — this does not rewrite the file.
+ */
+export function describeWhatsAppHeaderFile(bytes: Buffer) {
+  const kind = sniffImageKind(bytes);
+  if (kind === "jpeg") {
+    const jpeg = readJpegStructure(bytes);
+    return {
+      kind,
+      bytes: bytes.length,
+      progressive: jpeg.progressive,
+      hasJfifThumbnail: jpeg.hasJfifThumbnail,
+      pngColorType: null as number | null,
+      pngBitDepth: null as number | null,
+    };
+  }
+  if (kind === "png") {
+    const png = readPngStructure(bytes);
+    return {
+      kind,
+      bytes: bytes.length,
+      progressive: false,
+      hasJfifThumbnail: false,
+      pngColorType: png.colorType,
+      pngBitDepth: png.bitDepth,
+    };
+  }
+  return {
+    kind,
+    bytes: bytes.length,
+    progressive: false,
+    hasJfifThumbnail: false,
+    pngColorType: null as number | null,
+    pngBitDepth: null as number | null,
+  };
+}
+
+function readPngStructure(bytes: Buffer) {
+  if (bytes.length < 26) return { colorType: null as number | null, bitDepth: null as number | null };
+  return {
+    bitDepth: bytes[24] ?? null,
+    colorType: bytes[25] ?? null,
+  };
+}
+
+/** Walk JPEG markers. Stops at the first scan, so compressed data cannot look like a marker. */
+function readJpegStructure(bytes: Buffer) {
+  let progressive = false;
+  let hasJfifThumbnail = false;
+  if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+    return { progressive, hasJfifThumbnail };
+  }
+
+  let offset = 2;
+  while (offset + 4 < bytes.length) {
+    if (bytes[offset] !== 0xff) {
+      offset += 1;
+      continue;
+    }
+    const marker = bytes[offset + 1];
+    if (marker === 0x00 || marker === 0xff) {
+      offset += 1;
+      continue;
+    }
+    if (marker === 0xd8) {
+      offset += 2;
+      continue;
+    }
+    if (marker === 0xd9 || marker === 0xda) break;
+
+    const length = bytes.readUInt16BE(offset + 2);
+    if (length < 2 || offset + 2 + length > bytes.length) break;
+
+    if (marker === 0xc2 || marker === 0xc6 || marker === 0xca || marker === 0xce) {
+      progressive = true;
+    }
+    if (marker === 0xe0 && length >= 16) {
+      const id = bytes.toString("ascii", offset + 4, offset + 9);
+      if (id === "JFIF\u0000") {
+        const thumbWidth = bytes[offset + 16] || 0;
+        const thumbHeight = bytes[offset + 17] || 0;
+        if (thumbWidth > 0 || thumbHeight > 0) hasJfifThumbnail = true;
+      }
+    }
+    offset += 2 + length;
+  }
+
+  return { progressive, hasJfifThumbnail };
+}
+
 export async function bytesForInvitationStorage(bytes: Buffer) {
   const kind = sniffImageKind(bytes);
   const meta = await sharp(bytes, { failOn: "none", animated: false }).metadata();

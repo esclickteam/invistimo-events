@@ -161,7 +161,7 @@ test("Meta payload for invitation, RSVP rounds and a dirty form value sends the 
 
   const calls = await captureSend(async () => {
     await sendRsvpTemplateMedia({
-      to: "0501234567",
+      to: "0526850711",
       templateName: "rsvp_invitation_media",
       eventTitle: "החתונה של נועה ודני",
       eventDate: "17.10.2026 19:00",
@@ -170,7 +170,7 @@ test("Meta payload for invitation, RSVP rounds and a dirty form value sends the 
       rsvpLink,
     });
     await sendRsvpTemplateMedia({
-      to: "0501234567",
+      to: "0526850711",
       templateName: "event_invitation_image_he",
       eventTitle: "החתונה של נועה ודני",
       eventDate: "17.10.2026",
@@ -182,7 +182,7 @@ test("Meta payload for invitation, RSVP rounds and a dirty form value sends the 
       headerImageUrl,
     });
     await sendRsvpTemplateMedia({
-      to: "0501234567",
+      to: "0526850711",
       templateName: "rsvp_reminder_invistimo",
       eventTitle: "החתונה של נועה ודני",
       eventDate: "17.10.2026 19:00",

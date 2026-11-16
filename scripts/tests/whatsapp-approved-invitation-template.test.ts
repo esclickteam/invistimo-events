@@ -115,7 +115,8 @@ test("send payload for event_invitation matches preview variables", async () => 
 
   const header = payload.template.components.find((c: any) => c.type === "header");
   assert.equal(header?.parameters?.[0]?.type, "image");
-  assert.equal(header?.parameters?.[0]?.image?.link, "https://cdn.example.com/invite.png");
+  assert.equal(header?.parameters?.[0]?.image?.id, "test-media-id");
+  assert.equal(header?.parameters?.[0]?.image?.link, undefined);
 
   const body = payload.template.components.find((c: any) => c.type === "body");
   const texts = (body?.parameters || []).map((p: any) => p.text);
