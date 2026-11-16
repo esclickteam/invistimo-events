@@ -1,5 +1,6 @@
 // lib/whatsapp/sendTableNumberTemplate.ts
 import { toWhatsappDigits } from "@/lib/phones/international";
+import { getWhatsAppProvider } from "@/lib/whatsapp/provider";
 
 type SendTableNumberTemplateInput = {
   to: string;
@@ -20,7 +21,6 @@ type D360SuccessResponse = {
   [key: string]: unknown;
 };
 
-const D360_ENDPOINT = "https://waba-v2.360dialog.io/messages";
 const DEFAULT_TEMPLATE_NAME = "table_number_update_invistimo";
 const DEFAULT_LANGUAGE_CODE = "he";
 
@@ -50,14 +50,6 @@ function assertRequired(input: SendTableNumberTemplateInput): void {
   }
 }
 
-function assertEnv(): string {
-  const apiKey = process.env.WHATSAPP_API_KEY;
-  if (!isNonEmptyString(apiKey)) {
-    throw new Error("Missing env var: WHATSAPP_API_KEY");
-  }
-  return apiKey.trim();
-}
-
 function sanitizeTemplateName(name?: string): string {
   const value = (name ?? DEFAULT_TEMPLATE_NAME).trim();
   return value || DEFAULT_TEMPLATE_NAME;
@@ -72,7 +64,7 @@ export async function sendTableNumberTemplate(
   input: SendTableNumberTemplateInput
 ): Promise<D360SuccessResponse> {
   assertRequired(input);
-  const apiKey = assertEnv();
+  const provider = getWhatsAppProvider();
 
   const to = normalizePhoneIL(input.to);
   if (!isNonEmptyString(to) || to.length < 11 || to.length > 15) {
@@ -124,33 +116,20 @@ export async function sendTableNumberTemplate(
     });
   }
 
-  const payload = {
-    messaging_product: "whatsapp",
-    to,
-    type: "template",
-    template: {
-      name: templateName,
-      language: { code: languageCode },
+  try {
+    const sent = await provider.sendTemplate({
+      to,
+      templateName,
+      languageCode,
       components,
-    },
-  };
-
-  const res = await fetch(D360_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "D360-API-KEY": apiKey,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-
-  if (!res.ok) {
-    throw new Error(
-      `sendTableNumberTemplate failed (${res.status}): ${JSON.stringify(data)}`
-    );
+    });
+    return sent.providerResponse as D360SuccessResponse;
+  } catch (error: any) {
+    if (error?.httpStatus) {
+      throw new Error(
+        `sendTableNumberTemplate failed (${error.httpStatus}): ${JSON.stringify(error.providerResponse ?? {})}`
+      );
+    }
+    throw error;
   }
-
-  return data as D360SuccessResponse;
 }

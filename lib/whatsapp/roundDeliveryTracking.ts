@@ -210,7 +210,11 @@ export function classifyWhatsappSendError(err: any): WhatsappOutcome {
   ) {
     return notSent("BLOCKED_BY_SAFETY_GATE");
   }
-  if (message.includes("Missing env var: WHATSAPP_API_KEY")) {
+  if (
+    message.includes("Missing env var: WHATSAPP_API_KEY") ||
+    message.includes("Missing env var: BIZUPLY_WHATSAPP_API_KEY") ||
+    message.startsWith("Unsupported WHATSAPP_PROVIDER")
+  ) {
     return notSent("WHATSAPP_NOT_CONNECTED");
   }
   if (message === "MISSING_PHONE" || message === "Missing field: to") {
@@ -221,9 +225,31 @@ export function classifyWhatsappSendError(err: any): WhatsappOutcome {
   }
   if (
     message.startsWith("Missing field: headerImageUrl") ||
-    message.startsWith("Invalid headerImageUrl")
+    message.startsWith("Invalid headerImageUrl") ||
+    err?.name === "InvitationImagePrepareError" ||
+    message.startsWith("header image")
   ) {
     return notSent("MEDIA_ERROR");
+  }
+  if (message.startsWith("WhatsApp header media upload failed")) {
+    return {
+      status: "FAILED",
+      reasonCode: "MEDIA_ERROR",
+      reasonMessage: getWhatsappReasonLabel("MEDIA_ERROR"),
+      errorCode: null,
+      errorMessage: message,
+    };
+  }
+  if (message.startsWith("WhatsApp template send was not accepted")) {
+    return {
+      status: "FAILED",
+      reasonCode: "PROVIDER_ERROR",
+      reasonMessage: getWhatsappReasonLabel("PROVIDER_ERROR"),
+      errorCode: err?.providerResponse?.error?.code
+        ? String(err.providerResponse.error.code)
+        : null,
+      errorMessage: message,
+    };
   }
   if (
     message.startsWith("Missing field:") ||
@@ -621,6 +647,15 @@ export async function recordWhatsappSendSuccess({
   wamid?: string | null;
   at?: Date;
 }) {
+  const acceptedWamid = String(wamid ?? "").trim();
+  if (!acceptedWamid) {
+    console.error("whatsapp success ignored without provider message id", {
+      queueId: queueId ? String(queueId) : "",
+      idempotencyKey: idempotencyKey || "",
+    });
+    return;
+  }
+
   const filter = queueFilter({ queueId, idempotencyKey });
   if (!filter) return;
 
@@ -630,8 +665,8 @@ export async function recordWhatsappSendSuccess({
       next: "SENT",
       at,
       event: "WA_SENT",
-      fields: { wamid: wamid || null, attemptedAt: at, sentAt: at },
-      meta: wamid ? { wamid } : null,
+      fields: { wamid: acceptedWamid, attemptedAt: at, sentAt: at },
+      meta: { wamid: acceptedWamid },
     });
   } catch (err) {
     logTrackingError("recordWhatsappSendSuccess", err);

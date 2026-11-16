@@ -106,9 +106,16 @@ async function sendWhatsappTemplateFromQueue(job: any) {
     messageType: job.type,
   });
 
+  const wamid = String(result?.messageId || "").trim();
+  if (!wamid) {
+    const error: any = new Error("WhatsApp template send was not accepted");
+    error.providerResponse = result?.providerResponse || null;
+    throw error;
+  }
+
   return {
     providerResponse: result?.providerResponse || null,
-    wamid: result?.providerResponse?.messages?.[0]?.id || null,
+    wamid,
   };
 }
 

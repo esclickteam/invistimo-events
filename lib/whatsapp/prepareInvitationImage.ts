@@ -11,29 +11,53 @@ import {
 import { stripCloudinaryTransforms } from "@/lib/whatsapp/invitationImageUrl";
 
 /**
- * Chooses the https URL placed in header.image.link.
+ * Reads the invitation file WhatsApp will receive.
  *
- * A stored JPEG or PNG inside WhatsApp's limits is returned unchanged after
- * its bytes have been read. Anything else is converted without a plate and
- * uploaded as a new Cloudinary object. The original invitation file is not
- * overwritten.
+ * A stored JPEG or PNG inside WhatsApp's limits is returned unchanged.
+ * Anything else is converted without a plate. The original invitation file
+ * is not overwritten. The send path uploads these bytes and references the
+ * media id; it does not hand Meta the Cloudinary link.
  *
  * There is no silent fallback to a c_limit URL. If the source cannot be read
- * or the derivative cannot be verified, this throws and the send is not
- * marked successful.
+ * or a required conversion fails, this throws and the send is not marked
+ * successful.
  */
 
+export type WhatsAppHeaderDelivery = {
+  status: number;
+  contentType: string | null;
+  contentLength: string | null;
+  contentDisposition: string | null;
+  cacheControl: string | null;
+  etag: string | null;
+  redirected: boolean;
+  finalUrl: string;
+};
+
+export type VerifiedWhatsappHeader = {
+  bytes: Buffer;
+  mime: "image/jpeg" | "image/png";
+  sourceUrl: string;
+  /** True only when the file was outside WhatsApp's limits and was re-encoded. */
+  normalized: boolean;
+  delivery: WhatsAppHeaderDelivery;
+};
+
 const DERIVATIVE_PREFIX = "invistimo/whatsapp-delivery/v6_";
+
+type HeaderFetchResponse = {
+  ok: boolean;
+  status?: number;
+  url?: string;
+  redirected?: boolean;
+  headers: { get(name: string): string | null };
+  arrayBuffer(): Promise<ArrayBuffer>;
+};
 
 type FetchLike = (
   input: string,
   init?: { method?: string }
-) => Promise<{
-  ok: boolean;
-  status?: number;
-  headers: { get(name: string): string | null };
-  arrayBuffer(): Promise<ArrayBuffer>;
-}>;
+) => Promise<HeaderFetchResponse>;
 
 export type PrepareInvitationImageDeps = {
   fetch?: FetchLike;
@@ -111,10 +135,26 @@ async function sharpMetadata(bytes: Buffer) {
   return sharp(bytes, { failOn: "none", animated: false }).metadata();
 }
 
-export async function prepareWhatsappInvitationImageUrl(
+function headerDelivery(
+  source: HeaderFetchResponse,
+  sourceUrl: string
+): WhatsAppHeaderDelivery {
+  return {
+    status: source.status || 0,
+    contentType: source.headers.get("content-type"),
+    contentLength: source.headers.get("content-length"),
+    contentDisposition: source.headers.get("content-disposition"),
+    cacheControl: source.headers.get("cache-control"),
+    etag: source.headers.get("etag"),
+    redirected: Boolean(source.redirected),
+    finalUrl: source.url || sourceUrl,
+  };
+}
+
+export async function loadVerifiedWhatsappHeader(
   value: unknown,
   deps: PrepareInvitationImageDeps = {}
-) {
+): Promise<VerifiedWhatsappHeader> {
   const stripped = stripCloudinaryTransforms(value);
   if (!stripped.startsWith("https://")) {
     throw new InvitationImagePrepareError("header image url is not https");
@@ -132,10 +172,22 @@ export async function prepareWhatsappInvitationImageUrl(
     throw new InvitationImagePrepareError("header image source could not be read");
   }
 
+  const finalUrl = source.url || stripped;
+  if (source.redirected && !finalUrl.startsWith("https://")) {
+    throw new InvitationImagePrepareError("header image redirect is not https");
+  }
+
   const bytes = Buffer.from(await source.arrayBuffer());
+  const delivery = headerDelivery(source, stripped);
   const size = await verifiedSize(bytes);
   if (isReadyWhatsAppHeader(size.kind, bytes.length, size.width, size.height)) {
-    return stripped;
+    return {
+      bytes,
+      mime: size.kind === "png" ? "image/png" : "image/jpeg",
+      sourceUrl: stripped,
+      normalized: false,
+      delivery,
+    };
   }
 
   let jpeg: Buffer;
@@ -152,6 +204,23 @@ export async function prepareWhatsappInvitationImageUrl(
     throw new InvitationImagePrepareError("prepared header image failed verification");
   }
 
+  return {
+    bytes: jpeg,
+    mime: "image/jpeg",
+    sourceUrl: stripped,
+    normalized: true,
+    delivery,
+  };
+}
+
+export async function prepareWhatsappInvitationImageUrl(
+  value: unknown,
+  deps: PrepareInvitationImageDeps = {}
+) {
+  const loaded = await loadVerifiedWhatsappHeader(value, deps);
+  if (!loaded.normalized) return loaded.sourceUrl;
+
+  const stripped = loaded.sourceUrl;
   if (!isCloudinaryUpload(stripped)) {
     throw new InvitationImagePrepareError(
       "header image needs a derivative but is not stored on Cloudinary"
@@ -165,9 +234,10 @@ export async function prepareWhatsappInvitationImageUrl(
   const publicId = derivativePublicId(stripped);
   const upload =
     deps.upload ?? ((buffer: Buffer, id: string) => uploadJpeg(buffer, id, cloudName));
+  const fetchImpl = deps.fetch ?? (fetch as unknown as FetchLike);
   let url = "";
   try {
-    url = await upload(jpeg, publicId);
+    url = await upload(loaded.bytes, publicId);
   } catch (error) {
     console.error("whatsapp invitation image prepare failed", error);
     if (error instanceof InvitationImagePrepareError) throw error;

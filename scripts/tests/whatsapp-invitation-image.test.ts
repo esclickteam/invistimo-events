@@ -6,6 +6,7 @@ import sharp from "sharp";
 
 import {
   bytesForInvitationStorage,
+  describeWhatsAppHeaderFile,
   isReadyWhatsAppHeader,
   WHATSAPP_HEADER_MAX_BYTES,
 } from "../../lib/whatsapp/invitationImage";
@@ -14,6 +15,7 @@ import {
   prepareWhatsappInvitationImageUrl,
 } from "../../lib/whatsapp/prepareInvitationImage";
 import { sendRsvpTemplateMedia } from "../../lib/whatsapp/sendRsvpTemplateMedia";
+import { clearWhatsAppHeaderMediaCache } from "../../lib/whatsapp/uploadHeaderMedia";
 
 function isBaselineJpeg(buffer: Buffer) {
   assert.equal(buffer[0], 0xff);
@@ -158,21 +160,41 @@ test("a failed prepare throws and does not return a c_limit URL", async () => {
   );
 });
 
-test("360dialog is given the original file for every image template", async () => {
+test("360dialog receives the original bytes by media id for every image template", async () => {
   process.env.WHATSAPP_API_KEY = "test-key";
+  const previousMedia = process.env.WHATSAPP_HEADER_MEDIA;
+  process.env.WHATSAPP_HEADER_MEDIA = "id";
+  clearWhatsAppHeaderMediaCache();
   const file = await png(64, 64, 3, () => [20, 40, 80]);
   const stored =
     "https://res.cloudinary.com/dnbewcz79/image/upload/c_limit,w_1600,h_2400/b_rgb:FFFFFF,f_jpg/v1/invistimo/invitations/sample.png";
   const original =
     "https://res.cloudinary.com/dnbewcz79/image/upload/v1/invistimo/invitations/sample.png";
   const posts: any[] = [];
+  const uploaded: Buffer[] = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (_url: any, init: any) => {
     const method = String(init?.method || "GET").toUpperCase();
+    const target = String(_url);
+    if (method === "POST" && target.includes("/media")) {
+      const form = init.body as FormData;
+      assert.equal(form.get("messaging_product"), "whatsapp");
+      const media = form.get("file");
+      assert.ok(media instanceof File);
+      assert.equal(media.type, "image/png");
+      assert.equal(media.name, "header.png");
+      uploaded.push(Buffer.from(await media.arrayBuffer()));
+      return new Response(JSON.stringify({ id: "uploaded-media" }), { status: 200 });
+    }
     if (method !== "POST") {
       return new Response(file, {
         status: 200,
-        headers: { "content-type": "image/png" },
+        headers: {
+          "content-type": "image/png",
+          "content-length": String(file.length),
+          "cache-control": "public, immutable, max-age=2592000",
+          etag: "\"abc\"",
+        },
       });
     }
     posts.push(JSON.parse(init.body));
@@ -214,9 +236,13 @@ test("360dialog is given the original file for every image template", async () =
     });
   } finally {
     globalThis.fetch = originalFetch;
+    if (previousMedia == null) delete process.env.WHATSAPP_HEADER_MEDIA;
+    else process.env.WHATSAPP_HEADER_MEDIA = previousMedia;
   }
 
   assert.equal(posts.length, 5);
+  assert.equal(uploaded.length, 1, "one media upload is reused for the same file");
+  assert.equal(uploaded[0].equals(file), true);
   assert.deepEqual(
     posts.map((post) => post.template.name),
     [
@@ -229,9 +255,29 @@ test("360dialog is given the original file for every image template", async () =
   );
   for (const post of posts) {
     const header = post.template.components.find((item: any) => item.type === "header");
-    assert.equal(header.parameters[0].image.link, original);
+    assert.equal(header.parameters[0].image.id, "uploaded-media");
+    assert.equal(header.parameters[0].image.link, undefined);
     assert.equal(post.template.components.some((item: any) => item.type === "header"), true);
+    const texts = post.template.components
+      .find((item: any) => item.type === "body")
+      .parameters.map((item: any) => item.text);
+    const button = post.template.components.find((item: any) => item.type === "button");
+    if (post.template.name === "rsvp_invitation_media") {
+      assert.deepEqual(texts, ["אירוע", "11.11.2026", "אולם"]);
+      assert.equal(button.parameters[0].text, "abc?token=t");
+    } else if (post.template.name === "rsvp_reminder_invistimo") {
+      assert.deepEqual(texts, ["אירוע"]);
+      assert.equal(button.parameters[0].text, "abc?token=t");
+    } else if (post.template.name === "save_the_date_image_he") {
+      assert.deepEqual(texts, ["אירוע", "11.11.2026"]);
+      assert.equal(button, undefined);
+    } else {
+      assert.equal(post.template.name, "event_invitation");
+      assert.deepEqual(texts, ["אירוע", "11.11.2026", "אולם"]);
+      assert.equal(button, undefined);
+    }
   }
+  assert.equal(original.includes("c_limit"), false);
 });
 
 test("a file that cannot be verified is not posted to 360dialog", async () => {
@@ -262,6 +308,33 @@ test("a file that cannot be verified is not posted to 360dialog", async () => {
   assert.equal(posts, 0);
 });
 
+test("header structure reports palette PNG and progressive JPEG without rewriting them", async () => {
+  const palette = await sharp({
+    create: { width: 8, height: 8, channels: 3, background: "#112233" },
+  })
+    .png({ palette: true })
+    .toBuffer();
+  const paletteInfo = describeWhatsAppHeaderFile(palette);
+  assert.equal(paletteInfo.kind, "png");
+  assert.equal(paletteInfo.pngColorType, 3);
+
+  const progressive = await sharp({
+    create: { width: 32, height: 32, channels: 3, background: "#abcdef" },
+  })
+    .jpeg({ progressive: true, quality: 80 })
+    .toBuffer();
+  assert.equal(describeWhatsAppHeaderFile(progressive).progressive, true);
+
+  const baseline = await sharp({
+    create: { width: 32, height: 32, channels: 3, background: "#abcdef" },
+  })
+    .jpeg({ progressive: false, mozjpeg: false })
+    .toBuffer();
+  const baselineInfo = describeWhatsAppHeaderFile(baseline);
+  assert.equal(baselineInfo.progressive, false);
+  assert.equal(baselineInfo.hasJfifThumbnail, false);
+});
+
 test("every image send path uses the verified prepare step and stores no plate", () => {
   const upload = readFileSync("app/api/invitations/upload-preview/route.ts", "utf8");
   const save = readFileSync("app/api/invitations/[id]/route.ts", "utf8");
@@ -290,7 +363,10 @@ test("every image send path uses the verified prepare step and stores no plate",
   assert.match(image, /fit:\s*"inside"/);
   assert.match(image, /withoutEnlargement:\s*true/);
   assert.doesNotMatch(image, /\.extend\(/);
-  assert.match(send, /prepareWhatsappInvitationImageUrl/);
+  assert.match(send, /loadVerifiedWhatsappHeader/);
+  assert.match(send, /uploadWhatsAppHeaderMedia/);
+  assert.doesNotMatch(send, /waba-v2\.360dialog\.io/);
+  assert.doesNotMatch(send, /link: headerImageUrl/);
   assert.doesNotMatch(send, /toWhatsappInvitationImageUrl\(/);
   assert.doesNotMatch(prepare, /toWhatsappInvitationImageUrl\(/);
   assert.match(prepare, /InvitationImagePrepareError/);

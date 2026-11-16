@@ -1,5 +1,15 @@
 import { dedupeGuestLocationText } from "@/lib/messages/locationText";
-import { prepareWhatsappInvitationImageUrl } from "@/lib/whatsapp/prepareInvitationImage";
+import { resolveWhatsappHeaderMediaMode } from "@/lib/whatsapp/headerMediaMode";
+import { describeWhatsAppHeaderFile } from "@/lib/whatsapp/invitationImage";
+import {
+  loadVerifiedWhatsappHeader,
+  prepareWhatsappInvitationImageUrl,
+} from "@/lib/whatsapp/prepareInvitationImage";
+import { getWhatsAppProvider, type WhatsAppProvider } from "@/lib/whatsapp/provider";
+import {
+  forgetWhatsAppHeaderMediaId,
+  uploadWhatsAppHeaderMedia,
+} from "@/lib/whatsapp/uploadHeaderMedia";
 import {
   EVENT_INVITATION_TEMPLATE_NAME,
   SAVE_THE_DATE_TEMPLATE_NAME,
@@ -82,7 +92,6 @@ const EVENT_INVITATION_TEMPLATE = EVENT_INVITATION_TEMPLATE_NAME;
 
 const DEFAULT_TEMPLATE_NAME = ROUND1_TEMPLATE;
 const DEFAULT_LANGUAGE_CODE = "he";
-const D360_ENDPOINT = "https://waba-v2.360dialog.io/messages";
 
 /* ================= HELPERS ================= */
 
@@ -267,38 +276,72 @@ function assertRequiredFields(input: SendRsvpTemplateMediaInput): void {
   throw new Error(`Unsupported templateName "${templateName}"`);
 }
 
-async function safeParseResponse(res: Response): Promise<any> {
-  const text = await res.text().catch(() => "");
-
-  if (!text) return {};
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { raw: text };
-  }
+async function verifiedHeaderMediaId(value: string, provider: WhatsAppProvider) {
+  const header = await loadVerifiedWhatsappHeader(value);
+  return uploadWhatsAppHeaderMedia(
+    {
+      bytes: header.bytes,
+      mime: header.mime,
+      context: {
+        sourceUrl: header.sourceUrl,
+        normalized: header.normalized,
+        contentType: header.delivery.contentType,
+        contentLength: header.delivery.contentLength,
+        contentDisposition: header.delivery.contentDisposition,
+        cacheControl: header.delivery.cacheControl,
+        etag: header.delivery.etag,
+        redirected: header.delivery.redirected,
+        finalUrl: header.delivery.finalUrl,
+        structure: describeWhatsAppHeaderFile(header.bytes),
+      },
+    },
+    { provider }
+  );
 }
 
-async function verifiedHeaderImageUrl(value: string) {
-  const headerImageUrl = await prepareWhatsappInvitationImageUrl(value);
-  if (!isValidHttpsUrl(headerImageUrl)) {
-    throw new Error("Invalid headerImageUrl (must be https)");
-  }
-  return headerImageUrl;
-}
-
-function buildHeaderComponent(headerImageUrl: string) {
+function buildHeaderComponent(mediaId: string) {
   return {
     type: "header",
     parameters: [
       {
         type: "image",
         image: {
-          link: headerImageUrl,
+          id: mediaId,
         },
       },
     ],
   };
+}
+
+function buildHeaderLinkComponent(verifiedLink: string) {
+  return {
+    type: "header",
+    parameters: [
+      {
+        type: "image",
+        image: {
+          link: verifiedLink,
+        },
+      },
+    ],
+  };
+}
+
+async function headerForRecipient(
+  headerImageUrl: string,
+  to: string,
+  provider: WhatsAppProvider
+) {
+  if (resolveWhatsappHeaderMediaMode(to) === "link") {
+    const link = await prepareWhatsappInvitationImageUrl(headerImageUrl);
+    if (!isValidHttpsUrl(link)) {
+      throw new Error("Invalid headerImageUrl (must be https)");
+    }
+    return { mediaId: "", component: buildHeaderLinkComponent(link) };
+  }
+
+  const mediaId = await verifiedHeaderMediaId(headerImageUrl, provider);
+  return { mediaId, component: buildHeaderComponent(mediaId) };
 }
 
 function buildUrlButtonComponent(buttonUrlParam: string) {
@@ -320,11 +363,7 @@ function buildUrlButtonComponent(buttonUrlParam: string) {
 export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
   assertRequiredFields(input);
 
-  const apiKey = process.env.WHATSAPP_API_KEY;
-
-  if (!isNonEmptyString(apiKey)) {
-    throw new Error("Missing env var: WHATSAPP_API_KEY");
-  }
+  const provider = getWhatsAppProvider();
 
   const to = normalizePhoneIL(input.to);
 
@@ -335,12 +374,45 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
   const templateName = resolveSendTemplateName(input);
   const languageCode = (input.languageCode || DEFAULT_LANGUAGE_CODE).trim();
 
-  const customComponents = Array.isArray(input.components)
-    ? input.components
-    : null;
+  let lastError: Error | null = null;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const built = await assembleTemplate(input, templateName, to, provider);
+    try {
+      const sent = await provider.sendTemplate({
+        to,
+        templateName,
+        languageCode,
+        components: built.components,
+      });
+      return {
+        success: true as const,
+        to,
+        templateName,
+        languageCode,
+        buttonUrlParam: built.buttonUrlParam,
+        messageId: sent.messageId,
+        providerResponse: sent.providerResponse,
+      };
+    } catch (error: any) {
+      const retryWithFreshMedia =
+        attempt === 0 && built.mediaId && error?.mediaRejected;
+      if (!retryWithFreshMedia) throw error;
+      forgetWhatsAppHeaderMediaId(built.mediaId);
+      lastError = error;
+    }
+  }
 
+  throw lastError ?? new Error("WhatsApp template send was not accepted");
+}
+
+async function assembleTemplate(
+  input: SendRsvpTemplateMediaInput,
+  templateName: string,
+  to: string,
+  provider: WhatsAppProvider
+) {
+  const customComponents = Array.isArray(input.components) ? input.components : null;
   let buttonUrlParam = "";
-  let components: any[] = [];
 
   /*
     חשוב מאוד:
@@ -351,145 +423,112 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
 
   if (templateName === ROUND1_TEMPLATE) {
     buttonUrlParam = resolveButtonSuffix(input, templateName);
-    const headerImageUrl = await verifiedHeaderImageUrl(input.headerImageUrl);
+    const header = await headerForRecipient(input.headerImageUrl, to, provider);
+    return {
+      buttonUrlParam,
+      mediaId: header.mediaId,
+      components: [
+        header.component,
+        {
+          type: "body",
+          parameters: [
+            {
+              type: "text",
+              text: safeTemplateText(input.eventTitle, "—"),
+            },
+            {
+              type: "text",
+              text: safeTemplateText(input.eventDate, "תאריך יעודכן בהמשך"),
+            },
+            {
+              type: "text",
+              text: whatsappLocationParameter(input.eventLocation),
+            },
+          ],
+        },
+        buildUrlButtonComponent(buttonUrlParam),
+      ],
+    };
+  }
 
-    components = [
-      buildHeaderComponent(headerImageUrl),
-      {
-        type: "body",
-        parameters: [
-          {
-            type: "text",
-            text: safeTemplateText(input.eventTitle, "—"),
-          },
-          {
-            type: "text",
-            text: safeTemplateText(input.eventDate, "תאריך יעודכן בהמשך"),
-          },
-          {
-            type: "text",
-            text: whatsappLocationParameter(input.eventLocation),
-          },
-        ],
-      },
-      buildUrlButtonComponent(buttonUrlParam),
-    ];
-  } else if (
-    templateName === ROUND2_TEMPLATE ||
-    templateName === ROUND3_TEMPLATE
-  ) {
+  if (templateName === ROUND2_TEMPLATE || templateName === ROUND3_TEMPLATE) {
     buttonUrlParam = resolveButtonSuffix(input, templateName);
-    const headerImageUrl = await verifiedHeaderImageUrl(input.headerImageUrl);
+    const header = await headerForRecipient(input.headerImageUrl, to, provider);
+    return {
+      buttonUrlParam,
+      mediaId: header.mediaId,
+      components: [
+        header.component,
+        {
+          type: "body",
+          parameters: [
+            {
+              type: "text",
+              text: safeTemplateText(input.eventTitle, "האירוע שלנו"),
+            },
+          ],
+        },
+        buildUrlButtonComponent(buttonUrlParam),
+      ],
+    };
+  }
 
-    components = [
-      buildHeaderComponent(headerImageUrl),
-      {
-        type: "body",
-        parameters: [
-          {
-            type: "text",
-            text: safeTemplateText(input.eventTitle, "האירוע שלנו"),
-          },
-        ],
-      },
-      buildUrlButtonComponent(buttonUrlParam),
-    ];
-  } else if (templateName === SAVE_THE_DATE_TEMPLATE) {
+  if (templateName === SAVE_THE_DATE_TEMPLATE) {
     const vars = resolveSaveTheDateVariables({
-      saveTheDateTitle:
-        input.templateVariables?.saveTheDateTitle || input.eventTitle,
+      saveTheDateTitle: input.templateVariables?.saveTheDateTitle || input.eventTitle,
       eventDate: input.templateVariables?.eventDate || input.eventDate,
     });
-    const headerImageUrl = await verifiedHeaderImageUrl(input.headerImageUrl);
+    const header = await headerForRecipient(input.headerImageUrl, to, provider);
+    return {
+      buttonUrlParam,
+      mediaId: header.mediaId,
+      components: [
+        header.component,
+        {
+          type: "body",
+          parameters: saveTheDateBodyParameters({
+            saveTheDateTitle: safeTemplateText(vars.saveTheDateTitle, "—"),
+            eventDate: safeTemplateText(vars.eventDate, "תאריך יעודכן בהמשך"),
+          }),
+        },
+      ],
+    };
+  }
 
-    components = [
-      buildHeaderComponent(headerImageUrl),
-      {
-        type: "body",
-        parameters: saveTheDateBodyParameters({
-          saveTheDateTitle: safeTemplateText(vars.saveTheDateTitle, "—"),
-          eventDate: safeTemplateText(vars.eventDate, "תאריך יעודכן בהמשך"),
-        }),
-      },
-    ];
-  } else if (templateName === EVENT_INVITATION_TEMPLATE) {
+  if (templateName === EVENT_INVITATION_TEMPLATE) {
     const vars = resolveEventInvitationVariables({
-      invitationTitle:
-        input.templateVariables?.invitationTitle || input.eventTitle,
+      invitationTitle: input.templateVariables?.invitationTitle || input.eventTitle,
       eventDate: input.templateVariables?.eventDate || input.eventDate,
-      eventLocation:
-        input.templateVariables?.eventLocation || input.eventLocation,
+      eventLocation: input.templateVariables?.eventLocation || input.eventLocation,
     });
-    const headerImageUrl = await verifiedHeaderImageUrl(input.headerImageUrl);
+    const header = await headerForRecipient(input.headerImageUrl, to, provider);
+    return {
+      buttonUrlParam,
+      mediaId: header.mediaId,
+      components: [
+        header.component,
+        {
+          type: "body",
+          parameters: eventInvitationBodyParameters({
+            invitationTitle: safeTemplateText(vars.invitationTitle, "—"),
+            eventDate: safeTemplateText(vars.eventDate, "תאריך יעודכן בהמשך"),
+            eventLocation: whatsappLocationParameter(
+              vars.eventLocation,
+              "מיקום יישלח בהמשך"
+            ),
+          }),
+        },
+      ],
+    };
+  }
 
-    components = [
-      buildHeaderComponent(headerImageUrl),
-      {
-        type: "body",
-        parameters: eventInvitationBodyParameters({
-          invitationTitle: safeTemplateText(vars.invitationTitle, "—"),
-          eventDate: safeTemplateText(vars.eventDate, "תאריך יעודכן בהמשך"),
-          eventLocation: whatsappLocationParameter(
-            vars.eventLocation,
-            "מיקום יישלח בהמשך"
-          ),
-        }),
-      },
-    ];
-  } else if (customComponents && customComponents.length > 0) {
+  if (customComponents && customComponents.length > 0) {
     /*
       רק לתבניות אחרות בעתיד.
       לא עבור RSVP סבבים.
     */
-    components = customComponents;
-  } else {
-    throw new Error(`Unsupported templateName "${templateName}"`);
+    return { buttonUrlParam, mediaId: "", components: customComponents };
   }
 
-  const payload = {
-    messaging_product: "whatsapp",
-    to,
-    type: "template",
-    template: {
-      name: templateName,
-      language: {
-        code: languageCode,
-      },
-      components,
-    },
-  };
-
-  const res = await fetch(D360_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "D360-API-KEY": apiKey,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  const providerResponse = await safeParseResponse(res);
-
-  if (!res.ok) {
-    const error: any = new Error(
-      `WhatsApp template send failed (${res.status}): ${JSON.stringify(
-        providerResponse
-      )}`
-    );
-    error.httpStatus = res.status;
-    error.providerResponse = providerResponse;
-    throw error;
-  }
-
-  const messageId = providerResponse?.messages?.[0]?.id ?? null;
-
-  return {
-    success: true,
-    to,
-    templateName,
-    languageCode,
-    buttonUrlParam,
-    messageId,
-    providerResponse,
-  };
+  throw new Error(`Unsupported templateName "${templateName}"`);
 }

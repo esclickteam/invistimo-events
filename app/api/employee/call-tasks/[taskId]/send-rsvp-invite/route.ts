@@ -416,7 +416,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
               $set: {
                 status: "sent",
                 sentAt: new Date(),
-                wamid: result?.providerResponse?.messages?.[0]?.id || null,
+                wamid: result.messageId || null,
                 providerStatus: "sent",
                 lockedAt: null,
                 lockedBy: null,
