@@ -21,6 +21,10 @@
       "schedule": "* * * * *"
     },
     {
+      "path": "/api/cron/whatsapp-display-trial-send",
+      "schedule": "* * * * *"
+    },
+    {
       "path": "/api/cron/whatsapp-sms-fallback",
       "schedule": "* * * * *"
     },
