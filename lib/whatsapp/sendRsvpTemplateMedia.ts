@@ -1,6 +1,7 @@
 import { dedupeGuestLocationText } from "@/lib/messages/locationText";
 import { describeWhatsAppHeaderFile } from "@/lib/whatsapp/invitationImage";
 import { loadVerifiedWhatsappHeader } from "@/lib/whatsapp/prepareInvitationImage";
+import { getWhatsAppProvider, type WhatsAppProvider } from "@/lib/whatsapp/provider";
 import {
   forgetWhatsAppHeaderMediaId,
   uploadWhatsAppHeaderMedia,
@@ -87,7 +88,6 @@ const EVENT_INVITATION_TEMPLATE = EVENT_INVITATION_TEMPLATE_NAME;
 
 const DEFAULT_TEMPLATE_NAME = ROUND1_TEMPLATE;
 const DEFAULT_LANGUAGE_CODE = "he";
-const D360_ENDPOINT = "https://waba-v2.360dialog.io/messages";
 
 /* ================= HELPERS ================= */
 
@@ -272,19 +272,7 @@ function assertRequiredFields(input: SendRsvpTemplateMediaInput): void {
   throw new Error(`Unsupported templateName "${templateName}"`);
 }
 
-async function safeParseResponse(res: Response): Promise<any> {
-  const text = await res.text().catch(() => "");
-
-  if (!text) return {};
-
-  try {
-    return JSON.parse(text);
-  } catch {
-    return { raw: text };
-  }
-}
-
-async function verifiedHeaderMediaId(value: string, apiKey: string) {
+async function verifiedHeaderMediaId(value: string, provider: WhatsAppProvider) {
   const header = await loadVerifiedWhatsappHeader(value);
   return uploadWhatsAppHeaderMedia(
     {
@@ -303,30 +291,7 @@ async function verifiedHeaderMediaId(value: string, apiKey: string) {
         structure: describeWhatsAppHeaderFile(header.bytes),
       },
     },
-    { apiKey }
-  );
-}
-
-function acceptedMessageId(body: any) {
-  if (!body || typeof body !== "object" || body.error) return "";
-  const id = body.messages?.[0]?.id;
-  if (id == null) return "";
-  return String(id).trim();
-}
-
-/** True only when 360dialog rejected the media id itself, so a fresh upload is safe. */
-function isRejectedMediaId(status: number, body: any) {
-  const error = body?.error && typeof body.error === "object" ? body.error : {};
-  const code = String(error.code ?? "");
-  const text = [error.message, error.error_data?.details, error.error_user_msg, body?.raw]
-    .filter((part) => part != null && String(part).trim())
-    .join(" ")
-    .toLowerCase();
-  if (code === "131053") return true;
-  if (!/media|image\['id'\]|image\.id|param image/.test(text)) return false;
-  return (
-    status === 404 ||
-    /expir|invalid|not a valid|does not exist|not found|deleted|unknown|no longer/.test(text)
+    { provider }
   );
 }
 
@@ -363,11 +328,7 @@ function buildUrlButtonComponent(buttonUrlParam: string) {
 export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
   assertRequiredFields(input);
 
-  const apiKey = process.env.WHATSAPP_API_KEY;
-
-  if (!isNonEmptyString(apiKey)) {
-    throw new Error("Missing env var: WHATSAPP_API_KEY");
-  }
+  const provider = getWhatsAppProvider();
 
   const to = normalizePhoneIL(input.to);
 
@@ -380,57 +341,30 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
 
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const built = await assembleTemplate(input, templateName, apiKey);
-    const payload = {
-      messaging_product: "whatsapp",
-      to,
-      type: "template",
-      template: {
-        name: templateName,
-        language: {
-          code: languageCode,
-        },
+    const built = await assembleTemplate(input, templateName, provider);
+    try {
+      const sent = await provider.sendTemplate({
+        to,
+        templateName,
+        languageCode,
         components: built.components,
-      },
-    };
-
-    const res = await fetch(D360_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "D360-API-KEY": apiKey,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    const providerResponse = await safeParseResponse(res);
-    const messageId = res.ok ? acceptedMessageId(providerResponse) : "";
-    if (messageId) {
+      });
       return {
         success: true as const,
         to,
         templateName,
         languageCode,
         buttonUrlParam: built.buttonUrlParam,
-        messageId,
-        providerResponse,
+        messageId: sent.messageId,
+        providerResponse: sent.providerResponse,
       };
+    } catch (error: any) {
+      const retryWithFreshMedia =
+        attempt === 0 && built.mediaId && error?.mediaRejected;
+      if (!retryWithFreshMedia) throw error;
+      forgetWhatsAppHeaderMediaId(built.mediaId);
+      lastError = error;
     }
-
-    const error: any = new Error(
-      res.ok
-        ? "WhatsApp template send was not accepted"
-        : `WhatsApp template send failed (${res.status}): ${JSON.stringify(providerResponse)}`
-    );
-    error.httpStatus = res.status;
-    error.providerResponse = providerResponse;
-    const retryWithFreshMedia =
-      attempt === 0 &&
-      built.mediaId &&
-      isRejectedMediaId(res.status, providerResponse);
-    if (!retryWithFreshMedia) throw error;
-    forgetWhatsAppHeaderMediaId(built.mediaId);
-    lastError = error;
   }
 
   throw lastError ?? new Error("WhatsApp template send was not accepted");
@@ -439,7 +373,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
 async function assembleTemplate(
   input: SendRsvpTemplateMediaInput,
   templateName: string,
-  apiKey: string
+  provider: WhatsAppProvider
 ) {
   const customComponents = Array.isArray(input.components) ? input.components : null;
   let buttonUrlParam = "";
@@ -453,7 +387,7 @@ async function assembleTemplate(
 
   if (templateName === ROUND1_TEMPLATE) {
     buttonUrlParam = resolveButtonSuffix(input, templateName);
-    const headerMediaId = await verifiedHeaderMediaId(input.headerImageUrl, apiKey);
+    const headerMediaId = await verifiedHeaderMediaId(input.headerImageUrl, provider);
     return {
       buttonUrlParam,
       mediaId: headerMediaId,
@@ -483,7 +417,7 @@ async function assembleTemplate(
 
   if (templateName === ROUND2_TEMPLATE || templateName === ROUND3_TEMPLATE) {
     buttonUrlParam = resolveButtonSuffix(input, templateName);
-    const headerMediaId = await verifiedHeaderMediaId(input.headerImageUrl, apiKey);
+    const headerMediaId = await verifiedHeaderMediaId(input.headerImageUrl, provider);
     return {
       buttonUrlParam,
       mediaId: headerMediaId,
@@ -508,7 +442,7 @@ async function assembleTemplate(
       saveTheDateTitle: input.templateVariables?.saveTheDateTitle || input.eventTitle,
       eventDate: input.templateVariables?.eventDate || input.eventDate,
     });
-    const headerMediaId = await verifiedHeaderMediaId(input.headerImageUrl, apiKey);
+    const headerMediaId = await verifiedHeaderMediaId(input.headerImageUrl, provider);
     return {
       buttonUrlParam,
       mediaId: headerMediaId,
@@ -531,7 +465,7 @@ async function assembleTemplate(
       eventDate: input.templateVariables?.eventDate || input.eventDate,
       eventLocation: input.templateVariables?.eventLocation || input.eventLocation,
     });
-    const headerMediaId = await verifiedHeaderMediaId(input.headerImageUrl, apiKey);
+    const headerMediaId = await verifiedHeaderMediaId(input.headerImageUrl, provider);
     return {
       buttonUrlParam,
       mediaId: headerMediaId,

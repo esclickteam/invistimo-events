@@ -361,6 +361,7 @@ test("every image send path uses the verified prepare step and stores no plate",
   assert.doesNotMatch(image, /\.extend\(/);
   assert.match(send, /loadVerifiedWhatsappHeader/);
   assert.match(send, /uploadWhatsAppHeaderMedia/);
+  assert.doesNotMatch(send, /waba-v2\.360dialog\.io/);
   assert.doesNotMatch(send, /link: headerImageUrl/);
   assert.doesNotMatch(send, /toWhatsappInvitationImageUrl\(/);
   assert.doesNotMatch(prepare, /toWhatsappInvitationImageUrl\(/);

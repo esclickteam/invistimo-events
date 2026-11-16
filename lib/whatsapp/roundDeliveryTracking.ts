@@ -210,7 +210,11 @@ export function classifyWhatsappSendError(err: any): WhatsappOutcome {
   ) {
     return notSent("BLOCKED_BY_SAFETY_GATE");
   }
-  if (message.includes("Missing env var: WHATSAPP_API_KEY")) {
+  if (
+    message.includes("Missing env var: WHATSAPP_API_KEY") ||
+    message.includes("Missing env var: BIZUPLY_WHATSAPP_API_KEY") ||
+    message.startsWith("Unsupported WHATSAPP_PROVIDER")
+  ) {
     return notSent("WHATSAPP_NOT_CONNECTED");
   }
   if (message === "MISSING_PHONE" || message === "Missing field: to") {
