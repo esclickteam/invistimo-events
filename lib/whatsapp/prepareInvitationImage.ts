@@ -10,7 +10,7 @@ import {
 } from "@/lib/whatsapp/invitationImage";
 import { stripCloudinaryTransforms } from "@/lib/whatsapp/invitationImageUrl";
 import {
-  jpegFilledToWhatsappHeader,
+  jpegPreservingFullInvitation,
   whatsappHeaderFrameEnabled,
 } from "@/lib/whatsapp/headerFrame";
 
@@ -232,7 +232,7 @@ export async function prepareWhatsappInvitationImageUrl(
 ) {
   const loaded = await loadVerifiedWhatsappHeader(value, deps);
   const framed = whatsappHeaderFrameEnabled()
-    ? await jpegFilledToWhatsappHeader(loaded.bytes)
+    ? await jpegPreservingFullInvitation(loaded.bytes)
     : null;
   if (!framed && !loaded.normalized) return loaded.sourceUrl;
 

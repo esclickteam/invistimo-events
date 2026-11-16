@@ -4,11 +4,7 @@ import assert from "node:assert/strict";
 import sharp from "sharp";
 
 import {
-  headerDisplayWidthFraction,
-  jpegFilledToWhatsappHeader,
-  WHATSAPP_HEADER_ASPECT,
-  WHATSAPP_HEADER_HEIGHT,
-  WHATSAPP_HEADER_WIDTH,
+  jpegPreservingFullInvitation,
   whatsappHeaderFrameEnabled,
 } from "../../lib/whatsapp/headerFrame";
 import { prepareWhatsappInvitationImageUrl } from "../../lib/whatsapp/prepareInvitationImage";
@@ -16,47 +12,50 @@ import { prepareWhatsappInvitationImageUrl } from "../../lib/whatsapp/prepareInv
 const sourceUrl =
   "https://res.cloudinary.com/dnbewcz79/image/upload/v1794826500/invistimo/invitations/sample.jpg";
 
-test("a 1080x1920 export fills about 30 percent of a WhatsApp image header", () => {
-  const fraction = headerDisplayWidthFraction(1080, 1920);
-  assert.ok(fraction > 0.28 && fraction < 0.31);
-  assert.equal(whatsappHeaderFrameEnabled(undefined), false);
-  assert.equal(whatsappHeaderFrameEnabled("1.91"), true);
-});
-
-test("the header frame keeps the top of a tall invitation and fills the slot", async () => {
+async function portraitWithMarkedEnds() {
   const width = 90;
   const height = 160;
-  const raw = Buffer.alloc(width * height * 3);
+  const raw = Buffer.alloc(width * height * 3, 40);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const offset = (y * width + x) * 3;
-      const top = y < 32;
-      raw[offset] = top ? 220 : 20;
-      raw[offset + 1] = top ? 30 : 40;
-      raw[offset + 2] = top ? 40 : 180;
+      if (y < 8) raw[offset] = 220;
+      if (y >= height - 8) raw[offset + 2] = 220;
     }
   }
-  const source = await sharp(raw, { raw: { width, height, channels: 3 } })
+  return sharp(raw, { raw: { width, height, channels: 3 } })
     .jpeg({ quality: 95, progressive: false, mozjpeg: false })
     .toBuffer();
+}
 
-  const framed = await jpegFilledToWhatsappHeader(source);
-  assert.ok(framed);
-  const meta = await sharp(framed).metadata();
-  assert.equal(meta.width, WHATSAPP_HEADER_WIDTH);
-  assert.equal(meta.height, WHATSAPP_HEADER_HEIGHT);
-  assert.ok(Math.abs(meta.width / meta.height - WHATSAPP_HEADER_ASPECT) < 0.02);
-
-  const { data, info } = await sharp(framed).removeAlpha().raw().toBuffer({ resolveWithObject: true });
-  const at = (x: number, y: number) => data[(y * info.width + x) * 3];
-  assert.ok(at(0, 0) > 150);
-  assert.ok(at(info.width - 1, 0) > 150);
-  assert.ok(at(0, info.height - 1) < 80);
+test("the horizontal header crop cannot be turned on", () => {
+  assert.equal(whatsappHeaderFrameEnabled(undefined), false);
+  assert.equal(whatsappHeaderFrameEnabled("1.91"), false);
+  assert.equal(whatsappHeaderFrameEnabled("preserve"), true);
 });
 
-test("the header frame stays off for customers until it is enabled", async () => {
+test("a tall invitation keeps its full height, width, and both ends", async () => {
+  const source = await portraitWithMarkedEnds();
+  const copy = await jpegPreservingFullInvitation(source);
+  const before = await sharp(source).metadata();
+  const after = await sharp(copy).metadata();
+  assert.equal(after.width, before.width);
+  assert.equal(after.height, before.height);
+  assert.equal(after.width, 90);
+  assert.equal(after.height, 160);
+
+  const { data, info } = await sharp(copy).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const red = (y: number) => data[(y * info.width + 10) * 3];
+  const blue = (y: number) => data[(y * info.width + 10) * 3 + 2];
+  assert.ok(red(0) > 150);
+  assert.ok(blue(info.height - 1) > 150);
+  assert.notEqual(after.width, 1125);
+  assert.notEqual(after.height, 589);
+});
+
+test("customers still receive the stored file while the copy is off", async () => {
   const previous = process.env.WHATSAPP_HEADER_FRAME;
-  delete process.env.WHATSAPP_HEADER_FRAME;
+  process.env.WHATSAPP_HEADER_FRAME = "1.91";
   const file = await sharp({
     create: { width: 1080, height: 1920, channels: 3, background: "#886644" },
   })
@@ -65,11 +64,13 @@ test("the header frame stays off for customers until it is enabled", async () =>
   let uploads = 0;
   try {
     const sent = await prepareWhatsappInvitationImageUrl(sourceUrl, {
-      fetch: async () =>
-        new Response(file, {
-          status: 200,
-          headers: { "content-type": "image/jpeg" },
-        }) as unknown as Awaited<ReturnType<typeof fetch>>,
+      fetch: async () => ({
+        ok: true,
+        status: 200,
+        headers: { get: () => "image/jpeg" },
+        arrayBuffer: async () =>
+          file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength),
+      }),
       upload: async () => {
         uploads += 1;
         return "https://res.cloudinary.com/dnbewcz79/image/upload/unused.jpg";
@@ -83,19 +84,15 @@ test("the header frame stays off for customers until it is enabled", async () =>
   }
 });
 
-test("an enabled header frame uploads a new file and leaves the original id", async () => {
+test("preserve uploads a same-size copy and does not replace the original id", async () => {
   const previous = process.env.WHATSAPP_HEADER_FRAME;
-  process.env.WHATSAPP_HEADER_FRAME = "1.91";
-  const file = await sharp({
-    create: { width: 108, height: 192, channels: 3, background: "#224466" },
-  })
-    .jpeg({ quality: 80, progressive: false, mozjpeg: false })
-    .toBuffer();
-  let publicId = "";
+  process.env.WHATSAPP_HEADER_FRAME = "preserve";
+  const file = await portraitWithMarkedEnds();
   let uploaded: Buffer | null = null;
+  let publicId = "";
   try {
     const sent = await prepareWhatsappInvitationImageUrl(sourceUrl, {
-      fetch: async (input, init) => {
+      fetch: async (_input, init) => {
         if (init?.method === "HEAD") {
           return {
             ok: true,
@@ -113,20 +110,20 @@ test("an enabled header frame uploads a new file and leaves the original id", as
         };
       },
       upload: async (buffer, id) => {
-        publicId = id;
         uploaded = buffer;
+        publicId = id;
         return "https://res.cloudinary.com/dnbewcz79/image/upload/invistimo/whatsapp-header-frame/v1_test.jpg";
       },
     });
+    assert.match(publicId, /^invistimo\/whatsapp-header-frame\/v1_/);
+    assert.equal(publicId.includes("sample"), false);
+    const meta = await sharp(uploaded!).metadata();
+    assert.equal(meta.width, 90);
+    assert.equal(meta.height, 160);
     assert.equal(
       sent,
       "https://res.cloudinary.com/dnbewcz79/image/upload/invistimo/whatsapp-header-frame/v1_test.jpg"
     );
-    assert.match(publicId, /^invistimo\/whatsapp-header-frame\/v1_/);
-    assert.equal(publicId.includes("sample"), false);
-    const meta = await sharp(uploaded!).metadata();
-    assert.equal(meta.width, WHATSAPP_HEADER_WIDTH);
-    assert.equal(meta.height, WHATSAPP_HEADER_HEIGHT);
   } finally {
     if (previous == null) delete process.env.WHATSAPP_HEADER_FRAME;
     else process.env.WHATSAPP_HEADER_FRAME = previous;
