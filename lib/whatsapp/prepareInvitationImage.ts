@@ -9,6 +9,10 @@ import {
   sniffImageKind,
 } from "@/lib/whatsapp/invitationImage";
 import { stripCloudinaryTransforms } from "@/lib/whatsapp/invitationImageUrl";
+import {
+  jpegFilledToWhatsappHeader,
+  whatsappHeaderFrameEnabled,
+} from "@/lib/whatsapp/headerFrame";
 
 /**
  * Reads the invitation file WhatsApp will receive.
@@ -44,6 +48,7 @@ export type VerifiedWhatsappHeader = {
 };
 
 const DERIVATIVE_PREFIX = "invistimo/whatsapp-delivery/v6_";
+const HEADER_FRAME_PREFIX = "invistimo/whatsapp-header-frame/v1_";
 
 type HeaderFetchResponse = {
   ok: boolean;
@@ -83,6 +88,14 @@ function cloudNameFromUrl(url: string) {
 function derivativePublicId(strippedUrl: string) {
   const hash = createHash("sha256").update(strippedUrl).digest("hex").slice(0, 24);
   return `${DERIVATIVE_PREFIX}${hash}`;
+}
+
+function headerFramePublicId(strippedUrl: string) {
+  const hash = createHash("sha256")
+    .update(`header-frame:${strippedUrl}`)
+    .digest("hex")
+    .slice(0, 24);
+  return `${HEADER_FRAME_PREFIX}${hash}`;
 }
 
 function isCloudinaryUpload(url: string) {
@@ -218,7 +231,10 @@ export async function prepareWhatsappInvitationImageUrl(
   deps: PrepareInvitationImageDeps = {}
 ) {
   const loaded = await loadVerifiedWhatsappHeader(value, deps);
-  if (!loaded.normalized) return loaded.sourceUrl;
+  const framed = whatsappHeaderFrameEnabled()
+    ? await jpegFilledToWhatsappHeader(loaded.bytes)
+    : null;
+  if (!framed && !loaded.normalized) return loaded.sourceUrl;
 
   const stripped = loaded.sourceUrl;
   if (!isCloudinaryUpload(stripped)) {
@@ -231,13 +247,15 @@ export async function prepareWhatsappInvitationImageUrl(
     throw new InvitationImagePrepareError("header image cloud could not be determined");
   }
 
-  const publicId = derivativePublicId(stripped);
+  const publicId = framed
+    ? headerFramePublicId(stripped)
+    : derivativePublicId(stripped);
   const upload =
     deps.upload ?? ((buffer: Buffer, id: string) => uploadJpeg(buffer, id, cloudName));
   const fetchImpl = deps.fetch ?? (fetch as unknown as FetchLike);
   let url = "";
   try {
-    url = await upload(loaded.bytes, publicId);
+    url = await upload(framed ?? loaded.bytes, publicId);
   } catch (error) {
     console.error("whatsapp invitation image prepare failed", error);
     if (error instanceof InvitationImagePrepareError) throw error;
