@@ -6,10 +6,21 @@ import {
   experimentalTemplateDraft,
   linkDisplayRequestBody,
   LinkDisplayNotApproved,
+  ONE_HEADER_PROBE_PHRASE,
+  oneHeaderProbeSendAllowed,
   redactLinkDisplayRequest,
+  resetOneHeaderProbeSendForTests,
   sendLinkDisplayExperiment,
 } from "../../lib/whatsapp/linkDisplayExperiment";
-import { WHATSAPP_HEADER_PROBE_IMAGE_URL } from "../../lib/whatsapp/headerProbe";
+import {
+  WHATSAPP_HEADER_PROBE_IMAGE_URL,
+  WHATSAPP_HEADER_PROBE_RECIPIENT,
+} from "../../lib/whatsapp/headerProbe";
+
+const ownerApproval = {
+  phrase: ONE_HEADER_PROBE_PHRASE,
+  to: WHATSAPP_HEADER_PROBE_RECIPIENT,
+} as const;
 
 test("the isolated check forces image.link and ignores the media flag", () => {
   const previous = process.env.WHATSAPP_HEADER_MEDIA;
@@ -52,20 +63,32 @@ test("the preview hides the phone and the button token", () => {
   assert.doesNotMatch(shown, /"id":/);
 });
 
-test("nothing is sent until the confirm string is passed", async () => {
+test("nothing is sent without the owner phrase, and another number is refused", async () => {
+  resetOneHeaderProbeSendForTests();
   let calls = 0;
   const fetchImpl: typeof fetch = async () => {
     calls += 1;
     return new Response("{}", { status: 200 });
   };
+  assert.equal(oneHeaderProbeSendAllowed(null), false);
+  assert.equal(oneHeaderProbeSendAllowed({ phrase: ONE_HEADER_PROBE_PHRASE, to: "972500000000" }), false);
   await assert.rejects(
-    () => sendLinkDisplayExperiment("no", { fetch: fetchImpl, apiKey: "test-key" }),
+    () => sendLinkDisplayExperiment(null, { fetch: fetchImpl, apiKey: "test-key" }),
+    LinkDisplayNotApproved
+  );
+  await assert.rejects(
+    () =>
+      sendLinkDisplayExperiment(
+        { phrase: ONE_HEADER_PROBE_PHRASE, to: "972500000000" },
+        { fetch: fetchImpl, apiKey: "test-key" }
+      ),
     LinkDisplayNotApproved
   );
   assert.equal(calls, 0);
 });
 
-test("an approved send posts the same link body and no media id", async () => {
+test("an explicit approval posts one link body and then refuses a second send", async () => {
+  resetOneHeaderProbeSendForTests();
   const seen: unknown[] = [];
   const fetchImpl: typeof fetch = async (_url, init) => {
     seen.push(JSON.parse(String(init?.body)));
@@ -74,13 +97,21 @@ test("an approved send posts the same link body and no media id", async () => {
       headers: { "content-type": "application/json" },
     });
   };
-  const sent = await sendLinkDisplayExperiment("SEND_ONE_APPROVED", {
+  const sent = await sendLinkDisplayExperiment(ownerApproval, {
     fetch: fetchImpl,
     apiKey: "test-key",
   });
   assert.equal(sent.messageId, "wamid.TEST");
   assert.equal(seen.length, 1);
   assert.deepEqual(seen[0], linkDisplayRequestBody());
+  const image = (seen[0] as { template: { components: Array<{ parameters: Array<{ image?: { id?: string; link?: string }; text?: string }> }> } }).template.components[0].parameters[0].image;
+  assert.equal(image?.id, undefined);
+  assert.equal(image?.link, WHATSAPP_HEADER_PROBE_IMAGE_URL);
+  await assert.rejects(
+    () => sendLinkDisplayExperiment(ownerApproval, { fetch: fetchImpl, apiKey: "test-key" }),
+    LinkDisplayNotApproved
+  );
+  assert.equal(seen.length, 1);
 });
 
 test("customer sends still choose the header from the media flag", () => {

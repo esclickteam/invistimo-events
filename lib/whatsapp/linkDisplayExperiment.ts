@@ -14,9 +14,25 @@ import {
  * caller passes the explicit confirm string.
  */
 
-export const LINK_DISPLAY_SEND_CONFIRM = "SEND_ONE_APPROVED";
+export const ONE_HEADER_PROBE_PHRASE = "ONE_HEADER_PROBE_SEND";
 
 const BUTTON_SUFFIX = "header-probe?token=display";
+
+export type OneHeaderProbeApproval = {
+  phrase: typeof ONE_HEADER_PROBE_PHRASE;
+  to: string;
+};
+
+let oneHeaderProbeSendConsumed = false;
+
+/** Test-only. Production calls do not reset the one-send latch. */
+export function resetOneHeaderProbeSendForTests() {
+  oneHeaderProbeSendConsumed = false;
+}
+
+function digitsOnly(value: string) {
+  return String(value || "").replace(/\D/g, "");
+}
 
 export type LinkDisplayRequest = {
   messaging_product: "whatsapp";
@@ -133,14 +149,46 @@ export function experimentalTemplateDraft() {
   };
 }
 
+function imageOf(body: LinkDisplayRequest) {
+  const header = body.template.components[0];
+  const parameter = header?.parameters?.[0] as { image?: { link?: string; id?: string } } | undefined;
+  return parameter?.image;
+}
+
+function buttonTextOf(body: LinkDisplayRequest) {
+  const button = body.template.components[2];
+  const parameter = button?.parameters?.[0] as { text?: string } | undefined;
+  return button?.sub_type === "url" ? parameter?.text : "";
+}
+
+/**
+ * One explicit owner approval. Message history does not count as approval.
+ * The destination must be the probe number named in the approval, the button
+ * must be the header-probe link, and the header must be image.link.
+ * A second call, or any other number, is refused.
+ */
+export function oneHeaderProbeSendAllowed(approval: OneHeaderProbeApproval | null | undefined) {
+  if (oneHeaderProbeSendConsumed) return false;
+  if (!approval || approval.phrase !== ONE_HEADER_PROBE_PHRASE) return false;
+  if (digitsOnly(approval.to) !== WHATSAPP_HEADER_PROBE_RECIPIENT) return false;
+  const body = linkDisplayRequestBody(digitsOnly(approval.to));
+  const image = imageOf(body);
+  if (!image?.link || image.id) return false;
+  if (image.link !== WHATSAPP_HEADER_PROBE_IMAGE_URL) return false;
+  if (body.to !== WHATSAPP_HEADER_PROBE_RECIPIENT) return false;
+  if (buttonTextOf(body) !== BUTTON_SUFFIX) return false;
+  return true;
+}
+
 export async function sendLinkDisplayExperiment(
-  confirm: string,
+  approval: OneHeaderProbeApproval | null | undefined,
   deps: { fetch?: typeof fetch; apiKey?: string } = {}
 ) {
-  if (confirm !== LINK_DISPLAY_SEND_CONFIRM) {
+  if (!oneHeaderProbeSendAllowed(approval)) {
     throw new LinkDisplayNotApproved();
   }
-  const body = linkDisplayRequestBody();
+  oneHeaderProbeSendConsumed = true;
+  const body = linkDisplayRequestBody(WHATSAPP_HEADER_PROBE_RECIPIENT);
   const provider = createDialogProvider({
     fetch: deps.fetch,
     apiKey: deps.apiKey,
