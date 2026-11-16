@@ -6,8 +6,11 @@ import sharp from "sharp";
 
 import {
   bytesForInvitationStorage,
+  isMobileSafeWhatsAppJpeg,
   isReadyWhatsAppHeader,
+  jpegBytesForWhatsAppHeader,
   WHATSAPP_HEADER_MAX_BYTES,
+  withJfifDensity72,
 } from "../../lib/whatsapp/invitationImage";
 import {
   InvitationImagePrepareError,
@@ -110,6 +113,93 @@ test("a white or cream plate is not cropped, including an old 1080 canvas", asyn
     fetch: fetchOf(plate),
     upload: async () => {
       throw new Error("must not re-encode a valid PNG");
+    },
+  });
+  assert.equal(sent, sourceUrl);
+});
+
+test("a 4:4:4 JPEG at 150 DPI is rewritten in place for mobile", async () => {
+  const plate = await sharp({
+    create: { width: 120, height: 200, channels: 3, background: "#ffffff" },
+  })
+    .composite([
+      {
+        input: await sharp({
+          create: { width: 80, height: 100, channels: 3, background: "#1a4c8c" },
+        })
+          .png()
+          .toBuffer(),
+        left: 20,
+        top: 50,
+      },
+    ])
+    .jpeg({
+      quality: 90,
+      progressive: false,
+      chromaSubsampling: "4:4:4",
+      mozjpeg: false,
+    })
+    .toBuffer();
+  const source = Buffer.from(withJfifDensity72(plate));
+  source.writeUInt16BE(150, 14);
+  source.writeUInt16BE(150, 16);
+  assert.equal(isMobileSafeWhatsAppJpeg(source), false);
+
+  const before = await sharp(source).metadata();
+  let uploaded: Buffer | null = null;
+  const sent = await prepareWhatsappInvitationImageUrl(sourceUrl, {
+    fetch: fetchOf(source),
+    upload: async (buffer) => {
+      uploaded = buffer;
+      return "https://res.cloudinary.com/dnbewcz79/image/upload/invistimo/whatsapp-delivery/v7_test.jpg";
+    },
+  });
+  assert.notEqual(sent, sourceUrl);
+  assert.ok(uploaded);
+  const delivered = uploaded as Buffer;
+  assert.equal(isMobileSafeWhatsAppJpeg(delivered), true);
+  const after = await sharp(delivered).metadata();
+  assert.equal(after.width, before.width);
+  assert.equal(after.height, before.height);
+  assert.equal(after.chromaSubsampling, "4:2:0");
+  assert.equal(after.isProgressive, false);
+  assert.equal(after.density, 72);
+
+  const pixels = await sharp(delivered).raw().toBuffer();
+  const at = (x: number, y: number) => {
+    const offset = (y * 120 + x) * 3;
+    return [pixels[offset], pixels[offset + 1], pixels[offset + 2]];
+  };
+  assert.ok(at(0, 0).every((channel) => channel > 245));
+  assert.ok(at(0, 199).every((channel) => channel > 245));
+  const center = at(60, 100);
+  assert.ok(center[2] > center[0] + 40);
+  assert.ok(center[2] > center[1] + 40);
+
+  const direct = await jpegBytesForWhatsAppHeader(source);
+  const directMeta = await sharp(direct).metadata();
+  assert.equal(directMeta.width, 120);
+  assert.equal(directMeta.height, 200);
+});
+
+test("a baseline 4:2:0 JPEG at 72 DPI is sent unchanged", async () => {
+  const safe = withJfifDensity72(
+    await sharp({
+      create: { width: 80, height: 48, channels: 3, background: "#446688" },
+    })
+      .jpeg({
+        quality: 90,
+        progressive: false,
+        chromaSubsampling: "4:2:0",
+        mozjpeg: false,
+      })
+      .toBuffer()
+  );
+  assert.equal(isMobileSafeWhatsAppJpeg(safe), true);
+  const sent = await prepareWhatsappInvitationImageUrl(sourceUrl, {
+    fetch: fetchOf(safe),
+    upload: async () => {
+      throw new Error("must not re-encode a mobile-safe JPEG");
     },
   });
   assert.equal(sent, sourceUrl);
@@ -289,6 +379,9 @@ test("every image send path uses the verified prepare step and stores no plate",
   }
   assert.match(image, /fit:\s*"inside"/);
   assert.match(image, /withoutEnlargement:\s*true/);
+  assert.match(image, /chromaSubsampling:\s*"4:2:0"/);
+  assert.doesNotMatch(image, /chromaSubsampling:\s*"4:4:4"/);
+  assert.match(prepare, /isMobileSafeWhatsAppJpeg/);
   assert.doesNotMatch(image, /\.extend\(/);
   assert.match(send, /prepareWhatsappInvitationImageUrl/);
   assert.doesNotMatch(send, /toWhatsappInvitationImageUrl\(/);
