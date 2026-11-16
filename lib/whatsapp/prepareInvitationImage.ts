@@ -19,7 +19,7 @@ import {
  * same original reuse that file. Callers do not re-upload the design.
  */
 
-const DERIVATIVE_PREFIX = "invistimo/whatsapp-delivery/v4_";
+const DERIVATIVE_PREFIX = "invistimo/whatsapp-delivery/v5_";
 
 type FetchLike = (
   input: string,

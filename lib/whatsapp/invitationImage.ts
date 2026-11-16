@@ -3,31 +3,23 @@ import sharp from "sharp";
 /**
  * Normalize an invitation image to the bytes we store and send.
  *
- * - Drops transparent canvas. Transparent pixels are not paper and not artwork;
- *   phones paint them black, and a white flatten paints them white.
- * - Drops a large near-black empty band only when the area that remains is a
- *   solid card, not a black invitation with sparse gold.
- * - Does not crop an opaque white or cream area by color. A white invitation
- *   and an empty white plate look the same in the pixels. A large flat light
- *   margin is reported as uncertain and the original bounds are kept.
+ * - Drops transparent canvas. Those pixels are not paper.
+ * - Does not crop white, cream, or black by color. A 1080×1920 file with a
+ *   white margin is indistinguishable from an invitation whose paper is white,
+ *   so that file is sent unchanged.
+ * - Does not add a canvas, a colored pad, or an MCU pad.
+ * - Scales down with fit "inside" only when a side exceeds 4096px, or the
+ *   JPEG exceeds WhatsApp's 5MB header limit. Never upscales.
  * - Flattens leftover alpha onto the card's own edge color, never onto black.
- * - Writes a baseline JPEG (SOF0), sRGB, 4:4:4, dimensions multiple of 8,
- *   so the mobile transcoder does not pad a partial MCU with black.
- * - Does not stretch, upscale, or crop into non-empty artwork.
+ * - Writes a baseline JPEG so phones do not transcode a palette PNG.
  */
 
-const BLACK_MAX = 14;
 const ALPHA_MIN = 16;
-const EMPTY_ROW_DESIGN_RATIO = 0.004;
-const MIN_BLACK_BAND_RATIO = 0.18;
-const LIGHT_MIN = 236;
-const LIGHT_CHROMA = 12;
-const MIN_LIGHT_BAND_RATIO = 0.22;
-const MIN_SOLID_CARD_RATIO = 0.62;
-const MAX_LONG_EDGE = 1600;
+const MAX_LONG_EDGE = 4096;
+const WHATSAPP_HEADER_MAX_BYTES = 5 * 1024 * 1024;
 
 export const UNCERTAIN_CANVAS_WARNING =
-  "התמונה כוללת שטח בהיר גדול, ולא ניתן להבדיל בינו לבין רקע שהוא חלק מההזמנה. הקובץ נשמר בלי חיתוך.";
+  "הקובץ בגודל לוח המערכת, אבל אי אפשר לוודא שהשטח הבהיר הוא ריפוד ולא חלק מההזמנה. הוא נשלח בלי חיתוך.";
 
 export type NormalizedInvitationImage = {
   buffer: Buffer;
@@ -42,16 +34,6 @@ export type NormalizedInvitationImage = {
 };
 
 type Rgba = { data: Buffer; width: number; height: number };
-
-function isDesignPixel(data: Buffer, offset: number) {
-  const alpha = data[offset + 3];
-  if (alpha < ALPHA_MIN) return false;
-  return (
-    data[offset] > BLACK_MAX ||
-    data[offset + 1] > BLACK_MAX ||
-    data[offset + 2] > BLACK_MAX
-  );
-}
 
 function isOpaque(data: Buffer, offset: number) {
   return data[offset + 3] >= ALPHA_MIN;
@@ -118,134 +100,6 @@ function transparentBounds(image: Rgba) {
   };
 }
 
-function designRatio(
-  image: Rgba,
-  box: { left: number; top: number; width: number; height: number }
-) {
-  let design = 0;
-  const total = box.width * box.height;
-  if (!total) return 0;
-
-  for (let y = 0; y < box.height; y += 1) {
-    for (let x = 0; x < box.width; x += 1) {
-      const offset = ((box.top + y) * image.width + (box.left + x)) * 4;
-      if (isDesignPixel(image.data, offset)) design += 1;
-    }
-  }
-
-  return design / total;
-}
-
-function emptyBlackBands(image: Rgba) {
-  const rowEmpty = (y: number) => {
-    let design = 0;
-    for (let x = 0; x < image.width; x += 1) {
-      if (isDesignPixel(image.data, (y * image.width + x) * 4)) design += 1;
-    }
-    return design / image.width < EMPTY_ROW_DESIGN_RATIO;
-  };
-  const colEmpty = (x: number) => {
-    let design = 0;
-    for (let y = 0; y < image.height; y += 1) {
-      if (isDesignPixel(image.data, (y * image.width + x) * 4)) design += 1;
-    }
-    return design / image.height < EMPTY_ROW_DESIGN_RATIO;
-  };
-
-  let top = 0;
-  let bottom = 0;
-  let left = 0;
-  let right = 0;
-
-  while (top < image.height && rowEmpty(top)) top += 1;
-  while (bottom < image.height - top && rowEmpty(image.height - 1 - bottom)) {
-    bottom += 1;
-  }
-  while (left < image.width && colEmpty(left)) left += 1;
-  while (right < image.width - left && colEmpty(image.width - 1 - right)) {
-    right += 1;
-  }
-
-  return { top, bottom, left, right };
-}
-
-function blackCropBox(image: Rgba) {
-  const bands = emptyBlackBands(image);
-  const cropTop = bands.top / image.height >= MIN_BLACK_BAND_RATIO ? bands.top : 0;
-  const cropBottom =
-    bands.bottom / image.height >= MIN_BLACK_BAND_RATIO ? bands.bottom : 0;
-  const cropLeft = bands.left / image.width >= MIN_BLACK_BAND_RATIO ? bands.left : 0;
-  const cropRight =
-    bands.right / image.width >= MIN_BLACK_BAND_RATIO ? bands.right : 0;
-
-  if (!cropTop && !cropBottom && !cropLeft && !cropRight) return null;
-
-  const box = {
-    left: cropLeft,
-    top: cropTop,
-    width: image.width - cropLeft - cropRight,
-    height: image.height - cropTop - cropBottom,
-  };
-
-  if (box.width < 8 || box.height < 8) return null;
-  if (designRatio(image, box) < MIN_SOLID_CARD_RATIO) return null;
-
-  return box;
-}
-
-function isFlatLightPixel(data: Buffer, offset: number) {
-  if (data[offset + 3] < ALPHA_MIN) return false;
-  const red = data[offset];
-  const green = data[offset + 1];
-  const blue = data[offset + 2];
-  const max = Math.max(red, green, blue);
-  const min = Math.min(red, green, blue);
-  return max >= LIGHT_MIN && max - min <= LIGHT_CHROMA;
-}
-
-function emptyLightBands(image: Rgba) {
-  const rowEmpty = (y: number) => {
-    let ink = 0;
-    for (let x = 0; x < image.width; x += 1) {
-      if (!isFlatLightPixel(image.data, (y * image.width + x) * 4)) ink += 1;
-    }
-    return ink / image.width < EMPTY_ROW_DESIGN_RATIO;
-  };
-  const colEmpty = (x: number) => {
-    let ink = 0;
-    for (let y = 0; y < image.height; y += 1) {
-      if (!isFlatLightPixel(image.data, (y * image.width + x) * 4)) ink += 1;
-    }
-    return ink / image.height < EMPTY_ROW_DESIGN_RATIO;
-  };
-
-  let top = 0;
-  let bottom = 0;
-  let left = 0;
-  let right = 0;
-
-  while (top < image.height && rowEmpty(top)) top += 1;
-  while (bottom < image.height - top && rowEmpty(image.height - 1 - bottom)) {
-    bottom += 1;
-  }
-  while (left < image.width && colEmpty(left)) left += 1;
-  while (right < image.width - left && colEmpty(image.width - 1 - right)) {
-    right += 1;
-  }
-
-  return { top, bottom, left, right };
-}
-
-function hasLargeFlatLightMargin(image: Rgba) {
-  const bands = emptyLightBands(image);
-  return (
-    bands.top / image.height >= MIN_LIGHT_BAND_RATIO ||
-    bands.bottom / image.height >= MIN_LIGHT_BAND_RATIO ||
-    bands.left / image.width >= MIN_LIGHT_BAND_RATIO ||
-    bands.right / image.width >= MIN_LIGHT_BAND_RATIO
-  );
-}
-
 function edgeBackground(image: Rgba) {
   const points = [
     [0, 0],
@@ -282,8 +136,7 @@ export async function normalizeInvitationImage(
 ): Promise<NormalizedInvitationImage> {
   let image = await toRgba(input);
   let trimmedTransparent = false;
-  let trimmedBlack = false;
-  let uncertainCanvas = false;
+  const uncertainCanvas = false;
 
   const opaqueBox = transparentBounds(image);
   if (
@@ -295,16 +148,6 @@ export async function normalizeInvitationImage(
   ) {
     image = cropRgba(image, opaqueBox);
     trimmedTransparent = true;
-  }
-
-  const blackBox = image.width > 0 ? blackCropBox(image) : null;
-  if (blackBox) {
-    image = cropRgba(image, blackBox);
-    trimmedBlack = true;
-  }
-
-  if (image.width > 0 && hasLargeFlatLightMargin(image)) {
-    uncertainCanvas = true;
   }
 
   if (image.width < 1 || image.height < 1) {
@@ -323,27 +166,15 @@ export async function normalizeInvitationImage(
   const longEdge = Math.max(image.width, image.height);
   if (longEdge > MAX_LONG_EDGE) {
     pipeline = pipeline.resize({
-      width: image.width >= image.height ? MAX_LONG_EDGE : undefined,
-      height: image.height > image.width ? MAX_LONG_EDGE : undefined,
+      width: MAX_LONG_EDGE,
+      height: MAX_LONG_EDGE,
       fit: "inside",
       withoutEnlargement: true,
     });
   }
 
-  const resized = await pipeline
+  let buffer = await pipeline
     .toColorspace("srgb")
-    .png()
-    .toBuffer({ resolveWithObject: true });
-
-  const padRight = (8 - (resized.info.width % 8)) % 8;
-  const padBottom = (8 - (resized.info.height % 8)) % 8;
-
-  const buffer = await sharp(resized.data)
-    .extend({
-      right: padRight,
-      bottom: padBottom,
-      background,
-    })
     .jpeg({
       quality: 92,
       progressive: false,
@@ -352,15 +183,32 @@ export async function normalizeInvitationImage(
     })
     .toBuffer();
 
+  if (buffer.length > WHATSAPP_HEADER_MAX_BYTES) {
+    buffer = await sharp(buffer)
+      .resize({
+        width: 1920,
+        height: 1920,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({
+        quality: 85,
+        progressive: false,
+        chromaSubsampling: "4:4:4",
+        mozjpeg: false,
+      })
+      .toBuffer();
+  }
+
   const meta = await sharp(buffer).metadata();
 
   return {
     buffer,
-    width: meta.width || resized.info.width + padRight,
-    height: meta.height || resized.info.height + padBottom,
+    width: meta.width || image.width,
+    height: meta.height || image.height,
     mime: "image/jpeg",
     trimmedTransparent,
-    trimmedBlack,
+    trimmedBlack: false,
     trimmedLight: false,
     uncertainCanvas,
     warning: uncertainCanvas ? UNCERTAIN_CANVAS_WARNING : null,
