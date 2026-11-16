@@ -3,9 +3,13 @@ import sharp from "sharp";
 /**
  * Normalize an invitation image to the bytes we store and send.
  *
- * - Drops transparent canvas (WhatsApp paints PNG alpha as black on phones).
- * - Drops a large near-black empty band around a colorful card. A full-bleed
- *   black invitation, whose artwork itself is near-black, is left intact.
+ * - Drops transparent canvas. Transparent pixels are not paper and not artwork;
+ *   phones paint them black, and a white flatten paints them white.
+ * - Drops a large near-black empty band only when the area that remains is a
+ *   solid card, not a black invitation with sparse gold.
+ * - Does not crop an opaque white or cream area by color. A white invitation
+ *   and an empty white plate look the same in the pixels. A large flat light
+ *   margin is reported as uncertain and the original bounds are kept.
  * - Flattens leftover alpha onto the card's own edge color, never onto black.
  * - Writes a baseline JPEG (SOF0), sRGB, 4:4:4, dimensions multiple of 8,
  *   so the mobile transcoder does not pad a partial MCU with black.
@@ -16,8 +20,14 @@ const BLACK_MAX = 14;
 const ALPHA_MIN = 16;
 const EMPTY_ROW_DESIGN_RATIO = 0.004;
 const MIN_BLACK_BAND_RATIO = 0.18;
-const MIN_KEPT_DESIGN_RATIO = 0.22;
+const LIGHT_MIN = 236;
+const LIGHT_CHROMA = 12;
+const MIN_LIGHT_BAND_RATIO = 0.22;
+const MIN_SOLID_CARD_RATIO = 0.62;
 const MAX_LONG_EDGE = 1600;
+
+export const UNCERTAIN_CANVAS_WARNING =
+  "התמונה כוללת שטח בהיר גדול, ולא ניתן להבדיל בינו לבין רקע שהוא חלק מההזמנה. הקובץ נשמר בלי חיתוך.";
 
 export type NormalizedInvitationImage = {
   buffer: Buffer;
@@ -26,6 +36,9 @@ export type NormalizedInvitationImage = {
   mime: "image/jpeg";
   trimmedTransparent: boolean;
   trimmedBlack: boolean;
+  trimmedLight: boolean;
+  uncertainCanvas: boolean;
+  warning: string | null;
 };
 
 type Rgba = { data: Buffer; width: number; height: number };
@@ -175,9 +188,62 @@ function blackCropBox(image: Rgba) {
   };
 
   if (box.width < 8 || box.height < 8) return null;
-  if (designRatio(image, box) < MIN_KEPT_DESIGN_RATIO) return null;
+  if (designRatio(image, box) < MIN_SOLID_CARD_RATIO) return null;
 
   return box;
+}
+
+function isFlatLightPixel(data: Buffer, offset: number) {
+  if (data[offset + 3] < ALPHA_MIN) return false;
+  const red = data[offset];
+  const green = data[offset + 1];
+  const blue = data[offset + 2];
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  return max >= LIGHT_MIN && max - min <= LIGHT_CHROMA;
+}
+
+function emptyLightBands(image: Rgba) {
+  const rowEmpty = (y: number) => {
+    let ink = 0;
+    for (let x = 0; x < image.width; x += 1) {
+      if (!isFlatLightPixel(image.data, (y * image.width + x) * 4)) ink += 1;
+    }
+    return ink / image.width < EMPTY_ROW_DESIGN_RATIO;
+  };
+  const colEmpty = (x: number) => {
+    let ink = 0;
+    for (let y = 0; y < image.height; y += 1) {
+      if (!isFlatLightPixel(image.data, (y * image.width + x) * 4)) ink += 1;
+    }
+    return ink / image.height < EMPTY_ROW_DESIGN_RATIO;
+  };
+
+  let top = 0;
+  let bottom = 0;
+  let left = 0;
+  let right = 0;
+
+  while (top < image.height && rowEmpty(top)) top += 1;
+  while (bottom < image.height - top && rowEmpty(image.height - 1 - bottom)) {
+    bottom += 1;
+  }
+  while (left < image.width && colEmpty(left)) left += 1;
+  while (right < image.width - left && colEmpty(image.width - 1 - right)) {
+    right += 1;
+  }
+
+  return { top, bottom, left, right };
+}
+
+function hasLargeFlatLightMargin(image: Rgba) {
+  const bands = emptyLightBands(image);
+  return (
+    bands.top / image.height >= MIN_LIGHT_BAND_RATIO ||
+    bands.bottom / image.height >= MIN_LIGHT_BAND_RATIO ||
+    bands.left / image.width >= MIN_LIGHT_BAND_RATIO ||
+    bands.right / image.width >= MIN_LIGHT_BAND_RATIO
+  );
 }
 
 function edgeBackground(image: Rgba) {
@@ -217,6 +283,7 @@ export async function normalizeInvitationImage(
   let image = await toRgba(input);
   let trimmedTransparent = false;
   let trimmedBlack = false;
+  let uncertainCanvas = false;
 
   const opaqueBox = transparentBounds(image);
   if (
@@ -234,6 +301,10 @@ export async function normalizeInvitationImage(
   if (blackBox) {
     image = cropRgba(image, blackBox);
     trimmedBlack = true;
+  }
+
+  if (image.width > 0 && hasLargeFlatLightMargin(image)) {
+    uncertainCanvas = true;
   }
 
   if (image.width < 1 || image.height < 1) {
@@ -290,6 +361,9 @@ export async function normalizeInvitationImage(
     mime: "image/jpeg",
     trimmedTransparent,
     trimmedBlack,
+    trimmedLight: false,
+    uncertainCanvas,
+    warning: uncertainCanvas ? UNCERTAIN_CANVAS_WARNING : null,
   };
 }
 

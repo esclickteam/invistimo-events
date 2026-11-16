@@ -8,6 +8,7 @@ import sharp from "sharp";
 
 import { normalizeInvitationImage } from "../../lib/whatsapp/invitationImage";
 import { toWhatsappInvitationImageUrl } from "../../lib/whatsapp/invitationImageUrl";
+import { prepareWhatsappInvitationImageUrl } from "../../lib/whatsapp/prepareInvitationImage";
 
 const ARTIFACTS = "/opt/cursor/artifacts";
 
@@ -194,5 +195,171 @@ test("upload and send paths no longer emit a padded palette PNG", () => {
     assert.doesNotMatch(source, /crop:\s*"lpad"/);
     assert.doesNotMatch(source, /format:\s*"png"/);
   }
-  assert.match(send, /toWhatsappInvitationImageUrl/);
+  assert.match(send, /prepareWhatsappInvitationImageUrl/);
+  assert.doesNotMatch(send, /toWhatsappInvitationImageUrl\(/);
+
+  const editor = readFileSync(
+    join(process.cwd(), "app/dashboard/create-invite/EditorCanvas.tsx"),
+    "utf8"
+  );
+  const compress = readFileSync(
+    join(process.cwd(), "lib/compressInviteImage.ts"),
+    "utf8"
+  );
+  assert.match(editor, /invitationDesignBounds/);
+  assert.match(editor, /mimeType: "image\/png"/);
+  assert.doesNotMatch(editor, /mimeType: "image\/jpeg"/);
+  assert.match(compress, /opaquePixelBounds/);
+  assert.doesNotMatch(compress, /canvas\.width\s*=\s*1080/);
+  assert.doesNotMatch(compress, /lpad/);
+});
+
+test("transparent stage under the card is cropped, opaque white paper is kept", async () => {
+  const width = 191;
+  const height = 712;
+  const cardHeight = 272;
+  const transparent = await rgba({
+    width,
+    height,
+    paint: (x, y) => {
+      if (y >= cardHeight) return [0, 0, 0, 0];
+      if (y > cardHeight - 6) return [92, 48, 32, 255];
+      if (x < 8 || x > width - 9) return [120, 84, 48, 255];
+      return [214, 186, 142, 255];
+    },
+  });
+  const fromAlpha = await normalizeInvitationImage(transparent);
+  const alphaMeta = await sharp(fromAlpha.buffer).metadata();
+  const ratio = (alphaMeta.height || 1) / (alphaMeta.width || 1);
+  assert.equal(fromAlpha.trimmedTransparent, true);
+  assert.equal(fromAlpha.uncertainCanvas, false);
+  assert.ok((alphaMeta.height || 0) <= cardHeight + 8);
+  assert.ok(ratio > 1.3 && ratio < 1.55, `ratio ${ratio}`);
+
+  const opaquePaper = await rgba({
+    width,
+    height,
+    paint: (x, y) => {
+      if (y >= cardHeight) return [255, 255, 255, 255];
+      if (y > cardHeight - 6) return [92, 48, 32, 255];
+      return [214, 186, 142, 255];
+    },
+  });
+  const kept = await normalizeInvitationImage(opaquePaper);
+  const keptMeta = await sharp(kept.buffer).metadata();
+  assert.equal(kept.trimmedLight, false);
+  assert.equal(kept.uncertainCanvas, true);
+  assert.ok(kept.warning);
+  assert.ok((keptMeta.height || 0) > 700);
+
+  const whiteInvitation = await rgba({
+    width: 400,
+    height: 640,
+    paint: (x, y) => {
+      const ink = x > 80 && x < 320 && y > 180 && y < 460 && ((x + y) % 11 < 2);
+      if (ink) return [30, 30, 30, 255];
+      return [255, 255, 255, 255];
+    },
+  });
+  const paper = await normalizeInvitationImage(whiteInvitation);
+  const paperMeta = await sharp(paper.buffer).metadata();
+  assert.equal(paper.trimmedLight, false);
+  assert.equal(paper.trimmedTransparent, false);
+  assert.equal(paper.uncertainCanvas, true);
+  assert.ok((paperMeta.width || 0) >= 392);
+  assert.ok((paperMeta.height || 0) >= 632);
+
+  mkdirSync(ARTIFACTS, { recursive: true });
+  await sharp(transparent).png().toFile(join(ARTIFACTS, "editor-stage-before.png"));
+  await sharp(fromAlpha.buffer).jpeg().toFile(join(ARTIFACTS, "editor-stage-after.jpg"));
+  await sharp(whiteInvitation).png().toFile(join(ARTIFACTS, "white-invitation-kept.png"));
+});
+
+test("a modest paper margin stays and is not flagged", async () => {
+  const margined = await rgba({
+    width: 400,
+    height: 560,
+    paint: (x, y) => {
+      const margin = x < 32 || y < 32 || x >= 368 || y >= 528;
+      if (margin) return [255, 255, 255, 255];
+      return [70, 90, 80, 255];
+    },
+  });
+  const kept = await normalizeInvitationImage(margined);
+  const keptMeta = await sharp(kept.buffer).metadata();
+  assert.equal(kept.trimmedLight, false);
+  assert.equal(kept.uncertainCanvas, false);
+  assert.equal(kept.warning, null);
+  assert.ok((keptMeta.width || 0) >= 392);
+  assert.ok((keptMeta.height || 0) >= 552);
+});
+
+test("send-time preparation crops an existing Cloudinary file and then reuses it", async () => {
+  const source =
+    "https://res.cloudinary.com/dnbewcz79/image/upload/c_limit,w_1600,h_2400/b_rgb:FFFFFF,f_jpg/v1788978595/invistimo/invitations/example.png";
+  const original =
+    "https://res.cloudinary.com/dnbewcz79/image/upload/v1788978595/invistimo/invitations/example.png";
+  const tall = await rgba({
+    width: 191,
+    height: 712,
+    paint: (_x, y) => (y < 272 ? [180, 120, 70, 255] : [0, 0, 0, 0]),
+  });
+
+  const fetched: string[] = [];
+  const uploaded: Buffer[] = [];
+  let cached = false;
+
+  const first = await prepareWhatsappInvitationImageUrl(source, {
+    fetch: async (url, init) => {
+      fetched.push(`${init?.method || "GET"} ${url}`);
+      if ((init?.method || "GET") === "HEAD") {
+        return { ok: false, headers: { get: () => null }, arrayBuffer: async () => new ArrayBuffer(0) };
+      }
+      assert.equal(url, original);
+      return {
+        ok: true,
+        headers: { get: () => "image/png" },
+        arrayBuffer: async () =>
+          tall.buffer.slice(tall.byteOffset, tall.byteOffset + tall.byteLength),
+      };
+    },
+    upload: async (buffer) => {
+      uploaded.push(buffer);
+      cached = true;
+      return "https://res.cloudinary.com/dnbewcz79/image/upload/invistimo/whatsapp-delivery/v3_test.jpg";
+    },
+  });
+
+  assert.equal(
+    first,
+    "https://res.cloudinary.com/dnbewcz79/image/upload/invistimo/whatsapp-delivery/v3_test.jpg"
+  );
+  assert.equal(uploaded.length, 1);
+  const uploadedMeta = await sharp(uploaded[0]).metadata();
+  assert.ok((uploadedMeta.height || 0) < 320);
+  assert.equal(uploadedMeta.isProgressive, false);
+
+  const second = await prepareWhatsappInvitationImageUrl(source, {
+    fetch: async (url, init) => {
+      fetched.push(`${init?.method || "GET"} ${url}`);
+      if ((init?.method || "GET") === "HEAD" && cached) {
+        return {
+          ok: true,
+          headers: { get: () => "image/jpeg" },
+          arrayBuffer: async () => new ArrayBuffer(0),
+        };
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    },
+    upload: async () => {
+      throw new Error("cached image must not be uploaded again");
+    },
+  });
+
+  assert.match(second, /\/invistimo\/whatsapp-delivery\/v4_[a-f0-9]{24}\.jpg$/);
+  assert.ok(fetched.filter((line) => line.startsWith("GET ")).length === 1);
+  assert.equal(
+    await prepareWhatsappInvitationImageUrl("https://cdn.example.com/invite.png"),
+    "https://cdn.example.com/invite.png"
+  );
 });

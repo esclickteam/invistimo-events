@@ -19,6 +19,7 @@ import {
   Transformer,
 } from "react-konva";
 
+import { invitationDesignBounds } from "@/lib/invitations/designBounds";
 import { useEditorStore } from "./editorStore";
 import EditableTextOverlay from "../../components/editor/EditableTextOverlay";
 import { loadFont } from "../../components/editor/loadFont";
@@ -572,17 +573,22 @@ setCanvasFormat: (f: "vertical" | "square") => {
   const stage = stageRef.current;
   if (!stage) return "";
 
-  // 🔥🔥 זה הפתרון 🔥🔥
   transformerRef.current?.nodes([]);
   transformerRef.current?.getLayer()?.draw();
 
-  const MAX_WIDTH = 1200;
-  const scaleFactor = Math.min(1, MAX_WIDTH / stage.width());
+  const bounds = invitationDesignBounds(useEditorStore.getState().objects, {
+    width: stage.width(),
+    height: stage.height(),
+  });
+  const scaleFactor = Math.min(1, 1200 / Math.max(1, bounds.width));
 
   return stage.toDataURL({
+    x: bounds.x,
+    y: bounds.y,
+    width: bounds.width,
+    height: bounds.height,
     pixelRatio: scaleFactor,
-    mimeType: "image/jpeg",
-    quality: 0.7,
+    mimeType: "image/png",
   });
 },
 

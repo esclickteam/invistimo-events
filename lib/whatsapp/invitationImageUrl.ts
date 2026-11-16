@@ -8,9 +8,11 @@
  * large black region under the artwork, while the desktop app still looks
  * correct.
  *
- * The URL below is the file WhatsApp actually downloads: a baseline
- * (non-progressive) sRGB JPEG, alpha flattened onto white, long edge capped
- * at 1600px without upscaling or cropping the artwork.
+ * This URL is only the fallback when the send-time crop cannot run.
+ * `c_limit` does not remove an empty canvas: it scales the existing file
+ * down if it is larger than the cap and leaves every blank pixel in place.
+ * `b_rgb` paints transparency white, which is why a black phone band turned
+ * white without the invitation growing to fill the file.
  */
 
 const TRANSFORM =
