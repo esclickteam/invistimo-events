@@ -8,6 +8,7 @@ import sharp from "sharp";
 
 import { normalizeInvitationImage } from "../../lib/whatsapp/invitationImage";
 import { toWhatsappInvitationImageUrl } from "../../lib/whatsapp/invitationImageUrl";
+import { prepareWhatsappInvitationImageUrl } from "../../lib/whatsapp/prepareInvitationImage";
 
 const ARTIFACTS = "/opt/cursor/artifacts";
 
@@ -194,5 +195,168 @@ test("upload and send paths no longer emit a padded palette PNG", () => {
     assert.doesNotMatch(source, /crop:\s*"lpad"/);
     assert.doesNotMatch(source, /format:\s*"png"/);
   }
-  assert.match(send, /toWhatsappInvitationImageUrl/);
+  assert.match(send, /prepareWhatsappInvitationImageUrl/);
+  assert.doesNotMatch(send, /toWhatsappInvitationImageUrl\(/);
+});
+
+test("the empty canvas measured on the 11:35 phone photo is cropped to the card", async () => {
+  // The WhatsApp photo shows the artwork filling the media width and the
+  // top 272/712 of a tall file, with a flat empty field underneath.
+  const width = 191;
+  const height = 712;
+  const cardHeight = 272;
+  const before = await rgba({
+    width,
+    height,
+    paint: (x, y) => {
+      if (y >= cardHeight) return [255, 255, 255, 255];
+      if (y > cardHeight - 6) return [92, 48, 32, 255];
+      if (x < 8 || x > width - 9) return [120, 84, 48, 255];
+      return [214, 186, 142, 255];
+    },
+  });
+
+  const flattenedOnly = await sharp(before).flatten({ background: "#ffffff" }).jpeg().toBuffer();
+  const flattenedMeta = await sharp(flattenedOnly).metadata();
+  assert.equal(flattenedMeta.width, width);
+  assert.equal(flattenedMeta.height, height);
+
+  const normalized = await normalizeInvitationImage(before);
+  const meta = await sharp(normalized.buffer).metadata();
+  const ratio = (meta.height || 1) / (meta.width || 1);
+
+  assert.equal(normalized.trimmedLight, true);
+  assert.ok((meta.height || 0) <= cardHeight + 8);
+  assert.ok((meta.width || 0) <= width + 8);
+  assert.ok(ratio > 1.3 && ratio < 1.55, `ratio ${ratio} does not match the card`);
+
+  const { data, info } = await sharp(normalized.buffer)
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const bottom = info.height - 1;
+  const offset = (bottom * info.width + Math.floor(info.width / 2)) * info.channels;
+  assert.ok(data[offset] < 140, "the card's bottom edge was cropped away");
+
+  const transparent = await rgba({
+    width,
+    height,
+    paint: (x, y) => {
+      if (y >= cardHeight) return [0, 0, 0, 0];
+      if (y > cardHeight - 6) return [92, 48, 32, 255];
+      return [214, 186, 142, 255];
+    },
+  });
+  const fromAlpha = await normalizeInvitationImage(transparent);
+  const alphaMeta = await sharp(fromAlpha.buffer).metadata();
+  assert.equal(fromAlpha.trimmedTransparent, true);
+  assert.ok((alphaMeta.height || 0) <= cardHeight + 8);
+
+  mkdirSync(ARTIFACTS, { recursive: true });
+  await sharp(before).png().toFile(join(ARTIFACTS, "dor-omer-canvas-before.png"));
+  await sharp(normalized.buffer).jpeg().toFile(join(ARTIFACTS, "dor-omer-canvas-after.jpg"));
+});
+
+test("a paper margin stays, and a centered pad plate is cropped back to the card", async () => {
+  const margined = await rgba({
+    width: 400,
+    height: 560,
+    paint: (x, y) => {
+      const margin = x < 32 || y < 32 || x >= 368 || y >= 528;
+      if (margin) return [255, 255, 255, 255];
+      return [70, 90, 80, 255];
+    },
+  });
+  const kept = await normalizeInvitationImage(margined);
+  const keptMeta = await sharp(kept.buffer).metadata();
+  assert.equal(kept.trimmedLight, false);
+  assert.ok((keptMeta.width || 0) >= 392);
+  assert.ok((keptMeta.height || 0) >= 552);
+
+  const plate = await rgba({
+    width: 540,
+    height: 960,
+    paint: (x, y) => {
+      const onCard = x >= 170 && x < 370 && y >= 240 && y < 600;
+      if (!onCard) return [255, 255, 255, 255];
+      return [64, 88, 72, 255];
+    },
+  });
+  const cropped = await normalizeInvitationImage(plate);
+  const croppedMeta = await sharp(cropped.buffer).metadata();
+  assert.equal(cropped.trimmedLight, true);
+  assert.ok((croppedMeta.width || 0) < 230);
+  assert.ok((croppedMeta.height || 0) < 390);
+  const ratio = (croppedMeta.width || 1) / (croppedMeta.height || 1);
+  assert.ok(Math.abs(ratio - 200 / 360) < 0.05);
+});
+
+test("send-time preparation crops an existing Cloudinary file and then reuses it", async () => {
+  const source =
+    "https://res.cloudinary.com/dnbewcz79/image/upload/c_limit,w_1600,h_2400/b_rgb:FFFFFF,f_jpg/v1788978595/invistimo/invitations/example.png";
+  const original =
+    "https://res.cloudinary.com/dnbewcz79/image/upload/v1788978595/invistimo/invitations/example.png";
+  const tall = await rgba({
+    width: 191,
+    height: 712,
+    paint: (_x, y) => (y < 272 ? [180, 120, 70, 255] : [255, 255, 255, 255]),
+  });
+
+  const fetched: string[] = [];
+  const uploaded: Buffer[] = [];
+  let cached = false;
+
+  const first = await prepareWhatsappInvitationImageUrl(source, {
+    fetch: async (url, init) => {
+      fetched.push(`${init?.method || "GET"} ${url}`);
+      if ((init?.method || "GET") === "HEAD") {
+        return { ok: false, headers: { get: () => null }, arrayBuffer: async () => new ArrayBuffer(0) };
+      }
+      assert.equal(url, original);
+      return {
+        ok: true,
+        headers: { get: () => "image/png" },
+        arrayBuffer: async () =>
+          tall.buffer.slice(tall.byteOffset, tall.byteOffset + tall.byteLength),
+      };
+    },
+    upload: async (buffer) => {
+      uploaded.push(buffer);
+      cached = true;
+      return "https://res.cloudinary.com/dnbewcz79/image/upload/invistimo/whatsapp-delivery/v3_test.jpg";
+    },
+  });
+
+  assert.equal(
+    first,
+    "https://res.cloudinary.com/dnbewcz79/image/upload/invistimo/whatsapp-delivery/v3_test.jpg"
+  );
+  assert.equal(uploaded.length, 1);
+  const uploadedMeta = await sharp(uploaded[0]).metadata();
+  assert.ok((uploadedMeta.height || 0) < 320);
+  assert.equal(uploadedMeta.isProgressive, false);
+
+  const second = await prepareWhatsappInvitationImageUrl(source, {
+    fetch: async (url, init) => {
+      fetched.push(`${init?.method || "GET"} ${url}`);
+      if ((init?.method || "GET") === "HEAD" && cached) {
+        return {
+          ok: true,
+          headers: { get: () => "image/jpeg" },
+          arrayBuffer: async () => new ArrayBuffer(0),
+        };
+      }
+      throw new Error(`unexpected fetch ${url}`);
+    },
+    upload: async () => {
+      throw new Error("cached image must not be uploaded again");
+    },
+  });
+
+  assert.match(second, /\/invistimo\/whatsapp-delivery\/v3_[a-f0-9]{24}\.jpg$/);
+  assert.ok(fetched.filter((line) => line.startsWith("GET ")).length === 1);
+  assert.equal(
+    await prepareWhatsappInvitationImageUrl("https://cdn.example.com/invite.png"),
+    "https://cdn.example.com/invite.png"
+  );
 });

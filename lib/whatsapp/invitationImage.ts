@@ -6,6 +6,9 @@ import sharp from "sharp";
  * - Drops transparent canvas (WhatsApp paints PNG alpha as black on phones).
  * - Drops a large near-black empty band around a colorful card. A full-bleed
  *   black invitation, whose artwork itself is near-black, is left intact.
+ * - Drops a large flat white/near-white empty band. A paper margin under
+ *   about a fifth of that side is kept, so a white invitation is not shaved
+ *   down to its text. Cream and photo pixels are not treated as empty.
  * - Flattens leftover alpha onto the card's own edge color, never onto black.
  * - Writes a baseline JPEG (SOF0), sRGB, 4:4:4, dimensions multiple of 8,
  *   so the mobile transcoder does not pad a partial MCU with black.
@@ -17,6 +20,9 @@ const ALPHA_MIN = 16;
 const EMPTY_ROW_DESIGN_RATIO = 0.004;
 const MIN_BLACK_BAND_RATIO = 0.18;
 const MIN_KEPT_DESIGN_RATIO = 0.22;
+const LIGHT_MIN = 236;
+const LIGHT_CHROMA = 12;
+const MIN_LIGHT_BAND_RATIO = 0.22;
 const MAX_LONG_EDGE = 1600;
 
 export type NormalizedInvitationImage = {
@@ -26,6 +32,7 @@ export type NormalizedInvitationImage = {
   mime: "image/jpeg";
   trimmedTransparent: boolean;
   trimmedBlack: boolean;
+  trimmedLight: boolean;
 };
 
 type Rgba = { data: Buffer; width: number; height: number };
@@ -180,6 +187,72 @@ function blackCropBox(image: Rgba) {
   return box;
 }
 
+function isFlatLightPixel(data: Buffer, offset: number) {
+  if (data[offset + 3] < ALPHA_MIN) return false;
+  const red = data[offset];
+  const green = data[offset + 1];
+  const blue = data[offset + 2];
+  const max = Math.max(red, green, blue);
+  const min = Math.min(red, green, blue);
+  return max >= LIGHT_MIN && max - min <= LIGHT_CHROMA;
+}
+
+function emptyLightBands(image: Rgba) {
+  const rowEmpty = (y: number) => {
+    let ink = 0;
+    for (let x = 0; x < image.width; x += 1) {
+      if (!isFlatLightPixel(image.data, (y * image.width + x) * 4)) ink += 1;
+    }
+    return ink / image.width < EMPTY_ROW_DESIGN_RATIO;
+  };
+  const colEmpty = (x: number) => {
+    let ink = 0;
+    for (let y = 0; y < image.height; y += 1) {
+      if (!isFlatLightPixel(image.data, (y * image.width + x) * 4)) ink += 1;
+    }
+    return ink / image.height < EMPTY_ROW_DESIGN_RATIO;
+  };
+
+  let top = 0;
+  let bottom = 0;
+  let left = 0;
+  let right = 0;
+
+  while (top < image.height && rowEmpty(top)) top += 1;
+  while (bottom < image.height - top && rowEmpty(image.height - 1 - bottom)) {
+    bottom += 1;
+  }
+  while (left < image.width && colEmpty(left)) left += 1;
+  while (right < image.width - left && colEmpty(image.width - 1 - right)) {
+    right += 1;
+  }
+
+  return { top, bottom, left, right };
+}
+
+function lightCropBox(image: Rgba) {
+  const bands = emptyLightBands(image);
+  const cropTop = bands.top / image.height >= MIN_LIGHT_BAND_RATIO ? bands.top : 0;
+  const cropBottom =
+    bands.bottom / image.height >= MIN_LIGHT_BAND_RATIO ? bands.bottom : 0;
+  const cropLeft = bands.left / image.width >= MIN_LIGHT_BAND_RATIO ? bands.left : 0;
+  const cropRight =
+    bands.right / image.width >= MIN_LIGHT_BAND_RATIO ? bands.right : 0;
+
+  if (!cropTop && !cropBottom && !cropLeft && !cropRight) return null;
+
+  const box = {
+    left: cropLeft,
+    top: cropTop,
+    width: image.width - cropLeft - cropRight,
+    height: image.height - cropTop - cropBottom,
+  };
+
+  if (box.width < 32 || box.height < 32) return null;
+
+  return box;
+}
+
 function edgeBackground(image: Rgba) {
   const points = [
     [0, 0],
@@ -217,6 +290,7 @@ export async function normalizeInvitationImage(
   let image = await toRgba(input);
   let trimmedTransparent = false;
   let trimmedBlack = false;
+  let trimmedLight = false;
 
   const opaqueBox = transparentBounds(image);
   if (
@@ -234,6 +308,12 @@ export async function normalizeInvitationImage(
   if (blackBox) {
     image = cropRgba(image, blackBox);
     trimmedBlack = true;
+  }
+
+  const lightBox = image.width > 0 ? lightCropBox(image) : null;
+  if (lightBox) {
+    image = cropRgba(image, lightBox);
+    trimmedLight = true;
   }
 
   if (image.width < 1 || image.height < 1) {
@@ -290,6 +370,7 @@ export async function normalizeInvitationImage(
     mime: "image/jpeg",
     trimmedTransparent,
     trimmedBlack,
+    trimmedLight,
   };
 }
 
