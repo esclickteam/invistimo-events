@@ -116,8 +116,8 @@ test("an explicit approval posts one link body and then refuses a second send", 
   assert.equal(seen.length, 1);
 });
 
-test("the cron is closed unless the existing secret matches, and the deploy is not armed", () => {
-  assert.equal(LINK_DISPLAY_EXPERIMENT_ARMED, false);
+test("the cron is closed unless the existing secret matches, and the one send is armed", () => {
+  assert.equal(LINK_DISPLAY_EXPERIMENT_ARMED, true);
   assert.equal(linkDisplayCronAuthorized("", "Bearer secret"), false);
   assert.equal(linkDisplayCronAuthorized("secret", "Bearer other"), false);
   assert.equal(linkDisplayCronAuthorized("secret", "Bearer secret"), true);
