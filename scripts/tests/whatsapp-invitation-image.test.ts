@@ -178,7 +178,9 @@ test("360dialog receives the original bytes by media id for every image template
       const form = init.body as FormData;
       assert.equal(form.get("messaging_product"), "whatsapp");
       const media = form.get("file");
-      assert.ok(media instanceof Blob);
+      assert.ok(media instanceof File);
+      assert.equal(media.type, "image/png");
+      assert.equal(media.name, "header.png");
       uploaded.push(Buffer.from(await media.arrayBuffer()));
       return new Response(JSON.stringify({ id: "uploaded-media" }), { status: 200 });
     }
@@ -252,10 +254,22 @@ test("360dialog receives the original bytes by media id for every image template
     assert.equal(header.parameters[0].image.id, "uploaded-media");
     assert.equal(header.parameters[0].image.link, undefined);
     assert.equal(post.template.components.some((item: any) => item.type === "header"), true);
+    const texts = post.template.components
+      .find((item: any) => item.type === "body")
+      .parameters.map((item: any) => item.text);
     const button = post.template.components.find((item: any) => item.type === "button");
-    if (post.template.name === "rsvp_invitation_media" || post.template.name === "rsvp_reminder_invistimo") {
+    if (post.template.name === "rsvp_invitation_media") {
+      assert.deepEqual(texts, ["אירוע", "11.11.2026", "אולם"]);
       assert.equal(button.parameters[0].text, "abc?token=t");
+    } else if (post.template.name === "rsvp_reminder_invistimo") {
+      assert.deepEqual(texts, ["אירוע"]);
+      assert.equal(button.parameters[0].text, "abc?token=t");
+    } else if (post.template.name === "save_the_date_image_he") {
+      assert.deepEqual(texts, ["אירוע", "11.11.2026"]);
+      assert.equal(button, undefined);
     } else {
+      assert.equal(post.template.name, "event_invitation");
+      assert.deepEqual(texts, ["אירוע", "11.11.2026", "אולם"]);
       assert.equal(button, undefined);
     }
   }

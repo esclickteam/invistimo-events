@@ -402,9 +402,19 @@ async function sendWhatsappTemplate({
       messageType,
     });
 
+    const wamid = String(result?.messageId || "").trim();
+    if (!wamid) {
+      return {
+        success: false,
+        wamid: null,
+        error: new Error("WhatsApp template send was not accepted"),
+        providerResponse: result?.providerResponse || null,
+      };
+    }
+
     return {
       success: true,
-      wamid: result?.providerResponse?.messages?.[0]?.id || null,
+      wamid,
       error: null,
       providerResponse: result?.providerResponse || null,
     };
@@ -1243,6 +1253,7 @@ export async function sendScheduledWhatsapp() {
         : null;
 
       let sent = 0;
+      let rejected = 0;
       const sentGuestIds: any[] = [];
 
       for (const guest of roundGuests) {
@@ -1412,31 +1423,32 @@ const queueDoc = await WhatsappQueue.create({
           payload,
           messageType: type,
         });
+        const accepted = Boolean(result.success && String(result.wamid || "").trim());
 
         await WhatsappQueue.updateOne(
           { idempotencyKey },
           {
             $set: {
-              status: result.success ? "sent" : "failed",
+              status: accepted ? "sent" : "failed",
               lockedAt: null,
               lockedBy: null,
-              wamid: result.wamid || null,
-              sentAt: result.success ? new Date() : null,
-              failedAt: result.success ? null : new Date(),
-              providerStatus: result.success ? "sent" : "failed",
-              lastError: result.success
+              wamid: accepted ? result.wamid : null,
+              sentAt: accepted ? new Date() : null,
+              failedAt: accepted ? null : new Date(),
+              providerStatus: accepted ? "sent" : "failed",
+              lastError: accepted
                 ? null
-                : String(result.error?.message || result.error || ""),
+                : String(result.error?.message || result.error || "WhatsApp template send was not accepted"),
               failReason: {
-                code: result.success
+                code: accepted
                   ? null
                   : result.error?.providerResponse?.error?.code
                   ? String(result.error.providerResponse.error.code)
                   : null,
-                message: result.success
+                message: accepted
                   ? null
-                  : String(result.error?.message || result.error || ""),
-                raw: result.success
+                  : String(result.error?.message || result.error || "WhatsApp template send was not accepted"),
+                raw: accepted
                   ? null
                   : result.error?.providerResponse || result.error || null,
               },
@@ -1447,7 +1459,7 @@ const queueDoc = await WhatsappQueue.create({
           }
         );
 
-        if (result.success) {
+        if (accepted) {
           await recordWhatsappSendSuccess({
             queueId: queueDoc._id,
             wamid: result.wamid,
@@ -1455,12 +1467,17 @@ const queueDoc = await WhatsappQueue.create({
           sent++;
           sentGuestIds.push(guest._id);
         } else {
+          rejected++;
           await recordWhatsappSendFailure({
             queueId: queueDoc._id,
             error: result.error,
           });
         }
       }
+
+      const kosherResult = kosherDispatch ? await kosherDispatch : null;
+      const kosherRouted = Number(kosherResult?.routed || 0);
+      const noneAccepted = sent === 0 && rejected > 0 && kosherRouted === 0;
 
       await ScheduledMessage.updateOne(
         {
@@ -1469,11 +1486,11 @@ const queueDoc = await WhatsappQueue.create({
         },
         {
           $set: {
-            status: "sent",
-            sentAt: new Date(),
+            status: noneAccepted ? "failed" : "sent",
+            sentAt: noneAccepted ? null : new Date(),
             lockedAt: null,
             lockedBy: null,
-            error: "",
+            error: noneAccepted ? "WHATSAPP_SEND_NOT_ACCEPTED" : "",
           },
           $inc: {
             sentCount: sent,
@@ -1483,8 +1500,6 @@ const queueDoc = await WhatsappQueue.create({
           },
         }
       );
-
-      const kosherResult = kosherDispatch ? await kosherDispatch : null;
 
       await markInvitationAfterSend({
         schedule: msg,
@@ -1503,7 +1518,7 @@ const queueDoc = await WhatsappQueue.create({
         round,
         audienceCount: roundGuests.length,
         sentCount: sent,
-        outcome: "sent",
+        outcome: noneAccepted ? "failed" : "sent",
         salt: String(msg._id),
         guests,
       });

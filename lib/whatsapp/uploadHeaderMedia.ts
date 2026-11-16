@@ -13,12 +13,25 @@ import { createHash } from "node:crypto";
  *
  * The bytes are not rewritten. Callers pass either the original file or the
  * already-required size conversion.
+ *
+ * A media id belongs to the WhatsApp channel (D360 API key) that uploaded it.
+ * Meta expires uploaded ids after 30 days, so this cache does the same and
+ * drops an id as soon as a send reports it invalid.
  */
 
 const MEDIA_ENDPOINT = "https://waba-v2.360dialog.io/media";
 const MAX_CACHE = 200;
+/** Meta documents a 30-day media-id lifetime. Re-upload one day earlier. */
+export const WHATSAPP_HEADER_MEDIA_TTL_MS = 29 * 24 * 60 * 60 * 1000;
 
-const mediaIds = new Map<string, Promise<string>>();
+type CacheEntry = {
+  promise: Promise<string>;
+  expiresAt: number;
+  mediaId: string | null;
+  account: string;
+};
+
+const mediaIds = new Map<string, CacheEntry>();
 
 export type WhatsAppHeaderUploadContext = {
   sourceUrl?: string;
@@ -36,14 +49,34 @@ export type WhatsAppHeaderUploadContext = {
 type UploadDeps = {
   fetch?: typeof fetch;
   apiKey?: string;
+  now?: () => number;
+  ttlMs?: number;
 };
 
 export function clearWhatsAppHeaderMediaCache() {
   mediaIds.clear();
 }
 
-function cacheKey(bytes: Buffer, mime: string) {
-  return createHash("sha256").update(mime).update(bytes).digest("hex");
+/** Drops a cached id so the next send uploads again on this channel. */
+export function forgetWhatsAppHeaderMediaId(mediaId: string) {
+  const target = String(mediaId || "").trim();
+  if (!target) return;
+  for (const [key, entry] of mediaIds) {
+    if (entry.mediaId === target) mediaIds.delete(key);
+  }
+}
+
+function accountFingerprint(apiKey: string) {
+  return createHash("sha256").update(apiKey).digest("hex");
+}
+
+function cacheKey(account: string, bytes: Buffer, mime: string) {
+  return createHash("sha256")
+    .update(account)
+    .update("\0")
+    .update(mime)
+    .update(bytes)
+    .digest("hex");
 }
 
 export async function uploadWhatsAppHeaderMedia(
@@ -54,17 +87,38 @@ export async function uploadWhatsAppHeaderMedia(
   },
   deps: UploadDeps = {}
 ) {
-  const key = cacheKey(input.bytes, input.mime);
-  const cached = mediaIds.get(key);
-  if (cached) return cached;
+  const apiKey = String(deps.apiKey ?? process.env.WHATSAPP_API_KEY ?? "").trim();
+  if (!apiKey) {
+    throw new Error("Missing env var: WHATSAPP_API_KEY");
+  }
 
-  const pending = postHeaderMedia(input.bytes, input.mime, input.context, deps).catch(
-    (error) => {
-      mediaIds.delete(key);
+  const now = deps.now ?? Date.now;
+  const ttl = deps.ttlMs ?? WHATSAPP_HEADER_MEDIA_TTL_MS;
+  const account = accountFingerprint(apiKey);
+  const key = cacheKey(account, input.bytes, input.mime);
+  const cached = mediaIds.get(key);
+  if (cached && cached.account === account && cached.expiresAt > now()) {
+    return cached.promise;
+  }
+  if (cached) mediaIds.delete(key);
+
+  const entry: CacheEntry = {
+    promise: Promise.resolve(""),
+    expiresAt: now() + ttl,
+    mediaId: null,
+    account,
+  };
+  const pending = postHeaderMedia(input.bytes, input.mime, input.context, apiKey, deps.fetch)
+    .then((mediaId) => {
+      entry.mediaId = mediaId;
+      return mediaId;
+    })
+    .catch((error) => {
+      if (mediaIds.get(key) === entry) mediaIds.delete(key);
       throw error;
-    }
-  );
-  mediaIds.set(key, pending);
+    });
+  entry.promise = pending;
+  mediaIds.set(key, entry);
   while (mediaIds.size > MAX_CACHE) {
     const oldest = mediaIds.keys().next().value;
     if (!oldest || oldest === key) break;
@@ -77,20 +131,15 @@ async function postHeaderMedia(
   bytes: Buffer,
   mime: "image/jpeg" | "image/png",
   context: WhatsAppHeaderUploadContext | undefined,
-  deps: UploadDeps
+  apiKey: string,
+  fetchImpl: typeof fetch | undefined
 ) {
-  const apiKey = String(deps.apiKey ?? process.env.WHATSAPP_API_KEY ?? "").trim();
-  if (!apiKey) {
-    throw new Error("Missing env var: WHATSAPP_API_KEY");
-  }
-
   const filename = mime === "image/png" ? "header.png" : "header.jpg";
   const form = new FormData();
   form.append("messaging_product", "whatsapp");
-  form.append("file", new Blob([new Uint8Array(bytes)], { type: mime }), filename);
+  form.append("file", new File([new Uint8Array(bytes)], filename, { type: mime }));
 
-  const fetchImpl = deps.fetch ?? fetch;
-  const response = await fetchImpl(MEDIA_ENDPOINT, {
+  const response = await (fetchImpl ?? fetch)(MEDIA_ENDPOINT, {
     method: "POST",
     headers: {
       "D360-API-KEY": apiKey,
@@ -99,7 +148,7 @@ async function postHeaderMedia(
   });
 
   const text = await response.text().catch(() => "");
-  let payload: { id?: unknown } = {};
+  let payload: { id?: unknown; error?: unknown } = {};
   try {
     payload = text ? JSON.parse(text) : {};
   } catch {
@@ -107,18 +156,17 @@ async function postHeaderMedia(
   }
 
   const mediaId = String(payload.id ?? "").trim();
-  if (!response.ok || !mediaId) {
+  if (!response.ok || payload.error || !mediaId) {
     console.error("whatsapp header media upload failed", {
       status: response.status,
       body: text.slice(0, 500),
     });
-    throw new Error(
-      `WhatsApp header media upload failed (${response.status})`
-    );
+    throw new Error(`WhatsApp header media upload failed (${response.status})`);
   }
 
   console.info("whatsapp header uploaded for template send", {
     mediaId,
+    account: accountFingerprint(apiKey).slice(0, 12),
     bytes: bytes.length,
     mime,
     sourceUrl: context?.sourceUrl || "",
