@@ -1,4 +1,5 @@
 import { dedupeGuestLocationText } from "@/lib/messages/locationText";
+import { toWhatsappInvitationImageUrl } from "@/lib/whatsapp/invitationImageUrl";
 import {
   EVENT_INVITATION_TEMPLATE_NAME,
   SAVE_THE_DATE_TEMPLATE_NAME,
@@ -323,7 +324,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
     throw new Error(`Invalid phone number: ${input.to}`);
   }
 
-  const headerImageUrl = String(input.headerImageUrl ?? "").trim();
+  const headerImageUrl = toWhatsappInvitationImageUrl(input.headerImageUrl);
 
   if (!isValidHttpsUrl(headerImageUrl)) {
     throw new Error("Invalid headerImageUrl (must be https)");

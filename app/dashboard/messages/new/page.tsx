@@ -18,6 +18,7 @@ import InternationalPhoneField, {
   DEFAULT_PHONE_COUNTRY,
 } from "@/app/components/InternationalPhoneField";
 import { phoneFieldError } from "@/lib/phones/international";
+import { toWhatsappInvitationImageUrl } from "@/lib/whatsapp/invitationImageUrl";
 import {
   EVENT_INVITATION_TEMPLATE_NAME,
   SAVE_THE_DATE_TEMPLATE_NAME,
@@ -143,34 +144,7 @@ function cleanString(value: unknown) {
 }
 
 function getHighQualityCloudinaryImageUrl(value: unknown) {
-  const url = cleanString(value);
-
-  if (!url) return "";
-
-  if (!url.includes("res.cloudinary.com") || !url.includes("/upload/")) {
-    return url;
-  }
-
-  const [beforeUpload, afterUpload] = url.split("/upload/");
-
-  if (!beforeUpload || !afterUpload) return url;
-
-  const cleanedAfterUpload = afterUpload
-    .replace(/^q_100,f_png\//, "")
-    .replace(/^f_png,q_100\//, "")
-    .replace(/^q_100[^/]*\//, "")
-    .replace(/^f_png[^/]*\//, "")
-    .replace(/^f_auto,q_auto[^/]*\//, "")
-    .replace(/^q_auto,f_auto[^/]*\//, "")
-    .replace(/^q_auto[^/]*\//, "")
-    .replace(/^f_auto[^/]*\//, "")
-    .replace(/^c_fill[^/]*\//, "")
-    .replace(/^c_fit[^/]*\//, "")
-    .replace(/^c_pad[^/]*\//, "")
-    .replace(/^w_\d+[^/]*\//, "")
-    .replace(/^h_\d+[^/]*\//, "");
-
-  return `${beforeUpload}/upload/q_100,f_png/${cleanedAfterUpload}`;
+  return toWhatsappInvitationImageUrl(value);
 }
 
 function buildEventLocationText(invitation: any, event: any): string {
