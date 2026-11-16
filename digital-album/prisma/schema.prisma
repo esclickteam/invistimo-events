@@ -1,0 +1,646 @@
+// Digital Album SaaS — multi-tenant data model
+// SQLite for isolated local/dev. Production target: PostgreSQL (same schema).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  TENANT_OWNER
+  TENANT_MEMBER
+  PHOTOGRAPHER
+}
+
+enum EventType {
+  WEDDING
+  BAR_MITZVAH
+  BAT_MITZVAH
+  BRIT
+  BIRTHDAY
+  CORPORATE
+  OTHER
+}
+
+enum UploadMode {
+  GUESTS_ONLY
+  OWNERS_ONLY
+  EVERYONE
+}
+
+enum MediaKindAllowed {
+  PHOTOS_ONLY
+  VIDEOS_ONLY
+  BOTH
+}
+
+enum VisibilityMode {
+  PUBLIC
+  UNLISTED
+  PRIVATE
+}
+
+enum MediaType {
+  PHOTO
+  VIDEO
+}
+
+enum MediaStatus {
+  UPLOADING
+  PROCESSING
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  FAILED
+  DELETED
+}
+
+enum GreetingType {
+  TEXT
+  AUDIO
+  VIDEO
+  PHOTO_DEDICATION
+}
+
+enum GreetingStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  HIGHLIGHTED
+}
+
+enum EntitlementSource {
+  SELF_SERVE
+  INVISTIMO
+  ADMIN_GRANT
+  PROFESSIONAL
+}
+
+enum JobType {
+  THUMBNAIL
+  VIDEO_TRANSCODE
+  VIDEO_POSTER
+  FACE_INDEX
+  SUMMARY_FILM
+  PRINT_EXPORT
+  ZIP_DOWNLOAD
+}
+
+enum JobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum FaceSearchStatus {
+  PENDING_CONSENT
+  PROCESSING
+  READY
+  NO_MATCH
+  FAILED
+  EXPIRED
+  DELETED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  phone        String?
+  role         UserRole @default(TENANT_OWNER)
+  locale       String   @default("he")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships TenantMember[]
+  sessions    Session[]
+  auditLogs   AuditLog[]      @relation("ActorLogs")
+  greetings   Greeting[]      @relation("GreetingAuthor")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userAgent String?
+  ip        String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Tenant {
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  billingEmail     String?
+  status           String   @default("active") // active | suspended | closed
+  storageUsedBytes BigInt   @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  members      TenantMember[]
+  events       Event[]
+  entitlements Entitlement[]
+  invoices     Invoice[]
+  couponsUsed  CouponRedemption[]
+}
+
+model TenantMember {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  role      UserRole @default(TENANT_MEMBER)
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, userId])
+}
+
+model Plan {
+  id                   String   @id @default(cuid())
+  code                 String   @unique // classic | premium | luxury_ai
+  nameHe               String
+  nameEn               String
+  descriptionHe       String
+  descriptionEn       String
+  isActive             Boolean  @default(true)
+  sortOrder            Int      @default(0)
+  // Quotas — managed via admin, not hard-coded in app logic beyond defaults
+  maxEvents            Int      @default(1)
+  maxStorageBytes      BigInt
+  maxPhotos            Int      @default(5000)
+  maxVideos            Int      @default(200)
+  maxAiFaceSearches    Int      @default(0)
+  maxSummaryFilms      Int      @default(0)
+  retentionDays        Int      @default(365)
+  allowFaceAi          Boolean  @default(false)
+  allowStories         Boolean  @default(false)
+  allowGuestbook       Boolean  @default(false)
+  allowLive            Boolean  @default(false)
+  allowTimeCapsule     Boolean  @default(false)
+  allowSummaryFilm     Boolean  @default(false)
+  allowPrintAlbum      Boolean  @default(false)
+  priceOnceAgorot      Int      @default(0) // ILS agorot, one-time per event
+  priceMonthlyAgorot   Int      @default(0)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  entitlements Entitlement[]
+}
+
+model Entitlement {
+  id             String            @id @default(cuid())
+  tenantId       String
+  planId         String
+  source         EntitlementSource @default(SELF_SERVE)
+  externalRef    String? // Invistimo order/subscription id
+  eventId        String? // null = tenant-wide
+  startsAt       DateTime          @default(now())
+  endsAt         DateTime?
+  retentionUntil DateTime?
+  aiSearchesUsed Int               @default(0)
+  filmsUsed      Int               @default(0)
+  status         String            @default("active") // active | expired | revoked
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan   Plan   @relation(fields: [planId], references: [id])
+  event  Event? @relation(fields: [eventId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([externalRef])
+}
+
+model Coupon {
+  id              String    @id @default(cuid())
+  code            String    @unique
+  percentOff      Int?
+  amountOffAgorot Int?
+  maxRedemptions  Int?
+  redeemedCount   Int       @default(0)
+  validFrom       DateTime  @default(now())
+  validUntil      DateTime?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+
+  redemptions CouponRedemption[]
+}
+
+model CouponRedemption {
+  id        String   @id @default(cuid())
+  couponId  String
+  tenantId  String
+  createdAt DateTime @default(now())
+
+  coupon Coupon @relation(fields: [couponId], references: [id])
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([couponId, tenantId])
+}
+
+model Invoice {
+  id            String   @id @default(cuid())
+  tenantId      String
+  amountAgorot  Int
+  currency      String   @default("ILS")
+  status        String   @default("draft") // draft | open | paid | void — no live charging yet
+  description   String?
+  provider      String? // future: stripe | tranzila | etc
+  providerRef   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model DesignTheme {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  nameHe      String
+  nameEn      String
+  // JSON-like string of CSS tokens
+  tokensJson  String
+  previewUrl  String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  events Event[]
+}
+
+model Event {
+  id              String          @id @default(cuid())
+  tenantId        String
+  type            EventType       @default(WEDDING)
+  title           String
+  hostNames       String // "מיה ואלון"
+  eventDate       DateTime?
+  coverMediaId    String?
+  personalMessage String?
+  slug            String          @unique
+  openAt          DateTime?
+  closeAt         DateTime?
+  retentionUntil  DateTime?
+  uploadMode      UploadMode      @default(EVERYONE)
+  mediaAllowed    MediaKindAllowed @default(BOTH)
+  visibility      VisibilityMode  @default(UNLISTED)
+  allowDownload   Boolean         @default(true)
+  allowZip        Boolean         @default(false)
+  requireApproval Boolean         @default(true)
+  faceAiEnabled   Boolean         @default(false)
+  faceMatchThreshold Float        @default(90)
+  themeId         String?
+  logoPath        String?
+  accentColor     String?
+  storageLimitBytes BigInt?
+  // Invistimo linkage — album lifecycle independent of Invistimo event deletion
+  invistimoEventId  String?       @unique
+  invistimoTenantId String?
+  status          String          @default("draft") // draft | published | closed | archived
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  tenant       Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  theme        DesignTheme?  @relation(fields: [themeId], references: [id])
+  albums       Album[]
+  stories      StoryChapter[]
+  media        MediaAsset[]
+  greetings    Greeting[]
+  liveSession  LiveSession?
+  timeCapsules TimeCapsule[]
+  faceSearches FaceSearch[]
+  entitlements Entitlement[]
+  eventMembers EventMember[]
+  guests       GuestProfile[]
+  favorites    Favorite[]
+  qrTokens     QrToken[]
+
+  @@index([tenantId])
+  @@index([slug])
+}
+
+model EventMember {
+  id        String   @id @default(cuid())
+  eventId   String
+  userId    String
+  role      String   @default("owner") // owner | co_host | photographer | editor
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
+  @@index([userId])
+}
+
+model Album {
+  id          String   @id @default(cuid())
+  eventId     String
+  title       String   @default("האלבום שלנו")
+  description String?
+  isPrimary   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model StoryChapter {
+  id          String   @id @default(cuid())
+  eventId     String
+  title       String
+  description String?
+  coverPath   String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  event Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  media MediaAsset[]
+
+  @@index([eventId, sortOrder])
+}
+
+model MediaAsset {
+  id              String      @id @default(cuid())
+  eventId         String
+  tenantId        String
+  storyChapterId  String?
+  type            MediaType
+  status          MediaStatus @default(UPLOADING)
+  originalName    String
+  mimeType        String
+  sizeBytes       BigInt
+  width           Int?
+  height          Int?
+  durationMs      Int?
+  storageKey      String // relative path / object key — never DB blob for large files
+  thumbKey        String?
+  posterKey       String?
+  previewKey      String? // compressed display version
+  checksumSha256  String?
+  uploadedByRole  String      @default("guest") // guest | owner | photographer
+  uploaderName    String?
+  uploaderGuestId String?
+  moderationNote  String?
+  faceIndexedAt   DateTime?
+  faceCount       Int         @default(0)
+  takenAt         DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  deletedAt       DateTime?
+
+  event   Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  chapter StoryChapter? @relation(fields: [storyChapterId], references: [id])
+  faces   FaceIndex[]
+  favorites Favorite[]
+  uploadSessions UploadSession[]
+
+  @@index([eventId, status])
+  @@index([tenantId])
+  @@index([checksumSha256, eventId])
+}
+
+model UploadSession {
+  id           String   @id @default(cuid())
+  eventId      String
+  mediaId      String?
+  uploadToken  String   @unique
+  fileName     String
+  mimeType     String
+  totalBytes   BigInt
+  receivedBytes BigInt  @default(0)
+  chunkSize    Int      @default(5242880)
+  checksumSha256 String?
+  status       String   @default("active") // active | completed | aborted | expired
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  media MediaAsset? @relation(fields: [mediaId], references: [id])
+
+  @@index([eventId, status])
+}
+
+model GuestProfile {
+  id        String   @id @default(cuid())
+  eventId   String
+  displayName String?
+  email     String?
+  phone     String?
+  token     String   @unique @default(cuid())
+  createdAt DateTime @default(now())
+
+  event     Event      @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  favorites Favorite[]
+}
+
+model Favorite {
+  id        String   @id @default(cuid())
+  eventId   String
+  mediaId   String
+  guestId   String?
+  sessionKey String?
+  createdAt DateTime @default(now())
+
+  event Event         @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  media MediaAsset    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  guest GuestProfile? @relation(fields: [guestId], references: [id])
+
+  @@index([eventId, mediaId])
+}
+
+model Greeting {
+  id           String         @id @default(cuid())
+  eventId      String
+  type         GreetingType   @default(TEXT)
+  status       GreetingStatus @default(PENDING)
+  authorName   String
+  authorUserId String?
+  body         String?
+  mediaKey     String?
+  sortOrder    Int            @default(0)
+  isHighlighted Boolean       @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  event  Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  author User? @relation("GreetingAuthor", fields: [authorUserId], references: [id])
+
+  @@index([eventId, status])
+}
+
+model LiveSession {
+  id            String   @id @default(cuid())
+  eventId       String   @unique
+  isActive      Boolean  @default(false)
+  displayNames  Boolean  @default(false)
+  autoAdvanceMs Int      @default(6000)
+  stoppedAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  event   Event           @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  queue   LiveQueueItem[]
+}
+
+model LiveQueueItem {
+  id            String   @id @default(cuid())
+  liveSessionId String
+  mediaId       String
+  status        String   @default("pending") // pending | approved | rejected | shown
+  dedication    String?
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  session LiveSession @relation(fields: [liveSessionId], references: [id], onDelete: Cascade)
+
+  @@index([liveSessionId, status])
+}
+
+model TimeCapsule {
+  id           String   @id @default(cuid())
+  eventId      String
+  title        String
+  message      String?
+  unlockAt     DateTime
+  isLocked     Boolean  @default(true)
+  mediaIdsJson String   @default("[]")
+  greetingIdsJson String @default("[]")
+  notifiedAt   DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([unlockAt, isLocked])
+}
+
+model FaceIndex {
+  id              String   @id @default(cuid())
+  eventId         String
+  mediaId         String
+  provider        String   @default("none") // none | rekognition | local_dev
+  providerFaceId  String?
+  providerCollectionId String?
+  bboxJson        String? // {left,top,width,height} normalized
+  confidence      Float?
+  createdAt       DateTime @default(now())
+
+  media MediaAsset @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@index([mediaId])
+}
+
+model FaceSearch {
+  id              String           @id @default(cuid())
+  eventId         String
+  consentAccepted Boolean          @default(false)
+  consentAt       DateTime?
+  selfieKey       String?
+  status          FaceSearchStatus @default(PENDING_CONSENT)
+  matchMediaIdsJson String         @default("[]")
+  matchScoresJson String           @default("[]")
+  provider        String           @default("none")
+  errorMessage    String?
+  expiresAt       DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId, status])
+}
+
+model BackgroundJob {
+  id          String    @id @default(cuid())
+  type        JobType
+  status      JobStatus @default(QUEUED)
+  tenantId    String?
+  eventId     String?
+  payloadJson String    @default("{}")
+  resultJson  String?
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  lastError   String?
+  runAfter    DateTime  @default(now())
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, runAfter])
+  @@index([eventId])
+}
+
+model QrToken {
+  id        String   @id @default(cuid())
+  eventId   String
+  label     String?
+  token     String   @unique @default(cuid())
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorUserId String?
+  tenantId   String?
+  eventId    String?
+  action     String
+  targetType String?
+  targetId   String?
+  metaJson   String   @default("{}")
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation("ActorLogs", fields: [actorUserId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@index([eventId, createdAt])
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  valueJson String
+  updatedAt DateTime @updatedAt
+}
+
+model DeletionRequest {
+  id          String   @id @default(cuid())
+  tenantId    String?
+  eventId     String?
+  requesterEmail String
+  type        String // account | event | biometric | media
+  status      String   @default("open") // open | in_progress | done | rejected
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model IntegrationCredential {
+  id          String   @id @default(cuid())
+  partner     String   // invistimo | other
+  clientId    String   @unique
+  clientSecretHash String
+  scopesJson  String   @default("[]")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
