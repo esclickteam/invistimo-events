@@ -4,6 +4,11 @@ import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
 import { canManageInvitation } from "@/lib/canManageInvitation";
+import {
+  bufferFromImageDataUrl,
+  jpegDataUri,
+  normalizeInvitationImage,
+} from "@/lib/whatsapp/invitationImage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -81,36 +86,21 @@ export async function POST(req: Request) {
       imageMode || invitation.orientation
     );
 
-    const targetWidth = finalImageMode === "square" ? 1080 : 1080;
-    const targetHeight = finalImageMode === "square" ? 1080 : 1920;
-
     /*
-      חשוב מאוד – איכות התמונה:
-      התמונה נשמרת בגודל שמתאים להזמנה.
-      portrait = 1080x1920, square = 1080x1080.
-
-      crop: "lpad" שומר את כל התמונה בלי חיתוך, אבל בניגוד ל-"pad"
-      הוא לעולם לא מגדיל בכוח תמונה קטנה (שגורם לטשטוש).
-      background: "#ffffff" מוסיף רקע לבן רק אם היחס לא תואם.
-      format: "png" שומר קובץ ללא אובדן איכות (lossless) – חד יותר בטקסט
-      ובקווים דקים של ההזמנה, וזה מה שנשלח כתמונת ה-header בוואטסאפ.
-      quality: "auto:best" שומר איכות מקסימלית ומצמצם משקל קובץ
-      כדי לא לחרוג ממגבלת הגודל של וואטסאפ.
+      The bytes stored here are the bytes WhatsApp downloads (after the
+      baseline-JPEG delivery URL). Do not pad onto a fixed 1080×1920 plate
+      and do not store a palette PNG: phones transcode that into a black
+      band under the card. Normalize to the real artwork bounds first.
     */
-    const upload = await cloudinary.uploader.upload(base64Image, {
+    const normalized = await normalizeInvitationImage(
+      bufferFromImageDataUrl(base64Image)
+    );
+
+    const upload = await cloudinary.uploader.upload(jpegDataUri(normalized.buffer), {
       folder: "invistimo/invitations",
       resource_type: "image",
       overwrite: true,
-      format: "png",
-      transformation: [
-        {
-          width: targetWidth,
-          height: targetHeight,
-          crop: "lpad",
-          background: "#ffffff",
-          quality: "auto:best",
-        },
-      ],
+      format: "jpg",
     });
 
     const imageUrl = upload.secure_url;

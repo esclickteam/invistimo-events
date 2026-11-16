@@ -5,6 +5,7 @@ import { v2 as cloudinary } from "cloudinary";
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
+import { normalizeInvitationImage } from "@/lib/whatsapp/invitationImage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,7 +73,7 @@ function getHighQualityCloudinaryImageUrl(value: unknown) {
     .replace(/^w_\d+[^/]*\//, "")
     .replace(/^h_\d+[^/]*\//, "");
 
-  return `${beforeUpload}/upload/q_100,f_png/${cleanedAfterUpload}`;
+  return `${beforeUpload}/upload/${cleanedAfterUpload}`;
 }
 
 function assertCloudinaryConfig() {
@@ -110,7 +111,8 @@ async function uploadImageToCloudinary({
   assertCloudinaryConfig();
 
   const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
+  const normalized = await normalizeInvitationImage(Buffer.from(arrayBuffer));
+  const buffer = normalized.buffer;
 
   const originalName = cleanString(file.name).replace(/\.[^/.]+$/, "");
   const safeName =
@@ -136,6 +138,7 @@ async function uploadImageToCloudinary({
         folder,
         public_id: publicId,
         resource_type: "image",
+        format: "jpg",
         overwrite: false,
         quality_analysis: true,
         colors: true,

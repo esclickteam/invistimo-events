@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import mongoose from "mongoose";
 import { v2 as cloudinary } from "cloudinary";
+import { normalizeInvitationImage } from "@/lib/whatsapp/invitationImage";
 
 import db from "@/lib/db";
 import Invitation from "@/models/Invitation";
@@ -233,7 +234,8 @@ async function uploadImageToCloudinary({
   assertCloudinaryConfig();
 
   const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
+  const normalized = await normalizeInvitationImage(Buffer.from(arrayBuffer));
+  const buffer = normalized.buffer;
 
   const originalName = cleanString(file.name).replace(/\.[^/.]+$/, "");
   const safeName =
@@ -260,6 +262,7 @@ async function uploadImageToCloudinary({
         folder,
         public_id: publicId,
         resource_type: "image",
+        format: "jpg",
         overwrite: false,
         invalidate: true,
       },

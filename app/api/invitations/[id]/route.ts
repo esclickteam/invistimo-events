@@ -24,6 +24,11 @@ import { writeAdminAuditLog } from "@/lib/admin/auditLog";
 import { normalizeGuestLinksSection } from "@/lib/eventDetails/guestLinksSection";
 
 import { v2 as cloudinary } from "cloudinary";
+import {
+  bufferFromImageDataUrl,
+  jpegDataUri,
+  normalizeInvitationImage,
+} from "@/lib/whatsapp/invitationImage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -1016,31 +1021,20 @@ export async function PUT(
         invitationBeforeUpdate._id
       )}_${Date.now()}`;
 
-      const targetWidth = 1080;
-      const targetHeight = finalImageMode === "square" ? 1080 : 1920;
+      const normalized = await normalizeInvitationImage(
+        bufferFromImageDataUrl(previewBase64)
+      );
 
-      /*
-        איכות התמונה: שומרים ללא אובדן (PNG) כדי שתמונת ה-header
-        בוואטסאפ תישאר חדה. crop: "lpad" לא מגדיל בכוח תמונה קטנה
-        (מונע טשטוש), ו-quality: "auto:best" שומר איכות מקסימלית
-        עם משקל קובץ סביר.
-      */
-      const upload = await cloudinary.uploader.upload(previewBase64, {
-        public_id: publicId,
-        resource_type: "image",
-        overwrite: false,
-        invalidate: true,
-        format: "png",
-        transformation: [
-          {
-            width: targetWidth,
-            height: targetHeight,
-            crop: "lpad",
-            background: "#ffffff",
-            quality: "auto:best",
-          },
-        ],
-      });
+      const upload = await cloudinary.uploader.upload(
+        jpegDataUri(normalized.buffer),
+        {
+          public_id: publicId,
+          resource_type: "image",
+          overwrite: false,
+          invalidate: true,
+          format: "jpg",
+        }
+      );
 
       const imageUrl = upload.secure_url;
 
