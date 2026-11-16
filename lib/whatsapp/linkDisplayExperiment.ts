@@ -1,4 +1,5 @@
 import { createDialogProvider } from "@/lib/whatsapp/provider/dialogProvider";
+import type { WhatsAppTemplateComponent } from "@/lib/whatsapp/provider/types";
 import {
   WHATSAPP_HEADER_PROBE_IMAGE_URL,
   WHATSAPP_HEADER_PROBE_RECIPIENT,
@@ -24,7 +25,7 @@ export type LinkDisplayRequest = {
   template: {
     name: string;
     language: { code: "he" };
-    components: Array<Record<string, unknown>>;
+    components: WhatsAppTemplateComponent[];
   };
 };
 
@@ -71,13 +72,11 @@ export function linkDisplayRequestBody(
 export function redactLinkDisplayRequest(body: LinkDisplayRequest) {
   const components = body.template.components.map((component) => {
     if (component.type !== "button") return component;
-    const parameters = Array.isArray(component.parameters)
-      ? component.parameters.map((parameter) => {
-          const row = parameter as { type?: string; text?: string };
-          if (row.type !== "text") return parameter;
-          return { ...row, text: "header-probe?token=[redacted]" };
-        })
-      : component.parameters;
+    const parameters = (component.parameters ?? []).map((parameter) => {
+      const row = parameter as { type?: string; text?: string };
+      if (row.type !== "text") return parameter;
+      return { ...row, text: "header-probe?token=[redacted]" };
+    });
     return { ...component, parameters };
   });
   return {
