@@ -14,6 +14,7 @@ import {
   sendRsvpTemplateMedia,
   whatsappLocationParameter,
 } from "../../lib/whatsapp/sendRsvpTemplateMedia";
+import { fetchServingHeader } from "./support/headerFetch";
 import { resolveEventInvitationVariables } from "../../lib/whatsapp/approvedTemplates";
 
 const KAHI = "קאי ריזורט | Kahi Events Resort";
@@ -133,13 +134,13 @@ async function captureSend(
 ) {
   const original = globalThis.fetch;
   const calls: Captured[] = [];
-  globalThis.fetch = (async (_url: any, init: any) => {
+  globalThis.fetch = fetchServingHeader((_url, init) => {
     calls.push({ body: init?.body ? JSON.parse(init.body) : null });
     return new Response(JSON.stringify({ messages: [{ id: "wamid.test" }] }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
-  }) as typeof fetch;
+  });
   try {
     await run();
   } finally {

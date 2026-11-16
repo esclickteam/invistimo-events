@@ -1,18 +1,8 @@
 /**
- * Delivery URL for an invitation image fetched by WhatsApp.
- *
- * Stored originals are often palette PNGs (Cloudinary `format: "png"` +
- * `quality: auto:best`) and sometimes carry an ICC profile or an alpha
- * channel. WhatsApp Web/Desktop decodes that PNG. The iOS and Android
- * clients transcode it to JPEG: indexed color and transparency become a
- * large black region under the artwork, while the desktop app still looks
- * correct.
- *
- * This URL is only the fallback when the send-time crop cannot run.
- * `c_limit` does not remove an empty canvas: it scales the existing file
- * down if it is larger than the cap and leaves every blank pixel in place.
- * `b_rgb` paints transparency white, which is why a black phone band turned
- * white without the invitation growing to fill the file.
+ * Legacy delivery transform. The WhatsApp send path does not call this.
+ * A failed image preparation throws instead of rewriting the link to
+ * `c_limit`. `c_limit` does not crop a canvas, and `b_rgb` only paints
+ * transparent pixels white.
  */
 
 const TRANSFORM =
