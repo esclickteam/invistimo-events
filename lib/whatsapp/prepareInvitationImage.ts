@@ -19,7 +19,7 @@ import {
  * same original reuse that file. Callers do not re-upload the design.
  */
 
-const DERIVATIVE_PREFIX = "invistimo/whatsapp-delivery/v3_";
+const DERIVATIVE_PREFIX = "invistimo/whatsapp-delivery/v4_";
 
 type FetchLike = (
   input: string,
@@ -121,6 +121,9 @@ export async function prepareWhatsappInvitationImageUrl(
     const normalized = await normalizeInvitationImage(
       Buffer.from(await source.arrayBuffer())
     );
+    if (normalized.warning) {
+      console.warn(normalized.warning);
+    }
     const upload =
       deps.upload ??
       ((buffer: Buffer, id: string) => uploadNormalizedJpeg(buffer, id, cloudName));

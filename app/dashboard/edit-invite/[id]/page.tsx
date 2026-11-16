@@ -372,6 +372,10 @@ export default function EditInvitePage() {
 
         imageUploaded = true;
 
+        if (uploadData.imageWarning) {
+          alert(String(uploadData.imageWarning));
+        }
+
         const uploadedUrl = String(
           uploadData.imageUrl ||
             uploadData.previewImageUrl ||

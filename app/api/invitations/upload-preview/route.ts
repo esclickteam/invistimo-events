@@ -154,6 +154,7 @@ export async function POST(req: Request) {
       height: upload.height,
       format: upload.format,
       bytes: upload.bytes,
+      imageWarning: normalized.warning,
     });
   } catch (err) {
     console.error("❌ upload-preview error:", err);

@@ -1,3 +1,5 @@
+import { opaquePixelBounds } from "@/lib/invitations/opaquePixelBounds";
+
 export type InviteImageMode = "portrait" | "square";
 
 export type ImageInfo = {
@@ -34,8 +36,10 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 
 /**
  * Compresses an invitation image for upload.
- * Scales down to max 1080×1920 (portrait) or 1080×1080 (square)
- * and exports as JPEG to keep payloads under server body limits.
+ * Scales down only when the file is larger than 1080×1920 (or 1080×1080
+ * for a square). It does not pad a smaller image onto that plate.
+ * Transparent padding is dropped before the JPEG flatten. Opaque paper,
+ * including a white background, is kept.
  */
 export async function compressInviteImageFile(
   file: File,
@@ -60,9 +64,26 @@ export async function compressInviteImageFile(
   const width = Math.max(1, Math.round(naturalWidth * scale));
   const height = Math.max(1, Math.round(naturalHeight * scale));
 
+  const measured = document.createElement("canvas");
+  measured.width = width;
+  measured.height = height;
+  const measuredCtx = measured.getContext("2d");
+
+  if (!measuredCtx) {
+    throw new Error("CANVAS_CONTEXT_UNAVAILABLE");
+  }
+
+  measuredCtx.drawImage(img, 0, 0, width, height);
+  const pixels = measuredCtx.getImageData(0, 0, width, height);
+  const opaque = opaquePixelBounds(pixels.data, width, height);
+  const crop =
+    opaque && opaque.width > 0 && opaque.height > 0
+      ? opaque
+      : { left: 0, top: 0, width, height };
+
   const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = crop.width;
+  canvas.height = crop.height;
 
   const ctx = canvas.getContext("2d");
 
@@ -71,8 +92,18 @@ export async function compressInviteImageFile(
   }
 
   ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, width, height);
-  ctx.drawImage(img, 0, 0, width, height);
+  ctx.fillRect(0, 0, crop.width, crop.height);
+  ctx.drawImage(
+    measured,
+    crop.left,
+    crop.top,
+    crop.width,
+    crop.height,
+    0,
+    0,
+    crop.width,
+    crop.height
+  );
 
   const base64 = canvas.toDataURL("image/jpeg", 0.88);
   const maxPayloadBytes = 3 * 1024 * 1024;
@@ -82,9 +113,9 @@ export async function compressInviteImageFile(
     base64: optimizedBase64,
     mode: detectedMode,
     info: {
-      width,
-      height,
-      aspectRatio: width / height,
+      width: crop.width,
+      height: crop.height,
+      aspectRatio: crop.width / crop.height,
     },
   };
 }

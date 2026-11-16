@@ -197,67 +197,85 @@ test("upload and send paths no longer emit a padded palette PNG", () => {
   }
   assert.match(send, /prepareWhatsappInvitationImageUrl/);
   assert.doesNotMatch(send, /toWhatsappInvitationImageUrl\(/);
+
+  const editor = readFileSync(
+    join(process.cwd(), "app/dashboard/create-invite/EditorCanvas.tsx"),
+    "utf8"
+  );
+  const compress = readFileSync(
+    join(process.cwd(), "lib/compressInviteImage.ts"),
+    "utf8"
+  );
+  assert.match(editor, /invitationDesignBounds/);
+  assert.match(editor, /mimeType: "image\/png"/);
+  assert.doesNotMatch(editor, /mimeType: "image\/jpeg"/);
+  assert.match(compress, /opaquePixelBounds/);
+  assert.doesNotMatch(compress, /canvas\.width\s*=\s*1080/);
+  assert.doesNotMatch(compress, /lpad/);
 });
 
-test("the empty canvas measured on the 11:35 phone photo is cropped to the card", async () => {
-  // The WhatsApp photo shows the artwork filling the media width and the
-  // top 272/712 of a tall file, with a flat empty field underneath.
+test("transparent stage under the card is cropped, opaque white paper is kept", async () => {
   const width = 191;
   const height = 712;
   const cardHeight = 272;
-  const before = await rgba({
-    width,
-    height,
-    paint: (x, y) => {
-      if (y >= cardHeight) return [255, 255, 255, 255];
-      if (y > cardHeight - 6) return [92, 48, 32, 255];
-      if (x < 8 || x > width - 9) return [120, 84, 48, 255];
-      return [214, 186, 142, 255];
-    },
-  });
-
-  const flattenedOnly = await sharp(before).flatten({ background: "#ffffff" }).jpeg().toBuffer();
-  const flattenedMeta = await sharp(flattenedOnly).metadata();
-  assert.equal(flattenedMeta.width, width);
-  assert.equal(flattenedMeta.height, height);
-
-  const normalized = await normalizeInvitationImage(before);
-  const meta = await sharp(normalized.buffer).metadata();
-  const ratio = (meta.height || 1) / (meta.width || 1);
-
-  assert.equal(normalized.trimmedLight, true);
-  assert.ok((meta.height || 0) <= cardHeight + 8);
-  assert.ok((meta.width || 0) <= width + 8);
-  assert.ok(ratio > 1.3 && ratio < 1.55, `ratio ${ratio} does not match the card`);
-
-  const { data, info } = await sharp(normalized.buffer)
-    .ensureAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
-  const bottom = info.height - 1;
-  const offset = (bottom * info.width + Math.floor(info.width / 2)) * info.channels;
-  assert.ok(data[offset] < 140, "the card's bottom edge was cropped away");
-
   const transparent = await rgba({
     width,
     height,
     paint: (x, y) => {
       if (y >= cardHeight) return [0, 0, 0, 0];
       if (y > cardHeight - 6) return [92, 48, 32, 255];
+      if (x < 8 || x > width - 9) return [120, 84, 48, 255];
       return [214, 186, 142, 255];
     },
   });
   const fromAlpha = await normalizeInvitationImage(transparent);
   const alphaMeta = await sharp(fromAlpha.buffer).metadata();
+  const ratio = (alphaMeta.height || 1) / (alphaMeta.width || 1);
   assert.equal(fromAlpha.trimmedTransparent, true);
+  assert.equal(fromAlpha.uncertainCanvas, false);
   assert.ok((alphaMeta.height || 0) <= cardHeight + 8);
+  assert.ok(ratio > 1.3 && ratio < 1.55, `ratio ${ratio}`);
+
+  const opaquePaper = await rgba({
+    width,
+    height,
+    paint: (x, y) => {
+      if (y >= cardHeight) return [255, 255, 255, 255];
+      if (y > cardHeight - 6) return [92, 48, 32, 255];
+      return [214, 186, 142, 255];
+    },
+  });
+  const kept = await normalizeInvitationImage(opaquePaper);
+  const keptMeta = await sharp(kept.buffer).metadata();
+  assert.equal(kept.trimmedLight, false);
+  assert.equal(kept.uncertainCanvas, true);
+  assert.ok(kept.warning);
+  assert.ok((keptMeta.height || 0) > 700);
+
+  const whiteInvitation = await rgba({
+    width: 400,
+    height: 640,
+    paint: (x, y) => {
+      const ink = x > 80 && x < 320 && y > 180 && y < 460 && ((x + y) % 11 < 2);
+      if (ink) return [30, 30, 30, 255];
+      return [255, 255, 255, 255];
+    },
+  });
+  const paper = await normalizeInvitationImage(whiteInvitation);
+  const paperMeta = await sharp(paper.buffer).metadata();
+  assert.equal(paper.trimmedLight, false);
+  assert.equal(paper.trimmedTransparent, false);
+  assert.equal(paper.uncertainCanvas, true);
+  assert.ok((paperMeta.width || 0) >= 392);
+  assert.ok((paperMeta.height || 0) >= 632);
 
   mkdirSync(ARTIFACTS, { recursive: true });
-  await sharp(before).png().toFile(join(ARTIFACTS, "dor-omer-canvas-before.png"));
-  await sharp(normalized.buffer).jpeg().toFile(join(ARTIFACTS, "dor-omer-canvas-after.jpg"));
+  await sharp(transparent).png().toFile(join(ARTIFACTS, "editor-stage-before.png"));
+  await sharp(fromAlpha.buffer).jpeg().toFile(join(ARTIFACTS, "editor-stage-after.jpg"));
+  await sharp(whiteInvitation).png().toFile(join(ARTIFACTS, "white-invitation-kept.png"));
 });
 
-test("a paper margin stays, and a centered pad plate is cropped back to the card", async () => {
+test("a modest paper margin stays and is not flagged", async () => {
   const margined = await rgba({
     width: 400,
     height: 560,
@@ -270,25 +288,10 @@ test("a paper margin stays, and a centered pad plate is cropped back to the card
   const kept = await normalizeInvitationImage(margined);
   const keptMeta = await sharp(kept.buffer).metadata();
   assert.equal(kept.trimmedLight, false);
+  assert.equal(kept.uncertainCanvas, false);
+  assert.equal(kept.warning, null);
   assert.ok((keptMeta.width || 0) >= 392);
   assert.ok((keptMeta.height || 0) >= 552);
-
-  const plate = await rgba({
-    width: 540,
-    height: 960,
-    paint: (x, y) => {
-      const onCard = x >= 170 && x < 370 && y >= 240 && y < 600;
-      if (!onCard) return [255, 255, 255, 255];
-      return [64, 88, 72, 255];
-    },
-  });
-  const cropped = await normalizeInvitationImage(plate);
-  const croppedMeta = await sharp(cropped.buffer).metadata();
-  assert.equal(cropped.trimmedLight, true);
-  assert.ok((croppedMeta.width || 0) < 230);
-  assert.ok((croppedMeta.height || 0) < 390);
-  const ratio = (croppedMeta.width || 1) / (croppedMeta.height || 1);
-  assert.ok(Math.abs(ratio - 200 / 360) < 0.05);
 });
 
 test("send-time preparation crops an existing Cloudinary file and then reuses it", async () => {
@@ -299,7 +302,7 @@ test("send-time preparation crops an existing Cloudinary file and then reuses it
   const tall = await rgba({
     width: 191,
     height: 712,
-    paint: (_x, y) => (y < 272 ? [180, 120, 70, 255] : [255, 255, 255, 255]),
+    paint: (_x, y) => (y < 272 ? [180, 120, 70, 255] : [0, 0, 0, 0]),
   });
 
   const fetched: string[] = [];
@@ -353,7 +356,7 @@ test("send-time preparation crops an existing Cloudinary file and then reuses it
     },
   });
 
-  assert.match(second, /\/invistimo\/whatsapp-delivery\/v3_[a-f0-9]{24}\.jpg$/);
+  assert.match(second, /\/invistimo\/whatsapp-delivery\/v4_[a-f0-9]{24}\.jpg$/);
   assert.ok(fetched.filter((line) => line.startsWith("GET ")).length === 1);
   assert.equal(
     await prepareWhatsappInvitationImageUrl("https://cdn.example.com/invite.png"),

@@ -396,6 +396,10 @@ function CreateInvitePageInner() {
       return;
     }
 
+    if (uploadData.imageWarning) {
+      alert(String(uploadData.imageWarning));
+    }
+
     router.push(`/dashboard/invitations/${invitationId}/edit`);
   } catch (err) {
     console.error("❌ SAVE ERROR:", err);

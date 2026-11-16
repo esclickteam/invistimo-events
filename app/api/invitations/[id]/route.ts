@@ -28,6 +28,7 @@ import {
   bufferFromImageDataUrl,
   jpegDataUri,
   normalizeInvitationImage,
+  UNCERTAIN_CANVAS_WARNING,
 } from "@/lib/whatsapp/invitationImage";
 
 export const runtime = "nodejs";
@@ -1007,6 +1008,7 @@ export async function PUT(
       updatePayload.canvasData = canvasData;
     }
 
+    let imageWarning: string | null = null;
     const previewBase64 = pickBase64Image(body);
 
     if (isNonEmptyString(previewBase64)) {
@@ -1024,6 +1026,9 @@ export async function PUT(
       const normalized = await normalizeInvitationImage(
         bufferFromImageDataUrl(previewBase64)
       );
+      if (normalized.uncertainCanvas) {
+        imageWarning = UNCERTAIN_CANVAS_WARNING;
+      }
 
       const upload = await cloudinary.uploader.upload(
         jpegDataUri(normalized.buffer),
@@ -1245,6 +1250,7 @@ export async function PUT(
       headerImageUrl: (updated as any)?.headerImageUrl ?? null,
       imageUrl: (updated as any)?.imageUrl ?? null,
       previewImage: (updated as any)?.previewImage ?? null,
+      imageWarning,
     });
   } catch (err: any) {
     console.error("❌ Error in PUT /api/invitations/[id]:", err?.message || err);
