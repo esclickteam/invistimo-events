@@ -54,9 +54,11 @@ export class HeaderProbeError extends Error {
 }
 
 export function whatsappHeaderProbeArmed(
-  value = process.env.WHATSAPP_HEADER_PROBE
+  _value = process.env.WHATSAPP_HEADER_PROBE
 ) {
-  return String(value ?? "").trim().toLowerCase() === "armed";
+  // The link and media-id probes showed the same broken header.
+  // Keep the route in place for the saved result, but never send again.
+  return false;
 }
 
 export function whatsappHeaderProbeOnProduction() {
