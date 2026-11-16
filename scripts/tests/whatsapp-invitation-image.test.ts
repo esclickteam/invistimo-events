@@ -13,6 +13,7 @@ import {
   InvitationImagePrepareError,
   prepareWhatsappInvitationImageUrl,
 } from "../../lib/whatsapp/prepareInvitationImage";
+import { sendRsvpTemplateMedia } from "../../lib/whatsapp/sendRsvpTemplateMedia";
 
 function isBaselineJpeg(buffer: Buffer) {
   assert.equal(buffer[0], 0xff);
@@ -155,6 +156,110 @@ test("a failed prepare throws and does not return a c_limit URL", async () => {
       return true;
     }
   );
+});
+
+test("360dialog is given the original file for every image template", async () => {
+  process.env.WHATSAPP_API_KEY = "test-key";
+  const file = await png(64, 64, 3, () => [20, 40, 80]);
+  const stored =
+    "https://res.cloudinary.com/dnbewcz79/image/upload/c_limit,w_1600,h_2400/b_rgb:FFFFFF,f_jpg/v1/invistimo/invitations/sample.png";
+  const original =
+    "https://res.cloudinary.com/dnbewcz79/image/upload/v1/invistimo/invitations/sample.png";
+  const posts: any[] = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (_url: any, init: any) => {
+    const method = String(init?.method || "GET").toUpperCase();
+    if (method !== "POST") {
+      return new Response(file, {
+        status: 200,
+        headers: { "content-type": "image/png" },
+      });
+    }
+    posts.push(JSON.parse(init.body));
+    return new Response(JSON.stringify({ messages: [{ id: "wamid.original" }] }), {
+      status: 200,
+    });
+  }) as typeof fetch;
+
+  try {
+    const shared = {
+      to: "0526850711",
+      headerImageUrl: stored,
+      eventTitle: "אירוע",
+      eventDate: "11.11.2026",
+      eventLocation: "אולם",
+    };
+    await sendRsvpTemplateMedia({
+      ...shared,
+      templateName: "rsvp_invitation_media",
+      rsvpLink: "https://www.invistimo.com/invite/abc?token=t",
+    });
+    await sendRsvpTemplateMedia({
+      ...shared,
+      templateName: "rsvp_reminder_invistimo",
+      urlSuffix: "abc?token=t",
+    });
+    await sendRsvpTemplateMedia({
+      ...shared,
+      templateName: "save_the_date_image_he",
+    });
+    await sendRsvpTemplateMedia({
+      ...shared,
+      templateName: "event_invitation",
+    });
+    await sendRsvpTemplateMedia({
+      ...shared,
+      messageType: "invitation_only",
+      templateName: "rsvp_invitation_media",
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  assert.equal(posts.length, 5);
+  assert.deepEqual(
+    posts.map((post) => post.template.name),
+    [
+      "rsvp_invitation_media",
+      "rsvp_reminder_invistimo",
+      "save_the_date_image_he",
+      "event_invitation",
+      "event_invitation",
+    ]
+  );
+  for (const post of posts) {
+    const header = post.template.components.find((item: any) => item.type === "header");
+    assert.equal(header.parameters[0].image.link, original);
+    assert.equal(post.template.components.some((item: any) => item.type === "header"), true);
+  }
+});
+
+test("a file that cannot be verified is not posted to 360dialog", async () => {
+  process.env.WHATSAPP_API_KEY = "test-key";
+  const originalFetch = globalThis.fetch;
+  let posts = 0;
+  globalThis.fetch = (async (_url: any, init: any) => {
+    if (String(init?.method || "GET").toUpperCase() === "POST") posts += 1;
+    return new Response("missing", { status: 404, headers: { "content-type": "text/plain" } });
+  }) as typeof fetch;
+  try {
+    await assert.rejects(
+      () =>
+        sendRsvpTemplateMedia({
+          to: "0526850711",
+          templateName: "event_invitation",
+          headerImageUrl:
+            "https://res.cloudinary.com/dnbewcz79/image/upload/v1/invistimo/invitations/missing.png",
+          eventTitle: "אירוע",
+          eventDate: "11.11.2026",
+          eventLocation: "אולם",
+        }),
+      InvitationImagePrepareError
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+  assert.equal(posts, 0);
 });
 
 test("every image send path uses the verified prepare step and stores no plate", () => {
