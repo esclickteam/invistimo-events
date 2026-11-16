@@ -108,7 +108,7 @@ test("transparent canvas below the card is removed and exported as baseline JPEG
     .toFile(join(ARTIFACTS, "whatsapp-invite-after.jpg"));
 });
 
-test("opaque black band under a colorful card is cropped, a black invitation is not", async () => {
+test("a black invitation and a black area that is not a system plate are kept", async () => {
   const padded = await rgba({
     width: 320,
     height: 640,
@@ -118,11 +118,11 @@ test("opaque black band under a colorful card is cropped, a black invitation is 
       return [250, 244, 236, 255];
     },
   });
-  const cropped = await normalizeInvitationImage(padded);
-  const croppedMeta = await sharp(cropped.buffer).metadata();
-  assert.equal(cropped.trimmedBlack, true);
-  assert.ok((croppedMeta.height || 0) < 360);
-  assert.ok((await bottomBlackRatio(cropped.buffer)) < 0.05);
+  const keptBand = await normalizeInvitationImage(padded);
+  const keptBandMeta = await sharp(keptBand.buffer).metadata();
+  assert.equal(keptBand.trimmedLight, false);
+  assert.equal(keptBandMeta.width, 320);
+  assert.equal(keptBandMeta.height, 640);
 
   const blackInvite = await rgba({
     width: 320,
@@ -136,7 +136,8 @@ test("opaque black band under a colorful card is cropped, a black invitation is 
   });
   const kept = await normalizeInvitationImage(blackInvite);
   const keptMeta = await sharp(kept.buffer).metadata();
-  assert.equal(kept.trimmedBlack, false);
+  assert.equal(kept.trimmedLight, false);
+  assert.equal(kept.uncertainCanvas, false);
   assert.equal(keptMeta.width, 320);
   assert.equal(keptMeta.height, 480);
 });
@@ -212,6 +213,15 @@ test("upload and send paths no longer emit a padded palette PNG", () => {
   assert.match(compress, /opaquePixelBounds/);
   assert.doesNotMatch(compress, /canvas\.width\s*=\s*1080/);
   assert.doesNotMatch(compress, /lpad/);
+
+  const normalize = readFileSync(
+    join(process.cwd(), "lib/whatsapp/invitationImage.ts"),
+    "utf8"
+  );
+  assert.match(normalize, /fit: "inside"/);
+  assert.match(normalize, /withoutEnlargement: true/);
+  assert.doesNotMatch(normalize, /\.extend\(/);
+  assert.doesNotMatch(normalize, /lpad/);
 });
 
 test("transparent stage under the card is cropped, opaque white paper is kept", async () => {
@@ -248,9 +258,10 @@ test("transparent stage under the card is cropped, opaque white paper is kept", 
   const kept = await normalizeInvitationImage(opaquePaper);
   const keptMeta = await sharp(kept.buffer).metadata();
   assert.equal(kept.trimmedLight, false);
-  assert.equal(kept.uncertainCanvas, true);
-  assert.ok(kept.warning);
-  assert.ok((keptMeta.height || 0) > 700);
+  assert.equal(kept.uncertainCanvas, false);
+  assert.equal(kept.warning, null);
+  assert.equal(keptMeta.width, width);
+  assert.equal(keptMeta.height, height);
 
   const whiteInvitation = await rgba({
     width: 400,
@@ -265,9 +276,9 @@ test("transparent stage under the card is cropped, opaque white paper is kept", 
   const paperMeta = await sharp(paper.buffer).metadata();
   assert.equal(paper.trimmedLight, false);
   assert.equal(paper.trimmedTransparent, false);
-  assert.equal(paper.uncertainCanvas, true);
-  assert.ok((paperMeta.width || 0) >= 392);
-  assert.ok((paperMeta.height || 0) >= 632);
+  assert.equal(paper.uncertainCanvas, false);
+  assert.equal(paperMeta.width, 400);
+  assert.equal(paperMeta.height, 640);
 
   mkdirSync(ARTIFACTS, { recursive: true });
   await sharp(transparent).png().toFile(join(ARTIFACTS, "editor-stage-before.png"));
@@ -292,6 +303,106 @@ test("a modest paper margin stays and is not flagged", async () => {
   assert.equal(kept.warning, null);
   assert.ok((keptMeta.width || 0) >= 392);
   assert.ok((keptMeta.height || 0) >= 552);
+});
+
+test("white system-sized files are not cropped, and new files keep their own size", async () => {
+  const plateRaw = Buffer.alloc(1080 * 1920 * 4, 255);
+  for (let y = 460; y < 1460; y += 1) {
+    for (let x = 240; x < 840; x += 1) {
+      const offset = (y * 1080 + x) * 4;
+      plateRaw[offset] = 90;
+      plateRaw[offset + 1] = 60;
+      plateRaw[offset + 2] = 40;
+    }
+  }
+  const plate = await sharp(plateRaw, {
+    raw: { width: 1080, height: 1920, channels: 4 },
+  })
+    .png()
+    .toBuffer();
+  const cropped = await normalizeInvitationImage(plate);
+  const croppedMeta = await sharp(cropped.buffer).metadata();
+  assert.equal(cropped.trimmedTransparent, false);
+  assert.equal(cropped.uncertainCanvas, false);
+  assert.equal(croppedMeta.width, 1080);
+  assert.equal(croppedMeta.height, 1920);
+
+  const topRaw = Buffer.alloc(1080 * 1920 * 4, 255);
+  for (let y = 0; y < 700; y += 1) {
+    for (let x = 0; x < 1080; x += 1) {
+      const offset = (y * 1080 + x) * 4;
+      topRaw[offset] = 90;
+      topRaw[offset + 1] = 60;
+      topRaw[offset + 2] = 40;
+    }
+  }
+  const topAligned = await sharp(topRaw, {
+    raw: { width: 1080, height: 1920, channels: 4 },
+  })
+    .png()
+    .toBuffer();
+  const keptTop = await normalizeInvitationImage(topAligned);
+  const keptTopMeta = await sharp(keptTop.buffer).metadata();
+  assert.equal(keptTop.trimmedTransparent, false);
+  assert.equal(keptTop.uncertainCanvas, false);
+  assert.equal(keptTopMeta.width, 1080);
+  assert.equal(keptTopMeta.height, 1920);
+
+  const textRaw = Buffer.alloc(1080 * 1920 * 4, 255);
+  for (let y = 700; y < 1200; y += 7) {
+    for (let x = 200; x < 880; x += 7) {
+      const offset = (y * 1080 + x) * 4;
+      textRaw[offset] = 20;
+      textRaw[offset + 1] = 20;
+      textRaw[offset + 2] = 20;
+    }
+  }
+  const textPlate = await sharp(textRaw, {
+    raw: { width: 1080, height: 1920, channels: 4 },
+  })
+    .png()
+    .toBuffer();
+  const keptText = await normalizeInvitationImage(textPlate);
+  const keptTextMeta = await sharp(keptText.buffer).metadata();
+  assert.equal(keptText.trimmedTransparent, false);
+  assert.equal(keptText.uncertainCanvas, false);
+  assert.equal(keptTextMeta.width, 1080);
+  assert.equal(keptTextMeta.height, 1920);
+
+  const landscape = await rgba({
+    width: 640,
+    height: 360,
+    paint: (x, y) => [40 + (x % 30), 80, 120, 255],
+  });
+  const wide = await normalizeInvitationImage(landscape);
+  const wideMeta = await sharp(wide.buffer).metadata();
+  assert.equal(wideMeta.width, 640);
+  assert.equal(wideMeta.height, 360);
+  assert.equal(wide.trimmedTransparent, false);
+
+  const jpeg = await sharp(landscape).jpeg({ quality: 90 }).toBuffer();
+  const fromJpeg = await normalizeInvitationImage(jpeg);
+  const jpegMeta = await sharp(fromJpeg.buffer).metadata();
+  assert.equal(jpegMeta.format, "jpeg");
+  assert.equal(jpegMeta.width, 640);
+  assert.equal(jpegMeta.height, 360);
+
+  const sentAgain = await normalizeInvitationImage(cropped.buffer);
+  const sentMeta = await sharp(sentAgain.buffer).metadata();
+  assert.equal(sentMeta.width, 1080);
+  assert.equal(sentMeta.height, 1920);
+  assert.equal(sentAgain.trimmedTransparent, false);
+
+  mkdirSync(ARTIFACTS, { recursive: true });
+  await sharp(plate).png().toFile(join(ARTIFACTS, "existing-original.png"));
+  await sharp(plate).png().toFile(join(ARTIFACTS, "existing-stored.png"));
+  await sharp(cropped.buffer).jpeg().toFile(join(ARTIFACTS, "existing-sent.jpg"));
+  await sharp(landscape).png().toFile(join(ARTIFACTS, "new-original.png"));
+  await sharp(wide.buffer).jpeg().toFile(join(ARTIFACTS, "new-stored.jpg"));
+  await sharp(sentAgain.buffer).jpeg().toFile(join(ARTIFACTS, "plate-sent-again.jpg"));
+  await sharp((await normalizeInvitationImage(wide.buffer)).buffer)
+    .jpeg()
+    .toFile(join(ARTIFACTS, "new-sent.jpg"));
 });
 
 test("send-time preparation crops an existing Cloudinary file and then reuses it", async () => {
@@ -356,7 +467,7 @@ test("send-time preparation crops an existing Cloudinary file and then reuses it
     },
   });
 
-  assert.match(second, /\/invistimo\/whatsapp-delivery\/v4_[a-f0-9]{24}\.jpg$/);
+  assert.match(second, /\/invistimo\/whatsapp-delivery\/v5_[a-f0-9]{24}\.jpg$/);
   assert.ok(fetched.filter((line) => line.startsWith("GET ")).length === 1);
   assert.equal(
     await prepareWhatsappInvitationImageUrl("https://cdn.example.com/invite.png"),
