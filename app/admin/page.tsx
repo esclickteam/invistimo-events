@@ -86,6 +86,8 @@ interface UpcomingCallRound {
   status: string;
   guestsWaiting: number;
   guestsDone: number;
+  pendingRsvpTotal?: number;
+  eligibleTotal?: number;
 }
 
 interface UpcomingCallRoundsResponse {
@@ -977,7 +979,8 @@ function UpcomingCallRoundsModal({
                     "אירוע",
                     "סבב",
                     "שעת פתיחה",
-                    "ממתינים",
+                    "זכאים לחיוג",
+                    "ממתינים RSVP",
                     "בוצעו",
                   ]}
                 >
@@ -997,6 +1000,11 @@ function UpcomingCallRoundsModal({
                         {formatDateTime(round.opensAt || round.scheduledAt)}
                       </td>
                       <td>{round.guestsWaiting}</td>
+                      <td>
+                        {typeof round.pendingRsvpTotal === "number"
+                          ? round.pendingRsvpTotal
+                          : "—"}
+                      </td>
                       <td>{round.guestsDone}</td>
                     </tr>
                   ))}

@@ -7,12 +7,15 @@ import db from "@/lib/db";
 import User from "@/models/User";
 import CallWorkOrder from "@/models/CallWorkOrder";
 import CallTask from "@/models/CallTask";
+import InvitationGuest from "@/models/InvitationGuest";
 import {
   hasReachedSameDayWorkOrderOpenTime,
   isEmployeeTodayWorkOrderVisible,
 } from "@/lib/calls/callRoundScheduleTime";
 import { listScheduledCallRoundsForIsraelDate } from "@/lib/calls/listScheduledCallRoundsForDate";
 import { triggerCallWorkOrdersAutoOpen } from "@/lib/calls/triggerCallWorkOrdersAutoOpen";
+import { getCallRoundWaitingStats } from "@/lib/calls/callRoundWaitingStats";
+import { loadPreviousRoundOutcomeSets } from "@/lib/calls/previousRoundCallOutcomes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -888,11 +891,22 @@ function serializeWorkOrderFromGroup(input: {
   workOrder: any | null;
   tasks: any[];
   preserveWorkOrderStatus?: boolean;
+  roundTaskSummary?: Summary | null;
+  roundEligibleTotal?: number;
+  pendingRsvpTotal?: number;
 }) {
-  const { workOrder, tasks, preserveWorkOrderStatus } = input;
+  const {
+    workOrder,
+    tasks,
+    preserveWorkOrderStatus,
+    roundTaskSummary,
+    roundEligibleTotal,
+    pendingRsvpTotal,
+  } = input;
 
   const firstTask = tasks[0] || {};
   const summary = countTasks(tasks);
+  const roundSummary = roundTaskSummary || null;
 
   const id =
     extractIdString(workOrder?._id) ||
@@ -915,6 +929,21 @@ function serializeWorkOrderFromGroup(input: {
       : summary.in_progress > 0
         ? "in_progress"
         : cleanStr(workOrder?.status) || "open";
+
+  const roundTasksTotal =
+    roundSummary?.total ??
+    (workOrder?.totalTasks != null ? safeNumber(workOrder.totalTasks) : total);
+  const roundPendingTasks =
+    roundSummary?.pending ??
+    (workOrder?.pendingTasks != null ? safeNumber(workOrder.pendingTasks) : 0);
+  const roundInProgress =
+    roundSummary?.in_progress ??
+    (workOrder?.inProgressTasks != null
+      ? safeNumber(workOrder.inProgressTasks)
+      : 0);
+  const roundTasksRemaining =
+    roundSummary?.remaining ??
+    Math.max(0, roundPendingTasks + roundInProgress);
 
   return {
     id,
@@ -973,9 +1002,121 @@ function serializeWorkOrderFromGroup(input: {
     myWrongNumberTasks: summary.wrong_number,
     myCancelledTasks: summary.cancelled,
 
+    roundTasksTotal,
+    roundTasksRemaining,
+    roundPendingTasks,
+    roundEligibleTotal:
+      typeof roundEligibleTotal === "number"
+        ? roundEligibleTotal
+        : roundTasksTotal,
+    pendingRsvpTotal:
+      typeof pendingRsvpTotal === "number" ? pendingRsvpTotal : 0,
+
     createdAt: workOrder?.createdAt || firstTask?.createdAt || null,
     updatedAt: workOrder?.updatedAt || firstTask?.updatedAt || null,
   };
+}
+
+async function loadRoundTaskSummariesByWorkOrderIds(
+  workOrderIds: Types.ObjectId[]
+) {
+  const map = new Map<string, Summary>();
+  if (!workOrderIds.length) return map;
+
+  const allTasks = await CallTask.collection
+    .find({ workOrderId: { $in: workOrderIds } } as any)
+    .project({
+      workOrderId: 1,
+      status: 1,
+      result: 1,
+      callResult: 1,
+      resultStatus: 1,
+    })
+    .toArray();
+
+  const byWo = new Map<string, any[]>();
+  for (const task of allTasks) {
+    const id = extractIdString((task as any).workOrderId);
+    if (!id) continue;
+    const list = byWo.get(id) || [];
+    list.push(task);
+    byWo.set(id, list);
+  }
+
+  for (const [id, tasks] of byWo.entries()) {
+    map.set(id, countTasks(tasks));
+  }
+
+  return map;
+}
+
+async function loadEligibleStatsForRounds(
+  rounds: Array<{ invitationId: string; round: number; dateKey: string }>
+) {
+  const map = new Map<
+    string,
+    { roundEligibleTotal: number; pendingRsvpTotal: number }
+  >();
+
+  const uniqueInvitationIds = Array.from(
+    new Set(rounds.map((r) => r.invitationId).filter(Boolean))
+  );
+
+  if (!uniqueInvitationIds.length) return map;
+
+  const invitationObjectIds = uniqueInvitationIds
+    .map((id) => toObjectId(id))
+    .filter(Boolean) as Types.ObjectId[];
+
+  const guests = await InvitationGuest.find({
+    $or: [
+      { invitationId: { $in: [...invitationObjectIds, ...uniqueInvitationIds] } },
+      { invitation: { $in: [...invitationObjectIds, ...uniqueInvitationIds] } },
+    ],
+  })
+    .select(
+      "_id invitationId invitation rsvp status phone mobile phoneNumber callRounds"
+    )
+    .lean();
+
+  const guestsByInvitation = new Map<string, any[]>();
+  for (const guest of guests) {
+    const key =
+      extractIdString((guest as any).invitationId) ||
+      extractIdString((guest as any).invitation);
+    if (!key) continue;
+    const list = guestsByInvitation.get(key) || [];
+    list.push(guest);
+    guestsByInvitation.set(key, list);
+  }
+
+  for (const round of rounds) {
+    if (!round.invitationId) continue;
+    const key = `${round.invitationId}:${round.round}`;
+    const invitationGuests = guestsByInvitation.get(round.invitationId) || [];
+    const previous =
+      round.round === 2 || round.round === 3
+        ? await loadPreviousRoundOutcomeSets({
+            invitationId: round.invitationId,
+            round: round.round,
+            workDateLte: endOfDateKey(round.dateKey),
+          })
+        : undefined;
+
+    const stats = getCallRoundWaitingStats({
+      guests: invitationGuests,
+      round: round.round,
+      previousNoAnswerByRound: previous?.previousNoAnswerByRound,
+      previousCallbackByRound: previous?.previousCallbackByRound,
+    });
+
+    map.set(key, {
+      roundEligibleTotal: stats.guestsWaiting,
+      pendingRsvpTotal: stats.pendingRsvpTotal,
+    });
+  }
+
+  return map;
 }
 
 /* ============================================================
@@ -1007,7 +1148,21 @@ export async function GET(req: NextRequest) {
       !showAllDates &&
       hasReachedSameDayWorkOrderOpenTime({ dateKey })
     ) {
-      void triggerCallWorkOrdersAutoOpen(dateKey);
+      // Await open so today's CallTasks exist before we build employee counts.
+      // Cap wait so a slow cron never blocks the employee screen indefinitely.
+      try {
+        await Promise.race([
+          triggerCallWorkOrdersAutoOpen(dateKey),
+          new Promise<{ ok: false; reason: string }>((resolve) =>
+            setTimeout(() => resolve({ ok: false, reason: "TIMEOUT" }), 15000)
+          ),
+        ]);
+      } catch (autoOpenError) {
+        console.warn(
+          "[employee/work-orders] auto-open trigger failed",
+          autoOpenError
+        );
+      }
     }
 
     const limit = Math.min(
@@ -1094,6 +1249,35 @@ export async function GET(req: NextRequest) {
       workOrderById.set(String((order as any)._id), order);
     }
 
+    const extraWorkOrders: any[] = [];
+
+    if (!showAllDates) {
+      const todayWorkOrderFilter: MongoFilter = {
+        $and: [
+          buildDateMatch(dateKey),
+          {
+            $or: [
+              { status: { $exists: false } },
+              { status: { $nin: ["cancelled", "canceled"] } },
+            ],
+          },
+        ],
+      };
+
+      extraWorkOrders.push(
+        ...(await CallWorkOrder.collection
+          .find(todayWorkOrderFilter as any)
+          .toArray())
+      );
+
+      for (const workOrder of extraWorkOrders) {
+        const id = extractIdString((workOrder as any)._id);
+        if (id && !workOrderById.has(id)) {
+          workOrderById.set(id, workOrder);
+        }
+      }
+    }
+
     const tasksByWorkOrder = new Map<string, any[]>();
 
     for (const task of filteredTasks) {
@@ -1112,11 +1296,26 @@ export async function GET(req: NextRequest) {
       tasksByWorkOrder.get(groupKey)!.push(task);
     }
 
+    const roundSummaryWorkOrderIds = Array.from(
+      new Set(
+        [
+          ...Array.from(workOrderById.keys()),
+          ...extraWorkOrders.map((order) => extractIdString((order as any)._id)),
+        ]
+          .map((id) => toObjectId(id))
+          .filter(Boolean) as Types.ObjectId[]
+      )
+    );
+
+    const roundSummariesByWorkOrder =
+      await loadRoundTaskSummariesByWorkOrderIds(roundSummaryWorkOrderIds);
+
     const serializedWorkOrders = Array.from(tasksByWorkOrder.entries())
       .map(([workOrderId, tasks]) => {
         return serializeWorkOrderFromGroup({
           workOrder: workOrderById.get(workOrderId) || null,
           tasks,
+          roundTaskSummary: roundSummariesByWorkOrder.get(workOrderId) || null,
         });
       })
       .filter((order) => {
@@ -1150,27 +1349,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const extraWorkOrders: any[] = [];
-
     if (!showAllDates) {
-      const todayWorkOrderFilter: MongoFilter = {
-        $and: [
-          buildDateMatch(dateKey),
-          {
-            $or: [
-              { status: { $exists: false } },
-              { status: { $nin: ["cancelled", "canceled"] } },
-            ],
-          },
-        ],
-      };
-
-      extraWorkOrders.push(
-        ...(await CallWorkOrder.collection
-          .find(todayWorkOrderFilter as any)
-          .toArray())
-      );
-
       for (const workOrder of extraWorkOrders) {
         const id = extractIdString((workOrder as any)._id);
         if (
@@ -1189,6 +1368,7 @@ export async function GET(req: NextRequest) {
             workOrder,
             tasks,
             preserveWorkOrderStatus: true,
+            roundTaskSummary: roundSummariesByWorkOrder.get(id) || null,
           })
         );
         seenWorkOrderKeys.add(
@@ -1197,6 +1377,8 @@ export async function GET(req: NextRequest) {
       }
 
       const scheduledToday = await listScheduledCallRoundsForIsraelDate(dateKey);
+
+      const placeholderRounds: typeof scheduledToday = [];
 
       for (const round of scheduledToday) {
         if (
@@ -1227,10 +1409,27 @@ export async function GET(req: NextRequest) {
               workOrder: matchingWorkOrder,
               tasks: tasksByWorkOrder.get(id) || [],
               preserveWorkOrderStatus: true,
+              roundTaskSummary: roundSummariesByWorkOrder.get(id) || null,
             })
           );
           continue;
         }
+
+        placeholderRounds.push(round);
+      }
+
+      const eligibleByRound = await loadEligibleStatsForRounds(
+        placeholderRounds.map((round) => ({
+          invitationId: round.invitationId,
+          round: round.round,
+          dateKey,
+        }))
+      );
+
+      for (const round of placeholderRounds) {
+        const eligible = eligibleByRound.get(
+          `${round.invitationId}:${round.round}`
+        ) || { roundEligibleTotal: 0, pendingRsvpTotal: 0 };
 
         serializedWorkOrders.push({
           id: round.key,
@@ -1238,7 +1437,10 @@ export async function GET(req: NextRequest) {
           type: "rsvp_calls",
           status: "scheduled",
           title: "הוראת עבודה לשיחות",
-          description: "",
+          description:
+            eligible.roundEligibleTotal > 0
+              ? "ממתין להקצאת משימות לעובדי המשמרת"
+              : "אין כרגע מוזמנים זכאים לחיוג לפי כללי הסבב",
           invitationId: round.invitationId,
           clientName: round.clientName,
           clientEmail: round.clientEmail,
@@ -1265,6 +1467,11 @@ export async function GET(req: NextRequest) {
           myNeedsFixTasks: 0,
           myWrongNumberTasks: 0,
           myCancelledTasks: 0,
+          roundTasksTotal: eligible.roundEligibleTotal,
+          roundTasksRemaining: eligible.roundEligibleTotal,
+          roundPendingTasks: eligible.roundEligibleTotal,
+          roundEligibleTotal: eligible.roundEligibleTotal,
+          pendingRsvpTotal: eligible.pendingRsvpTotal,
           createdAt: null,
           updatedAt: null,
         });
