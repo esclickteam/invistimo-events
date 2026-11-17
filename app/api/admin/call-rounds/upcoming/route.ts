@@ -6,8 +6,14 @@ import User from "@/models/User";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
 import { getUserIdFromRequest } from "@/lib/getUserIdFromRequest";
-import { getHumanCallRoundOpenAt } from "@/lib/calls/callRoundScheduleTime";
+import {
+  getCallRoundDateKeyInIsrael,
+  getHumanCallRoundOpenAt,
+} from "@/lib/calls/callRoundScheduleTime";
 import { isIvrCallsUser } from "@/lib/calls/callsType";
+import { getCallRoundWaitingStats } from "@/lib/calls/callRoundWaitingStats";
+import { loadPreviousRoundOutcomeSets } from "@/lib/calls/previousRoundCallOutcomes";
+import { wallTimeInZoneToUtc } from "@/lib/weddingChallenges/timezone";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -35,6 +41,9 @@ type LeanGuest = {
   invitation?: any;
   rsvp?: string | null;
   status?: string | null;
+  phone?: string | null;
+  mobile?: string | null;
+  phoneNumber?: string | null;
   callRounds?: any[];
   allRounds?: any[];
 };
@@ -172,36 +181,49 @@ function getGuestRoundResult(guest: LeanGuest, roundNumber: number) {
   );
 }
 
-function getCallRoundStats(guests: LeanGuest[], roundNumber: number) {
-  let guestsDone = 0;
-  let guestsWaiting = 0;
+function endOfIsraelDateKey(dateKey: string) {
+  return (
+    wallTimeInZoneToUtc(`${dateKey}T23:59:59`, "Asia/Jerusalem") ||
+    new Date(`${dateKey}T23:59:59.999Z`)
+  );
+}
 
+function getCallRoundStats(
+  guests: LeanGuest[],
+  roundNumber: number,
+  previous?: {
+    previousNoAnswerByRound?: Partial<Record<1 | 2, Set<string>>>;
+    previousCallbackByRound?: Partial<Record<1 | 2, Set<string>>>;
+  }
+) {
+  /*
+    guestsWaiting = מוזמנים זכאים לסבב זה שעדיין ממתינים לחיוג
+    (זהה לכללי יצירת CallTask / filterGuestsForCallRound).
+
+    pendingRsvpTotal = כל ממתיני ה-RSVP בלי תוצאת טלפון בסבב זה —
+    מדד ישן שעלול להיות גדול בהרבה בסבבים 2/3.
+  */
+  const stats = getCallRoundWaitingStats({
+    guests,
+    round: roundNumber,
+    previousNoAnswerByRound: previous?.previousNoAnswerByRound,
+    previousCallbackByRound: previous?.previousCallbackByRound,
+  });
+
+  // Keep guestsDone aligned with phone-round tracking (answered / no_answer).
+  let guestsDone = 0;
   for (const guest of guests || []) {
     const roundResult = getGuestRoundResult(guest, roundNumber);
-    const rsvp = normalizeStatus(guest?.rsvp || guest?.status || "pending");
-
-    /*
-      בוצע = רק אם במעקב הטלפוני של אותו סבב סימנו:
-      answerStatus/status = answered או no_answer.
-      אישור הגעה רגיל / RSVP לבד לא נחשב "בוצע" בסבב שיחות.
-    */
     if (roundResult === "answered" || roundResult === "no_answer") {
       guestsDone += 1;
-      continue;
-    }
-
-    /*
-      ממתינים = מי שעדיין צריך טיפול טלפוני בסבב הזה.
-      מי שכבר אישר/סירב בערוץ אחר ולא סומן בסבב — לא נספר כממתין.
-    */
-    if (rsvp === "pending" || rsvp === "בהמתנה" || !rsvp) {
-      guestsWaiting += 1;
     }
   }
 
   return {
-    guestsWaiting,
+    guestsWaiting: stats.guestsWaiting,
     guestsDone,
+    pendingRsvpTotal: stats.pendingRsvpTotal,
+    eligibleTotal: stats.eligibleTotal,
   };
 }
 
@@ -320,7 +342,9 @@ export async function GET(req: NextRequest) {
           { invitation: { $in: invitationMatchValues } },
         ],
       })
-        .select("_id invitationId invitation rsvp status callRounds allRounds")
+        .select(
+          "_id invitationId invitation rsvp status phone mobile phoneNumber callRounds allRounds"
+        )
         .lean()) as LeanGuest[];
 
       for (const guest of guests || []) {
@@ -353,7 +377,20 @@ export async function GET(req: NextRequest) {
         if (scheduledAt < todayStart || scheduledAt >= rangeEnd) continue;
 
         const roundNumber = Number(round?.roundNumber || 0);
-        const stats = getCallRoundStats(invitationGuests, roundNumber);
+        const dateKey = getCallRoundDateKeyInIsrael(scheduledAt);
+        const previous =
+          invitationId && (roundNumber === 2 || roundNumber === 3)
+            ? await loadPreviousRoundOutcomeSets({
+                invitationId,
+                round: roundNumber,
+                workDateLte: endOfIsraelDateKey(dateKey),
+              })
+            : undefined;
+        const stats = getCallRoundStats(
+          invitationGuests,
+          roundNumber,
+          previous
+        );
 
         rounds.push({
           id: `${ownerId}_${roundNumber}_${scheduledAt.getTime()}`,
@@ -373,6 +410,8 @@ export async function GET(req: NextRequest) {
           status: normalizeStatus(round?.status) || "scheduled",
           guestsWaiting: stats.guestsWaiting,
           guestsDone: stats.guestsDone,
+          pendingRsvpTotal: stats.pendingRsvpTotal,
+          eligibleTotal: stats.eligibleTotal,
         });
       }
     }

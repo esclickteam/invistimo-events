@@ -1,3 +1,4 @@
+import dns from "node:dns";
 import mongoose from "mongoose";
 import { assertEnvironmentSafety } from "@/lib/env/safetyGuards";
 
@@ -21,6 +22,65 @@ function getCache(): DbCache {
   return global.__invistimoDbCache;
 }
 
+function preferIpv4Dns() {
+  try {
+    dns.setDefaultResultOrder("ipv4first");
+  } catch {
+    // Older Node runtimes may not expose setDefaultResultOrder.
+  }
+}
+
+function isMongoDnsResolutionError(error: unknown) {
+  const err = error as { code?: string; message?: string; syscall?: string };
+  const message = String(err?.message || "");
+  return (
+    err?.code === "ECONNREFUSED" ||
+    err?.code === "ENOTFOUND" ||
+    err?.code === "querySrvECONNREFUSED" ||
+    /querySrv/i.test(message) ||
+    /ECONNREFUSED/i.test(message)
+  );
+}
+
+/**
+ * Same approved MONGO_URI credentials — only changes DNS resolvers when the
+ * local Node resolver (often broken IPv6) cannot answer mongodb+srv SRV/TXT.
+ */
+function ensurePublicDnsForSrv(uri: string) {
+  if (!/mongodb\+srv:\/\//i.test(uri)) return;
+
+  preferIpv4Dns();
+
+  const previous = dns.getServers();
+  if (!previous.includes("8.8.8.8") && !previous.includes("1.1.1.1")) {
+    // Local Windows resolvers sometimes refuse Node SRV lookups over IPv6.
+    // Keep the same approved MONGO_URI — only add public resolvers.
+    dns.setServers(["8.8.8.8", "1.1.1.1", ...previous]);
+  }
+}
+
+async function connectMongoWithDnsFallback(uri: string) {
+  ensurePublicDnsForSrv(uri);
+
+  try {
+    return await mongoose.connect(uri);
+  } catch (error) {
+    if (!isMongoDnsResolutionError(error)) {
+      throw error;
+    }
+
+    const previous = dns.getServers();
+    dns.setServers(["8.8.8.8", "1.1.1.1", ...previous]);
+    preferIpv4Dns();
+
+    console.warn("⚠️ MongoDB DNS resolve failed; retrying with public resolvers", {
+      code: (error as any)?.code || null,
+    });
+
+    return mongoose.connect(uri);
+  }
+}
+
 export const connectDB = async () => {
   const MONGO_URI = getMongoUri();
   if (!MONGO_URI) {
@@ -41,8 +101,7 @@ export const connectDB = async () => {
   // readyState === 2 (connecting) previously returned early and left
   // mongoose.connection.db null → DATABASE_NOT_READY on parallel fetches.
   if (!cached.promise) {
-    cached.promise = mongoose
-      .connect(MONGO_URI)
+    cached.promise = connectMongoWithDnsFallback(MONGO_URI)
       .then((connection) => {
         console.log("✅ MongoDB connected", {
           db: mongoose.connection.name || "(from URI)",

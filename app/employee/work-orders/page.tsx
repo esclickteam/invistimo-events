@@ -58,6 +58,12 @@ type WorkOrder = {
   myWrongNumberTasks: number;
   myCancelledTasks: number;
 
+  roundTasksTotal?: number;
+  roundTasksRemaining?: number;
+  roundPendingTasks?: number;
+  roundEligibleTotal?: number;
+  pendingRsvpTotal?: number;
+
   createdAt: string | null;
   updatedAt: string | null;
 };
@@ -811,6 +817,13 @@ function WorkOrderCard({
   const completedCount = safeNumber(order.myTasksCompleted);
   const remaining = safeNumber(order.myTasksRemaining);
   const progress = Math.min(100, Math.max(0, safeNumber(order.myProgressPercent)));
+  const roundTotal = safeNumber(
+    order.roundTasksTotal ?? order.roundEligibleTotal ?? total
+  );
+  const roundRemaining = safeNumber(
+    order.roundTasksRemaining ?? order.roundPendingTasks ?? remaining
+  );
+  const pendingRsvpTotal = safeNumber(order.pendingRsvpTotal);
 
   return (
     <article className="orderCard">
@@ -861,19 +874,36 @@ function WorkOrderCard({
 
       <div className="statsRow">
         <div>
-          <span>סה״כ</span>
+          <span>שלי · סה״כ</span>
           <strong>{total}</strong>
         </div>
 
         <div>
-          <span>טופלו</span>
+          <span>שלי · טופלו</span>
           <strong>{completedCount}</strong>
         </div>
 
         <div>
-          <span>נותרו</span>
+          <span>שלי · נותרו</span>
           <strong>{remaining}</strong>
         </div>
+      </div>
+
+      <div className="statsRow roundStats">
+        <div>
+          <span>בסבב · זכאים</span>
+          <strong>{roundTotal}</strong>
+        </div>
+        <div>
+          <span>בסבב · נותרו</span>
+          <strong>{roundRemaining}</strong>
+        </div>
+        {pendingRsvpTotal > 0 && pendingRsvpTotal !== roundTotal ? (
+          <div>
+            <span>ממתינים RSVP</span>
+            <strong>{pendingRsvpTotal}</strong>
+          </div>
+        ) : null}
       </div>
 
       <div className="miniStats">
@@ -1038,6 +1068,10 @@ function WorkOrderCard({
           border-radius: 18px;
           padding: 12px;
           text-align: center;
+        }
+
+        .statsRow.roundStats div {
+          background: #1e293b;
         }
 
         .statsRow span {
