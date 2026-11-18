@@ -34,7 +34,7 @@ test("the default provider stays 360dialog until the setting changes", () => {
   }
 });
 
-test("a 360dialog media id is not reused after switching to Bizuply", async () => {
+test("RSVP sends the unchanged header link on both providers and does not upload media", async () => {
   clearWhatsAppHeaderMediaCache();
   const previousMedia = process.env.WHATSAPP_HEADER_MEDIA;
   process.env.WHATSAPP_HEADER_MEDIA = "id";
@@ -51,8 +51,8 @@ test("a 360dialog media id is not reused after switching to Bizuply", async () =
     .png()
     .toBuffer();
   const hosts: string[] = [];
-  const dialogHeaderIds: string[] = [];
-  const bizuplyHeaderIds: string[] = [];
+  const dialogLinks: string[] = [];
+  const bizuplyLinks: string[] = [];
   const originalFetch = globalThis.fetch;
   globalThis.fetch = (async (url: any, init: any) => {
     const method = String(init?.method || "GET").toUpperCase();
@@ -75,7 +75,9 @@ test("a 360dialog media id is not reused after switching to Bizuply", async () =
     }
     if (target.includes("360dialog.io/messages")) {
       const payload = JSON.parse(init.body);
-      dialogHeaderIds.push(payload.template.components[0].parameters[0].image.id);
+      const image = payload.template.components[0].parameters[0].image;
+      assert.equal(image.id, undefined);
+      dialogLinks.push(image.link);
       return jsonResponse({ messages: [{ id: "wamid.dialog" }] });
     }
     if (target.includes("api.bizuply.com") && target.endsWith("/media")) {
@@ -84,8 +86,8 @@ test("a 360dialog media id is not reused after switching to Bizuply", async () =
     }
     if (target.includes("api.bizuply.com") && target.endsWith("/messages/template")) {
       const payload = JSON.parse(init.body);
-      bizuplyHeaderIds.push(payload.header.image.id);
-      assert.equal(payload.header.image.link, undefined);
+      assert.equal(payload.header.image.id, undefined);
+      bizuplyLinks.push(payload.header.image.link);
       assert.equal(payload.buttonUrlParams[0], "abc?token=t");
       return jsonResponse({
         success: true,
@@ -126,14 +128,9 @@ test("a 360dialog media id is not reused after switching to Bizuply", async () =
     else process.env.BIZUPLY_WHATSAPP_API_KEY = previousBizuply;
   }
 
-  assert.deepEqual(dialogHeaderIds, ["dialog-media"]);
-  assert.deepEqual(bizuplyHeaderIds, ["bizuply-media"]);
-  assert.deepEqual(hosts, [
-    "waba-v2.360dialog.io",
-    "waba-v2.360dialog.io",
-    "api.bizuply.com",
-    "api.bizuply.com",
-  ]);
+  assert.deepEqual(dialogLinks, [headerUrl]);
+  assert.deepEqual(bizuplyLinks, [headerUrl]);
+  assert.deepEqual(hosts, ["waba-v2.360dialog.io", "api.bizuply.com"]);
 });
 
 test("Bizuply keeps the approved template fields without a Cloudinary link", () => {

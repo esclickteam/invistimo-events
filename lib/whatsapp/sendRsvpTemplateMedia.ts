@@ -1,6 +1,7 @@
 import { dedupeGuestLocationText } from "@/lib/messages/locationText";
 import { describeWhatsAppHeaderFile } from "@/lib/whatsapp/invitationImage";
 import { loadVerifiedWhatsappHeader } from "@/lib/whatsapp/prepareInvitationImage";
+import { buildRsvpImageLinkHeader } from "@/lib/whatsapp/rsvpImageLink";
 import { getWhatsAppProvider, type WhatsAppProvider } from "@/lib/whatsapp/provider";
 import {
   forgetWhatsAppHeaderMediaId,
@@ -310,10 +311,8 @@ function buildHeaderComponent(mediaId: string) {
 }
 
 /**
- * Production invitation headers are a Meta media id.
- * The uploaded bytes are the original JPEG or PNG when that file is already
- * inside WhatsApp's limits. A new file, an expired id, or a rejected id
- * uploads again. The template name, body variables, and URL button stay as approved.
+ * Save the Date and invitation-only headers stay a Meta media id.
+ * RSVP rounds do not use this. They send image.link and do not upload.
  */
 async function headerForRecipient(headerImageUrl: string, provider: WhatsAppProvider) {
   const mediaId = await verifiedHeaderMediaId(headerImageUrl, provider);
@@ -398,12 +397,12 @@ async function assembleTemplate(
 
   if (templateName === ROUND1_TEMPLATE) {
     buttonUrlParam = resolveButtonSuffix(input, templateName);
-    const header = await headerForRecipient(input.headerImageUrl, provider);
+    const header = buildRsvpImageLinkHeader(input.headerImageUrl);
     return {
       buttonUrlParam,
-      mediaId: header.mediaId,
+      mediaId: "",
       components: [
-        header.component,
+        header,
         {
           type: "body",
           parameters: [
@@ -428,12 +427,12 @@ async function assembleTemplate(
 
   if (templateName === ROUND2_TEMPLATE || templateName === ROUND3_TEMPLATE) {
     buttonUrlParam = resolveButtonSuffix(input, templateName);
-    const header = await headerForRecipient(input.headerImageUrl, provider);
+    const header = buildRsvpImageLinkHeader(input.headerImageUrl);
     return {
       buttonUrlParam,
-      mediaId: header.mediaId,
+      mediaId: "",
       components: [
-        header.component,
+        header,
         {
           type: "body",
           parameters: [

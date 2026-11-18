@@ -155,11 +155,15 @@ test("a message response without an id is not success, and an expired media id i
         headers: { "content-type": "image/jpeg", "content-length": String(file.length) },
       });
     }
-    messagePosts += 1;
     const payload = JSON.parse(init.body);
-    headerIds.push(payload.template.components[0].parameters[0].image.id);
-    if (messagePosts === 1) return jsonResponse({ messages: [] });
-    if (messagePosts === 2) {
+    const image = payload.template.components[0].parameters[0].image;
+    if (image?.link) {
+      assert.equal(image.id, undefined);
+      return jsonResponse({ messages: [{ id: "wamid.link" }] });
+    }
+    messagePosts += 1;
+    headerIds.push(image.id);
+    if (messagePosts === 1) {
       return jsonResponse(
         {
           error: {
@@ -171,7 +175,7 @@ test("a message response without an id is not success, and an expired media id i
         400
       );
     }
-    return jsonResponse({ messages: [{ id: "wamid.fresh" }] });
+    return jsonResponse({ messages: [] });
   }) as typeof fetch;
 
   try {
@@ -201,7 +205,7 @@ test("a message response without an id is not success, and an expired media id i
       rsvpLink: "https://www.invistimo.com/invite/share1?token=tok",
     });
     assert.equal(sent.success, true);
-    assert.equal(sent.messageId, "wamid.fresh");
+    assert.equal(sent.messageId, "wamid.link");
     assert.equal(sent.buttonUrlParam, "share1?token=tok");
   } finally {
     globalThis.fetch = originalFetch;
@@ -211,8 +215,8 @@ test("a message response without an id is not success, and an expired media id i
   }
 
   assert.deepEqual(mediaIds, ["media-1", "media-2"]);
-  assert.deepEqual(headerIds, ["media-1", "media-1", "media-2"]);
-  assert.equal(messagePosts, 3);
+  assert.deepEqual(headerIds, ["media-1", "media-2"]);
+  assert.equal(messagePosts, 2);
 });
 
 test("upload and acceptance failures are recorded as failures, never as sent", async () => {
