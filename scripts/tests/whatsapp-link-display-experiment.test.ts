@@ -127,9 +127,11 @@ test("the cron is closed unless the existing secret matches, and the one send is
   assert.doesNotMatch(customer, /linkDisplay|ONE_HEADER_PROBE/);
 });
 
-test("customer sends still choose the header from the media flag", () => {
+test("customer sends attach a media id and do not read the old link flag", () => {
   const source = readFileSync("lib/whatsapp/sendRsvpTemplateMedia.ts", "utf8");
-  assert.match(source, /resolveWhatsappHeaderMediaMode/);
+  assert.match(source, /uploadWhatsAppHeaderMedia/);
+  assert.match(source, /image:\s*\{\s*id: mediaId/);
+  assert.doesNotMatch(source, /resolveWhatsappHeaderMediaMode|image:\s*\{\s*link/);
   assert.doesNotMatch(source, /linkDisplayRequestBody|sendLinkDisplayExperiment/);
 });
 

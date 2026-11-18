@@ -9,8 +9,8 @@ import {
 /**
  * One isolated display check for rsvp_invitation_media.
  *
- * The header is always image.link. WHATSAPP_HEADER_MEDIA is not read.
- * Customer rounds do not call this module. Nothing is sent unless the
+ * The header in this isolated check stays image.link.
+ * Customer invitation sends do not call this module. Nothing is sent unless the
  * caller passes the explicit confirm string.
  */
 

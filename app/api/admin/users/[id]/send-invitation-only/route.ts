@@ -165,15 +165,6 @@ export async function POST(
       previewMessage: renderEventInvitationPreview(templateVariables),
       components: [
         {
-          type: "header",
-          parameters: [
-            {
-              type: "image",
-              image: { link: imageUrl },
-            },
-          ],
-        },
-        {
           type: "body",
           parameters: eventInvitationBodyParameters(templateVariables),
         },

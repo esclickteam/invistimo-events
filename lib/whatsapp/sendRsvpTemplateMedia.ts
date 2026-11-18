@@ -1,10 +1,6 @@
 import { dedupeGuestLocationText } from "@/lib/messages/locationText";
-import { resolveWhatsappHeaderMediaMode } from "@/lib/whatsapp/headerMediaMode";
 import { describeWhatsAppHeaderFile } from "@/lib/whatsapp/invitationImage";
-import {
-  loadVerifiedWhatsappHeader,
-  prepareWhatsappInvitationImageUrl,
-} from "@/lib/whatsapp/prepareInvitationImage";
+import { loadVerifiedWhatsappHeader } from "@/lib/whatsapp/prepareInvitationImage";
 import { getWhatsAppProvider, type WhatsAppProvider } from "@/lib/whatsapp/provider";
 import {
   forgetWhatsAppHeaderMediaId,
@@ -313,33 +309,13 @@ function buildHeaderComponent(mediaId: string) {
   };
 }
 
-function buildHeaderLinkComponent(verifiedLink: string) {
-  return {
-    type: "header",
-    parameters: [
-      {
-        type: "image",
-        image: {
-          link: verifiedLink,
-        },
-      },
-    ],
-  };
-}
-
-async function headerForRecipient(
-  headerImageUrl: string,
-  to: string,
-  provider: WhatsAppProvider
-) {
-  if (resolveWhatsappHeaderMediaMode(to) === "link") {
-    const link = await prepareWhatsappInvitationImageUrl(headerImageUrl);
-    if (!isValidHttpsUrl(link)) {
-      throw new Error("Invalid headerImageUrl (must be https)");
-    }
-    return { mediaId: "", component: buildHeaderLinkComponent(link) };
-  }
-
+/**
+ * Production invitation headers are a Meta media id.
+ * The uploaded bytes are the original JPEG or PNG when that file is already
+ * inside WhatsApp's limits. A new file, an expired id, or a rejected id
+ * uploads again. The template name, body variables, and URL button stay as approved.
+ */
+async function headerForRecipient(headerImageUrl: string, provider: WhatsAppProvider) {
   const mediaId = await verifiedHeaderMediaId(headerImageUrl, provider);
   return { mediaId, component: buildHeaderComponent(mediaId) };
 }
@@ -376,7 +352,7 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
 
   let lastError: Error | null = null;
   for (let attempt = 0; attempt < 2; attempt += 1) {
-    const built = await assembleTemplate(input, templateName, to, provider);
+    const built = await assembleTemplate(input, templateName, provider);
     try {
       const sent = await provider.sendTemplate({
         to,
@@ -408,7 +384,6 @@ export async function sendRsvpTemplateMedia(input: SendRsvpTemplateMediaInput) {
 async function assembleTemplate(
   input: SendRsvpTemplateMediaInput,
   templateName: string,
-  to: string,
   provider: WhatsAppProvider
 ) {
   const customComponents = Array.isArray(input.components) ? input.components : null;
@@ -423,7 +398,7 @@ async function assembleTemplate(
 
   if (templateName === ROUND1_TEMPLATE) {
     buttonUrlParam = resolveButtonSuffix(input, templateName);
-    const header = await headerForRecipient(input.headerImageUrl, to, provider);
+    const header = await headerForRecipient(input.headerImageUrl, provider);
     return {
       buttonUrlParam,
       mediaId: header.mediaId,
@@ -453,7 +428,7 @@ async function assembleTemplate(
 
   if (templateName === ROUND2_TEMPLATE || templateName === ROUND3_TEMPLATE) {
     buttonUrlParam = resolveButtonSuffix(input, templateName);
-    const header = await headerForRecipient(input.headerImageUrl, to, provider);
+    const header = await headerForRecipient(input.headerImageUrl, provider);
     return {
       buttonUrlParam,
       mediaId: header.mediaId,
@@ -478,7 +453,7 @@ async function assembleTemplate(
       saveTheDateTitle: input.templateVariables?.saveTheDateTitle || input.eventTitle,
       eventDate: input.templateVariables?.eventDate || input.eventDate,
     });
-    const header = await headerForRecipient(input.headerImageUrl, to, provider);
+    const header = await headerForRecipient(input.headerImageUrl, provider);
     return {
       buttonUrlParam,
       mediaId: header.mediaId,
@@ -501,7 +476,7 @@ async function assembleTemplate(
       eventDate: input.templateVariables?.eventDate || input.eventDate,
       eventLocation: input.templateVariables?.eventLocation || input.eventLocation,
     });
-    const header = await headerForRecipient(input.headerImageUrl, to, provider);
+    const header = await headerForRecipient(input.headerImageUrl, provider);
     return {
       buttonUrlParam,
       mediaId: header.mediaId,
