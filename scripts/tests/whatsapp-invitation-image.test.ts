@@ -160,7 +160,7 @@ test("a failed prepare throws and does not return a c_limit URL", async () => {
   );
 });
 
-test("360dialog receives the original bytes by media id for every image template", async () => {
+test("RSVP sends the stored image link and other templates keep the media id", async () => {
   process.env.WHATSAPP_API_KEY = "test-key";
   const previousMedia = process.env.WHATSAPP_HEADER_MEDIA;
   process.env.WHATSAPP_HEADER_MEDIA = "id";
@@ -255,8 +255,15 @@ test("360dialog receives the original bytes by media id for every image template
   );
   for (const post of posts) {
     const header = post.template.components.find((item: any) => item.type === "header");
-    assert.equal(header.parameters[0].image.id, "uploaded-media");
-    assert.equal(header.parameters[0].image.link, undefined);
+    const rsvp =
+      post.template.name === "rsvp_invitation_media" ||
+      post.template.name === "rsvp_reminder_invistimo";
+    if (rsvp) {
+      assert.deepEqual(header.parameters[0].image, { link: stored });
+    } else {
+      assert.equal(header.parameters[0].image.id, "uploaded-media");
+      assert.equal(header.parameters[0].image.link, undefined);
+    }
     assert.equal(post.template.components.some((item: any) => item.type === "header"), true);
     const texts = post.template.components
       .find((item: any) => item.type === "body")
@@ -365,6 +372,7 @@ test("every image send path uses the verified prepare step and stores no plate",
   assert.doesNotMatch(image, /\.extend\(/);
   assert.match(send, /loadVerifiedWhatsappHeader/);
   assert.match(send, /uploadWhatsAppHeaderMedia/);
+  assert.match(send, /buildRsvpImageLinkHeader/);
   assert.doesNotMatch(send, /waba-v2\.360dialog\.io/);
   assert.doesNotMatch(send, /link: headerImageUrl/);
   assert.doesNotMatch(send, /toWhatsappInvitationImageUrl\(/);

@@ -17,7 +17,7 @@ function restore(name: string, previous: string | undefined) {
   else process.env[name] = previous;
 }
 
-test("production sends image.id for every recipient and ignores the old link flag", async () => {
+test("RSVP sends image.link for every recipient and does not upload media", async () => {
   const previousMedia = process.env.WHATSAPP_HEADER_MEDIA;
   const previousList = process.env.WHATSAPP_HEADER_MEDIA_ID_RECIPIENTS;
   const previousProvider = process.env.WHATSAPP_PROVIDER;
@@ -86,9 +86,10 @@ test("production sends image.id for every recipient and ignores the old link fla
   }
 
   assert.deepEqual(templates, ["rsvp_invitation_media", "rsvp_invitation_media"]);
-  assert.deepEqual(headers, [{ id: "media-production" }, { id: "media-production" }]);
+  assert.deepEqual(headers, [{ link: headerUrl }, { link: headerUrl }]);
   assert.equal(messagePosts, 2);
-  assert.equal(hosts.filter((host) => host === "waba-v2.360dialog.io").length, 3);
+  assert.equal(hosts.filter((host) => host === "waba-v2.360dialog.io").length, 2);
+  assert.equal(hosts.some((host) => host.includes("/media")), false);
   assert.equal(hosts.some((host) => host.includes("bizuply")), false);
 });
 
@@ -128,7 +129,7 @@ test("a failed media upload does not post the invitation", async () => {
     await assert.rejects(() =>
       sendRsvpTemplateMedia({
         to: customer,
-        templateName: "rsvp_invitation_media",
+        templateName: "save_the_date_image_he",
         headerImageUrl: headerUrl,
         eventTitle: "אירוע",
         eventDate: "16.11.2026",
