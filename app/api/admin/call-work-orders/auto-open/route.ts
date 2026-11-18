@@ -2581,37 +2581,6 @@ async function createWorkOrderForCandidate(input: {
     };
   }
 
-  const previousReady = await isPreviousCallRoundCompleted({
-    invitationObjectId,
-    round: candidate.round,
-  });
-
-  if (!previousReady) {
-    const previousRound = (candidate.round - 1) as RoundNumber;
-
-    await markCallRoundWaitingForPreviousRound({
-      clientUser: candidate.clientUser,
-      invitation: candidate.invitation,
-      round: candidate.round,
-      previousRound,
-    });
-
-    console.warn("[auto-open] round waiting for previous round", {
-      round: candidate.round,
-      previousRound,
-      invitationId: extractIdString(candidate.invitation?._id),
-      scheduledAt: candidate.configuredRoundAt?.toISOString?.() || null,
-    });
-
-    return {
-      status: "skipped",
-      reason: "WAITING_FOR_PREVIOUS_ROUND",
-      waitingForPreviousRound: true,
-      previousRound,
-      round: candidate.round,
-    };
-  }
-
   const existingResult = await findMovableExistingWorkOrder({
     invitationObjectId,
     round: candidate.round,

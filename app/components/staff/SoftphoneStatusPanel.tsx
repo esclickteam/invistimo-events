@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import HumanCallControls from "@/app/components/staff/HumanCallControls";
 
 type AgentStatus =
   | "available"
@@ -878,6 +879,13 @@ export default function SoftphoneStatusPanel({
   const [loading, setLoading] = useState(true);
   const [savingStatus, setSavingStatus] = useState<AgentStatus | null>(null);
   const [creatingCall, setCreatingCall] = useState(false);
+  const [dialGate, setDialGate] = useState<{
+    elapsedMs: number;
+    canHangup: boolean;
+    canDial: boolean;
+    message: string;
+    answered: boolean;
+  } | null>(null);
   const [webrtcReady, setWebrtcReady] = useState(false);
   const [webrtcConnecting, setWebrtcConnecting] = useState(false);
   const [webrtcError, setWebrtcError] = useState("");
@@ -1133,6 +1141,33 @@ export default function SoftphoneStatusPanel({
     activeDialRequest?.number,
     activeDialRequest?.phone,
   ]);
+
+  useEffect(() => {
+    const taskId = activeDialRequest?.taskId || "";
+    if (!taskId) return undefined;
+    let stopped = false;
+    async function poll() {
+      const response = await fetch(
+        `/api/employee/call-tasks/${encodeURIComponent(taskId)}/dial-gate`,
+        { credentials: "include", cache: "no-store" }
+      );
+      const gate = await response.json().catch(() => null);
+      if (stopped || !gate?.success) return;
+      setDialGate({
+        elapsedMs: Number(gate.elapsedMs || 0),
+        canHangup: Boolean(gate.canHangup),
+        canDial: gate.canDial !== false,
+        answered: Boolean(gate.answered),
+        message: String(gate.message || gate.hangupReason || ""),
+      });
+    }
+    void poll();
+    const timer = window.setInterval(() => void poll(), 1000);
+    return () => {
+      stopped = true;
+      window.clearInterval(timer);
+    };
+  }, [activeDialRequest?.taskId]);
 
   function getShiftSessionId(session?: SoftphoneShiftSession | null) {
     return String(session?._id || session?.id || "");
@@ -2066,6 +2101,10 @@ export default function SoftphoneStatusPanel({
 
   async function startOutboundCall(explicitNumber?: string) {
     if (savingStatus || creatingCall) return;
+    if (activeDialRequest?.taskId && dialGate && dialGate.canDial === false) {
+      alert(dialGate.message || "אי אפשר לחייג שוב לאורח הזה לפני תום ההמתנה.");
+      return;
+    }
 
     const cleanNumber = normalizeDialNumber(explicitNumber || phoneNumber);
 
@@ -2239,8 +2278,34 @@ export default function SoftphoneStatusPanel({
     }
   }
 
-  async function finishCall() {
+  async function finishCall(emergency = false) {
     if (savingStatus) return;
+    const taskId = activeDialRequest?.taskId || "";
+    if (taskId) {
+      if (!emergency) {
+        const gateResponse = await fetch(
+          `/api/employee/call-tasks/${encodeURIComponent(taskId)}/dial-gate`,
+          { credentials: "include", cache: "no-store" }
+        );
+        const gate = await gateResponse.json().catch(() => ({}));
+        if (!gateResponse.ok || gate.canHangup === false) {
+          setDialGate({
+            elapsedMs: Number(gate.elapsedMs || 0),
+            canHangup: false,
+            canDial: gate.canDial !== false,
+            answered: Boolean(gate.answered),
+            message: gate.hangupReason || gate.message || "ניתוק נעול עד 20 שניות כל עוד אין מענה.",
+          });
+          return;
+        }
+      }
+      await fetch(`/api/employee/call-tasks/${encodeURIComponent(taskId)}/dial-gate`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emergency }),
+      });
+    }
 
     try {
       activeCallRef.current?.hangup?.();
@@ -2783,16 +2848,25 @@ export default function SoftphoneStatusPanel({
                             <Icon name="speaker" className="h-4 w-4" />
                           </button>
 
-                          <button
-                            type="button"
-                            onClick={finishCall}
-                            disabled={
-                              !isCallActive || !!savingStatus || creatingCall
-                            }
-                            className="h-9 rounded-xl border border-rose-200 bg-rose-50 px-3 text-[11px] font-black text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-45"
-                          >
-                            סיים
-                          </button>
+                          {activeDialRequest?.taskId && dialGate ? (
+                            <HumanCallControls
+                              elapsedMs={dialGate.elapsedMs}
+                              answered={dialGate.answered}
+                              canHangup={dialGate.canHangup}
+                              message={dialGate.message}
+                              disabled={!isCallActive || !!savingStatus || creatingCall}
+                              onFinish={(emergency) => void finishCall(emergency)}
+                            />
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => void finishCall(false)}
+                              disabled={!isCallActive || !!savingStatus || creatingCall}
+                              className="h-9 rounded-xl border border-rose-200 bg-rose-50 px-3 text-[11px] font-black text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-45"
+                            >
+                              סיים
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <div className="flex shrink-0 items-center gap-1">

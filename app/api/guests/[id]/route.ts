@@ -304,16 +304,20 @@ async function syncCallWorkOrderCounters(workOrderId: string) {
     activeTotalTasks - activeCompletedTasks
   );
 
+  const currentOrder = await (CallWorkOrder as any).findOne(workOrderMatch).select("status invitationId round").lean();
+  const terminal = ["completed", "cancelled", "expired"].includes(String(currentOrder?.status || ""));
   let nextStatus: "open" | "in_progress" | "completed" = "open";
 
-  if (activeTotalTasks > 0 && activeCompletedTasks >= activeTotalTasks) {
-    nextStatus = "completed";
+  if (!terminal && activeTotalTasks > 0 && activeRemainingTasks === 0) {
+    const { countMissingDialableGuests } = await import("@/lib/calls/syncOpenCallTasks");
+    const missing = await countMissingDialableGuests(currentOrder);
+    nextStatus = missing === 0 ? "completed" : "in_progress";
   } else if (activeCompletedTasks > 0 || counts.in_progress > 0) {
     nextStatus = "in_progress";
   }
 
   const update: any = {
-    status: activeTotalTasks === 0 ? "completed" : nextStatus,
+    status: terminal ? currentOrder.status : nextStatus,
 
     totalTasks: activeTotalTasks,
     completedTasks: activeCompletedTasks,
@@ -340,9 +344,9 @@ async function syncCallWorkOrderCounters(workOrderId: string) {
     updatedAt: new Date(),
   };
 
-  if (update.status === "completed") {
+  if (!terminal && update.status === "completed") {
     update.completedAt = new Date();
-  } else {
+  } else if (!terminal) {
     update.completedAt = null;
   }
 
@@ -377,7 +381,7 @@ async function syncCallTasksFromGuest(guest: any) {
     {
       ...match,
       status: {
-        $nin: ["cancelled"],
+        $in: ["pending", "in_progress", "open", "assigned", "active"],
       },
     },
     {
@@ -1896,6 +1900,14 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
       לא מעדכנים מכאן actualArrivedCount.
     */
     await syncCallTasksFromGuest(guest);
+    try {
+      const { ensureOpenCallTasksForInvitation } = await import(
+        "@/lib/calls/syncOpenCallTasks"
+      );
+      await ensureOpenCallTasksForInvitation(String(guest.invitationId || ""));
+    } catch (syncError) {
+      console.error("open call-round sync failed", syncError);
+    }
 
     const afterGroupId = guest.groupId ? String(guest.groupId) : null;
     const affected = new Set<string>();

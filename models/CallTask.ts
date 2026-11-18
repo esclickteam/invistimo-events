@@ -144,6 +144,11 @@ export interface ICallTask {
    * הערת אדמין פנימית
    */
   adminNote?: string;
+  managerException?: boolean;
+  managerExceptionReason?: string;
+  managerExceptionAt?: Date | null;
+  retryNotBefore?: Date | null;
+  cancelReason?: string;
 
   /**
    * אורח שנכנס לסבב כי ביקש חזרה בסבב קודם.
@@ -437,6 +442,34 @@ const CallTaskSchema = new Schema<ICallTask>(
     },
 
     adminNote: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    managerException: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    managerExceptionReason: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    managerExceptionAt: {
+      type: Date,
+      default: null,
+    },
+
+    retryNotBefore: {
+      type: Date,
+      default: null,
+    },
+
+    cancelReason: {
       type: String,
       trim: true,
       default: "",

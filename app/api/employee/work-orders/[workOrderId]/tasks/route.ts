@@ -1045,6 +1045,18 @@ export async function GET(req: NextRequest, context: RouteContext) {
     }
 
     const tasks = await tasksQuery.lean();
+    const head = await CallTask.findOne({
+      workOrderId: workOrderObjectId,
+      ...buildEmployeeAssignmentMatch(employee.employeeId),
+      $or: [
+        { status: { $in: ["pending", "in_progress", "open", "assigned", "active"] } },
+        { status: "callback", manualHandlingRequired: true },
+      ],
+    })
+      .sort({ sortOrder: 1, createdAt: 1, _id: 1 })
+      .select("_id")
+      .lean();
+    const headId = head?._id ? String(head._id) : "";
     const guestsMap = await getGuestsMapForTasks(tasks);
 
     const manualHandling = await countManualHandlingTasks({
@@ -1091,7 +1103,16 @@ export async function GET(req: NextRequest, context: RouteContext) {
         const guestKey = getGuestIdKey(task?.guestId);
         const guest = guestKey ? guestsMap.get(guestKey) : null;
 
-        return serializeTask(task, guest);
+        const serialized = serializeTask(task, guest);
+        const isQueueHead = String(task?._id || "") === headId;
+        return {
+          ...serialized,
+          isQueueHead,
+          canUpdate: Boolean(serialized.canUpdate) && isQueueHead && !task?.managerException,
+          queueBlockReason: task?.managerException
+            ? task.managerExceptionReason || "המשימה ממתינה למנהל"
+            : "",
+        };
       }),
     });
   } catch (error: any) {
