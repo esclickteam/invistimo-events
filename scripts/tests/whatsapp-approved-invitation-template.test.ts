@@ -14,7 +14,7 @@ import {
   resolveWhatsappSendTemplateName,
 } from "../../lib/whatsapp/approvedTemplates";
 import { sendRsvpTemplateMedia } from "../../lib/whatsapp/sendRsvpTemplateMedia";
-import { fetchServingHeader } from "./support/headerFetch";
+import { fetchServingHeader, TEST_WHATSAPP_MEDIA_ID } from "./support/headerFetch";
 
 const APPROVED_BODY = `משפחה וחברים יקרים,
 שמחים ונרגשים להזמינכם לחגוג איתנו את {{1}} 🤍
@@ -115,8 +115,8 @@ test("send payload for event_invitation matches preview variables", async () => 
 
   const header = payload.template.components.find((c: any) => c.type === "header");
   assert.equal(header?.parameters?.[0]?.type, "image");
-  assert.equal(header?.parameters?.[0]?.image?.link, "https://cdn.example.com/invite.png");
-  assert.equal(header?.parameters?.[0]?.image?.id, undefined);
+  assert.equal(header?.parameters?.[0]?.image?.id, TEST_WHATSAPP_MEDIA_ID);
+  assert.equal(header?.parameters?.[0]?.image?.link, undefined);
 
   const body = payload.template.components.find((c: any) => c.type === "body");
   const texts = (body?.parameters || []).map((p: any) => p.text);
