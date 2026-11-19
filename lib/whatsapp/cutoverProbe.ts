@@ -185,10 +185,11 @@ export function probeEventKey(event: Pick<CutoverProbeDecision, "wamid" | "event
   return `${event.eventType}|${event.wamid}|${event.providerStatus}`;
 }
 
-export function acceptProbeEvent<T extends { duplicate: boolean }>(
-  seen: Set<string>,
-  event: T
-) {
+export function acceptProbeEvent<
+  T extends Pick<CutoverProbeDecision, "wamid" | "eventType" | "providerStatus"> & {
+    duplicate: boolean;
+  },
+>(seen: Set<string>, event: T) {
   const key = probeEventKey(event);
   if (seen.has(key)) return { ...event, duplicate: true, stored: false as const };
   seen.add(key);
