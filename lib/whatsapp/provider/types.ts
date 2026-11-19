@@ -28,10 +28,16 @@ export type WhatsAppHeaderUploadInput = {
   filename: string;
 };
 
+export type WhatsAppTextSendInput = {
+  to: string;
+  body: string;
+};
+
 export type WhatsAppProvider = {
   id: WhatsAppProviderId;
   /** Stable secret-free fingerprint of the channel that owns uploaded media ids. */
   accountKey: string;
   uploadHeaderMedia(input: WhatsAppHeaderUploadInput): Promise<string>;
   sendTemplate(input: WhatsAppTemplateSendInput): Promise<WhatsAppTemplateSendResult>;
+  sendText(input: WhatsAppTextSendInput): Promise<WhatsAppTemplateSendResult>;
 };

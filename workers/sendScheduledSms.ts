@@ -1,5 +1,6 @@
 import {
   dialogSendsArePaused,
+  outboundWhatsappSendsBlocked,
   isDialogSendPauseError,
 } from "@/lib/whatsapp/dialogSendGate";
 import dbConnect from "@/lib/db";
@@ -987,7 +988,7 @@ export async function sendScheduledSms() {
 export async function sendScheduledWhatsapp() {
   await dbConnect();
 
-  if (dialogSendsArePaused()) {
+  if (dialogSendsArePaused() || outboundWhatsappSendsBlocked()) {
     return { paused: true, processed: 0, sent: 0, failed: 0 };
   }
 
@@ -1047,7 +1048,7 @@ export async function sendScheduledWhatsapp() {
   }
 
   for (const msg of messages) {
-    if (dialogSendsArePaused()) {
+    if (dialogSendsArePaused() || outboundWhatsappSendsBlocked()) {
       await ScheduledMessage.updateOne(
         { _id: msg._id, status: "sending" },
         { $set: { status: "scheduled", lockedAt: null, lockedBy: null } }
@@ -1433,7 +1434,7 @@ const queueDoc = await WhatsappQueue.create({
           break;
         }
 
-        if (dialogSendsArePaused()) {
+        if (dialogSendsArePaused() || outboundWhatsappSendsBlocked()) {
           await WhatsappQueue.updateOne(
             { _id: queueDoc._id, status: "sending" },
             { $set: { status: "pending", lockedAt: null, lockedBy: null } }

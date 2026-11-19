@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 
 import { dialogSendsArePaused } from "@/lib/whatsapp/dialogSendGate";
+import { getWhatsAppProvider, resolveWhatsAppProviderId } from "@/lib/whatsapp/provider";
 import db from "@/lib/db";
 import User from "@/models/User";
 import CustomerFile from "@/models/CustomerFile";
@@ -73,16 +74,6 @@ function getJwtSecret() {
     process.env.JWT_SECRET ||
     process.env.NEXTAUTH_SECRET ||
     process.env.AUTH_SECRET ||
-    ""
-  );
-}
-
-function get360DialogApiKey() {
-  return (
-    process.env.WHATSAPP_360DIALOG_API_KEY ||
-    process.env.DIALOG360_API_KEY ||
-    process.env.THREESIXTYDIALOG_API_KEY ||
-    process.env.WHATSAPP_API_KEY ||
     ""
   );
 }
@@ -220,42 +211,6 @@ function normalizePhoneForWhatsapp(phone: unknown) {
   }
 
   return digits;
-}
-
-function extractProviderMessageId(data: any) {
-  const messageId =
-    data?.messages?.[0]?.id ||
-    data?.messages?.[0]?.message_id ||
-    data?.messageId ||
-    data?.id ||
-    "";
-
-  return cleanString(messageId);
-}
-
-function extractProviderError(data: any) {
-  const errorCode =
-    data?.error?.code ||
-    data?.errors?.[0]?.code ||
-    data?.meta?.error?.code ||
-    data?.code ||
-    "";
-
-  const errorMessage =
-    data?.error?.message ||
-    data?.errors?.[0]?.message ||
-    data?.meta?.error?.message ||
-    data?.message ||
-    "";
-
-  const cleanCode = cleanString(errorCode);
-  const cleanMessage = cleanString(errorMessage);
-
-  if (cleanCode && cleanMessage) {
-    return `${cleanCode}: ${cleanMessage}`;
-  }
-
-  return cleanMessage || cleanCode;
 }
 
 function getReadableWhatsappError(error: unknown) {
@@ -431,52 +386,21 @@ async function sendWhatsappTextMessage({
     throw new Error("INVISTIMO_DIALOG_SEND_PAUSED");
   }
 
-  const apiKey = get360DialogApiKey();
-
-  if (!apiKey) {
-    throw new Error("חסר מפתח API של 360dialog במשתני הסביבה");
-  }
-
   const normalizedTo = normalizePhoneForWhatsapp(to);
 
   if (!normalizedTo) {
     throw new Error("מספר טלפון לא תקין לשליחת WhatsApp");
   }
 
-  const payload = {
-    messaging_product: "whatsapp",
-    recipient_type: "individual",
+  const sent = await getWhatsAppProvider().sendText({
     to: normalizedTo,
-    type: "text",
-    text: {
-      preview_url: false,
-      body: messageText,
-    },
-  };
-
-  const response = await fetch("https://waba-v2.360dialog.io/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "D360-API-KEY": apiKey,
-    },
-    body: JSON.stringify(payload),
+    body: messageText,
   });
 
-  const data = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    const providerError = extractProviderError(data);
-
-    throw new Error(
-      providerError ||
-        "שליחת WhatsApp נכשלה. אם זו הודעה ראשונה אחרי 24 שעות צריך Template מאושר."
-    );
-  }
-
   return {
-    providerMessageId: extractProviderMessageId(data),
-    rawPayload: data,
+    provider: sent.provider,
+    providerMessageId: sent.messageId,
+    rawPayload: sent.providerResponse,
   };
 }
 
@@ -493,12 +417,6 @@ async function sendWhatsappTemplateMessage({
     throw new Error("INVISTIMO_DIALOG_SEND_PAUSED");
   }
 
-  const apiKey = get360DialogApiKey();
-
-  if (!apiKey) {
-    throw new Error("חסר מפתח API של 360dialog במשתני הסביבה");
-  }
-
   const normalizedTo = normalizePhoneForWhatsapp(to);
 
   if (!normalizedTo) {
@@ -509,51 +427,28 @@ async function sendWhatsappTemplateMessage({
     throw new Error("תבנית WhatsApp לא מאושרת במערכת");
   }
 
-  const payload = {
-    messaging_product: "whatsapp",
-    recipient_type: "individual",
+  const sent = await getWhatsAppProvider().sendTemplate({
     to: normalizedTo,
-    type: "template",
-    template: {
-      name: templateName,
-      language: {
-        code: getWhatsappTemplateLanguageCode(),
+    templateName,
+    languageCode: getWhatsappTemplateLanguageCode(),
+    components: [
+      {
+        type: "body",
+        parameters: [
+          {
+            type: "text",
+            parameter_name: "employee_name",
+            text: employeeName || "נציגת השירות",
+          },
+        ],
       },
-      components: [
-        {
-          type: "body",
-          parameters: [
-            {
-              type: "text",
-              parameter_name: "employee_name",
-              text: employeeName || "נציגת השירות",
-            },
-          ],
-        },
-      ],
-    },
-  };
-
-  const response = await fetch("https://waba-v2.360dialog.io/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "D360-API-KEY": apiKey,
-    },
-    body: JSON.stringify(payload),
+    ],
   });
 
-  const data = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    const providerError = extractProviderError(data);
-
-    throw new Error(providerError || "שליחת הודעת תבנית WhatsApp נכשלה");
-  }
-
   return {
-    providerMessageId: extractProviderMessageId(data),
-    rawPayload: data,
+    provider: sent.provider,
+    providerMessageId: sent.messageId,
+    rawPayload: sent.providerResponse,
   };
 }
 
@@ -720,7 +615,7 @@ export async function POST(
       from: fromPhone,
       to: toPhone,
       messageText,
-      provider: "360dialog",
+      provider: resolveWhatsAppProviderId(),
       providerMessageId: "",
       status: "pending",
       errorMessage: "",

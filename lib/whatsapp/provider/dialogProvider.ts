@@ -91,5 +91,29 @@ export function createDialogProvider(options: {
       if (!messageId) throw templateSendError(response.status, providerResponse);
       return { provider: "dialog" as const, messageId, providerResponse };
     },
+    async sendText(input) {
+      if (dialogSendsArePaused()) {
+        const error = new Error("INVISTIMO_DIALOG_SEND_PAUSED");
+        (error as Error & { code?: string }).code = "INVISTIMO_DIALOG_SEND_PAUSED";
+        throw error;
+      }
+      const response = await fetchImpl(MESSAGES_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "D360-API-KEY": apiKey,
+        },
+        body: JSON.stringify({
+          messaging_product: "whatsapp",
+          to: input.to,
+          type: "text",
+          text: { preview_url: false, body: input.body },
+        }),
+      });
+      const providerResponse = await readJson(response);
+      const messageId = response.ok ? acceptedMessageId(providerResponse) : "";
+      if (!messageId) throw templateSendError(response.status, providerResponse);
+      return { provider: "dialog" as const, messageId, providerResponse };
+    },
   };
 }

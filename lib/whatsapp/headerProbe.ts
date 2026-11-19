@@ -1,3 +1,4 @@
+import { legacyDialogProbeAllowed } from "@/lib/whatsapp/dialogSendGate";
 import { createDialogProvider } from "@/lib/whatsapp/provider/dialogProvider";
 import { acceptedMessageId } from "@/lib/whatsapp/provider/errors";
 
@@ -139,7 +140,7 @@ export async function runWhatsappHeaderProbe(
       "probe sends only from production"
     );
   }
-  if (!deps.armed) {
+  if (!deps.armed || !legacyDialogProbeAllowed()) {
     throw new HeaderProbeError(409, "PROBE_DISARMED", "probe is disarmed");
   }
 

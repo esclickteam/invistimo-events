@@ -112,6 +112,8 @@ test("RSVP sends the unchanged header link on both providers and does not upload
   try {
     const dialog = await sendRsvpTemplateMedia(input);
     process.env.WHATSAPP_PROVIDER = "bizuply";
+    process.env.INVISTIMO_BIZUPLY_SENDS = "RELEASED";
+    process.env.INVISTIMO_BIZUPLY_SEND_CONFIRM = "RELEASE_INVISTIMO_BIZUPLY_SENDS";
     const bizuply = await sendRsvpTemplateMedia(input);
     assert.equal(dialog.messageId, "wamid.dialog");
     assert.equal(bizuply.messageId, "wamid.bizuply");
@@ -120,6 +122,8 @@ test("RSVP sends the unchanged header link on both providers and does not upload
     clearWhatsAppHeaderMediaCache();
     if (previousProvider == null) delete process.env.WHATSAPP_PROVIDER;
     else process.env.WHATSAPP_PROVIDER = previousProvider;
+    delete process.env.INVISTIMO_BIZUPLY_SENDS;
+    delete process.env.INVISTIMO_BIZUPLY_SEND_CONFIRM;
     if (previousMedia == null) delete process.env.WHATSAPP_HEADER_MEDIA;
     else process.env.WHATSAPP_HEADER_MEDIA = previousMedia;
     if (previousDialog == null) delete process.env.WHATSAPP_API_KEY;
