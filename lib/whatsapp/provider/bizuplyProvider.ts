@@ -111,5 +111,19 @@ export function createBizuplyProvider(options: {
           : { ...raw, messages: [{ id: messageId }] };
       return { provider: "bizuply" as const, messageId, providerResponse };
     },
+    async sendText(input) {
+      const response = await fetchImpl(`${baseUrl}/messages/text`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ to: input.to, text: input.body }),
+      });
+      const raw = await readJson(response);
+      const messageId = response.ok ? acceptedMessageId(raw) : "";
+      if (!messageId) throw templateSendError(response.status, raw);
+      return { provider: "bizuply" as const, messageId, providerResponse: raw };
+    },
   };
 }

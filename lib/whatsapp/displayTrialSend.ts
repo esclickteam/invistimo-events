@@ -1,6 +1,7 @@
 import mongoose, { Schema } from "mongoose";
 
 import WhatsappQueue from "@/models/WhatsappQueue";
+import { legacyDialogProbeAllowed } from "@/lib/whatsapp/dialogSendGate";
 import { createDialogProvider } from "@/lib/whatsapp/provider/dialogProvider";
 import {
   WHATSAPP_HEADER_PROBE_IMAGE_URL,
@@ -165,7 +166,9 @@ export async function sendDisplayTrialOnce(
   deps: { fetch?: typeof fetch; apiKey?: string; store?: LinkDisplayLockStore } = {}
 ) {
   const body = displayTrialSendBody();
-  if (!displayTrialSendAllowed(body)) throw new DisplayTrialSendRefused();
+  if (!displayTrialSendAllowed(body) || !legacyDialogProbeAllowed()) {
+    throw new DisplayTrialSendRefused();
+  }
   const store = deps.store;
   if (!store) throw new DisplayTrialSendRefused();
   if ((await store.claim()) !== "claimed") throw new DisplayTrialSendRefused();

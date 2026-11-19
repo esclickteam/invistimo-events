@@ -1,3 +1,4 @@
+import { legacyDialogProbeAllowed } from "@/lib/whatsapp/dialogSendGate";
 import { createDialogProvider } from "@/lib/whatsapp/provider/dialogProvider";
 import type { WhatsAppTemplateComponent } from "@/lib/whatsapp/provider/types";
 import {
@@ -217,7 +218,7 @@ export async function sendLinkDisplayExperiment(
   approval: OneHeaderProbeApproval | null | undefined,
   deps: { fetch?: typeof fetch; apiKey?: string; store?: LinkDisplayLockStore } = {}
 ) {
-  if (!oneHeaderProbeSendAllowed(approval)) {
+  if (!oneHeaderProbeSendAllowed(approval) || !legacyDialogProbeAllowed()) {
     throw new LinkDisplayNotApproved();
   }
   const store = deps.store ?? processStore;

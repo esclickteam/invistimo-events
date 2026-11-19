@@ -50,8 +50,56 @@ export function dialogSendPausePlan(env: NodeJS.ProcessEnv = process.env) {
   return {
     paused,
     armed: paused,
-    sendsContinue: !paused,
+    sendsContinue: !paused && !outboundWhatsappSendsBlocked(env),
     pauseRequires: [DIALOG_SEND_PAUSE_ENV, DIALOG_SEND_PAUSE_CONFIRM_ENV],
-    resumeBy: "unset both pause variables, then let the existing cron claim pending and scheduled rows",
+    resumeBy:
+      "customer sends stay held until Bizuply is the provider and both release values are set; unsetting only the 360dialog pause does not send",
   };
+}
+
+export const BIZUPLY_SEND_RELEASE_ENV = "INVISTIMO_BIZUPLY_SENDS";
+export const BIZUPLY_SEND_RELEASE_CONFIRM_ENV = "INVISTIMO_BIZUPLY_SEND_CONFIRM";
+export const BIZUPLY_SEND_RELEASE_PHRASE = "RELEASE_INVISTIMO_BIZUPLY_SENDS";
+
+function providerSelection(env: NodeJS.ProcessEnv) {
+  return String(env.WHATSAPP_PROVIDER ?? "dialog").trim().toLowerCase();
+}
+
+export function bizuplyCustomerSendsReleased(
+  env: NodeJS.ProcessEnv = process.env
+) {
+  const provider = providerSelection(env);
+  return (
+    (provider === "bizuply" || provider === "biz") &&
+    env[BIZUPLY_SEND_RELEASE_ENV] === "RELEASED" &&
+    env[BIZUPLY_SEND_RELEASE_CONFIRM_ENV] === BIZUPLY_SEND_RELEASE_PHRASE
+  );
+}
+
+/**
+ * 360dialog stays paused by the existing pair.
+ * Bizuply stays held until a separate release, so switching the provider
+ * cannot start customer rounds by itself.
+ * A legacy 360dialog-only probe is allowed only while 360dialog is still
+ * the selected provider and the pause is not armed.
+ */
+export function outboundWhatsappSendsBlocked(
+  env: NodeJS.ProcessEnv = process.env
+) {
+  if (dialogSendsArePaused(env)) return true;
+  const provider = providerSelection(env);
+  if (provider === "bizuply" || provider === "biz") {
+    return !bizuplyCustomerSendsReleased(env);
+  }
+  return false;
+}
+
+export function legacyDialogProbeAllowed(
+  env: NodeJS.ProcessEnv = process.env
+) {
+  const provider = providerSelection(env);
+  return (
+    (provider === "" || provider === "dialog" || provider === "360dialog" || provider === "d360") &&
+    !outboundWhatsappSendsBlocked(env)
+  );
 }

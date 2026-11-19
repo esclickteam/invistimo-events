@@ -22,6 +22,7 @@ import { resolveWhatsappSendTemplateName } from "@/lib/whatsapp/approvedTemplate
 import {
   dialogSendsArePaused,
   isDialogSendPauseError,
+  outboundWhatsappSendsBlocked,
 } from "@/lib/whatsapp/dialogSendGate";
 
 export const runtime = "nodejs";
@@ -130,7 +131,7 @@ async function sendWhatsappTemplateFromQueue(job: any) {
 ====================================================== */
 
 async function processPendingWhatsappQueue() {
-  if (dialogSendsArePaused()) {
+  if (dialogSendsArePaused() || outboundWhatsappSendsBlocked()) {
     return { paused: true, processed: 0, sent: 0, failed: 0 };
   }
 
@@ -194,7 +195,7 @@ async function processPendingWhatsappQueue() {
     processed++;
 
     try {
-      if (dialogSendsArePaused()) {
+      if (dialogSendsArePaused() || outboundWhatsappSendsBlocked()) {
         await WhatsappQueue.updateOne(
           { _id: job._id, status: "sending" },
           { $set: { status: "pending", lockedAt: null, lockedBy: null } }

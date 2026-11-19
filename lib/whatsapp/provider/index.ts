@@ -1,4 +1,4 @@
-import { dialogSendsArePaused } from "@/lib/whatsapp/dialogSendGate";
+import { outboundWhatsappSendsBlocked } from "@/lib/whatsapp/dialogSendGate";
 import { createBizuplyProvider } from "@/lib/whatsapp/provider/bizuplyProvider";
 import { createDialogProvider } from "@/lib/whatsapp/provider/dialogProvider";
 import type {
@@ -27,9 +27,9 @@ export function getWhatsAppProvider(options: {
   fetch?: typeof fetch;
 } = {}): WhatsAppProvider {
   const id = options.id ?? resolveWhatsAppProviderId();
-  if (id === "dialog" && dialogSendsArePaused()) {
+  if (outboundWhatsappSendsBlocked()) {
     const error = new Error("INVISTIMO_DIALOG_SEND_PAUSED");
-    (error as Error & { code?: string }).code = "INVISTIMO_DIALOG_SEND_PAUSED";
+    (error as Error & { code?: string }).code = "INVISTIMO_WHATSAPP_SENDS_HELD";
     throw error;
   }
   if (id === "bizuply") {
