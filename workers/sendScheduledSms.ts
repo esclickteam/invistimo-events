@@ -1,3 +1,4 @@
+import { dialogSendsArePaused } from "@/lib/whatsapp/dialogSendGate";
 import dbConnect from "@/lib/db";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import WhatsappQueue from "@/models/WhatsappQueue";
@@ -982,6 +983,10 @@ export async function sendScheduledSms() {
 
 export async function sendScheduledWhatsapp() {
   await dbConnect();
+
+  if (dialogSendsArePaused()) {
+    return { paused: true, processed: 0, sent: 0, failed: 0 };
+  }
 
   const now = new Date();
 

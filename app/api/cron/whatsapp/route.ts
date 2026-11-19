@@ -19,6 +19,7 @@ import {
   type SendRsvpTemplateMediaInput,
 } from "@/lib/whatsapp/sendRsvpTemplateMedia";
 import { resolveWhatsappSendTemplateName } from "@/lib/whatsapp/approvedTemplates";
+import { dialogSendsArePaused } from "@/lib/whatsapp/dialogSendGate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -126,6 +127,10 @@ async function sendWhatsappTemplateFromQueue(job: any) {
 ====================================================== */
 
 async function processPendingWhatsappQueue() {
+  if (dialogSendsArePaused()) {
+    return { paused: true, processed: 0, sent: 0, failed: 0 };
+  }
+
   let processed = 0;
   let sent = 0;
   let failed = 0;
