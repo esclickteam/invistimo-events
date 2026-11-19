@@ -8,6 +8,7 @@ export const CUTOVER_PROBE_ID = "cutover-probe";
 export const CUTOVER_PROBE_PHONE_DIGITS = "972526850711";
 export const CUTOVER_PROBE_IMAGE_URL = "https://www.invistimo.com/og-invistimo.jpg";
 export const CUTOVER_PROBE_TEMPLATE_NAME = "rsvp_invitation_media";
+export const CUTOVER_PROBE_PHONE_WINDOW_MS = 2 * 60 * 60 * 1000;
 
 const NO_PRODUCTION_WRITES = Object.freeze({
   customerFile: false,
@@ -19,6 +20,7 @@ const NO_PRODUCTION_WRITES = Object.freeze({
 
 export type CutoverProbeRegistry = {
   open: boolean;
+  phoneIsolation: boolean;
   wamids: ReadonlySet<string>;
 };
 
@@ -41,18 +43,23 @@ export type CutoverProbeDecision = {
 };
 
 export function emptyCutoverProbeRegistry(): CutoverProbeRegistry {
-  return { open: false, wamids: new Set() };
+  return { open: false, phoneIsolation: false, wamids: new Set() };
 }
 
 export function registerCutoverProbeWamid(
   registry: CutoverProbeRegistry,
-  wamid: string
+  wamid: string,
+  options?: { isolatePhone?: boolean }
 ): CutoverProbeRegistry {
   const id = String(wamid || "").trim();
   if (!id) return registry;
   const wamids = new Set(registry.wamids);
   wamids.add(id);
-  return { open: true, wamids };
+  return {
+    open: true,
+    phoneIsolation: registry.phoneIsolation || options?.isolatePhone !== false,
+    wamids,
+  };
 }
 
 export function whatsappDigits(value: unknown) {
@@ -155,7 +162,7 @@ export function classifyCutoverProbeInbound(
   const fromProbePhone = whatsappDigits(message?.from) === CUTOVER_PROBE_PHONE_DIGITS;
   const mentioned = probeMarker(message);
   const contextMatches = Boolean(contextWamid) && registry.wamids.has(contextWamid);
-  const isolated = contextMatches || mentioned || (registry.open && fromProbePhone);
+  const isolated = contextMatches || mentioned || (registry.phoneIsolation && fromProbePhone);
   if (!isolated) return null;
   return isolatedDecision({
     wamid,

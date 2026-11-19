@@ -56,7 +56,7 @@ test("a reply to the registered probe does not write existing records", () => {
   assert.equal(reply?.contextWamid, "wamid.PROBE");
 });
 
-test("any reply from the probe phone is isolated only while the probe is open", () => {
+test("a plain reply from the probe phone is isolated only during the two-hour window", () => {
   const closed = emptyCutoverProbeRegistry();
   const ordinary = classifyCutoverProbeInbound(
     { id: "wamid.OTHER", from: "0526850711", type: "text", text: { body: "שלום" } },
@@ -77,6 +77,25 @@ test("any reply from the probe phone is isolated only while the probe is open", 
     open
   );
   assert.equal(someoneElse, null);
+
+  const expired = registerCutoverProbeWamid(closed, "wamid.PROBE", { isolatePhone: false });
+  const laterReply = classifyCutoverProbeInbound(
+    { id: "wamid.LATER", from: "972526850711", type: "text", text: { body: "מגיע לאירוע" } },
+    expired
+  );
+  assert.equal(laterReply, null);
+  const laterContext = classifyCutoverProbeInbound(
+    {
+      id: "wamid.LATER_CONTEXT",
+      from: "972526850711",
+      type: "text",
+      text: { body: "מגיע לאירוע" },
+      context: { id: "wamid.PROBE" },
+    },
+    expired
+  );
+  assert.equal(laterContext?.isolated, true);
+  assert.deepEqual(laterContext?.writes, NO_WRITES);
 });
 
 test("delivery statuses for the probe wamid stay isolated and are not applied twice", () => {

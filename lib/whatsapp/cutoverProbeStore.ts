@@ -1,6 +1,7 @@
 import CutoverProbeEvent from "@/models/CutoverProbeEvent";
 import {
   CUTOVER_PROBE_ID,
+  CUTOVER_PROBE_PHONE_WINDOW_MS,
   type CutoverProbeDecision,
   type CutoverProbeRegistry,
   acceptProbeEvent,
@@ -14,11 +15,15 @@ export async function loadCutoverProbeRegistry(): Promise<CutoverProbeRegistry> 
     probeId: CUTOVER_PROBE_ID,
     role: "registration",
   })
-    .select("wamid")
+    .select("wamid createdAt")
     .lean();
+  const cutoff = Date.now() - CUTOVER_PROBE_PHONE_WINDOW_MS;
   let registry = emptyCutoverProbeRegistry();
   for (const row of rows) {
-    registry = registerCutoverProbeWamid(registry, String(row.wamid || ""));
+    const createdAt = new Date(row.createdAt || 0).getTime();
+    registry = registerCutoverProbeWamid(registry, String(row.wamid || ""), {
+      isolatePhone: Number.isFinite(createdAt) && createdAt >= cutoff,
+    });
   }
   return registry;
 }
