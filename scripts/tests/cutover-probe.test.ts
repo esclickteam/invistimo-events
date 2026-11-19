@@ -7,6 +7,7 @@ import {
   CUTOVER_PROBE_IMAGE_URL,
   CUTOVER_PROBE_PHONE_DIGITS,
   CUTOVER_PROBE_TEMPLATE_NAME,
+  CUTOVER_PROBE_PHONE_WINDOW_MS,
   acceptProbeEvent,
   buildCutoverProbeRequest,
   classifyCutoverProbeInbound,
@@ -14,6 +15,7 @@ import {
   cutoverProbeImageIsSafe,
   emptyCutoverProbeRegistry,
   registerCutoverProbeWamid,
+  registryFromRegistrations,
 } from "../../lib/whatsapp/cutoverProbe";
 
 const NO_WRITES = {
@@ -33,6 +35,7 @@ test("the probe request keeps the approved template and an isolated button", () 
   assert.equal(request.body.to, CUTOVER_PROBE_PHONE_DIGITS);
   assert.equal(template.components[2].parameters[0].text, CUTOVER_PROBE_ID);
   assert.equal(template.components[0].parameters[0].image.link, CUTOVER_PROBE_IMAGE_URL);
+  assert.equal(request.body.biz_opaque_callback_data, CUTOVER_PROBE_ID);
   assert.equal(cutoverProbeImageIsSafe(), true);
   assert.equal(JSON.stringify(request).includes("Authorization"), false);
   assert.equal(JSON.stringify(request).includes("access_token"), false);
@@ -56,68 +59,74 @@ test("a reply to the registered probe does not write existing records", () => {
   assert.equal(reply?.contextWamid, "wamid.PROBE");
 });
 
-test("a plain reply from the probe phone is isolated only during the two-hour window", () => {
-  const closed = emptyCutoverProbeRegistry();
-  const ordinary = classifyCutoverProbeInbound(
-    { id: "wamid.OTHER", from: "0526850711", type: "text", text: { body: "שלום" } },
-    closed
+test("a normal business message from the probe phone stays on the existing path", () => {
+  const now = Date.parse("2026-11-19T08:00:00.000Z");
+  const registry = registryFromRegistrations(
+    [{ wamid: "wamid.PROBE", createdAt: now - 60_000 }],
+    now
   );
-  assert.equal(ordinary, null);
-
-  const open = registerCutoverProbeWamid(closed, "wamid.PROBE");
-  const duringProbe = classifyCutoverProbeInbound(
-    { id: "wamid.DURING", from: "+972526850711", type: "text", text: { body: "הגעתי" } },
-    open
+  assert.equal(registry.open, true);
+  const business = classifyCutoverProbeInbound(
+    { id: "wamid.BUSINESS", from: "+972526850711", type: "text", text: { body: "הגעתי לאירוע" } },
+    registry
   );
-  assert.equal(duringProbe?.isolated, true);
-  assert.deepEqual(duringProbe?.writes, NO_WRITES);
-
-  const someoneElse = classifyCutoverProbeInbound(
-    { id: "wamid.GUEST", from: "972501111111", type: "text", text: { body: "מגיע" } },
-    open
+  assert.equal(business, null);
+  const beforeAnySend = classifyCutoverProbeInbound(
+    { id: "wamid.EARLY", from: "0526850711", type: "text", text: { body: "שלום" } },
+    emptyCutoverProbeRegistry()
   );
-  assert.equal(someoneElse, null);
-
-  const expired = registerCutoverProbeWamid(closed, "wamid.PROBE", { isolatePhone: false });
-  const laterReply = classifyCutoverProbeInbound(
-    { id: "wamid.LATER", from: "972526850711", type: "text", text: { body: "מגיע לאירוע" } },
-    expired
+  assert.equal(beforeAnySend, null);
+  const expired = registryFromRegistrations(
+    [{ wamid: "wamid.PROBE", createdAt: now - CUTOVER_PROBE_PHONE_WINDOW_MS - 1 }],
+    now
   );
-  assert.equal(laterReply, null);
-  const laterContext = classifyCutoverProbeInbound(
+  assert.equal(expired.open, false);
+  const lateReply = classifyCutoverProbeInbound(
     {
-      id: "wamid.LATER_CONTEXT",
+      id: "wamid.LATE",
       from: "972526850711",
       type: "text",
-      text: { body: "מגיע לאירוע" },
+      text: { body: "מגיע" },
       context: { id: "wamid.PROBE" },
     },
     expired
   );
-  assert.equal(laterContext?.isolated, true);
-  assert.deepEqual(laterContext?.writes, NO_WRITES);
+  assert.equal(lateReply, null);
 });
 
-test("delivery statuses for the probe wamid stay isolated and are not applied twice", () => {
-  const registry = registerCutoverProbeWamid(emptyCutoverProbeRegistry(), "wamid.PROBE");
-  const seen = new Set<string>();
-  const delivered = classifyCutoverProbeStatus(
-    { id: "wamid.PROBE", status: "delivered", recipient_id: "972526850711" },
-    registry
+test("a status webhook registers the probe wamid before any earlier save exists", () => {
+  const early = classifyCutoverProbeStatus(
+    {
+      id: "wamid.PROBE",
+      status: "sent",
+      recipient_id: "972526850711",
+      biz_opaque_callback_data: CUTOVER_PROBE_ID,
+    },
+    emptyCutoverProbeRegistry()
   );
-  assert.ok(delivered);
-  assert.deepEqual(delivered.writes, NO_WRITES);
-  const first = acceptProbeEvent(seen, delivered);
-  const second = acceptProbeEvent(seen, delivered);
+  assert.equal(early?.isolated, true);
+  assert.equal(early?.ensureRegistration, true);
+  assert.deepEqual(early?.writes, NO_WRITES);
+
+  const seen = new Set<string>();
+  const first = acceptProbeEvent(seen, early!);
+  const second = acceptProbeEvent(seen, early!);
   assert.equal(first.stored, true);
   assert.equal(second.duplicate, true);
   assert.equal(second.stored, false);
 
-  const unrelated = classifyCutoverProbeStatus(
+  const ordinaryStatus = classifyCutoverProbeStatus(
     { id: "wamid.REAL", status: "delivered", recipient_id: "972526850711" },
-    registry
+    emptyCutoverProbeRegistry()
   );
-  assert.equal(unrelated, null);
+  assert.equal(ordinaryStatus, null);
+  const registered = registerCutoverProbeWamid(emptyCutoverProbeRegistry(), "wamid.PROBE");
+  const followUp = classifyCutoverProbeStatus(
+    { id: "wamid.PROBE", status: "delivered", recipient_id: "972526850711" },
+    registered
+  );
+  assert.equal(followUp?.isolated, true);
+  assert.equal(followUp?.ensureRegistration, false);
 });
 
 test("the live webhook records a probe before it can update leads, guests, or RSVP", () => {
@@ -130,7 +139,12 @@ test("the live webhook records a probe before it can update leads, guests, or RS
   assert.ok(statusAt > 0 && statusAt < queueAt);
   assert.match(route, /recordCutoverProbe\(probeInbound\)/);
   assert.match(route, /recordCutoverProbe\(probeStatus\)/);
+  assert.match(route, /emptyCutoverProbeRegistry/);
   const store = readFileSync("lib/whatsapp/cutoverProbeStore.ts", "utf8");
+  const registrationAt = store.indexOf("registerCutoverProbeSend(decision.wamid)");
+  const eventAt = store.lastIndexOf("updateOne");
+  assert.ok(registrationAt > 0 && registrationAt < eventAt);
+  assert.match(store, /upsert: true/);
   assert.doesNotMatch(store, /CustomerFile|CustomerLeadMessage|InvitationGuest|rsvpStatus/);
   assert.doesNotMatch(store, /from ["']@\/models\/(?!CutoverProbeEvent)/);
 });

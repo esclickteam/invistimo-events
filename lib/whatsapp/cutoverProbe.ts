@@ -1,7 +1,8 @@
 /**
  * Isolated identity for the one RSVP cutover probe.
- * A registered probe wamid, or a reply from the probe phone while that
- * probe is open, never updates guests, events, RSVP, or existing leads.
+ * Only a status carrying the probe marker, or a reply that quotes the
+ * registered probe wamid, skips guests, events, RSVP, and existing leads.
+ * A normal message from the same phone stays on the existing path.
  */
 
 export const CUTOVER_PROBE_ID = "cutover-probe";
@@ -20,7 +21,6 @@ const NO_PRODUCTION_WRITES = Object.freeze({
 
 export type CutoverProbeRegistry = {
   open: boolean;
-  phoneIsolation: boolean;
   wamids: ReadonlySet<string>;
 };
 
@@ -33,6 +33,7 @@ export type CutoverProbeDecision = {
   direction: "inbound" | "outbound";
   eventType: "message" | "status";
   providerStatus: string;
+  ensureRegistration: boolean;
   writes: {
     customerFile: boolean;
     customerLeadMessage: boolean;
@@ -43,29 +44,32 @@ export type CutoverProbeDecision = {
 };
 
 export function emptyCutoverProbeRegistry(): CutoverProbeRegistry {
-  return { open: false, phoneIsolation: false, wamids: new Set() };
+  return { open: false, wamids: new Set() };
 }
 
 export function registerCutoverProbeWamid(
   registry: CutoverProbeRegistry,
-  wamid: string,
-  options?: { isolatePhone?: boolean }
+  wamid: string
 ): CutoverProbeRegistry {
   const id = String(wamid || "").trim();
   if (!id) return registry;
   const wamids = new Set(registry.wamids);
   wamids.add(id);
-  return {
-    open: true,
-    phoneIsolation: registry.phoneIsolation || options?.isolatePhone !== false,
-    wamids,
-  };
+  return { open: true, wamids };
 }
 
-export function whatsappDigits(value: unknown) {
-  const digits = String(value ?? "").replace(/\D/g, "");
-  if (digits.startsWith("0") && digits.length === 10) return `972${digits.slice(1)}`;
-  return digits;
+export function registryFromRegistrations(
+  rows: Array<{ wamid?: string; createdAt?: Date | string | number }>,
+  now = Date.now()
+): CutoverProbeRegistry {
+  const cutoff = now - CUTOVER_PROBE_PHONE_WINDOW_MS;
+  let registry = emptyCutoverProbeRegistry();
+  for (const row of rows) {
+    const createdAt = new Date(row.createdAt || 0).getTime();
+    if (!Number.isFinite(createdAt) || createdAt < cutoff) continue;
+    registry = registerCutoverProbeWamid(registry, String(row.wamid || ""));
+  }
+  return registry;
 }
 
 export function cutoverProbeImageIsSafe(url = CUTOVER_PROBE_IMAGE_URL) {
@@ -118,6 +122,7 @@ export function buildCutoverProbeRequest() {
           },
         ],
       },
+      biz_opaque_callback_data: CUTOVER_PROBE_ID,
     },
   };
 }
@@ -136,13 +141,18 @@ function probeMarker(message: any) {
 }
 
 function isolatedDecision(
-  partial: Omit<CutoverProbeDecision, "isolated" | "writes" | "duplicate" | "probeId"> & {
+  partial: Omit<
+    CutoverProbeDecision,
+    "isolated" | "writes" | "duplicate" | "probeId" | "ensureRegistration"
+  > & {
     duplicate?: boolean;
+    ensureRegistration?: boolean;
   }
 ): CutoverProbeDecision {
   return {
     isolated: true,
     duplicate: Boolean(partial.duplicate),
+    ensureRegistration: Boolean(partial.ensureRegistration),
     probeId: CUTOVER_PROBE_ID,
     writes: { ...NO_PRODUCTION_WRITES },
     wamid: partial.wamid,
@@ -159,11 +169,9 @@ export function classifyCutoverProbeInbound(
 ): CutoverProbeDecision | null {
   const wamid = String(message?.id || "").trim();
   const contextWamid = String(message?.context?.id || "").trim();
-  const fromProbePhone = whatsappDigits(message?.from) === CUTOVER_PROBE_PHONE_DIGITS;
   const mentioned = probeMarker(message);
   const contextMatches = Boolean(contextWamid) && registry.wamids.has(contextWamid);
-  const isolated = contextMatches || mentioned || (registry.phoneIsolation && fromProbePhone);
-  if (!isolated) return null;
+  if (!contextMatches && !mentioned) return null;
   return isolatedDecision({
     wamid,
     contextWamid,
@@ -178,13 +186,17 @@ export function classifyCutoverProbeStatus(
   registry: CutoverProbeRegistry
 ): CutoverProbeDecision | null {
   const wamid = String(status?.id || "").trim();
-  if (!wamid || !registry.wamids.has(wamid)) return null;
+  const marked =
+    String(status?.biz_opaque_callback_data || "") === CUTOVER_PROBE_ID;
+  const known = Boolean(wamid) && registry.wamids.has(wamid);
+  if (!wamid || (!marked && !known)) return null;
   return isolatedDecision({
     wamid,
     contextWamid: "",
     direction: "outbound",
     eventType: "status",
     providerStatus: String(status?.status || "").trim(),
+    ensureRegistration: marked,
   });
 }
 

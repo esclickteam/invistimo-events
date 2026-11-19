@@ -12,6 +12,7 @@ import { applyWhatsappWebhookStatus } from "@/lib/whatsapp/roundDeliveryTracking
 import {
   classifyCutoverProbeInbound,
   classifyCutoverProbeStatus,
+  emptyCutoverProbeRegistry,
 } from "@/lib/whatsapp/cutoverProbe";
 import {
   loadCutoverProbeRegistry,
@@ -496,7 +497,12 @@ export async function POST(req: Request) {
     console.dir(body, { depth: null });
 
     await db();
-    const cutoverProbe = await loadCutoverProbeRegistry();
+    let cutoverProbe = emptyCutoverProbeRegistry();
+    try {
+      cutoverProbe = await loadCutoverProbeRegistry();
+    } catch (registryError) {
+      console.error("cutover probe registry", registryError);
+    }
 
     const entries = body?.entry ?? [];
 
@@ -559,7 +565,11 @@ export async function POST(req: Request) {
 
           const probeStatus = classifyCutoverProbeStatus(status, cutoverProbe);
           if (probeStatus) {
-            await recordCutoverProbe(probeStatus);
+            try {
+              await recordCutoverProbe(probeStatus);
+            } catch (probeError) {
+              console.error("cutover probe status", probeError);
+            }
             continue;
           }
 
