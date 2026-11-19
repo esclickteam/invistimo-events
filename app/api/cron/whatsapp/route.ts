@@ -19,6 +19,10 @@ import {
   type SendRsvpTemplateMediaInput,
 } from "@/lib/whatsapp/sendRsvpTemplateMedia";
 import { resolveWhatsappSendTemplateName } from "@/lib/whatsapp/approvedTemplates";
+import {
+  dialogSendsArePaused,
+  isDialogSendPauseError,
+} from "@/lib/whatsapp/dialogSendGate";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -126,6 +130,10 @@ async function sendWhatsappTemplateFromQueue(job: any) {
 ====================================================== */
 
 async function processPendingWhatsappQueue() {
+  if (dialogSendsArePaused()) {
+    return { paused: true, processed: 0, sent: 0, failed: 0 };
+  }
+
   let processed = 0;
   let sent = 0;
   let failed = 0;
@@ -186,6 +194,14 @@ async function processPendingWhatsappQueue() {
     processed++;
 
     try {
+      if (dialogSendsArePaused()) {
+        await WhatsappQueue.updateOne(
+          { _id: job._id, status: "sending" },
+          { $set: { status: "pending", lockedAt: null, lockedBy: null } }
+        );
+        return { paused: true, processed, sent, failed, released: true };
+      }
+
       const result = await sendWhatsappTemplateFromQueue(job);
 
       await WhatsappQueue.updateOne(
@@ -231,6 +247,14 @@ async function processPendingWhatsappQueue() {
       const jitter = Math.floor(Math.random() * JITTER_MAX);
       await sleep(DELAY_BETWEEN + jitter);
     } catch (err: any) {
+      if (isDialogSendPauseError(err)) {
+        await WhatsappQueue.updateOne(
+          { _id: job._id, status: "sending" },
+          { $set: { status: "pending", lockedAt: null, lockedBy: null } }
+        );
+        return { paused: true, processed, sent, failed, released: true };
+      }
+
       const msg = String(err?.message || err);
       const maxAttempts = normalizeMaxAttempts(job.maxAttempts);
       const nextAttempts = Number(job.attempts || 0) + 1;

@@ -1,3 +1,7 @@
+import {
+  dialogSendsArePaused,
+  isDialogSendPauseError,
+} from "@/lib/whatsapp/dialogSendGate";
 import dbConnect from "@/lib/db";
 import ScheduledMessage from "@/models/ScheduledMessage";
 import WhatsappQueue from "@/models/WhatsappQueue";
@@ -983,6 +987,10 @@ export async function sendScheduledSms() {
 export async function sendScheduledWhatsapp() {
   await dbConnect();
 
+  if (dialogSendsArePaused()) {
+    return { paused: true, processed: 0, sent: 0, failed: 0 };
+  }
+
   const now = new Date();
 
   let processed = 0;
@@ -1039,6 +1047,14 @@ export async function sendScheduledWhatsapp() {
   }
 
   for (const msg of messages) {
+    if (dialogSendsArePaused()) {
+      await ScheduledMessage.updateOne(
+        { _id: msg._id, status: "sending" },
+        { $set: { status: "scheduled", lockedAt: null, lockedBy: null } }
+      );
+      continue;
+    }
+
     processed++;
 
     let roundGuests: any[] = [];
@@ -1417,12 +1433,35 @@ const queueDoc = await WhatsappQueue.create({
           break;
         }
 
+        if (dialogSendsArePaused()) {
+          await WhatsappQueue.updateOne(
+            { _id: queueDoc._id, status: "sending" },
+            { $set: { status: "pending", lockedAt: null, lockedBy: null } }
+          );
+          await ScheduledMessage.updateOne(
+            { _id: msg._id, status: "sending" },
+            { $set: { status: "scheduled", lockedAt: null, lockedBy: null } }
+          );
+          return { paused: true, processed, sent: sentTotal, failed, released: true };
+        }
+
         const result = await sendWhatsappTemplate({
           phone,
           templateName,
           payload,
           messageType: type,
         });
+        if (isDialogSendPauseError(result.error)) {
+          await WhatsappQueue.updateOne(
+            { _id: queueDoc._id, status: "sending" },
+            { $set: { status: "pending", lockedAt: null, lockedBy: null } }
+          );
+          await ScheduledMessage.updateOne(
+            { _id: msg._id, status: "sending" },
+            { $set: { status: "scheduled", lockedAt: null, lockedBy: null } }
+          );
+          return { paused: true, processed, sent: sentTotal, failed, released: true };
+        }
         const accepted = Boolean(result.success && String(result.wamid || "").trim());
 
         await WhatsappQueue.updateOne(

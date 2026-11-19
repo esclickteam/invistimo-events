@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import { cookies } from "next/headers";
 
+import { dialogSendsArePaused } from "@/lib/whatsapp/dialogSendGate";
 import db from "@/lib/db";
 import User from "@/models/User";
 import CustomerFile from "@/models/CustomerFile";
@@ -426,6 +427,10 @@ async function sendWhatsappTextMessage({
   to: string;
   messageText: string;
 }) {
+  if (dialogSendsArePaused()) {
+    throw new Error("INVISTIMO_DIALOG_SEND_PAUSED");
+  }
+
   const apiKey = get360DialogApiKey();
 
   if (!apiKey) {
@@ -484,6 +489,10 @@ async function sendWhatsappTemplateMessage({
   templateName: string;
   employeeName: string;
 }) {
+  if (dialogSendsArePaused()) {
+    throw new Error("INVISTIMO_DIALOG_SEND_PAUSED");
+  }
+
   const apiKey = get360DialogApiKey();
 
   if (!apiKey) {

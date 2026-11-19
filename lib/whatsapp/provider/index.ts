@@ -1,3 +1,4 @@
+import { dialogSendsArePaused } from "@/lib/whatsapp/dialogSendGate";
 import { createBizuplyProvider } from "@/lib/whatsapp/provider/bizuplyProvider";
 import { createDialogProvider } from "@/lib/whatsapp/provider/dialogProvider";
 import type {
@@ -26,6 +27,11 @@ export function getWhatsAppProvider(options: {
   fetch?: typeof fetch;
 } = {}): WhatsAppProvider {
   const id = options.id ?? resolveWhatsAppProviderId();
+  if (id === "dialog" && dialogSendsArePaused()) {
+    const error = new Error("INVISTIMO_DIALOG_SEND_PAUSED");
+    (error as Error & { code?: string }).code = "INVISTIMO_DIALOG_SEND_PAUSED";
+    throw error;
+  }
   if (id === "bizuply") {
     return createBizuplyProvider({
       apiKey: options.apiKey,

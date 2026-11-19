@@ -3,6 +3,11 @@ import db from "@/lib/db";
 import WhatsappQueue from "@/models/WhatsappQueue";
 import CustomerFile from "@/models/CustomerFile";
 import CustomerLeadMessage from "@/models/CustomerLeadMessage";
+import {
+  normalizeIncomingWebhook,
+  readForwardHeaders,
+  verifyBizuplyForward,
+} from "@/lib/whatsapp/bizuplyForward";
 import { applyWhatsappWebhookStatus } from "@/lib/whatsapp/roundDeliveryTracking";
 import {
   guestPhoneQueryValues,
@@ -453,7 +458,31 @@ async function saveIncomingWhatsappMessage({
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const rawBody = await req.text();
+    let body: any;
+    try {
+      body = rawBody ? JSON.parse(rawBody) : {};
+    } catch {
+      return NextResponse.json({ ok: true });
+    }
+
+    const forward = readForwardHeaders(req.headers);
+    if (forward.present) {
+      const verdict = verifyBizuplyForward({
+        secret: String(process.env.INVISTIMO_FORWARD_SIGNING_SECRET || ""),
+        timestamp: forward.timestamp,
+        rawBody,
+        signature: forward.signature,
+      });
+      if (!verdict.ok) {
+        return NextResponse.json(
+          { ok: false, error: "INVALID_FORWARD_SIGNATURE" },
+          { status: 401 }
+        );
+      }
+    }
+
+    body = normalizeIncomingWebhook(body);
 
     console.log("📩 WhatsApp Webhook RAW BODY:");
     console.dir(body, { depth: null });
