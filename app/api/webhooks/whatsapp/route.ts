@@ -10,6 +10,14 @@ import {
 } from "@/lib/whatsapp/bizuplyForward";
 import { applyWhatsappWebhookStatus } from "@/lib/whatsapp/roundDeliveryTracking";
 import {
+  classifyCutoverProbeInbound,
+  classifyCutoverProbeStatus,
+} from "@/lib/whatsapp/cutoverProbe";
+import {
+  loadCutoverProbeRegistry,
+  recordCutoverProbe,
+} from "@/lib/whatsapp/cutoverProbeStore";
+import {
   guestPhoneQueryValues,
   toWhatsappDigits,
 } from "@/lib/phones/international";
@@ -488,6 +496,7 @@ export async function POST(req: Request) {
     console.dir(body, { depth: null });
 
     await db();
+    const cutoverProbe = await loadCutoverProbeRegistry();
 
     const entries = body?.entry ?? [];
 
@@ -504,6 +513,12 @@ export async function POST(req: Request) {
 
         for (const message of messages) {
           try {
+            const probeInbound = classifyCutoverProbeInbound(message, cutoverProbe);
+            if (probeInbound) {
+              await recordCutoverProbe(probeInbound);
+              continue;
+            }
+
             console.log("💬 Incoming WhatsApp Message:", {
               id: message?.id,
               from: message?.from,
@@ -541,6 +556,12 @@ export async function POST(req: Request) {
           });
 
           if (!wamid || !state) continue;
+
+          const probeStatus = classifyCutoverProbeStatus(status, cutoverProbe);
+          if (probeStatus) {
+            await recordCutoverProbe(probeStatus);
+            continue;
+          }
 
           await updateWhatsappQueueStatus({
             wamid,
