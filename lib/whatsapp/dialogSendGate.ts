@@ -16,6 +16,35 @@ export function dialogSendsArePaused(
   );
 }
 
+export function isDialogSendPauseError(error: unknown) {
+  const err = error as { code?: string; message?: string } | null;
+  return (
+    err?.code === "INVISTIMO_DIALOG_SEND_PAUSED" ||
+    err?.message === "INVISTIMO_DIALOG_SEND_PAUSED"
+  );
+}
+
+/**
+ * A claim that has not reached 360dialog is released back to pending.
+ * A request already on the wire blocks the provider switch until it finishes.
+ */
+export function inFlightDialogSendDecision(input: {
+  paused: boolean;
+  claimed: boolean;
+  requestStarted: boolean;
+}) {
+  if (!input.claimed) {
+    return { callProvider: false, releaseClaim: false, blocksProviderSwitch: false };
+  }
+  if (input.requestStarted) {
+    return { callProvider: false, releaseClaim: false, blocksProviderSwitch: true };
+  }
+  if (input.paused) {
+    return { callProvider: false, releaseClaim: true, blocksProviderSwitch: false };
+  }
+  return { callProvider: true, releaseClaim: false, blocksProviderSwitch: false };
+}
+
 export function dialogSendPausePlan(env: NodeJS.ProcessEnv = process.env) {
   const paused = dialogSendsArePaused(env);
   return {

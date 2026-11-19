@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 
+import { dialogSendsArePaused } from "@/lib/whatsapp/dialogSendGate";
+
 import {
   acceptedMessageId,
   readJson,
@@ -34,6 +36,11 @@ export function createDialogProvider(options: {
     id: "dialog",
     accountKey,
     async uploadHeaderMedia(input: WhatsAppHeaderUploadInput) {
+      if (dialogSendsArePaused()) {
+        const error = new Error("INVISTIMO_DIALOG_SEND_PAUSED");
+        (error as Error & { code?: string }).code = "INVISTIMO_DIALOG_SEND_PAUSED";
+        throw error;
+      }
       const form = new FormData();
       form.append("messaging_product", "whatsapp");
       form.append(
@@ -57,6 +64,11 @@ export function createDialogProvider(options: {
       return mediaId;
     },
     async sendTemplate(input: WhatsAppTemplateSendInput) {
+      if (dialogSendsArePaused()) {
+        const error = new Error("INVISTIMO_DIALOG_SEND_PAUSED");
+        (error as Error & { code?: string }).code = "INVISTIMO_DIALOG_SEND_PAUSED";
+        throw error;
+      }
       const response = await fetchImpl(MESSAGES_ENDPOINT, {
         method: "POST",
         headers: {
