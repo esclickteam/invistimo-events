@@ -72,3 +72,14 @@ test("contact lead opening does not send WhatsApp, SMS, or a message record", ()
   assert.match(routeSource, /openContactFormLead/);
   assert.match(leadSource, /CustomerFile\.create/);
 });
+
+test("contact notifications stay on the Invistimo server env and never name another tenant", () => {
+  const root = path.resolve(__dirname, "../..");
+  const routeSource = readFileSync(path.join(root, "app/api/contact/route.ts"), "utf8");
+
+  assert.match(routeSource, /process\.env\.SUPPORT_EMAIL/);
+  assert.doesNotMatch(routeSource, /bcc\s*:/);
+  assert.doesNotMatch(routeSource, /invistimo9@gmail\.com/);
+  assert.doesNotMatch(routeSource, /bizuply|evently360|6abcdba96130a8de386dfc86|6a8df4e95c704a03773a9966/i);
+  assert.doesNotMatch(routeSource, /https?:\/\//);
+});
