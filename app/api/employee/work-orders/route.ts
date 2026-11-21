@@ -1483,44 +1483,6 @@ export async function GET(req: NextRequest) {
       serializedWorkOrders.length = limit;
     }
 
-    // Persist completion for open WOs that have no remaining tasks.
-    const staleOpenIds = serializedWorkOrders
-      .filter(
-        (order) =>
-          safeNumber(order.myTasksTotal) > 0 &&
-          safeNumber(order.myTasksRemaining) <= 0 &&
-          !["completed", "expired", "cancelled", "canceled"].includes(
-            normalize(order.status)
-          )
-      )
-      .map((order) => toObjectId(order.id))
-      .filter(Boolean) as Types.ObjectId[];
-
-    if (staleOpenIds.length) {
-      await CallWorkOrder.updateMany(
-        {
-          _id: { $in: staleOpenIds },
-          status: { $nin: ["completed", "cancelled", "expired"] },
-        },
-        {
-          $set: {
-            status: "completed",
-            pendingTasks: 0,
-            inProgressTasks: 0,
-            completedAt: new Date(),
-            lastStatusSyncAt: new Date(),
-            updatedAt: new Date(),
-          },
-        }
-      );
-
-      for (const order of serializedWorkOrders) {
-        if (staleOpenIds.some((id) => String(id) === order.id)) {
-          order.status = "completed";
-        }
-      }
-    }
-
     const todayKeyForActive = getDateKeyInIsrael(new Date());
     const visibilityDateKey = showAllDates ? todayKeyForActive : dateKey;
 

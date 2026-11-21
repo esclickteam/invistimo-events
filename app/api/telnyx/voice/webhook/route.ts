@@ -1460,6 +1460,18 @@ export async function POST(req: NextRequest) {
           payload,
           eventType,
         });
+        try {
+          const { recordHumanAttemptFromWebhook } = await import(
+            "@/lib/calls/recordHumanCallAttempt"
+          );
+          await recordHumanAttemptFromWebhook({
+            eventType,
+            eventId: event?.id,
+            payload: payload as Record<string, any>,
+          });
+        } catch (attemptError) {
+          console.error("human call attempt record failed", attemptError);
+        }
 
         console.log("CALL INITIATED:", {
           from,
@@ -1587,6 +1599,18 @@ export async function POST(req: NextRequest) {
           payload,
           eventType,
         });
+        try {
+          const { recordHumanAttemptFromWebhook } = await import(
+            "@/lib/calls/recordHumanCallAttempt"
+          );
+          await recordHumanAttemptFromWebhook({
+            eventType,
+            eventId: event?.id,
+            payload: payload as Record<string, any>,
+          });
+        } catch (attemptError) {
+          console.error("human call attempt record failed", attemptError);
+        }
 
         if (callControlId) {
           await updateBridgeFromWebhook({
@@ -1647,6 +1671,18 @@ export async function POST(req: NextRequest) {
           payload,
           eventType,
         });
+        try {
+          const { recordHumanAttemptFromWebhook } = await import(
+            "@/lib/calls/recordHumanCallAttempt"
+          );
+          await recordHumanAttemptFromWebhook({
+            eventType,
+            eventId: event?.id,
+            payload: payload as Record<string, any>,
+          });
+        } catch (attemptError) {
+          console.error("human call attempt record failed", attemptError);
+        }
 
         if (callControlId) {
           await updateBridgeFromWebhook({

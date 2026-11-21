@@ -23,11 +23,11 @@ assert.equal(
 );
 assert.equal(
   getCallRoundAudienceLabel(2),
-  "לא ענו בסבב 1 + ביקשו חזרה"
+  "ממתינים בלי תשובת הגעה סופית"
 );
 assert.equal(
   getCallRoundAudienceLabel(3),
-  "לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים"
+  "ממתינים, מתלבטים ומי שעדיין בלי תשובה סופית"
 );
 
 assert.equal(
@@ -188,7 +188,23 @@ assert.equal(
     }),
     round: 3,
   }),
-  false
+  true
+);
+
+assert.equal(
+  isGuestEligibleForCallRound({
+    guest: guest({ id: "new-pending", rsvp: "pending", callRounds: [] }),
+    round: 2,
+  }),
+  true
+);
+
+assert.equal(
+  isGuestEligibleForCallRound({
+    guest: guest({ id: "new-pending-3", rsvp: "pending", callRounds: [] }),
+    round: 3,
+  }),
+  true
 );
 
 assert.equal(

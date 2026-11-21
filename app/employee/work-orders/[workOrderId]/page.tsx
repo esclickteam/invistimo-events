@@ -166,6 +166,8 @@ type CallTask = {
   lastAttemptAt: string | null;
 
   attemptsCount: number;
+  isQueueHead?: boolean;
+  queueBlockReason?: string;
 
   rsvpStatus: string;
   attendingCount: number | null;
@@ -1212,26 +1214,6 @@ export default function EmployeeWorkOrderTasksPage() {
     await updateTaskStatus(payload);
   }
 
-  function selectNextOpenTask() {
-    if (!visibleOpenTasks.length) return;
-
-    if (!selectedTask) {
-      applySelectedTask(visibleOpenTasks[0]);
-      return;
-    }
-
-    const currentIndex = visibleOpenTasks.findIndex(
-      (task) => getTaskId(task) === getTaskId(selectedTask)
-    );
-
-    const next =
-      currentIndex >= 0
-        ? visibleOpenTasks[currentIndex + 1] || visibleOpenTasks[0]
-        : visibleOpenTasks[0];
-
-    applySelectedTask(next);
-  }
-
   async function openInvitationPreview() {
     if (!workOrderId) return;
 
@@ -1341,8 +1323,8 @@ export default function EmployeeWorkOrderTasksPage() {
           <button
             type="button"
             className="ghostBtn"
-            disabled={refreshing || loading || !visibleOpenTasks.length}
-            onClick={selectNextOpenTask}
+            disabled
+            title="המעבר לאורח הבא נפתח רק אחרי השלמת המשימה הנוכחית"
           >
             השיחה הבאה
           </button>
@@ -1525,6 +1507,9 @@ export default function EmployeeWorkOrderTasksPage() {
       )}
 
       {error && <div className="errorBox">{error}</div>}
+      {selectedTask?.queueBlockReason ? (
+        <div className="errorBox">{selectedTask.queueBlockReason}</div>
+      ) : null}
       {successMsg && <div className="successBox">{successMsg}</div>}
 
       {loading ? (
@@ -1573,7 +1558,13 @@ export default function EmployeeWorkOrderTasksPage() {
                       type="button"
                       key={taskId}
                       className={`queueRow ${selected ? "selected" : ""}`}
-                      onClick={() => applySelectedTask(task)}
+                      onClick={() => {
+                        if (isOpenTask(task) && task.isQueueHead === false) {
+                          setError("אי אפשר לדלג לאורח אחר לפני השלמת המשימה הנוכחית.");
+                          return;
+                        }
+                        applySelectedTask(task);
+                      }}
                     >
                       <span className="guestCell">
                         <strong>{task.guestName || "אורח ללא שם"}</strong>

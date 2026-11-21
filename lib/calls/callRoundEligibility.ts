@@ -5,11 +5,8 @@
  * Call result examples: answered / no_answer / callback / wrong_number
  *
  * Round 1: RSVP pending only
- * Round 2: still pending AND (round 1 = no_answer OR round 1 = callback)
- * Round 3: RSVP maybe, OR still pending AND (
- *   no_answer in rounds 1 and 2, OR callback in round 2,
- *   OR callback in round 1 followed by no_answer in round 2
- * )
+ * Round 2: still pending, with no dependence on a round-1 task
+ * Round 3: still pending or maybe, with no dependence on earlier tasks
  *
  * A final attendance answer (yes / no) always wins over an older callback.
  */
@@ -359,8 +356,8 @@ export function getGuestStoredCallAnswer(
 
 export function getCallRoundAudienceLabel(round: CallRoundNumber) {
   if (round === 1) return "ממתינים שעדיין לא נתנו תשובה";
-  if (round === 2) return "לא ענו בסבב 1 + ביקשו חזרה";
-  return "לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים";
+  if (round === 2) return "ממתינים בלי תשובת הגעה סופית";
+  return "ממתינים, מתלבטים ומי שעדיין בלי תשובה סופית";
 }
 
 export function getCallRoundDescription(round: CallRoundNumber) {
@@ -368,9 +365,9 @@ export function getCallRoundDescription(round: CallRoundNumber) {
     return "סבב 1 - ממתינים שעדיין לא נתנו תשובה";
   }
   if (round === 2) {
-    return "סבב 2 - לא ענו בסבב 1 + ביקשו חזרה בסבב הבא";
+    return "סבב 2 - כל מי שעדיין ממתין, בלי תלות במשימת סבב 1";
   }
-  return "סבב 3 - לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים";
+  return "סבב 3 - ממתינים, מתלבטים ומי שעדיין בלי תשובה סופית";
 }
 
 export function getSourceAudienceByRound(round: CallRoundNumber) {
@@ -415,78 +412,19 @@ export function isGuestEligibleForCallRound(input: {
   previousNoAnswerByRound?: Partial<Record<1 | 2, Set<string>>>;
   previousCallbackByRound?: Partial<Record<1 | 2, Set<string>>>;
 }): boolean {
-  const { guest, round, previousNoAnswerByRound, previousCallbackByRound } = input;
+  const { guest, round } = input;
 
   if (!hasGuestPhone(guest)) return false;
 
-  const guestId = extractGuestId(guest?._id || guest?.id);
   const rsvp = getGuestRsvpValue(guest);
-
-  if (round === 1) {
-    return rsvp === "pending";
-  }
 
   if (hasFinalAttendanceRsvp(guest)) return false;
 
-  if (round === 2) {
-    if (rsvp !== "pending") return false;
-
-    return (
-      hadNoAnswerOnRound({
-        guest,
-        guestId,
-        round: 1,
-        previousNoAnswerByRound,
-      }) ||
-      requestedCallbackOnRound({
-        guest,
-        guestId,
-        round: 1,
-        previousCallbackByRound,
-      })
-    );
+  if (round === 1 || round === 2) {
+    return rsvp === "pending";
   }
 
-  // Round 3
-  // A) current RSVP maybe / מתלבט
-  // B) pending + no_answer in rounds 1 and 2
-  // C) pending + callback in round 2
-  // D) pending + callback in round 1 and no_answer in round 2
-  if (rsvp === "maybe") return true;
-
-  if (rsvp !== "pending") return false;
-
-  const callbackRound2 = requestedCallbackOnRound({
-    guest,
-    guestId,
-    round: 2,
-    previousCallbackByRound,
-  });
-  if (callbackRound2) return true;
-
-  const noAnswerRound2 = hadNoAnswerOnRound({
-    guest,
-    guestId,
-    round: 2,
-    previousNoAnswerByRound,
-  });
-  const callbackRound1 = requestedCallbackOnRound({
-    guest,
-    guestId,
-    round: 1,
-    previousCallbackByRound,
-  });
-
-  if (callbackRound1 && noAnswerRound2) return true;
-
-  const noAnswerRound1 = hadNoAnswerOnRound({
-    guest,
-    guestId,
-    round: 1,
-    previousNoAnswerByRound,
-  });
-
-  return noAnswerRound1 && noAnswerRound2;
+  return rsvp === "pending" || rsvp === "maybe";
 }
 
 export function callbackCarryFromRound(input: {
@@ -575,6 +513,33 @@ export function callbackCarryTaskPatch(guest: any): {
     adminNote: `הועבר מסבב ${from} כי האורח ביקש שיחזרו אליו בסבב הבא`,
     priority: 1,
   };
+}
+
+export function isRsvpEligibleForCallRound(guest: any, round: CallRoundNumber) {
+  if (hasFinalAttendanceRsvp(guest)) return false;
+  const rsvp = getGuestRsvpValue(guest);
+  if (round === 1 || round === 2) return rsvp === "pending";
+  return rsvp === "pending" || rsvp === "maybe";
+}
+
+export function partitionGuestsForCallRound(input: {
+  guests: any[];
+  round: CallRoundNumber;
+}) {
+  const dialable: any[] = [];
+  const invalidPhone: any[] = [];
+  const seen = new Set<string>();
+
+  for (const guest of input.guests) {
+    if (!isRsvpEligibleForCallRound(guest, input.round)) continue;
+    const guestId = extractGuestId(guest?._id || guest?.id) || cleanStr(guest?.phone);
+    if (!guestId || seen.has(guestId)) continue;
+    seen.add(guestId);
+    if (hasGuestPhone(guest)) dialable.push(guest);
+    else invalidPhone.push(guest);
+  }
+
+  return { dialable, invalidPhone };
 }
 
 export function filterGuestsForCallRound(input: {

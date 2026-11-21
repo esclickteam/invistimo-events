@@ -22,6 +22,7 @@ import AssigneeMultiSelect from "@/app/components/admin/AssigneeMultiSelect";
 import CallsTypeField from "@/app/components/admin/CallsTypeField";
 import RsvpSiteModeField from "@/app/components/sales/RsvpSiteModeField";
 import WhatsappRoundsReportModal from "@/app/components/WhatsappRoundsReportModal";
+import CallRoundsReportModal from "@/app/components/CallRoundsReportModal";
 import SmsRoundsReportModal from "@/app/components/SmsRoundsReportModal";
 import IvrCallsReportModal from "@/app/components/IvrCallsReportModal";
 import AdminIvrRoundsPanel from "@/app/components/admin/AdminIvrRoundsPanel";
@@ -1884,10 +1885,15 @@ function VenueSeatingServiceFields({
 function CallRoundsScheduleFields({
   value,
   onChange,
+  invitationId,
+  clientName,
 }: {
   value: CallRoundsScheduleState;
   onChange: (next: CallRoundsScheduleState) => void;
+  invitationId?: string;
+  clientName?: string;
 }) {
+  const [reportOpen, setReportOpen] = useState(false);
   function updateEnabled(enabled: boolean) {
     onChange({
       ...value,
@@ -1990,6 +1996,15 @@ function CallRoundsScheduleFields({
                 <div className="font-black text-[#3A2A1C]">
                   סבב שיחות {round.roundNumber}
                 </div>
+                {invitationId ? (
+                  <button
+                    type="button"
+                    onClick={() => setReportOpen(true)}
+                    className="rounded-full border border-[#D9B46F]/60 bg-white px-3 py-1 text-[11px] font-black text-[#6B451E]"
+                  >
+                    דוח שיחות מפורט
+                  </button>
+                ) : null}
 
                 <span
                   className={`rounded-full px-3 py-1 text-[11px] font-black ${
@@ -2045,6 +2060,13 @@ function CallRoundsScheduleFields({
           ))}
         </div>
       )}
+      {reportOpen && invitationId ? (
+        <CallRoundsReportModal
+          invitationId={invitationId}
+          clientName={clientName}
+          onClose={() => setReportOpen(false)}
+        />
+      ) : null}
     </section>
   );
 }
@@ -2656,6 +2678,8 @@ function EditUserModal({
 <CallRoundsScheduleFields
   value={callRoundsSchedule}
   onChange={setCallRoundsSchedule}
+  invitationId={user.invitationId}
+  clientName={user.name || user.email || "לקוח"}
 />
 
         <AdminMessageRoundsPanel
@@ -3091,6 +3115,7 @@ function AdminMessageRoundsPanel({
   const [loadingKey, setLoadingKey] = useState<string | null>(null);
   const [showWhatsappRoundReport, setShowWhatsappRoundReport] = useState(false);
   const [showSmsRoundReport, setShowSmsRoundReport] = useState(false);
+  const [showCallRoundReport, setShowCallRoundReport] = useState(false);
   const [showIvrCallReport, setShowIvrCallReport] = useState(false);
 
   const rounds = normalizeAdminMessageRounds(user);
@@ -3221,6 +3246,20 @@ function AdminMessageRoundsPanel({
             "
           >
             📊 דוח WhatsApp לסבבים
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (!user.invitationId) {
+                alert("לא נמצאה הזמנה למשתמש הזה");
+                return;
+              }
+              setShowCallRoundReport(true);
+            }}
+            className="inline-flex w-fit items-center justify-center gap-2 rounded-full border border-[#D9B46F]/60 bg-[#FFFDF8] px-5 py-2.5 text-sm font-black text-[#6B451E]"
+          >
+            דוח שיחות מפורט
           </button>
 
           <button
@@ -3501,6 +3540,14 @@ function AdminMessageRoundsPanel({
           invitationId={user.invitationId}
           clientName={user.name || user.email || "לקוח"}
           onClose={() => setShowSmsRoundReport(false)}
+        />
+      )}
+
+      {showCallRoundReport && user.invitationId && (
+        <CallRoundsReportModal
+          invitationId={user.invitationId}
+          clientName={user.name || user.email || "לקוח"}
+          onClose={() => setShowCallRoundReport(false)}
         />
       )}
 
@@ -4055,6 +4102,8 @@ const calculatedTotalToPay =
 <CallRoundsScheduleFields
   value={callRoundsSchedule}
   onChange={setCallRoundsSchedule}
+  invitationId={user.invitationId}
+  clientName={user.name || user.email || "לקוח"}
 />
 
         <section

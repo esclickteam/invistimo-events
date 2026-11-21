@@ -45,8 +45,8 @@ const round2 = getCallRoundWaitingStats({ guests, round: 2 });
 // Legacy inflated metric: still-pending RSVP without round-2 phone result.
 assert.equal(round2.pendingRsvpTotal, 3);
 // Real dial list: no_answer / callback from round 1, still pending, not done on round 2.
-assert.equal(round2.guestsWaiting, 2);
-assert.equal(round2.eligibleTotal, 3);
+assert.equal(round2.guestsWaiting, 3);
+assert.equal(round2.eligibleTotal, 4);
 assert.equal(round2.guestsDone, 1);
 
 const round2FromTasks = getCallRoundWaitingStats({

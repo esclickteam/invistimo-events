@@ -1040,6 +1040,15 @@ export async function POST(req: NextRequest) {
       typeof created.toObject === "function" ? created.toObject() : created,
     ]);
 
+    try {
+      const { ensureOpenCallTasksForInvitation } = await import(
+        "@/lib/calls/syncOpenCallTasks"
+      );
+      await ensureOpenCallTasksForInvitation(String(invitationId));
+    } catch (syncError) {
+      console.error("open call-round sync failed", syncError);
+    }
+
     return NextResponse.json({
       success: true,
       guest: annotatedGuest,

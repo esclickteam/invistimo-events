@@ -10,6 +10,12 @@ import CallWorkOrder from "@/models/CallWorkOrder";
 import CallTask from "@/models/CallTask";
 import { resolveMaxCallRounds } from "@/lib/calls/callRoundEligibility";
 import { countManualHandlingTasks } from "@/lib/calls/callbackCarryForward";
+import {
+  evaluateResultSave,
+  pickQueueHeadId,
+  type AttemptSnapshot,
+} from "@/lib/calls/callAttemptPolicy";
+import CallAttempt from "@/models/CallAttempt";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -1956,6 +1962,62 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
       );
     }
 
+    if (incomingStatus && isCallResultStatus(incomingStatus)) {
+      const siblingTasks = await CallTask.find({
+        workOrderId: (existingTask as any).workOrderId,
+        ...assignmentMatch,
+      })
+        .select("_id status sortOrder createdAt manualHandlingRequired")
+        .lean();
+      const headId = pickQueueHeadId(
+        siblingTasks.map((task: any) => ({
+          id: String(task._id),
+          status: String(task.status || ""),
+          sortOrder: Number(task.sortOrder || 0),
+          createdAt: task.createdAt ? new Date(task.createdAt).toISOString() : null,
+          manualHandlingRequired: Boolean(task.manualHandlingRequired),
+        }))
+      );
+      const storedAttempts = await CallAttempt.find({ taskId: taskObjectId }).lean();
+      const attempts: AttemptSnapshot[] = storedAttempts.map((row: any) => ({
+        id: String(row.callControlId || ""),
+        taskId: String(row.taskId || ""),
+        startedAt: row.startedAt ? new Date(row.startedAt).toISOString() : null,
+        answeredAt: row.answeredAt ? new Date(row.answeredAt).toISOString() : null,
+        endedAt: row.endedAt ? new Date(row.endedAt).toISOString() : null,
+        durationMs: typeof row.durationMs === "number" ? row.durationMs : null,
+        preciseDuration: Boolean(row.preciseDuration),
+        telnyxAnswered: Boolean(row.telnyxAnswered),
+        answerType: row.answerType || "",
+        telnyxResult: row.telnyxResult || "",
+        sipCode: row.sipCode || "",
+        hangupCause: row.hangupCause || "",
+        hangupSource: row.hangupSource || "",
+        agentHangupRequestedAt: row.agentHangupRequestedAt
+          ? new Date(row.agentHangupRequestedAt).toISOString()
+          : null,
+        outcome: row.outcome || "awaiting_provider",
+      }));
+      const decision = evaluateResultSave({
+        status: incomingStatus,
+        attempts,
+        isQueueHead: headId === String(taskObjectId),
+        managerException: Boolean((existingTask as any).managerException),
+      });
+      if (!decision.ok) {
+        return NextResponse.json(
+          { success: false, error: decision.message },
+          { status: 409 }
+        );
+      }
+      if ((existingTask as any).retryNotBefore && new Date((existingTask as any).retryNotBefore).getTime() > Date.now()) {
+        return NextResponse.json(
+          { success: false, error: "נדרשת המתנה לפני ניסיון חוזר לאותו אורח." },
+          { status: 409 }
+        );
+      }
+    }
+
     const now = new Date();
     const round = normalizeRound(body?.round || (existingTask as any)?.round || 1);
     const maxCallRounds =
@@ -2039,9 +2101,18 @@ async function handleUpdate(req: NextRequest, context: RouteContext) {
       $set.round = round;
       $set.lastAttemptAt = now;
 
-      $set.callAnswered =
-        callAnswered ||
-        (nextStatus === "no_answer" ? "no_answer" : "answered");
+      if (isCallResultStatus(nextStatus)) {
+        const guestAnswered = [
+          "confirmed",
+          "declined",
+          "undecided",
+          "callback",
+          "will_reply_message",
+        ].includes(nextStatus);
+        $set.callAnswered = callAnswered || (guestAnswered ? "answered" : "no_answer");
+      } else if (callAnswered) {
+        $set.callAnswered = callAnswered;
+      }
 
       $set.answeredResult = answeredResult || nextStatus || "";
 
