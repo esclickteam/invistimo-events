@@ -2172,13 +2172,13 @@ function getRoundFromQuickFilter(filter: QuickFilter): number {
 function doesGuestMatchCallFilter(
   guest: Guest,
   filter: QuickFilter,
-  selectedRound: 0 | 1 | 2 | 3
+  selectedRound: number
 ) {
   const parsed = parseCallQuickFilter(filter);
 
   if (!parsed.filterType) return true;
 
-  const activeCallRound = (parsed.roundNumber || selectedRound) as 0 | 1 | 2 | 3;
+  const activeCallRound = parsed.roundNumber || selectedRound;
 
   if (parsed.filterType === "round") {
     if (!activeCallRound) return false;
