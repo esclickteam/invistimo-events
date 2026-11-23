@@ -6,6 +6,8 @@ import {
 } from "@/lib/calls/callRoundScheduleTime";
 import {
   getSourceAudienceByRound,
+  isConfiguredHumanCallRound,
+  resolveConfiguredHumanCallRounds,
   type CallRoundNumber,
 } from "@/lib/calls/callRoundEligibility";
 import { isHumanCallsUser, normalizeCallsType } from "@/lib/calls/callsType";
@@ -79,7 +81,7 @@ export async function listScheduledCallRoundsForIsraelDate(
       { "callRoundsSchedule.rounds.scheduledAt": { $exists: true } },
     ],
   })
-    .select("_id name email includeCalls callsType callRoundsSchedule")
+    .select("_id name email includeCalls callsType callsRounds callRoundsSchedule")
     .lean()) as any[];
 
   const relevant = users
@@ -96,6 +98,7 @@ export async function listScheduledCallRoundsForIsraelDate(
         ? user.callRoundsSchedule.rounds
         : [];
 
+      const maxRounds = resolveConfiguredHumanCallRounds(user);
       const matching = rounds
         .map((round: any) => {
           const scheduledAt = parseCallRoundScheduledAt(round?.scheduledAt);
@@ -105,9 +108,8 @@ export async function listScheduledCallRoundsForIsraelDate(
         .filter((item: any) => {
           if (!item.scheduledAt) return false;
           if (isRoundCancelled(item.round)) return false;
-          if (item.roundNumber !== 1 && item.roundNumber !== 2 && item.roundNumber !== 3) {
-            return false;
-          }
+          if (!isConfiguredHumanCallRound(item.roundNumber)) return false;
+          if (item.roundNumber > maxRounds) return false;
           return getCallRoundDateKeyInIsrael(item.scheduledAt) === dateKey;
         });
 

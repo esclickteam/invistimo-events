@@ -95,6 +95,23 @@ export async function POST(
       }
       guest.arrivedCount = nextArrivedCount;
       await guest.save();
+
+      if (nextRsvp === "yes" || nextRsvp === "no") {
+        try {
+          const { withdrawPendingExtraRoundTasksForFinalRsvp } = await import(
+            "@/lib/calls/withdrawFinalRsvpCallTasks"
+          );
+          await withdrawPendingExtraRoundTasksForFinalRsvp({
+            guestId: guest._id,
+            rsvp: nextRsvp,
+          });
+        } catch (withdrawError) {
+          console.error(
+            "withdraw extra-round call tasks failed:",
+            withdrawError
+          );
+        }
+      }
     } else {
       return NextResponse.json({
         success: true,

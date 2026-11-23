@@ -15,10 +15,12 @@ import {
   filterGuestsForCallRound,
   getCallRoundDescription,
   getSourceAudienceByRound as getSharedSourceAudienceByRound,
+  isConfiguredHumanCallRound,
   isNoAnswerCallResult,
   normalizeCallAnswerFromSources,
   type CallRoundNumber,
 } from "@/lib/calls/callRoundEligibility";
+import { loadEarlierHumanCallSignals } from "@/lib/calls/extraRoundCallSignals";
 import {
   linkCallbackCarryForwardHistory,
   loadCallbackGuestIdsByRound,
@@ -49,7 +51,7 @@ const EMPLOYEE_WORK_ORDER_TASK_STATUSES = [
   "wrong_number",
 ];
 
-type RoundNumber = 1 | 2 | 3;
+type RoundNumber = number;
 
 type AuthUser = {
   id: string;
@@ -239,7 +241,7 @@ function endOfDateKey(dateKey: string) {
 function normalizeRound(value: unknown): RoundNumber {
   const round = Number(value);
 
-  if (round === 1 || round === 2 || round === 3) {
+  if (isConfiguredHumanCallRound(round)) {
     return round;
   }
 
@@ -776,11 +778,21 @@ async function loadGuestsForRound(input: {
     });
   }
 
+  const earlierSignals =
+    invitationObjectId && input.round >= 4
+      ? await loadEarlierHumanCallSignals({
+          invitationId: invitationObjectId,
+          beforeRound: input.round,
+        })
+      : null;
+
   const guests = filterGuestsForCallRound({
     guests: allGuests,
     round: input.round as CallRoundNumber,
     previousNoAnswerByRound,
     previousCallbackByRound,
+    earlierNoAnswerGuestIds: earlierSignals?.noAnswer,
+    earlierCallbackGuestIds: earlierSignals?.callback,
   });
 
   return annotateCallbackCarryForward({
@@ -1130,7 +1142,7 @@ export async function GET(req: NextRequest) {
     if (roundParam) {
       const round = Number(roundParam);
 
-      if (round === 1 || round === 2 || round === 3) {
+      if (isConfiguredHumanCallRound(round)) {
         query.round = round;
       }
     }
@@ -1356,6 +1368,8 @@ export async function POST(req: NextRequest) {
           error:
             round === 1 || round === 3
               ? `אין אורחים בהמתנה לשיחה בסבב ${round}`
+              : round >= 4
+                ? `אין מוזמנים זכאים לסבב ${round}. נכנסים מתלבטים, מי שטרם אישר, ומי שלא ענה או ביקש חזרה בסבבים הקודמים, עם טלפון תקין.`
               : `אין אורחים להמשך סבב ${round}. סבב ${round} נפתח רק למי שהיה בסבב ${
                   round - 1
                 } ולא נסגר סופית או שלא נגעו בו.`,

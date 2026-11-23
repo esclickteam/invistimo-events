@@ -17,8 +17,11 @@ import {
   getSourceAudienceByRound as getSharedSourceAudienceByRound,
   isNoAnswerCallResult,
   normalizeCallAnswerFromSources,
+  normalizeHumanCallRoundNumber,
+  resolveConfiguredHumanCallRounds,
   type CallRoundNumber,
 } from "@/lib/calls/callRoundEligibility";
+import { loadEarlierHumanCallSignals } from "@/lib/calls/extraRoundCallSignals";
 import {
   linkCallbackCarryForwardHistory,
   loadCallbackGuestIdsByRound,
@@ -35,7 +38,7 @@ export const dynamic = "force-dynamic";
 const TIMEZONE = "Asia/Jerusalem";
 const SHIFT_COLLECTION = "employeeshifts";
 
-type RoundNumber = 1 | 2 | 3;
+type RoundNumber = number;
 
 type AuthUser = {
   id: string;
@@ -116,30 +119,7 @@ function toObjectId(value: unknown) {
 }
 
 function normalizeRound(value: unknown, fallbackIndex = 0): RoundNumber | null {
-  const hasExplicit =
-    value !== undefined && value !== null && cleanStr(value) !== "";
-
-  if (hasExplicit) {
-    const n = Number(value);
-
-    if (n === 1 || n === 2 || n === 3) return n;
-
-    if (n === 0 || n === 1 || n === 2) {
-      const byIndex = n + 1;
-
-      if (byIndex === 1 || byIndex === 2 || byIndex === 3) {
-        return byIndex;
-      }
-    }
-  }
-
-  const fallback = fallbackIndex + 1;
-
-  if (fallback === 1 || fallback === 2 || fallback === 3) {
-    return fallback;
-  }
-
-  return null;
+  return normalizeHumanCallRoundNumber(value, fallbackIndex);
 }
 
 function normalizePhone(value: unknown) {
@@ -543,22 +523,13 @@ function hasPhoneCallsEnabled(source: any) {
 }
 
 function getMaxCallRounds(source: any) {
-  const values = [
-    source?.callsRounds,
-    source?.allowedCallRounds,
-    source?.phoneCalls?.rounds,
-    source?.calls?.rounds,
-  ];
-
-  for (const value of values) {
-    const n = Number(value);
-
-    if (n === 1 || n === 2 || n === 3) {
-      return n;
-    }
-  }
-
-  return 3;
+  return resolveConfiguredHumanCallRounds({
+    callsRounds:
+      source?.callsRounds ??
+      source?.allowedCallRounds ??
+      source?.phoneCalls?.rounds ??
+      source?.calls?.rounds,
+  });
 }
 
 function isScheduleContainerEnabled(schedule: any) {
@@ -1575,11 +1546,21 @@ async function loadGuestsForRound(input: {
     });
   }
 
+  const earlierSignals =
+    invitationObjectId && input.round >= 4
+      ? await loadEarlierHumanCallSignals({
+          invitationId: invitationObjectId,
+          beforeRound: input.round,
+        })
+      : null;
+
   const guests = filterGuestsForCallRound({
     guests: allGuests,
     round: input.round as CallRoundNumber,
     previousNoAnswerByRound,
     previousCallbackByRound,
+    earlierNoAnswerGuestIds: earlierSignals?.noAnswer,
+    earlierCallbackGuestIds: earlierSignals?.callback,
   });
 
   return annotateCallbackCarryForward({

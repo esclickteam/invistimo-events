@@ -9,6 +9,10 @@ import { getAuthCookieDomain } from "@/lib/env/appEnv";
 import { getCustomerFeatures, getGuestExperienceType } from "@/lib/features/entitlements";
 import { ensurePreRsvpInvitationGrant } from "@/lib/preRsvp/entitlement";
 import { readBearerToken } from "@/lib/auth/bearerToken";
+import {
+  getCallRoundAudienceLabel,
+  listVisibleHumanCallRounds,
+} from "@/lib/calls/callRoundEligibility";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -303,13 +307,7 @@ function callRoundLabelForUser(user: any, round: number) {
     return `סבב מוקלט ${round} · ${audience}`;
   }
 
-  const audience =
-    round === 1
-      ? "ממתינים שעדיין לא נתנו תשובה"
-      : round === 2
-        ? "לא ענו בסבב 1 + ביקשו חזרה"
-        : "לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים";
-  return `סבב שיחות ${round} · ${audience}`;
+  return `סבב שיחות ${round} · ${getCallRoundAudienceLabel(round)}`;
 }
 
 function describeCallRound(userRound: any) {
@@ -332,7 +330,7 @@ function buildMessageRounds(
 ) {
   const locks = invitation?.adminMessageRoundLocks || {};
   const rsvpRounds = [1, 2, 3];
-  const callRounds = [1, 2, 3];
+  const callRounds = listVisibleHumanCallRounds(user);
 
   if (!invitation) {
     return {

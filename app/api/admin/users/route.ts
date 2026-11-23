@@ -19,6 +19,11 @@ import {
   type RsvpRound,
 } from "@/lib/rsvpRoundLock";
 import { parseCallRoundScheduledAt } from "@/lib/calls/callRoundScheduleTime";
+import {
+  isConfiguredHumanCallRound,
+  listVisibleHumanCallRounds,
+  MAX_CONFIGURED_HUMAN_CALL_ROUNDS,
+} from "@/lib/calls/callRoundEligibility";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -369,7 +374,7 @@ function normalizeCallRoundsSchedule(rawSchedule: any, enabled: boolean) {
         })
         .filter(
           (round: any) =>
-            round && round.roundNumber >= 1 && round.roundNumber <= 3
+            round && isConfiguredHumanCallRound(round.roundNumber)
         )
     : [];
 
@@ -386,7 +391,7 @@ function buildMessageRounds(
 ) {
   const locks = invitation?.adminMessageRoundLocks || {};
   const rsvpRounds: RsvpRound[] = [1, 2, 3];
-  const callRounds = [1, 2, 3];
+  const callRounds = listVisibleHumanCallRounds(user);
 
   if (!invitation) {
     return {
@@ -1820,7 +1825,16 @@ export async function POST(req: Request) {
 
       includeCalls: finalIncludeCalls,
       callsType: finalIncludeCalls ? finalCallsType : "human",
-      callsRounds: finalIncludeCalls ? 3 : 0,
+      callsRounds: finalIncludeCalls
+        ? (() => {
+            const requested = Math.floor(
+              Number(body?.callsRounds ?? limits?.callsRounds ?? 3)
+            );
+            if (!Number.isFinite(requested) || requested < 1) return 3;
+            const capped = Math.min(requested, MAX_CONFIGURED_HUMAN_CALL_ROUNDS);
+            return finalCallsType === "ivr" ? Math.min(capped, 3) : capped;
+          })()
+        : 0,
       callsAddonPrice: Number(addons?.calls?.price || 0),
       callRoundsSchedule: normalizeCallRoundsSchedule(
         callRoundsSchedule,

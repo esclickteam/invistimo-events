@@ -8,7 +8,7 @@ import { guardPurgedCustomerWrites } from "@/lib/customers/purgedCustomerGuard";
 
 export type CallWorkOrderType = "rsvp_calls";
 
-export type CallWorkOrderRound = 1 | 2 | 3;
+export type CallWorkOrderRound = number;
 
 export type CallWorkOrderStatus =
   | "scheduled" // נוצרה / ממתינה לפתיחה
@@ -22,7 +22,8 @@ export type CallWorkOrderStatus =
 export type CallWorkOrderSourceAudience =
   | "pending_rsvp" // סבב 1 - כל מי שממתין / טרם השיב
   | "round_1_no_answer" // סבב 2 - מי שלא ענה בסבב 1
-  | "round_2_no_answer"; // סבב 3 - כל מי שבהמתנה
+  | "round_2_no_answer" // סבב 3 - כל מי שבהמתנה
+  | "open_followup"; // סבב 4+ - מתלבטים, טרם אישרו, ולא ענו
 
 export type CallWorkOrderDistributionStrategy =
   | "scheduled_shift_round_robin" // חלוקה לפי עובדים שמשובצים למשמרת באותו יום
@@ -185,14 +186,20 @@ const CallWorkOrderSchema = new Schema<ICallWorkOrder>(
 
     round: {
       type: Number,
-      enum: [1, 2, 3],
+      min: 1,
+      max: 20,
       required: true,
       index: true,
     },
 
     sourceAudience: {
       type: String,
-      enum: ["pending_rsvp", "round_1_no_answer", "round_2_no_answer"],
+      enum: [
+        "pending_rsvp",
+        "round_1_no_answer",
+        "round_2_no_answer",
+        "open_followup",
+      ],
       required: true,
       index: true,
     },

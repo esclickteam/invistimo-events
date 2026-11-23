@@ -14,7 +14,129 @@
  * A final attendance answer (yes / no) always wins over an older callback.
  */
 
-export type CallRoundNumber = 1 | 2 | 3;
+/** Human phone rounds configured per event. Rounds 1–3 keep their own rules. */
+export const DEFAULT_HUMAN_CALL_ROUNDS = 3;
+export const MAX_CONFIGURED_HUMAN_CALL_ROUNDS = 20;
+
+export type CallRoundNumber = number;
+
+export function isConfiguredHumanCallRound(value: unknown): value is number {
+  const n = Number(value);
+  return (
+    Number.isInteger(n) &&
+    n >= 1 &&
+    n <= MAX_CONFIGURED_HUMAN_CALL_ROUNDS
+  );
+}
+
+/**
+ * How many human call rounds this event is allowed to open.
+ * Missing or invalid values stay at 3 so existing events do not change.
+ * Rounds 1–3 callback carry still uses resolveMaxCallRounds, which never exceeds 3.
+ */
+export function resolveConfiguredHumanCallRounds(source: any): number {
+  const raw = Number(source?.callsRounds ?? source?.allowedCallRounds);
+  if (!isConfiguredHumanCallRound(raw)) return DEFAULT_HUMAN_CALL_ROUNDS;
+  return raw;
+}
+
+export function isExtraHumanCallRound(round: number) {
+  return Number.isInteger(round) && round >= 4;
+}
+
+/** A queued call that has not started. Completed attempts stay in history. */
+export function isUntouchedPendingCallTask(task: any) {
+  const status = cleanStr(task?.status).toLowerCase();
+  if (status !== "pending") return false;
+  if (task?.startedAt || task?.completedAt) return false;
+  const attempts = Number(task?.attemptsCount || 0);
+  if (Number.isFinite(attempts) && attempts > 0) return false;
+  return true;
+}
+
+/**
+ * Explicit 1..N is kept. A missing number still falls back only to rounds 1–3,
+ * matching the previous scheduler. 0 is still treated as round 1.
+ */
+export function normalizeHumanCallRoundNumber(
+  value: unknown,
+  fallbackIndex = 0
+): number | null {
+  const hasExplicit =
+    value !== undefined && value !== null && cleanStr(value) !== "";
+
+  if (hasExplicit) {
+    const n = Number(value);
+    if (isConfiguredHumanCallRound(n)) return n;
+    if (n === 0) return 1;
+  }
+
+  const fallback = fallbackIndex + 1;
+  if (fallback === 1 || fallback === 2 || fallback === 3) return fallback;
+  return null;
+}
+
+/** Rounds to show for an event: configured count, plus any higher round already stored. */
+export function listVisibleHumanCallRounds(source: any): number[] {
+  const callsType = cleanStr(source?.callsType).toLowerCase();
+  if (callsType === "ivr") return [1, 2, 3];
+
+  const explicit = Number(source?.callsRounds ?? source?.allowedCallRounds);
+  const base = isConfiguredHumanCallRound(explicit)
+    ? explicit
+    : DEFAULT_HUMAN_CALL_ROUNDS;
+
+  const scheduled = Array.isArray(source?.callRoundsSchedule?.rounds)
+    ? source.callRoundsSchedule.rounds
+        .map((round: any) => Number(round?.roundNumber || round?.round || 0))
+        .filter((n: number) => isConfiguredHumanCallRound(n))
+    : [];
+
+  const top = Math.max(base, ...(scheduled.length ? scheduled : [base]));
+  return Array.from({ length: top }, (_, index) => index + 1);
+}
+
+/** Guest ids that still need a task in this round. Existing tasks are never duplicated. */
+export function selectNewCallTaskGuestIds(
+  eligibleGuestIds: string[],
+  existingGuestIds: Iterable<string>
+) {
+  const existing = new Set(existingGuestIds);
+  const seen = new Set<string>();
+  const created: string[] = [];
+
+  for (const rawId of eligibleGuestIds) {
+    const id = cleanStr(rawId);
+    if (!id || existing.has(id) || seen.has(id)) continue;
+    seen.add(id);
+    created.push(id);
+  }
+
+  return created;
+}
+
+export function extraRoundOpenPlan(input: {
+  round: number;
+  eligibleGuestIds: string[];
+  existingGuestIds: string[];
+  employeeCount: number;
+}) {
+  const guestIds = selectNewCallTaskGuestIds(
+    input.eligibleGuestIds,
+    input.existingGuestIds
+  );
+  const isExtra = isExtraHumanCallRound(input.round);
+  const hasAnything =
+    guestIds.length > 0 || input.existingGuestIds.length > 0;
+
+  return {
+    guestIds,
+    assignEmployees: input.employeeCount > 0,
+    waitingForAssignment:
+      isExtra && input.employeeCount === 0 && hasAnything,
+    skippedAsDuplicate: guestIds.length === 0,
+  };
+}
 
 export type GuestRsvpNormalized = "yes" | "no" | "maybe" | "pending";
 
@@ -131,10 +253,135 @@ export function normalizeGuestRsvpForCalls(value: unknown): GuestRsvpNormalized 
     return "maybe";
   }
 
+  if (
+    raw === "pending" ||
+    raw === "waiting" ||
+    raw === "wait" ||
+    raw === "awaiting" ||
+    raw === "ממתין" ||
+    raw === "בהמתנה" ||
+    raw === "טרם אישר" ||
+    raw === "טרם אישרו" ||
+    raw === "טרם השיב"
+  ) {
+    return "pending";
+  }
+
   if (raw.includes("לא מגיע")) return "no";
   if (raw.includes("מגיע") && !raw.includes("לא")) return "yes";
 
+  // אין מענה / חזרה הם תוצאת שיחה, לא אישור או סירוב.
+  if (isNoAnswerCallResult(raw) || isCallbackNextRoundValue(raw)) {
+    return "pending";
+  }
+
   return "pending";
+}
+
+/**
+ * Attendance for extra rounds comes from the RSVP fields.
+ * guest.status is often the separate call outcome and must not
+ * turn "no_answer" or "callback" into a final yes/no.
+ */
+export function getStoredAttendanceRsvp(guest: any): GuestRsvpNormalized {
+  const raw =
+    guest?.rsvp ??
+    guest?.rsvpStatus ??
+    guest?.attendanceStatus ??
+    guest?.finalRsvpStatus ??
+    "";
+
+  if (!cleanStr(raw)) return "pending";
+  return normalizeGuestRsvpForCalls(raw);
+}
+
+function pushAttemptValues(target: unknown[], source: any) {
+  if (!source || typeof source !== "object") return;
+
+  target.push(
+    source.answerStatus,
+    source.resultStatus,
+    source.status,
+    source.result,
+    source.callResult,
+    source.outcome,
+    source.callStatus,
+    source.callAnswered,
+    source.noAnswerResult,
+    source.answeredResult,
+    source.pendingCallStatus,
+    source.pendingReason,
+    source.nextRoundReason
+  );
+
+  if (source.callbackRequested === true) target.push("callback");
+}
+
+/** True when any attempt, not only the latest one, was no-answer or callback. */
+export function guestHasNoAnswerOrCallbackHistory(guest: any): boolean {
+  const values: unknown[] = [];
+
+  if (Array.isArray(guest?.callRounds)) {
+    for (const row of guest.callRounds) pushAttemptValues(values, row);
+  }
+
+  if (Array.isArray(guest?.callHistory)) {
+    for (const row of guest.callHistory) pushAttemptValues(values, row);
+  }
+
+  for (const list of [
+    guest?.callAttempts,
+    guest?.attempts,
+    guest?.callAttemptHistory,
+  ]) {
+    if (!Array.isArray(list)) continue;
+    for (const row of list) pushAttemptValues(values, row);
+  }
+
+  for (let round = 1; round <= MAX_CONFIGURED_HUMAN_CALL_ROUNDS; round += 1) {
+    const key = `round${round}`;
+    values.push(
+      guest?.[`${key}CallResult`],
+      guest?.[`${key}CallStatus`],
+      guest?.[`${key}AnsweredResult`],
+      guest?.[`${key}NoAnswerResult`],
+      guest?.[`${key}PendingCallStatus`],
+      guest?.[`${key}PendingReason`]
+    );
+    if (guest?.[`${key}CallbackRequested`] === true) values.push("callback");
+  }
+
+  values.push(
+    guest?.lastCallStatus,
+    guest?.lastCallResult,
+    guest?.pendingCallStatus,
+    guest?.pendingReason,
+    guest?.callStatus,
+    guest?.callResult
+  );
+  if (guest?.callbackRequested === true) values.push("callback");
+
+  return values.some(
+    (value) => isNoAnswerCallResult(value) || isCallbackNextRoundValue(value)
+  );
+}
+
+export function classifyCallAttempt(task: any): {
+  noAnswer: boolean;
+  callback: boolean;
+} {
+  const values: unknown[] = [];
+  pushAttemptValues(values, task);
+
+  for (const list of [task?.attempts, task?.callAttempts, task?.attemptHistory]) {
+    if (!Array.isArray(list)) continue;
+    for (const row of list) pushAttemptValues(values, row);
+  }
+
+  return {
+    noAnswer: values.some((value) => isNoAnswerCallResult(value)),
+    callback: values.some((value) => isCallbackNextRoundValue(value)),
+  };
 }
 
 export function getGuestRsvpValue(guest: any): GuestRsvpNormalized {
@@ -156,6 +403,10 @@ export function hasFinalAttendanceRsvp(guest: any) {
   return rsvp === "yes" || rsvp === "no";
 }
 
+/**
+ * Ceiling for the original callback carry (rounds 1–3 only).
+ * A configured count of 4+ must not turn round 3 into a pass-through.
+ */
 export function resolveMaxCallRounds(source: any): 1 | 2 | 3 {
   const raw = Number(source?.callsRounds ?? source?.allowedCallRounds ?? 3);
   if (raw === 1 || raw === 2) return raw;
@@ -360,7 +611,8 @@ export function getGuestStoredCallAnswer(
 export function getCallRoundAudienceLabel(round: CallRoundNumber) {
   if (round === 1) return "ממתינים שעדיין לא נתנו תשובה";
   if (round === 2) return "לא ענו בסבב 1 + ביקשו חזרה";
-  return "לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים";
+  if (round === 3) return "לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים";
+  return "מתלבטים + טרם אישרו + לא ענו";
 }
 
 export function getCallRoundDescription(round: CallRoundNumber) {
@@ -370,13 +622,17 @@ export function getCallRoundDescription(round: CallRoundNumber) {
   if (round === 2) {
     return "סבב 2 - לא ענו בסבב 1 + ביקשו חזרה בסבב הבא";
   }
-  return "סבב 3 - לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים";
+  if (round === 3) {
+    return "סבב 3 - לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים";
+  }
+  return `סבב ${round} - מתלבטים, טרם אישרו, ולא ענו או ביקשו חזרה`;
 }
 
 export function getSourceAudienceByRound(round: CallRoundNumber) {
   if (round === 1) return "pending_rsvp" as const;
   if (round === 2) return "round_1_no_answer" as const;
-  return "round_2_no_answer" as const;
+  if (round === 3) return "round_2_no_answer" as const;
+  return "open_followup" as const;
 }
 
 function hadNoAnswerOnRound(input: {
@@ -414,6 +670,8 @@ export function isGuestEligibleForCallRound(input: {
   round: CallRoundNumber;
   previousNoAnswerByRound?: Partial<Record<1 | 2, Set<string>>>;
   previousCallbackByRound?: Partial<Record<1 | 2, Set<string>>>;
+  earlierNoAnswerGuestIds?: Set<string>;
+  earlierCallbackGuestIds?: Set<string>;
 }): boolean {
   const { guest, round, previousNoAnswerByRound, previousCallbackByRound } = input;
 
@@ -424,6 +682,20 @@ export function isGuestEligibleForCallRound(input: {
 
   if (round === 1) {
     return rsvp === "pending";
+  }
+
+  // Rounds 4–20: current RSVP yes/no excludes. Call-status on guest.status does not.
+  // maybe, waiting/pending, or any earlier no-answer / callback attempt are included.
+  if (round >= 4) {
+    if (round > MAX_CONFIGURED_HUMAN_CALL_ROUNDS) return false;
+
+    const attendance = getStoredAttendanceRsvp(guest);
+    if (attendance === "yes" || attendance === "no") return false;
+    if (attendance === "maybe" || attendance === "pending") return true;
+    if (guestHasNoAnswerOrCallbackHistory(guest)) return true;
+    if (guestId && input.earlierNoAnswerGuestIds?.has(guestId)) return true;
+    if (guestId && input.earlierCallbackGuestIds?.has(guestId)) return true;
+    return false;
   }
 
   if (hasFinalAttendanceRsvp(guest)) return false;
@@ -495,7 +767,13 @@ export function callbackCarryFromRound(input: {
   previousNoAnswerByRound?: Partial<Record<1 | 2, Set<string>>>;
   previousCallbackByRound?: Partial<Record<1 | 2, Set<string>>>;
 }): 1 | 2 | null {
-  if (input.round === 1 || hasFinalAttendanceRsvp(input.guest)) return null;
+  if (
+    input.round === 1 ||
+    input.round >= 4 ||
+    hasFinalAttendanceRsvp(input.guest)
+  ) {
+    return null;
+  }
 
   const guestId = extractGuestId(input.guest?._id || input.guest?.id);
 
@@ -582,6 +860,8 @@ export function filterGuestsForCallRound(input: {
   round: CallRoundNumber;
   previousNoAnswerByRound?: Partial<Record<1 | 2, Set<string>>>;
   previousCallbackByRound?: Partial<Record<1 | 2, Set<string>>>;
+  earlierNoAnswerGuestIds?: Set<string>;
+  earlierCallbackGuestIds?: Set<string>;
 }) {
   const seen = new Set<string>();
   const result: any[] = [];
@@ -593,6 +873,8 @@ export function filterGuestsForCallRound(input: {
         round: input.round,
         previousNoAnswerByRound: input.previousNoAnswerByRound,
         previousCallbackByRound: input.previousCallbackByRound,
+        earlierNoAnswerGuestIds: input.earlierNoAnswerGuestIds,
+        earlierCallbackGuestIds: input.earlierCallbackGuestIds,
       })
     ) {
       continue;

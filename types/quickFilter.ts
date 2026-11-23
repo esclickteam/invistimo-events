@@ -13,6 +13,7 @@ export type QuickFilter =
   | "call_round_1" // סבב 1
   | "call_round_2" // סבב 2
   | "call_round_3" // סבב 3
+  | `call_round_${number}` // סבב 4–20
 
   // 🔽 מענה בשיחה
   | "call_answered" // ענה

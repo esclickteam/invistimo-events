@@ -228,6 +228,7 @@ type UpgradeFormState = {
   plan: string;
   includeCalls: boolean;
   callsType: "human" | "ivr";
+  callsRounds: number;
   includeCreditGifts: boolean;
   includeDigitalSeating: boolean;
   includeEventManagement: boolean;
@@ -688,22 +689,51 @@ function formatCallRoundDateWithWeekday(value?: string | null) {
   return formatCallRoundDateTimeDisplay(value);
 }
 
+function resolveHumanCallRoundCount(
+  user?: AdminUser,
+  callsRounds?: number,
+  callsType?: string
+) {
+  if ((callsType || user?.callsType) === "ivr") return 3;
+  const raw = Number(callsRounds ?? user?.callsRounds ?? 3);
+  if (!Number.isFinite(raw) || raw < 1) return 3;
+  return Math.min(20, Math.max(1, Math.floor(raw)));
+}
+
+function buildScheduledRounds(
+  count: number,
+  previous?: CallRoundsScheduleState["rounds"],
+  user?: AdminUser
+) {
+  return Array.from({ length: count }, (_, index) => {
+    const roundNumber = index + 1;
+    const fromState = previous?.find(
+      (item) => Number(item.roundNumber) === roundNumber
+    );
+    const existing = user?.callRoundsSchedule?.rounds?.find(
+      (item) => Number(item.roundNumber) === roundNumber
+    );
+
+    return {
+      roundNumber,
+      title: fromState?.title || existing?.title || `סבב שיחות ${roundNumber}`,
+      scheduledAt:
+        fromState?.scheduledAt ||
+        formatCallRoundDateInput(existing?.scheduledAt || ""),
+      status:
+        fromState?.status ||
+        existing?.status ||
+        (existing?.scheduledAt ? "scheduled" : "draft"),
+      notes: fromState?.notes || existing?.notes || "",
+    };
+  });
+}
+
 function getInitialCallRoundsSchedule(user?: AdminUser): CallRoundsScheduleState {
+  const count = resolveHumanCallRoundCount(user);
   return {
     enabled: Boolean(user?.callRoundsSchedule?.enabled || user?.includeCalls),
-    rounds: [1, 2, 3].map((roundNumber) => {
-      const existing = user?.callRoundsSchedule?.rounds?.find(
-        (item) => Number(item.roundNumber) === roundNumber
-      );
-
-      return {
-        roundNumber,
-        title: existing?.title || `סבב שיחות ${roundNumber}`,
-        scheduledAt: formatCallRoundDateInput(existing?.scheduledAt || ""),
-        status: existing?.status || (existing?.scheduledAt ? "scheduled" : "draft"),
-        notes: existing?.notes || "",
-      };
-    }),
+    rounds: buildScheduledRounds(count, undefined, user),
   };
 }
 
@@ -1966,8 +1996,8 @@ function CallRoundsScheduleFields({
           </div>
 
           <div className="mt-1 text-xs font-bold text-[#8A7867]">
-            ניתן להשאיר סבב ריק אם עדיין אין תאריך ושעה סופיים. ניתן לתזמן את כל
-            שלושת הסבבים מראש.
+            ניתן להשאיר סבב ריק אם עדיין אין תאריך ושעה סופיים. סבבים 1–3 נשארים
+            כמו שהיו. סבב 4 ומעלה כולל מתלבטים, מי שטרם אישר, ומי שלא ענה.
           </div>
         </div>
 
@@ -1980,7 +2010,7 @@ function CallRoundsScheduleFields({
       </label>
 
       {value.enabled && (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {value.rounds.map((round) => (
             <div
               key={round.roundNumber}
@@ -2085,6 +2115,9 @@ function EditUserModal({
   const [callsType, setCallsType] = useState<"human" | "ivr">(
     user.callsType === "ivr" ? "ivr" : "human"
   );
+  const [callsRounds, setCallsRounds] = useState(() =>
+    resolveHumanCallRoundCount(user)
+  );
   const [kosherRecordedCallsEnabled, setKosherRecordedCallsEnabled] = useState(
     user.kosherRecordedCallsEnabled === true
   );
@@ -2155,6 +2188,7 @@ function EditUserModal({
       ...(user.includeCalls
         ? {
             callsType,
+            ...(callsType === "human" ? { callsRounds } : {}),
           }
         : {}),
       callRoundsSchedule: {
@@ -2652,6 +2686,36 @@ function EditUserModal({
   onChange={setVenueSeatingService}
   purchasedMode
 />
+
+{user.includeCalls && callsType !== "ivr" ? (
+  <label className="mb-4 block rounded-[26px] border border-[#E7D8C6] bg-white p-5">
+    <span className="mb-2 block text-sm font-black text-[#3A2A1C]">
+      מספר סבבי שיחות טלפון אנושיות
+    </span>
+    <input
+      type="number"
+      min={1}
+      max={20}
+      value={callsRounds}
+      onChange={(e) => {
+        const next = resolveHumanCallRoundCount(
+          user,
+          Number(e.target.value),
+          "human"
+        );
+        setCallsRounds(next);
+        setCallRoundsSchedule((current) => ({
+          ...current,
+          rounds: buildScheduledRounds(next, current.rounds, user),
+        }));
+      }}
+      className="h-12 w-32 rounded-2xl border border-[#E7D8C6] bg-white px-4 text-sm font-bold text-[#3A2A1C] outline-none"
+    />
+    <p className="mt-2 text-xs font-bold text-[#8A7867]">
+      ברירת המחדל היא 3. סבב 4 עד 20 נפתח במועד שנקבע, והזכאות מחושבת מחדש בפתיחה.
+    </p>
+  </label>
+) : null}
 
 <CallRoundsScheduleFields
   value={callRoundsSchedule}
@@ -3548,6 +3612,7 @@ function UpgradeUserModal({
     plan: currentPlanKey || pricingPlans[0]?.key || "",
     includeCalls: Boolean(user.includeCalls),
     callsType: user.callsType === "ivr" ? "ivr" : "human",
+    callsRounds: resolveHumanCallRoundCount(user),
     includeCreditGifts: Boolean(user.includeCreditGifts),
     includeDigitalSeating: Boolean(user.includeDigitalSeating),
     includeEventManagement: Boolean(user.includeEventManagement),
@@ -3670,6 +3735,9 @@ const calculatedTotalToPay =
 
       includeCalls: form.includeCalls,
       callsType: form.includeCalls ? form.callsType : "human",
+      ...(form.includeCalls && form.callsType === "human"
+        ? { callsRounds: form.callsRounds }
+        : {}),
       includeCreditGifts: form.includeCreditGifts,
       includeDigitalSeating: form.includeDigitalSeating,
       includeEventManagement: form.includeEventManagement,
@@ -3736,6 +3804,9 @@ const calculatedTotalToPay =
 
       includeCalls: form.includeCalls,
       callsType: form.includeCalls ? form.callsType : "human",
+      ...(form.includeCalls && form.callsType === "human"
+        ? { callsRounds: form.callsRounds }
+        : {}),
       includeCreditGifts: form.includeCreditGifts,
       includeDigitalSeating: form.includeDigitalSeating,
       includeEventManagement: form.includeEventManagement,
@@ -4039,6 +4110,33 @@ const calculatedTotalToPay =
             </div>
           ) : null}
         </section>
+
+{form.includeCalls && form.callsType !== "ivr" ? (
+  <label className="mb-4 block rounded-[26px] border border-[#E7D8C6] bg-white p-5">
+    <span className="mb-2 block text-sm font-black text-[#3A2A1C]">
+      מספר סבבי שיחות טלפון אנושיות
+    </span>
+    <input
+      type="number"
+      min={1}
+      max={20}
+      value={form.callsRounds}
+      onChange={(e) => {
+        const next = resolveHumanCallRoundCount(
+          user,
+          Number(e.target.value),
+          "human"
+        );
+        setForm((prev) => ({ ...prev, callsRounds: next }));
+        setCallRoundsSchedule((current) => ({
+          ...current,
+          rounds: buildScheduledRounds(next, current.rounds, user),
+        }));
+      }}
+      className="h-12 w-32 rounded-2xl border border-[#E7D8C6] bg-white px-4 text-sm font-bold text-[#3A2A1C] outline-none"
+    />
+  </label>
+) : null}
 
 <VenueSeatingServiceFields
   title="שירות הושבה באולם"
