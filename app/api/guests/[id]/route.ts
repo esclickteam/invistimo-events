@@ -1897,6 +1897,21 @@ export async function PUT(req: NextRequest, { params }: RouteContext) {
     */
     await syncCallTasksFromGuest(guest);
 
+    const savedRsvp = String((guest as any).rsvp || "").trim().toLowerCase();
+    if (savedRsvp === "yes" || savedRsvp === "no") {
+      try {
+        const { withdrawPendingExtraRoundTasksForFinalRsvp } = await import(
+          "@/lib/calls/withdrawFinalRsvpCallTasks"
+        );
+        await withdrawPendingExtraRoundTasksForFinalRsvp({
+          guestId: guest._id,
+          rsvp: savedRsvp,
+        });
+      } catch (withdrawError) {
+        console.error("extra-round withdraw failed", withdrawError);
+      }
+    }
+
     const afterGroupId = guest.groupId ? String(guest.groupId) : null;
     const affected = new Set<string>();
 

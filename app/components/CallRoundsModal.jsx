@@ -630,8 +630,8 @@ function buildRoundFromSources(guest, roundNumber) {
   };
 }
 
-function getMaxRoundFromGuest(guest) {
-  const numbers = [1, 2, 3];
+function getMaxRoundFromGuest(guest, minimum = 3) {
+  const numbers = [1, 2, 3, Number(minimum) || 3];
 
   if (Array.isArray(guest?.callRounds)) {
     for (const round of guest.callRounds) {
@@ -662,8 +662,8 @@ function getMaxRoundFromGuest(guest) {
   return Math.max(...numbers, 3);
 }
 
-function buildInitialRounds(guest) {
-  const maxRound = getMaxRoundFromGuest(guest);
+function buildInitialRounds(guest, minimum = 3) {
+  const maxRound = getMaxRoundFromGuest(guest, minimum);
 
   return Array.from({ length: maxRound }, (_, index) =>
     buildRoundFromSources(guest, index + 1)
@@ -680,16 +680,16 @@ function getAllHistory(guest) {
   });
 }
 
-export default function CallRoundsModal({ guest, onClose, onUpdated }) {
-  const [rounds, setRounds] = useState(() => buildInitialRounds(guest));
+export default function CallRoundsModal({ guest, onClose, onUpdated, maxRounds = 3 }) {
+  const [rounds, setRounds] = useState(() => buildInitialRounds(guest, maxRounds));
   const [expandedLogs, setExpandedLogs] = useState({});
   const [showFullHistory, setShowFullHistory] = useState(false);
 
   useEffect(() => {
-    setRounds(buildInitialRounds(guest));
+    setRounds(buildInitialRounds(guest, maxRounds));
     setExpandedLogs({});
     setShowFullHistory(false);
-  }, [guest]);
+  }, [guest, maxRounds]);
 
   const guestName = useMemo(() => {
     return guest?.name || guest?.fullName || "מוזמן";

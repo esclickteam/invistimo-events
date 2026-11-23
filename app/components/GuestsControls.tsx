@@ -8,7 +8,7 @@ type Group = {
   name: string;
 };
 
-type CallRoundFilterValue = 0 | 1 | 2 | 3;
+type CallRoundFilterValue = number;
 
 type Props = {
   search: string;
@@ -51,6 +51,8 @@ type Props = {
    */
   usedRecordsCount?: number;
 
+  humanCallRounds?: number;
+
   onExportExcel: () => Promise<void> | void;
 
   onAddGuest: () => void;
@@ -66,20 +68,24 @@ type FilterButton = {
   label: string;
 };
 
-const CALL_ROUND_FILTERS: FilterButton[] = [
-  {
-    key: "call_round_1" as QuickFilter,
-    label: "סבב 1 · ממתינים שעדיין לא נתנו תשובה",
-  },
-  {
-    key: "call_round_2" as QuickFilter,
-    label: "סבב 2 · לא ענו בסבב 1 + ביקשו חזרה",
-  },
-  {
-    key: "call_round_3" as QuickFilter,
-    label: "סבב 3 · לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים",
-  },
-];
+function buildCallRoundFilters(maxRounds: number): FilterButton[] {
+  const max = Math.min(20, Math.max(1, Math.floor(Number(maxRounds) || 3)));
+  return Array.from({ length: max }, (_, index) => {
+    const round = index + 1;
+    const audience =
+      round === 1
+        ? "ממתינים שעדיין לא נתנו תשובה"
+        : round === 2
+          ? "לא ענו בסבב 1 + ביקשו חזרה"
+          : round === 3
+            ? "לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים"
+            : "מתלבטים + טרם אישרו + לא ענו";
+    return {
+      key: `call_round_${round}` as QuickFilter,
+      label: `סבב ${round} · ${audience}`,
+    };
+  });
+}
 
 const CALL_ANSWER_FILTERS: FilterButton[] = [
   { key: "call_answered" as QuickFilter, label: "ענה" },
@@ -99,21 +105,14 @@ const CALL_NO_ANSWER_RESULT_FILTERS: FilterButton[] = [
 ];
 
 function getRoundNumberFromQuickFilter(quickFilter: QuickFilter) {
-  const value = String(quickFilter || "");
-
-  if (value.includes("round_1")) return 1;
-  if (value.includes("round_2")) return 2;
-  if (value.includes("round_3")) return 3;
-
-  return 0;
+  const match = String(quickFilter || "").match(/call_round_(\d+)/);
+  const round = Number(match?.[1] || 0);
+  if (!Number.isInteger(round) || round < 1 || round > 20) return 0;
+  return round;
 }
 
 function isCallRoundFilter(quickFilter: QuickFilter) {
-  return (
-    quickFilter === ("call_round_1" as QuickFilter) ||
-    quickFilter === ("call_round_2" as QuickFilter) ||
-    quickFilter === ("call_round_3" as QuickFilter)
-  );
+  return /^call_round_\d+$/.test(String(quickFilter || ""));
 }
 
 function isAnsweredFilter(quickFilter: QuickFilter) {
@@ -183,6 +182,7 @@ export default function GuestsControls({
   recordsLimit = 0,
   phoneReviewCount = 0,
   usedRecordsCount,
+  humanCallRounds = 3,
   onExportExcel,
   onAddGuest,
   disabledAddGuest = false,
@@ -575,10 +575,10 @@ export default function GuestsControls({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                {CALL_ROUND_FILTERS.map((filter) => {
+                {buildCallRoundFilters(humanCallRounds).map((filter) => {
                   const roundNumber = getRoundNumberFromQuickFilter(
                     filter.key
-                  ) as 1 | 2 | 3;
+                  );
 
                   const active =
                     quickFilter === filter.key ||

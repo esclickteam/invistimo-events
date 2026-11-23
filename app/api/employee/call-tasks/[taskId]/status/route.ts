@@ -148,7 +148,7 @@ function normalizeRound(value: unknown) {
 
   if (!Number.isFinite(n) || n < 1) return 1;
 
-  return Math.max(1, Math.min(10, Math.floor(n)));
+  return Math.max(1, Math.min(20, Math.floor(n)));
 }
 
 function normalizeCallAnswered(value: unknown): CallAnswered {
@@ -1799,6 +1799,20 @@ async function syncInvitationGuest(input: {
     },
     updatePayload
   );
+
+  if (set.rsvp === "yes" || set.rsvp === "no") {
+    try {
+      const { withdrawPendingExtraRoundTasksForFinalRsvp } = await import(
+        "@/lib/calls/withdrawFinalRsvpCallTasks"
+      );
+      await withdrawPendingExtraRoundTasksForFinalRsvp({
+        guestId: guestObjectId,
+        rsvp: set.rsvp,
+      });
+    } catch (withdrawError) {
+      console.error("extra-round withdraw failed", withdrawError);
+    }
+  }
 }
 
 async function resolveMaxCallRoundsForTask(task: any): Promise<1 | 2 | 3> {

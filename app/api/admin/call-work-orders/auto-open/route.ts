@@ -15,10 +15,15 @@ import {
   filterGuestsForCallRound,
   getCallRoundDescription,
   getSourceAudienceByRound as getSharedSourceAudienceByRound,
+  isConfiguredHumanCallRound,
   isNoAnswerCallResult,
   normalizeCallAnswerFromSources,
+  normalizeHumanCallRoundNumber,
+  isUntouchedPendingCallTask,
+  selectNewCallTaskGuestIds,
   type CallRoundNumber,
 } from "@/lib/calls/callRoundEligibility";
+import { loadEarlierHumanCallSignals } from "@/lib/calls/extraRoundCallSignals";
 import {
   linkCallbackCarryForwardHistory,
   loadCallbackGuestIdsByRound,
@@ -75,7 +80,7 @@ const SAFE_MOVE_WORK_ORDER_STATUSES = [
   "pending",
 ] as const;
 
-type RoundNumber = 1 | 2 | 3;
+type RoundNumber = number;
 
 type AuthUser = {
   id: string;
@@ -176,30 +181,7 @@ function toObjectId(value: unknown) {
 }
 
 function normalizeRound(value: unknown, fallbackIndex = 0): RoundNumber | null {
-  const hasExplicit =
-    value !== undefined && value !== null && cleanStr(value) !== "";
-
-  if (hasExplicit) {
-    const n = Number(value);
-
-    if (n === 1 || n === 2 || n === 3) return n;
-
-    if (n === 0 || n === 1 || n === 2) {
-      const byIndex = n + 1;
-
-      if (byIndex === 1 || byIndex === 2 || byIndex === 3) {
-        return byIndex;
-      }
-    }
-  }
-
-  const fallback = fallbackIndex + 1;
-
-  if (fallback === 1 || fallback === 2 || fallback === 3) {
-    return fallback;
-  }
-
-  return null;
+  return normalizeHumanCallRoundNumber(value, fallbackIndex);
 }
 
 function isAdminRole(role?: string) {
@@ -649,6 +631,11 @@ function extractScheduledRoundsForDate(
 
       if (!round) return;
 
+      const explicitMax = Number(
+        container?.callsRounds ?? container?.allowedCallRounds
+      );
+      if (isConfiguredHumanCallRound(explicitMax) && round > explicitMax) return;
+
       const scheduledAt = getRoundScheduledAt(raw);
 
       if (!scheduledAt) return;
@@ -968,6 +955,13 @@ async function loadScheduleCandidates(
     }
 
     for (const roundInfo of rounds) {
+      const ownerMax = Number(
+        clientUser?.callsRounds ?? clientUser?.allowedCallRounds
+      );
+      if (isConfiguredHumanCallRound(ownerMax) && roundInfo.round > ownerMax) {
+        continue;
+      }
+
       const resolved = resolveAssigneesForRound({
         scheduledAt: roundInfo.scheduledAt,
         dateKey,
@@ -1524,11 +1518,21 @@ async function loadGuestsForRound(input: {
     });
   }
 
+  const earlierSignals =
+    invitationObjectId && input.round >= 4
+      ? await loadEarlierHumanCallSignals({
+          invitationId: invitationObjectId,
+          beforeRound: input.round,
+        })
+      : null;
+
   const guests = filterGuestsForCallRound({
     guests: allGuests,
     round: input.round as CallRoundNumber,
     previousNoAnswerByRound,
     previousCallbackByRound,
+    earlierNoAnswerGuestIds: earlierSignals?.noAnswer,
+    earlierCallbackGuestIds: earlierSignals?.callback,
   });
 
   return annotateCallbackCarryForward({
@@ -2310,6 +2314,42 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
     );
   }
 
+  if (candidate.round >= 4) {
+    const eligibleIdSet = new Set(
+      eligibleGuests
+        .map((guest: any) => extractIdString(guest?._id))
+        .filter(Boolean)
+    );
+    const cancelIds = existingTasks
+      .filter((task: any) => {
+        const guestId = extractIdString(task?.guestId);
+        if (!guestId || eligibleIdSet.has(guestId)) return false;
+        return isUntouchedPendingCallTask(task);
+      })
+      .map((task: any) => task._id);
+
+    if (cancelIds.length) {
+      await CallTask.updateMany(
+        { _id: { $in: cancelIds } },
+        {
+          $set: {
+            status: "cancelled",
+            adminNote:
+              "הוסר מתור הסבב כי הסטטוס העדכני אינו זכאי, בלי למחוק היסטוריה",
+            updatedAt: now,
+          },
+        }
+      );
+    }
+  }
+
+  const missingGuestIds = new Set(
+    selectNewCallTaskGuestIds(
+      eligibleGuests.map((guest: any) => extractIdString(guest?._id)),
+      existingGuestIds
+    )
+  );
+
   const docsToInsert: any[] = [];
 
   for (const guest of eligibleGuests) {
@@ -2318,7 +2358,8 @@ async function reconcileExistingWorkOrderWithEligibleGuests(input: {
 
     if (!guestId || !guestObjectId) continue;
 
-    if (existingGuestIds.has(guestId)) continue;
+    if (!missingGuestIds.has(guestId)) continue;
+    missingGuestIds.delete(guestId);
 
     const carry = callbackCarryTaskPatch(guest);
     const previousEmployee = previousEmployeeByGuestId.get(guestId);
@@ -2483,6 +2524,8 @@ async function markCallRoundWaitingForAssignment(input: {
   invitation: any;
   round: RoundNumber;
   now?: Date;
+  tasksCreated?: number;
+  notes?: string;
 }) {
   const now = input.now || new Date();
   const userId =
@@ -2491,21 +2534,31 @@ async function markCallRoundWaitingForAssignment(input: {
 
   if (!userId) return;
 
+  const set: Record<string, unknown> = {
+    "callRoundsSchedule.rounds.$.status": "waiting_for_assignment",
+    "callRoundsSchedule.rounds.$.updatedAt": now,
+  };
+
+  if (typeof input.tasksCreated === "number") {
+    set["callRoundsSchedule.rounds.$.tasksCreated"] = input.tasksCreated;
+  }
+
+  if (input.notes) {
+    set["callRoundsSchedule.rounds.$.notes"] = input.notes;
+  }
+
   await User.collection.updateOne(
     {
       _id: userId,
       "callRoundsSchedule.rounds": {
         $elemMatch: {
           roundNumber: input.round,
-          status: { $nin: ["opened", "done", "cancelled"] },
+          status: { $nin: ["done", "cancelled"] },
         },
       },
     },
     {
-      $set: {
-        "callRoundsSchedule.rounds.$.status": "waiting_for_assignment",
-        "callRoundsSchedule.rounds.$.updatedAt": now,
-      },
+      $set: set,
     }
   );
 }
@@ -2626,21 +2679,33 @@ async function createWorkOrderForCandidate(input: {
       dateKey,
     });
 
-    await markCallRoundScheduleOpened({
-      clientUser: candidate.clientUser,
-      invitation: candidate.invitation,
-      round: candidate.round,
-      tasksCreated: Number(
-        (reconciled as any)?.workOrder?.totalTasks ||
-          (reconciled as any)?.eligibleGuestsCount ||
-          existingResult.workOrder?.totalTasks ||
-          0
-      ),
-      openedAt:
-        existingResult.workOrder?.autoOpenAt ||
-        existingResult.workOrder?.createdAt ||
-        new Date(),
-    });
+    const reconciledTasks = Number(
+      (reconciled as any)?.workOrder?.totalTasks ||
+        (reconciled as any)?.eligibleGuestsCount ||
+        existingResult.workOrder?.totalTasks ||
+        0
+    );
+
+    if (candidate.round >= 4 && scheduledEmployees.length === 0) {
+      await markCallRoundWaitingForAssignment({
+        clientUser: candidate.clientUser,
+        invitation: candidate.invitation,
+        round: candidate.round,
+        tasksCreated: reconciledTasks,
+        notes: `סבב ${candidate.round} ממתין לשיוך: אין משמרת זמינה. המשימות נשארו בתור.`,
+      });
+    } else {
+      await markCallRoundScheduleOpened({
+        clientUser: candidate.clientUser,
+        invitation: candidate.invitation,
+        round: candidate.round,
+        tasksCreated: reconciledTasks,
+        openedAt:
+          existingResult.workOrder?.autoOpenAt ||
+          existingResult.workOrder?.createdAt ||
+          new Date(),
+      });
+    }
 
     return {
       status: "exists",
@@ -2717,7 +2782,7 @@ async function createWorkOrderForCandidate(input: {
     };
   }
 
-  if (!scheduledEmployees.length) {
+  if (!scheduledEmployees.length && candidate.round < 4) {
     await markCallRoundWaitingForAssignment({
       clientUser: candidate.clientUser,
       invitation: candidate.invitation,
@@ -2752,7 +2817,9 @@ async function createWorkOrderForCandidate(input: {
           ? "NO_PENDING_GUESTS_FOR_ROUND_1"
           : candidate.round === 2
             ? "NO_NO_ANSWER_GUESTS_FROM_ROUND_1"
-            : "NO_ELIGIBLE_GUESTS_FOR_ROUND_3",
+            : candidate.round === 3
+              ? "NO_ELIGIBLE_GUESTS_FOR_ROUND_3"
+              : "NO_ELIGIBLE_GUESTS_FOR_FOLLOWUP_ROUND",
       round: candidate.round,
     };
   }
@@ -2837,7 +2904,10 @@ async function createWorkOrderForCandidate(input: {
       createdByUserId: null,
 
       lastDistributedAt: now,
-      notes: `נפתח אוטומטית לפי סבב ${candidate.round} מתאריך ${dateKey}`,
+      notes:
+        candidate.round >= 4 && scheduledEmployees.length === 0
+          ? `סבב ${candidate.round} נפתח ללא משמרת זמינה. המשימות ממתינות לשיוך ומוצגת התראה למנהל.`
+          : `נפתח אוטומטית לפי סבב ${candidate.round} מתאריך ${dateKey}`,
       createdAt: now,
       updatedAt: now,
     });
@@ -3039,13 +3109,24 @@ async function createWorkOrderForCandidate(input: {
     },
   });
 
-  await markCallRoundScheduleOpened({
-    clientUser: candidate.clientUser,
-    invitation: candidate.invitation,
-    round: candidate.round,
-    tasksCreated: taskDocs.length,
-    openedAt: now,
-  });
+  if (candidate.round >= 4 && scheduledEmployees.length === 0) {
+    await markCallRoundWaitingForAssignment({
+      clientUser: candidate.clientUser,
+      invitation: candidate.invitation,
+      round: candidate.round,
+      now,
+      tasksCreated: taskDocs.length,
+      notes: `סבב ${candidate.round} ממתין לשיוך: אין משמרת זמינה. המשימות נשארו בתור.`,
+    });
+  } else {
+    await markCallRoundScheduleOpened({
+      clientUser: candidate.clientUser,
+      invitation: candidate.invitation,
+      round: candidate.round,
+      tasksCreated: taskDocs.length,
+      openedAt: now,
+    });
+  }
 
   const freshWorkOrder = await CallWorkOrder.findById(workOrderId).lean();
 
@@ -3182,7 +3263,7 @@ async function handleAutoOpen(req: NextRequest) {
       try {
         const assignees = candidate.assignedEmployees;
 
-        if (!assignees.length) {
+        if (!assignees.length && candidate.round < 4) {
           await markCallRoundWaitingForAssignment({
             clientUser: candidate.clientUser,
             invitation: candidate.invitation,

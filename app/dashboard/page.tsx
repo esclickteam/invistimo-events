@@ -616,7 +616,7 @@ const canViewActualArrived =
     useState<QuickFilter>("all");
 
       const [selectedCallRound, setSelectedCallRound] =
-    useState<0 | 1 | 2 | 3>(0);
+    useState<number>(0);
     
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -1895,7 +1895,7 @@ const pending = guests.filter(
   };
 
 type ParsedCallQuickFilter = {
-  roundNumber: 0 | 1 | 2 | 3;
+  roundNumber: number;
   filterType:
     | "round"
     | "answered"
@@ -2097,7 +2097,7 @@ function normalizeCallRoundForFilter(round: any): CallRoundForFilter | null {
 
 function getGuestCallRoundForFilter(
   guest: Guest,
-  roundNumber: 0 | 1 | 2 | 3
+  roundNumber: number
 ): CallRoundForFilter | null {
   if (!Array.isArray(guest.callRounds) || guest.callRounds.length === 0) {
     return null;
@@ -2125,21 +2125,21 @@ function parseCallQuickFilter(filter: QuickFilter): ParsedCallQuickFilter {
   const value = String(filter || "");
 
   const combined = value.match(
-    /^call_round_([123])_(answered|no_answer|yes|no|will_reply|callback|needs_correction|undecided)$/
+    /^call_round_([1-9]|1[0-9]|20)_(answered|no_answer|yes|no|will_reply|callback|needs_correction|undecided)$/
   );
 
   if (combined) {
     return {
-      roundNumber: Number(combined[1]) as 1 | 2 | 3,
+      roundNumber: Number(combined[1]),
       filterType: combined[2] as ParsedCallQuickFilter["filterType"],
     };
   }
 
-  const roundOnly = value.match(/^call_round_([123])$/);
+  const roundOnly = value.match(/^call_round_([1-9]|1[0-9]|20)$/);
 
   if (roundOnly) {
     return {
-      roundNumber: Number(roundOnly[1]) as 1 | 2 | 3,
+      roundNumber: Number(roundOnly[1]),
       filterType: "round",
     };
   }
@@ -2165,7 +2165,7 @@ function isCallFilter(filter: QuickFilter) {
   return parseCallQuickFilter(filter).filterType !== null;
 }
 
-function getRoundFromQuickFilter(filter: QuickFilter): 0 | 1 | 2 | 3 {
+function getRoundFromQuickFilter(filter: QuickFilter): number {
   return parseCallQuickFilter(filter).roundNumber;
 }
 
@@ -3068,6 +3068,11 @@ const eventLocation = resolveEventLocation(invitation, event);
   recordsLimit={recordsLimit}
   phoneReviewCount={phoneReviewCount}
   usedRecordsCount={usedRecordsCount}
+  humanCallRounds={
+    isIvrCallsUser(user)
+      ? 3
+      : Math.min(20, Math.max(1, Number((user as any)?.callsRounds || 3) || 3))
+  }
   onExportExcel={handleExportExcel}
   onAddGuest={() => setAddGuestChooserOpen(true)}
   disabledAddGuest={!invitation}
@@ -4078,6 +4083,11 @@ const eventLocation = resolveEventLocation(invitation, event);
       {openCallsGuest && (
         <CallRoundsModal
           guest={openCallsGuest}
+          maxRounds={
+            isIvrCallsUser(user)
+              ? 3
+              : Math.min(20, Math.max(1, Number((user as any)?.callsRounds || 3) || 3))
+          }
           onClose={() => setOpenCallsGuest(null)}
           onUpdated={async (updatedGuest: Guest) => {
             const normalizedUpdatedGuest =
@@ -5662,7 +5672,18 @@ function buildExistingRsvpSchedule(user: any, invitation: any): UserRsvpSchedule
 
   const locks = invitation?.adminMessageRoundLocks || invitation?.messageLocks || {};
 
-  const callItems: UserRsvpScheduleItem[] = [1, 2, 3].map((round) => {
+  const visibleCallRounds = isIvrCallsUser(user)
+    ? [1, 2, 3]
+    : Array.from(
+        {
+          length: Math.min(
+            20,
+            Math.max(1, Number((user as any)?.callsRounds || 3) || 3)
+          ),
+        },
+        (_, index) => index + 1
+      );
+  const callItems: UserRsvpScheduleItem[] = visibleCallRounds.map((round) => {
     const userRound = user?.callRoundsSchedule?.rounds?.find(
       (item: any) => Number(item.roundNumber) === Number(round)
     );

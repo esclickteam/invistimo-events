@@ -18,6 +18,10 @@ import {
 import { applyWeddingChallengesPurchase, getActiveEntitlement } from "@/lib/weddingChallenges/purchase";
 import { parseCallRoundScheduledAt } from "@/lib/calls/callRoundScheduleTime";
 import {
+  isConfiguredHumanCallRound,
+  MAX_CONFIGURED_HUMAN_CALL_ROUNDS,
+} from "@/lib/calls/callRoundEligibility";
+import {
   deleteInvistimoCustomerAccount,
   isInvistimoCustomerAccount,
 } from "@/lib/customers/deleteCustomerAccount";
@@ -141,7 +145,7 @@ function normalizeCallRoundsSchedule(value: any, existing?: any) {
         .map((round: any) => {
           const roundNumber = Number(round?.roundNumber || 0);
 
-          if (![1, 2, 3].includes(roundNumber)) {
+          if (!isConfiguredHumanCallRound(roundNumber)) {
             return null;
           }
 
@@ -200,10 +204,51 @@ function normalizeCallRoundsSchedule(value: any, existing?: any) {
         .filter(Boolean)
     : [];
 
+  for (const existingRound of existingRounds) {
+    const roundNumber = Number(existingRound?.roundNumber || 0);
+    if (!isConfiguredHumanCallRound(roundNumber)) continue;
+    if (rounds.some((round: any) => Number(round?.roundNumber) === roundNumber)) {
+      continue;
+    }
+
+    const wasOpened =
+      existingRound?.status === "opened" ||
+      existingRound?.status === "done" ||
+      Boolean(existingRound?.openedAt);
+
+    if (!wasOpened) continue;
+
+    rounds.push({
+      roundNumber,
+      title: String(existingRound?.title || `סבב שיחות ${roundNumber}`).trim(),
+      scheduledAt: existingRound?.scheduledAt
+        ? new Date(existingRound.scheduledAt)
+        : null,
+      status: String(existingRound?.status || "opened"),
+      notes: String(existingRound?.notes || "").trim(),
+      openedAt: existingRound?.openedAt ? new Date(existingRound.openedAt) : null,
+      tasksCreated:
+        typeof existingRound?.tasksCreated === "number"
+          ? existingRound.tasksCreated
+          : null,
+      updatedAt: new Date(),
+      createdAt: existingRound?.createdAt
+        ? new Date(existingRound.createdAt)
+        : new Date(),
+    });
+  }
+
   return {
     enabled: Boolean(value.enabled),
     rounds: Boolean(value.enabled) ? rounds : [],
   };
+}
+
+function clampHumanCallRounds(value: unknown, includeCalls: boolean) {
+  if (!includeCalls) return 0;
+  const n = Math.floor(Number(value));
+  if (!Number.isFinite(n) || n < 1) return 3;
+  return Math.min(n, MAX_CONFIGURED_HUMAN_CALL_ROUNDS);
 }
 
 function normalizeVenueSeatingService(value: any) {
@@ -703,7 +748,12 @@ export async function PATCH(
             ? "human"
             : undefined,
       callsRounds: hasField(body, "callsRounds")
-        ? Number(body.callsRounds || 0)
+        ? clampHumanCallRounds(
+            body.callsRounds,
+            nextIncludeCalls !== undefined
+              ? Boolean(nextIncludeCalls)
+              : Boolean(currentUser.includeCalls)
+          )
         : nextIncludeCalls !== undefined
           ? nextIncludeCalls
             ? Number(currentUser.callsRounds || 3)

@@ -49,7 +49,15 @@ export async function POST(
     const body = await req.json().catch(() => ({}));
 
     const includeCalls = Boolean(body.includeCalls);
-    const callsRounds = includeCalls ? Number(body.callsRounds || 3) : 0;
+    const requestedRounds = Math.floor(Number(body.callsRounds || 3));
+    const callsRounds = includeCalls
+      ? Math.min(
+          20,
+          Number.isFinite(requestedRounds) && requestedRounds >= 1
+            ? requestedRounds
+            : 3
+        )
+      : 0;
     const callsAddonPrice = includeCalls
       ? Number(body.callsAddonPrice || 0)
       : 0;
