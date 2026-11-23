@@ -234,7 +234,7 @@ export default function GuestsControls({
     }
   }
 
-  function handleRoundClick(roundNumber: 1 | 2 | 3) {
+  function handleRoundClick(roundNumber: number) {
     updateSelectedCallRound(roundNumber);
     setQuickFilter(getRoundQuickFilter(roundNumber));
   }

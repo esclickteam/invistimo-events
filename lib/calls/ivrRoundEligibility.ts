@@ -13,11 +13,10 @@ import {
   extractGuestId,
   getGuestRsvpValue,
   hasGuestPhone,
-  type CallRoundNumber,
   type GuestRsvpNormalized,
 } from "@/lib/calls/callRoundEligibility";
 
-export type IvrRoundNumber = CallRoundNumber;
+export type IvrRoundNumber = 1 | 2 | 3;
 
 export function isFinalRsvp(rsvp: GuestRsvpNormalized) {
   return rsvp === "yes" || rsvp === "no";
