@@ -7,6 +7,7 @@ import {
   getSourceAudienceByRound,
   isGuestEligibleForCallRound,
   listVisibleHumanCallRounds,
+  normalizeHumanCallRoundNumber,
   resolveConfiguredHumanCallRounds,
   resolveMaxCallRounds,
   selectNewCallTaskGuestIds,
@@ -38,6 +39,10 @@ assert.equal(
   getCallRoundAudienceLabel(3),
   "לא ענו בסבבים 1–2 + ביקשו חזרה + מתלבטים"
 );
+assert.equal(normalizeHumanCallRoundNumber(4, 3), 4);
+assert.equal(normalizeHumanCallRoundNumber(20, 19), 20);
+assert.equal(normalizeHumanCallRoundNumber(21, 3), null);
+assert.equal(normalizeHumanCallRoundNumber(1, 0), 1);
 
 assert.equal(
   isGuestEligibleForCallRound({
