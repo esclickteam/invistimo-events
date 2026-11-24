@@ -63,7 +63,9 @@ export function normalizeHumanCallRoundNumber(
   fallbackIndex = 0
 ): number | null {
   const hasExplicit =
-    value !== undefined && value !== null && cleanStr(value) !== "";
+    value !== undefined &&
+    value !== null &&
+    String(value).trim() !== "";
 
   if (hasExplicit) {
     const n = Number(value);

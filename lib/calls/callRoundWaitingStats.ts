@@ -11,6 +11,7 @@
 import {
   filterGuestsForCallRound,
   getGuestStoredCallAnswer,
+  isConfiguredHumanCallRound,
   normalizeGuestRsvpForCalls,
   type CallRoundNumber,
 } from "@/lib/calls/callRoundEligibility";
@@ -23,8 +24,7 @@ export type CallRoundWaitingStats = {
 };
 
 function asCallRoundNumber(round: number): CallRoundNumber | null {
-  if (round === 1 || round === 2 || round === 3) return round;
-  return null;
+  return isConfiguredHumanCallRound(round) ? round : null;
 }
 
 function hasPhoneResultOnRound(guest: any, round: CallRoundNumber) {
