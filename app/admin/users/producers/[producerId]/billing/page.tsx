@@ -185,6 +185,15 @@ export default function ProducerBillingPage() {
     setEditor({ kind, row });
   }
 
+  async function removeFromTracking(row: BillingRow) {
+    const confirmed = window.confirm(
+      `להסיר את ${row.clientName} ממעקב התשלומים?\nהמשתמש עצמו, האירוע והתשלומים שכבר נרשמו לא יימחקו.`,
+    );
+    if (!confirmed) return;
+    setOpenActionsId(null);
+    await post({ action: "untrack", clientId: row.clientId });
+  }
+
   async function runFollowUp(row: BillingRow, mode: "handled" | "tomorrow" | "in_3_days") {
     setOpenActionsId(null);
     await post({
@@ -242,8 +251,8 @@ export default function ProducerBillingPage() {
             <div className="admin-table-scroll">
               <table className="admin-table billing-table">
                 <colgroup>
-                  <col style={{ width: "14%" }} />
                   <col style={{ width: "13%" }} />
+                  <col style={{ width: "12%" }} />
                   <col style={{ width: "8%" }} />
                   <col style={{ width: "6%" }} />
                   <col style={{ width: "6%" }} />
@@ -253,7 +262,7 @@ export default function ProducerBillingPage() {
                   <col style={{ width: "7%" }} />
                   <col style={{ width: "7%" }} />
                   <col style={{ width: "9%" }} />
-                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "9%" }} />
                 </colgroup>
                 <thead>
                   <tr>
@@ -332,6 +341,15 @@ export default function ProducerBillingPage() {
                           </span>
                         </td>
                         <td className="admin-actions-cell" data-label="פעולות">
+                          <div className="flex items-center justify-end gap-1.5 whitespace-nowrap">
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void removeFromTracking(row)}
+                            className="inline-flex h-8 items-center justify-center rounded-[var(--admin-radius-sm)] border border-red-200 bg-white px-2.5 text-xs font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                          >
+                            מחיקה
+                          </button>
                           <AdminActionsMenu
                             open={open}
                             width={248}
@@ -381,6 +399,7 @@ export default function ProducerBillingPage() {
                               </>
                             )}
                           </AdminActionsMenu>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -425,7 +444,7 @@ export default function ProducerBillingPage() {
             </button>
           </form>
           <p className="mt-2 text-xs text-[var(--admin-muted)]">
-            לקוח רגיל שמשויך למפיק רק לניהול לא נכנס למעקב. השיוך כאן לא משנה חבילה או הרשאות, ולא מאפשר חיוב כפול.
+            לקוח רגיל שמשויך למפיק רק לניהול לא נכנס למעקב. השיוך כאן לא משנה חבילה או הרשאות, ולא מאפשר חיוב כפול. מחיקה מסירה את הלקוח מהמסך הזה בלבד, בלי למחוק את המשתמש.
           </p>
         </>
       ) : null}

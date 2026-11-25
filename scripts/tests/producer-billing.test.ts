@@ -6,6 +6,7 @@ import {
   buildCollectionPaymentUpdate,
   buildFinalRecordsUpdate,
   canAssignCollectionPayer,
+  isHiddenFromCollectionScreen,
   isInProducerCollection,
   resolveProducerBill,
 } from "../../lib/producerBilling/calc";
@@ -148,6 +149,24 @@ test("admin can attach a regular client once, and cannot double-bill", () => {
     canAssignCollectionPayer({ role: "user", billingSource: "venue" }, "producer-a").code,
     "VENUE_CLIENT",
   );
+});
+
+test("hiding a client removes them from the collection screen only", () => {
+  const hidden = {
+    role: "client",
+    billingSource: "producer",
+    assignedProducerId: "producer-a",
+    producerBilling: {
+      payerProducerId: "producer-a",
+      hiddenFromCollection: true,
+      payments: [{ amount: 100 }],
+    },
+  };
+
+  assert.equal(isHiddenFromCollectionScreen(hidden), true);
+  assert.equal(isInProducerCollection(hidden, "producer-a"), true);
+  assert.equal(canAssignCollectionPayer(hidden, "producer-a").ok, true);
+  assert.equal(resolveProducerBill(hidden).paidAmount, 100);
 });
 
 test("billing updates do not touch quotas, guest data, or hasPaid", () => {

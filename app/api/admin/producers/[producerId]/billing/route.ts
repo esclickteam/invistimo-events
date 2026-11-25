@@ -11,6 +11,7 @@ import {
   buildFinalRecordsUpdate,
   buildPriceUpdate,
   canAssignCollectionPayer,
+  isHiddenFromCollectionScreen,
   isInProducerCollection,
   isPaymentMethod,
   resolveProducerBill,
@@ -83,7 +84,11 @@ async function loadCollectionClients(producerId: mongoose.Types.ObjectId) {
     )
     .lean();
 
-  return candidates.filter((client) => isInProducerCollection(client as any, producerId));
+  return candidates.filter(
+    (client) =>
+      isInProducerCollection(client as any, producerId) &&
+      !isHiddenFromCollectionScreen(client as any),
+  );
 }
 
 async function decorateClients(
@@ -295,6 +300,7 @@ export async function POST(
         {
           $set: {
             "producerBilling.payerProducerId": producer._id,
+            "producerBilling.hiddenFromCollection": false,
             "producerBilling.pricePerRecord": price,
             "producerBilling.initialRecords": initial,
             ...(alreadyConfirmed
@@ -329,6 +335,15 @@ export async function POST(
     const client = await User.findById(clientId);
     if (!client || !assertCollectionClient(client, producer._id)) {
       return NextResponse.json({ success: false, error: "NOT_FOUND" }, { status: 404 });
+    }
+
+    if (action === "untrack") {
+      await User.updateOne(
+        { _id: client._id },
+        { $set: { "producerBilling.hiddenFromCollection": true } },
+      );
+      const payload = await billingPayload(String(producer._id));
+      return NextResponse.json({ success: true, ...payload });
     }
 
     if (action === "payment") {
