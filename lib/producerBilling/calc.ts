@@ -50,6 +50,7 @@ export type ProducerBillInput = {
   assignedProducerId?: unknown;
   producerBilling?: {
     payerProducerId?: unknown;
+    hiddenFromCollection?: boolean | null;
     pricePerRecord?: number | null;
     initialRecords?: number | null;
     finalRecords?: number | null;
@@ -143,6 +144,10 @@ export function resolveProducerBill(user: ProducerBillInput): ProducerBillView {
   };
 }
 
+export function isHiddenFromCollectionScreen(user: ProducerBillInput) {
+  return user.producerBilling?.hiddenFromCollection === true;
+}
+
 export function isInProducerCollection(
   user: ProducerBillInput,
   producerId: unknown,
@@ -175,12 +180,13 @@ export function canAssignCollectionPayer(
   const payer = user.producerBilling?.payerProducerId
     ? String(user.producerBilling.payerProducerId)
     : "";
+  const hidden = isHiddenFromCollectionScreen(user);
 
   if (payer && payer !== producer) {
     return { ok: false as const, code: "ALREADY_BILLED_BY_ANOTHER_PRODUCER" };
   }
 
-  if (payer && payer === producer) {
+  if (!hidden && payer && payer === producer) {
     return { ok: false as const, code: "ALREADY_TRACKED" };
   }
 
@@ -189,7 +195,7 @@ export function canAssignCollectionPayer(
     if (primary && primary !== producer) {
       return { ok: false as const, code: "ALREADY_BILLED_BY_ANOTHER_PRODUCER" };
     }
-    if (primary === producer) {
+    if (!hidden && primary === producer) {
       return { ok: false as const, code: "ALREADY_TRACKED" };
     }
   }

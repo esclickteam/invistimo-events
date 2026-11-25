@@ -3,7 +3,12 @@ import User from "@/models/User";
 import Event from "@/models/Event";
 import Invitation from "@/models/Invitation";
 import InvitationGuest from "@/models/InvitationGuest";
-import { isInProducerCollection, resolveProducerBill, roundMoney } from "@/lib/producerBilling/calc";
+import {
+  isHiddenFromCollectionScreen,
+  isInProducerCollection,
+  resolveProducerBill,
+  roundMoney,
+} from "@/lib/producerBilling/calc";
 import { openDebtAmount } from "@/lib/producerBilling/notices";
 
 function eventTitle(event: {
@@ -95,7 +100,11 @@ export async function loadTrackedCollectionClients(): Promise<TrackedCollectionC
 
   const tracked = clients.filter((client) => {
     const producerId = collectionProducerId(client);
-    return Boolean(producerId) && isInProducerCollection(client as any, producerId);
+    return (
+      Boolean(producerId) &&
+      isInProducerCollection(client as any, producerId) &&
+      !isHiddenFromCollectionScreen(client as any)
+    );
   });
   if (tracked.length === 0) return [];
 
@@ -182,7 +191,13 @@ export async function loadTrackedCollectionClient(clientId: string) {
     .lean()) as LeanClient | null;
   if (!client) return null;
   const producerId = collectionProducerId(client);
-  if (!producerId || !isInProducerCollection(client as any, producerId)) return null;
+  if (
+    !producerId ||
+    !isInProducerCollection(client as any, producerId) ||
+    isHiddenFromCollectionScreen(client as any)
+  ) {
+    return null;
+  }
   const producer = await User.findById(producerId).select("name").lean();
   const event = await describeClientEvent(clientId, client.eventDate || null);
   return {

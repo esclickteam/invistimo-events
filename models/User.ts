@@ -192,6 +192,7 @@ employeeScope?: "system" | "producer" | "venue" | "client" | null;
   producerBilling?: {
     grantAccessBeforePayment?: boolean;
     payerProducerId?: mongoose.Types.ObjectId | null;
+    hiddenFromCollection?: boolean;
     pricePerRecord?: number;
     initialRecords?: number;
     finalRecords?: number | null;
@@ -1227,6 +1228,10 @@ preRsvpMessages: {
         ref: "User",
         default: null,
         index: true,
+      },
+      hiddenFromCollection: {
+        type: Boolean,
+        default: false,
       },
       pricePerRecord: {
         type: Number,
